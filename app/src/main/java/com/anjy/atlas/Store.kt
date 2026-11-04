@@ -78,7 +78,7 @@ object Store {
         o.put("settings", JSONObject().apply {
             put("name", st.name); put("tone", st.tone); put("quietStart", st.quietStart); put("quietEnd", st.quietEnd)
             put("graceMin", st.graceMin); put("followUps", st.followUps); put("sound", st.sound)
-            put("avatarOn", st.avatarOn); put("speakReplies", st.speakReplies)
+            put("avatarOn", st.avatarOn); put("speakReplies", st.speakReplies); put("theme", st.theme)
         })
         o.put("tasks", JSONArray().apply {
             s.tasks.forEach { t ->
@@ -117,7 +117,8 @@ object Store {
                 quietStart = j.optString("quietStart", "22:30"), quietEnd = j.optString("quietEnd", "06:30"),
                 graceMin = j.optInt("graceMin", 15), followUps = j.optInt("followUps", 1),
                 sound = j.optBoolean("sound", true), avatarOn = j.optBoolean("avatarOn", true),
-                speakReplies = j.optBoolean("speakReplies", false)
+                speakReplies = j.optBoolean("speakReplies", false),
+                theme = j.optString("theme", "dark")
             )
         }
         val ts = o.getJSONArray("tasks")

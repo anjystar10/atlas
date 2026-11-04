@@ -49,7 +49,7 @@ jobs:
       - name: Name the APK
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/debug/app-debug.apk "out/Atlas-0.1.0-build${{ github.run_number }}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "out/Atlas-0.2.0-build${{ github.run_number }}.apk"
           ls -la out
 
       - uses: actions/upload-artifact@v4
@@ -74,5 +74,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "build-${{ github.run_number }}" out/*.apk \
-            --title "Atlas 0.1.0 build ${{ github.run_number }}" \
+            --title "Atlas 0.2.0 build ${{ github.run_number }}" \
             --notes "Debug build from commit ${GITHUB_SHA::7}." --target "$GITHUB_SHA"
