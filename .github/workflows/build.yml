@@ -1,0 +1,71 @@
+name: Build Atlas APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # llama.cpp pinned to an exact commit so every build uses the same on-device model runtime.
+  LLAMA_CPP_REF: 9e2a04a439edc49f08c5acdafefae19dfa25a658
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch llama.cpp (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          ref: ${{ env.LLAMA_CPP_REF }}
+          path: llama.cpp
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests (task and reminder engine)
+        run: ./gradlew --no-daemon :app:testDebugUnitTest
+
+      - name: Build APK
+        run: ./gradlew --no-daemon :app:assembleDebug
+
+      - name: Name the APK
+        run: |
+          mkdir -p out
+          cp app/build/outputs/apk/debug/app-debug.apk "out/Atlas-0.1.0-build${{ github.run_number }}.apk"
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: atlas-apk
+          path: out/*.apk
+
+      - name: Publish to the apk-builds branch
+        run: |
+          git config user.name "atlas-ci"
+          git config user.email "atlas-ci@users.noreply.github.com"
+          git fetch origin apk-builds || true
+          git switch --orphan apk-tmp
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          cp out/*.apk ./Atlas-latest.apk
+          git add -f Atlas-latest.apk
+          git commit -m "APK from build ${{ github.run_number }} (${GITHUB_SHA::7})"
+          git push -f origin apk-tmp:apk-builds
+
+      - name: Attach to a GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "build-${{ github.run_number }}" out/*.apk \
+            --title "Atlas 0.1.0 build ${{ github.run_number }}" \
+            --notes "Debug build from commit ${GITHUB_SHA::7}." --target "$GITHUB_SHA"
