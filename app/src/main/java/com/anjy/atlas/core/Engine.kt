@@ -22,7 +22,8 @@ class Settings(
     var followUps: Int = 1,
     var sound: Boolean = true,
     var avatarOn: Boolean = true,
-    var speakReplies: Boolean = false
+    var speakReplies: Boolean = false,
+    var theme: String = "dark"
 )
 
 class Task(
