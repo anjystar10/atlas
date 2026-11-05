@@ -4,10 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RadialGradient
@@ -33,39 +31,44 @@ class OrbView(context: Context) : View(context) {
     var level = 0f
     /** 0 at rest, 1 while thinking or listening. */
     var energy = 0f
+    /** Reduce Motion: drawn once, holding still. */
     var still = false
     private var shownLevel = 0f
     private var shownEnergy = 0f
     private val start = SystemClock.uptimeMillis()
-    private var lastFrame = 0L
     private val path = Path()
+    private val swirlPath = Path()
     private val body = Paint(Paint.ANTI_ALIAS_FLAG)
     private val glow = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val swirl = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
     private val shine = Paint(Paint.ANTI_ALIAS_FLAG)
     private var sized = 0f
+    private var cxS = 0f; private var cyS = 0f
 
     private val phases = floatArrayOf(0.3f, 1.7f, 2.9f, 4.1f, 5.3f)
     private val speeds = floatArrayOf(0.31f, -0.23f, 0.41f, -0.37f, 0.53f)
     private val harmonics = intArrayOf(2, 3, 4, 5, 7)
     private val weights = floatArrayOf(1f, 0.7f, 0.45f, 0.3f, 0.18f)
 
-    private fun setup(r: Float) {
-        sized = r
-        glow.maskFilter = BlurMaskFilter(r * 0.42f, BlurMaskFilter.Blur.NORMAL)
-        rim.maskFilter = BlurMaskFilter(r * 0.05f, BlurMaskFilter.Blur.NORMAL)
-        rim.strokeWidth = r * 0.07f
-        swirl.maskFilter = BlurMaskFilter(r * 0.06f, BlurMaskFilter.Blur.NORMAL)
-        shine.maskFilter = BlurMaskFilter(r * 0.12f, BlurMaskFilter.Blur.NORMAL)
+    // Every soft edge here is a gradient, not a blur: blurs are redrawn on the CPU each frame and cost real battery.
+    private fun setup(r: Float, cx: Float, cy: Float) {
+        sized = r; cxS = cx; cyS = cy
+        glow.shader = RadialGradient(cx, cy, r * 1.75f, intArrayOf(0x8C4664FF.toInt(), 0x403C3CE0, 0x00000000), floatArrayOf(0.45f, 0.7f, 1f), Shader.TileMode.CLAMP)
+        body.shader = RadialGradient(cx - r * 0.3f, cy - r * 0.35f, r * 1.55f,
+            intArrayOf(0xFFB7DCFF.toInt(), 0xFF4C7DFF.toInt(), 0xFF2236C9.toInt(), 0xFF140F5C.toInt(), 0xFF080A2A.toInt()),
+            floatArrayOf(0f, 0.22f, 0.5f, 0.78f, 1f), Shader.TileMode.CLAMP)
+        rim.strokeWidth = r * 0.06f
+        rim.shader = SweepGradient(cx, cy, intArrayOf(0xB38B6CFF.toInt(), 0x00000000, 0xB35FD0FF.toInt(), 0x00000000, 0xB38B6CFF.toInt()), null)
+        shine.shader = RadialGradient(cx - r * 0.34f, cy - r * 0.5f, r * 0.42f, intArrayOf(0x73FFFFFF, 0x00FFFFFF), null, Shader.TileMode.CLAMP)
     }
 
     override fun onDraw(c: Canvas) {
         val w = width.toFloat(); val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
         val r = min(w, h) * 0.34f
-        if (r != sized) setup(r)
         val cx = w / 2; val cy = h / 2
+        if (r != sized || cx != cxS || cy != cyS) setup(r, cx, cy)
         val t = if (still) 0f else (SystemClock.uptimeMillis() - start) / 1000f
         shownLevel += (level - shownLevel) * 0.25f
         shownEnergy += (energy - shownEnergy) * 0.08f
@@ -74,7 +77,7 @@ class OrbView(context: Context) : View(context) {
         val scale = 1f + 0.10f * shownLevel
 
         path.reset()
-        val n = 96
+        val n = 72
         for (i in 0..n) {
             val a = (i.toFloat() / n) * 2f * PI.toFloat()
             var k = 1f
@@ -85,52 +88,50 @@ class OrbView(context: Context) : View(context) {
         }
         path.close()
 
-        // the light it gives off
-        glow.color = Color.argb((90 + 60 * shownEnergy).toInt().coerceAtMost(170), 70, 110, 255)
-        c.drawPath(path, glow)
-        // the body: deep navy at the heart, bright blue toward the light, a touch of violet
-        body.shader = RadialGradient(cx - r * 0.3f, cy - r * 0.35f, r * 1.55f,
-            intArrayOf(0xFFB7DCFF.toInt(), 0xFF4C7DFF.toInt(), 0xFF2236C9.toInt(), 0xFF140F5C.toInt(), 0xFF080A2A.toInt()),
-            floatArrayOf(0f, 0.22f, 0.5f, 0.78f, 1f), Shader.TileMode.CLAMP)
+        // the light it gives off, brighter while it works
+        glow.alpha = (180 + 75 * shownEnergy).toInt().coerceIn(0, 255)
+        c.drawCircle(cx, cy, r * 1.75f * scale, glow)
+        // the body: deep navy at the heart, bright blue toward the light
         c.drawPath(path, body)
-        // swirls of light inside, turning slowly
+        // swirls of light inside, turning slowly: a wide faint stroke under a thin bright one reads as soft light
         c.save()
         c.clipPath(path)
         c.rotate(t * 14f * pace, cx, cy)
         for (k in 0 until 3) {
             val ang = k * 2.1f + t * 0.2f
-            swirl.strokeWidth = r * (0.10f - k * 0.02f)
-            swirl.color = if (k == 1) Color.argb(150, 170, 140, 255) else Color.argb(170, 120, 210, 255)
-            val p = Path()
-            val sx = cx + r * 0.75f * cos(ang); val sy = cy + r * 0.75f * sin(ang)
-            p.moveTo(sx, sy)
-            p.cubicTo(cx + r * 0.2f * cos(ang + 1.4f), cy + r * 0.2f * sin(ang + 1.4f),
+            swirlPath.reset()
+            swirlPath.moveTo(cx + r * 0.75f * cos(ang), cy + r * 0.75f * sin(ang))
+            swirlPath.cubicTo(cx + r * 0.2f * cos(ang + 1.4f), cy + r * 0.2f * sin(ang + 1.4f),
                 cx + r * 0.6f * cos(ang + 2.6f), cy + r * 0.6f * sin(ang + 2.6f),
                 cx + r * 0.9f * cos(ang + 3.4f), cy + r * 0.9f * sin(ang + 3.4f))
-            c.drawPath(p, swirl)
+            val violet = k == 1
+            swirl.strokeWidth = r * (0.22f - k * 0.04f)
+            swirl.color = if (violet) Color.argb(40, 170, 140, 255) else Color.argb(44, 120, 210, 255)
+            c.drawPath(swirlPath, swirl)
+            swirl.strokeWidth = r * (0.08f - k * 0.015f)
+            swirl.color = if (violet) Color.argb(150, 185, 160, 255) else Color.argb(160, 140, 220, 255)
+            c.drawPath(swirlPath, swirl)
         }
         c.restore()
         // a rim of light that travels round: violet and cyan
         c.save()
         c.rotate(-t * 22f * pace, cx, cy)
-        rim.shader = SweepGradient(cx, cy, intArrayOf(0xCC8B6CFF.toInt(), 0x00000000, 0xCC5FD0FF.toInt(), 0x00000000, 0xCC8B6CFF.toInt()), null)
         c.drawPath(path, rim)
         c.restore()
         // the shine at the top left
-        shine.shader = LinearGradient(cx - r, cy - r, cx, cy, Color.argb(110, 255, 255, 255), Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
-        c.drawOval(cx - r * 0.62f, cy - r * 0.7f, cx - r * 0.05f, cy - r * 0.3f, shine)
+        c.drawCircle(cx - r * 0.34f, cy - r * 0.5f, r * 0.42f, shine)
 
-        if (!still && isShown) {
-            // about 30 frames a second is plenty for a slow drift
-            val now = SystemClock.uptimeMillis()
-            val wait = (33 - (now - lastFrame)).coerceAtLeast(0)
-            lastFrame = now + wait
-            postInvalidateDelayed(wait)
-        }
+        // about 24 frames a second is plenty for a slow drift; nothing is drawn while it's off screen
+        if (!still && isShown) postInvalidateDelayed(40)
     }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
+        if (visibility == VISIBLE) invalidate()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
         if (visibility == VISIBLE) invalidate()
     }
 }

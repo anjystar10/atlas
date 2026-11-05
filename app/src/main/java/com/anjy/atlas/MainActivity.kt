@@ -954,7 +954,7 @@ class MainActivity : Activity() {
         lastLogSig = logSignature()
         if (!keepScroll && !switching) enterPage()
         if (!Prefs.haptics(this)) { fun off(v: View) { v.isHapticFeedbackEnabled = false; if (v is ViewGroup) for (i in 0 until v.childCount) off(v.getChildAt(i)) }; off(body); off(nav) }
-        scroll.post { if (tab == 0 && !keepScroll) scroll.fullScroll(View.FOCUS_DOWN) else scroll.scrollTo(0, if (keepScroll) y else 0) }
+        scroll.post { if (tab == 0 && !keepScroll && Conversation.messages.isNotEmpty()) scroll.fullScroll(View.FOCUS_DOWN) else scroll.scrollTo(0, if (keepScroll) y else 0) }
     }
 
     /** The round button beside the bar: talk to Atlas. */
@@ -1081,9 +1081,9 @@ class MainActivity : Activity() {
         if (msgs.isEmpty()) {
             val orb = OrbView(this).apply { still = Prefs.reduceMotion(this@MainActivity); isClickable = true; contentDescription = "Talk to Atlas"; setOnClickListener { voice() } }
             homeOrb = orb
-            body.add(orb, 36, dp(220), dp(220))
+            body.add(orb, 14, dp(184), dp(184))
             (orb.layoutParams as LinearLayout.LayoutParams).gravity = Gravity.CENTER_HORIZONTAL
-            body.add(text(if (name.isNotEmpty()) "Hey $name,\nWhat can I help with?" else "Hey,\nWhat can I help with?", 24f, FG, NUM).apply {
+            body.add(text(if (name.isNotEmpty()) "Hey $name,\nWhat can I help with?" else "Hey there,\nWhat can I help with?", 24f, FG, NUM).apply {
                 gravity = Gravity.CENTER; setLineSpacing(0f, 1.15f)
             }, 6)
             val ideas = listOf("Remind me to call mum tomorrow at 6pm", "Open ChatGPT and ask it how to find diamonds in Minecraft", "What can you do?")
@@ -1094,7 +1094,7 @@ class MainActivity : Activity() {
                     isClickable = true; setOnClickListener { composerField.setText(idea); composerField.setSelection(idea.length); composerField.requestFocus() }
                 }, if (i == 0) 0 else 8)
             }
-            body.add(col, 28)
+            body.add(col, 20)
             if (!Conversation.online(this)) body.add(text("To think properly Atlas needs a free Gemini key: Me → Brain.", 13f, MUTED).apply { gravity = Gravity.CENTER }, 18)
             return
         }
@@ -1680,6 +1680,9 @@ class MainActivity : Activity() {
         you.add(settingRow("Check-In Tone", tones.firstOrNull { it.first == st.tone }?.second ?: "Firm") {
             val i = tones.indexOfFirst { it.first == st.tone }
             Store.edit(this) { it.settings.tone = tones[(i + 1) % tones.size].first }; render(keepScroll = true)
+        }, 8)
+        you.add(switchRow(null, "Reduce Motion", Prefs.reduceMotion(this)) { on ->
+            Store.setFlag(this, "reduceMotion", on); aurora.still = on; render(keepScroll = true)
         }, 8)
         body.add(you, 8)
 

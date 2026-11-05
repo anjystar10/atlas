@@ -3,6 +3,9 @@
 # conversation that uses phone control (against a stand-in server), open the Hey Atlas panel, and check reminders
 # and the floating creature. Writes screenshots and logs to smoke-out/. Non-zero exit if Atlas crashed.
 set -u
+# no single adb call may hang the whole run
+ADB_BIN=$(type -P adb)
+adb() { timeout 120 "$ADB_BIN" "$@"; }
 PKG=com.anjy.atlas
 OUT=smoke-out
 mkdir -p "$OUT"
@@ -35,9 +38,11 @@ seed() {
   python3 tools/seed_state.py "$NOW" "$1" /tmp/state.json
   adb shell am force-stop $PKG
   put_file /tmp/state.json files/atlas-state.json
+  prefs ""
 }
+# Reduce Motion is on from here on: the screen reader used to find buttons only reads a screen that holds still
 prefs() { # writes Atlas's small settings file: $1 = extra <string> lines
-  printf '<?xml version="1.0" encoding="utf-8" standalone="yes" ?>\n<map>\n%s\n</map>\n' "$1" > /tmp/atlas_ui.xml
+  printf '<?xml version="1.0" encoding="utf-8" standalone="yes" ?>\n<map>\n    <boolean name="reduceMotion" value="true" />\n%s\n</map>\n' "$1" > /tmp/atlas_ui.xml
   adb shell am force-stop $PKG
   put_file /tmp/atlas_ui.xml shared_prefs/atlas_ui.xml
 }

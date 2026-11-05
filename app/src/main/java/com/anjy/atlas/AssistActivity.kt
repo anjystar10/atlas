@@ -70,12 +70,12 @@ class AssistActivity : Activity() {
         }
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false; isFillViewport = true }
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(28), dp(56), dp(28), dp(120)) }
-        orb = OrbView(this)
+        orb = OrbView(this).apply { still = Prefs.reduceMotion(this@AssistActivity) }
         col.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
         col.addView(orb, LinearLayout.LayoutParams(dp(210), dp(210)))
         val name = Store.read(this) { it.settings.name }.trim().split(" ").firstOrNull().orEmpty()
         greet = TextView(this).apply {
-            text = if (name.isNotEmpty()) "Hey $name,\nWhat can I help with?" else "Hey,\nWhat can I help with?"
+            text = if (name.isNotEmpty()) "Hey $name,\nWhat can I help with?" else "Hey there,\nWhat can I help with?"
             setTextColor(FG); textSize = 22f; typeface = display; gravity = Gravity.CENTER; letterSpacing = -0.02f
             setLineSpacing(0f, 1.15f)
         }
