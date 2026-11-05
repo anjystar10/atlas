@@ -913,8 +913,7 @@ class MainActivity : Activity() {
         when (requestCode) {
             REQ_MIC -> if (ok) voice() else showBanner("Atlas needs the microphone to hear you.", MUTED)
             REQ_MIC_WAKE -> {
-                if (ok) { Store.edit(this) { it.settings.wakeWord = true }; AvatarService.refresh(this) }
-                else showBanner("“Hey Atlas” needs the microphone.", MUTED)
+                if (ok) enableWake() else showBanner("“Hey Atlas” needs the microphone.", MUTED)
                 if (tab == 2) render(keepScroll = true)
             }
             else -> if (tab == 2) render(keepScroll = true)
@@ -1631,22 +1630,21 @@ class MainActivity : Activity() {
         body.add(eyebrow("Voice"), 16)
         val vc = card()
         val micOk = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val included = Hotword.included(this)
-        vc.addView(switchRow(null, "“Hey Atlas”", st.wakeWord && micOk, enabled = included) { on ->
-            if (on && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        val downloading = Hotword.downloadState
+        vc.addView(switchRow(null, "“Hey Atlas” (beta)", st.wakeWord && micOk && Hotword.ready(this), enabled = downloading == null) { on ->
+            if (!on) { Store.edit(this) { it.settings.wakeWord = false }; AvatarService.refresh(this); body.postDelayed({ if (tab == 2) render(keepScroll = true) }, 600); return@switchRow }
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC_WAKE); return@switchRow
             }
-            Store.edit(this) { it.settings.wakeWord = on }
-            AvatarService.refresh(this)
-            body.postDelayed({ if (tab == 2) render(keepScroll = true) }, 1200)
+            enableWake()
         })
         val hwState = AvatarService.hotwordState()
         vc.add(text(when {
-            !included -> "This build doesn't include the wake word."
-            st.wakeWord && hwState == "listening" -> "Listening for “Hey Atlas”. Android shows its green microphone dot while it listens, and it uses some battery. It works while the phone is unlocked."
+            downloading != null -> "Getting the Hey Atlas model (${Hotword.MODEL_MB} MB, once): $downloading…"
+            st.wakeWord && hwState == "listening" -> "Listening for “Hey Atlas”. Say it clearly; it's in beta and can miss. Android shows its green microphone dot while it listens, and it uses some battery. It works while the phone is unlocked."
             st.wakeWord && !AvatarService.canShow(this) -> "To open its panel from other apps, Atlas also needs “Display over other apps” (Creature below)."
             st.wakeWord -> "Starting… ($hwState)"
-            else -> "Say “Hey Atlas” from anywhere to ask something without opening the app. It's heard on the phone only; nothing is recorded or sent."
+            else -> "Say “Hey Atlas” from anywhere to ask something without opening the app. It's heard on the phone only; nothing is recorded or sent. Switching it on downloads a ${Hotword.MODEL_MB} MB speech model once."
         }, 13f, MUTED), 8)
         vc.add(switchRow(null, "Speak Replies", st.speakReplies) { on -> Store.edit(this) { it.settings.speakReplies = on } }, 8)
         vc.add(text("Spoken questions always get a spoken answer.", 13f, MUTED), 6)
@@ -1743,6 +1741,30 @@ class MainActivity : Activity() {
         bk.add(bkr, 14)
         body.add(bk, 8)
         body.add(text("Atlas ${packageManager.getPackageInfo(packageName, 0).versionName}", 13f, MUTED).apply { gravity = Gravity.CENTER }, 16)
+    }
+
+    /** Switch "Hey Atlas" on: fetch its model first if this phone doesn't have it yet. */
+    private fun enableWake() {
+        if (Hotword.ready(this)) {
+            Store.edit(this) { it.settings.wakeWord = true }; AvatarService.refresh(this)
+            body.postDelayed({ if (tab == 2) render(keepScroll = true) }, 1500)
+            return
+        }
+        if (Hotword.downloadState != null) return
+        var shown = -1
+        scope.launch {
+            render(keepScroll = true)
+            val err = withContext(Dispatchers.IO) {
+                try {
+                    Hotword.download(applicationContext) { pct -> if (pct / 5 != shown / 5) { shown = pct; runOnUiThread { if (tab == 2) render(keepScroll = true) } } }
+                    null
+                } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
+            }
+            if (err != null) showBanner("Couldn't get the Hey Atlas model: $err", MISS)
+            else { Store.edit(this@MainActivity) { it.settings.wakeWord = true }; AvatarService.refresh(this@MainActivity); showBanner("Hey Atlas is ready", DONE) }
+            if (tab == 2) render(keepScroll = true)
+            body.postDelayed({ if (tab == 2) render(keepScroll = true) }, 1500)
+        }
     }
 
     /** One tiny request, to say whether the key and model work. */

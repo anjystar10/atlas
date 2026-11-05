@@ -40,18 +40,6 @@ jobs:
           "$SDKM" --install "ndk;29.0.13113456" "cmake;3.31.6" > /dev/null
           ls "$ANDROID_HOME/ndk" "$ANDROID_HOME/cmake"
 
-      - name: Add the "Hey Atlas" model
-        # Vosk's small English model (Apache 2.0), checked against its known checksum, unpacked into the app's assets
-        run: |
-          for attempt in 1 2 3; do
-            curl -sSL --fail -o vosk-model.zip https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip && break
-            echo "download failed, retrying"; sleep 15
-          done
-          echo "30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498  vosk-model.zip" | sha256sum -c -
-          rm -rf app/src/main/assets/vosk-model && mkdir -p app/src/main/assets
-          unzip -q vosk-model.zip -d /tmp/vosk && mv /tmp/vosk/vosk-model-small-en-us-0.15 app/src/main/assets/vosk-model
-          du -sh app/src/main/assets/vosk-model
-
       - name: Unit tests (task and reminder engine, Gemini messages)
         run: ./gradlew --no-daemon :app:testDebugUnitTest
 

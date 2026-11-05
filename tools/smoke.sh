@@ -142,6 +142,18 @@ adb shell dumpsys activity services $PKG > "$OUT/services.txt"
 adb shell "ls -la /data/data/$PKG/files/" > "$OUT/files.txt" 2>&1
 if crashed; then log "CRASH in creature or wake word"; fi
 
+# Hey Atlas: switching it on downloads its model; then the presence service loads it and opens the microphone
+log "hey atlas model download"
+launch me
+for i in 1 2 3 4 5 6; do tap_desc '“Hey Atlas” (beta)' && break; adb shell input swipe 500 1500 500 700 300; sleep 1; done
+for i in $(seq 1 40); do adb shell "test -f /data/data/$PKG/files/vosk-small-en-us-0.15/.complete" && break; sleep 3; done
+sleep 12; shot hey-atlas-on
+adb shell "ls -laR /data/data/$PKG/files/vosk-small-en-us-0.15/" > "$OUT/vosk-files.txt" 2>&1
+adb shell dumpsys activity services $PKG > "$OUT/services-hey-atlas.txt"
+adb shell dumpsys notification --noredact | grep -A12 "$PKG" > "$OUT/notifications-hey-atlas.txt"
+adb logcat -d | grep -E "AtlasHotword|AtlasPresence" > "$OUT/hotword-log.txt"
+if crashed; then log "CRASH in hey atlas"; fi
+
 adb logcat -d -b crash > "$OUT/crash.txt"
 adb logcat -d > "$OUT/logcat.txt"
 grep -E "AndroidRuntime|FATAL|$PKG|Atlas" "$OUT/logcat.txt" | head -600 > "$OUT/logcat-atlas.txt"

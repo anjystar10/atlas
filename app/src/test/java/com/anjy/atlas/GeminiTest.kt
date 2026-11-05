@@ -122,30 +122,25 @@ class GeminiTest {
         assertEquals("http://127.0.0.1:8765/v1beta/models/", Gemini.endpoint("http://127.0.0.1:8765/v1beta/models/"))
     }
 
-    @Test fun wakeWordStageOneNeedsBothWordsConfidently() {
-        fun res(c1: Double, c2: Double, text: String = "hey atlas") =
-            "{\"result\":[{\"conf\":$c1,\"end\":1.0,\"start\":0.5,\"word\":\"hey\"},{\"conf\":$c2,\"end\":1.5,\"start\":1.0,\"word\":\"atlas\"}],\"text\":\"$text\"}"
-        assertTrue(Hotword.listenerHeard(res(1.0, 0.8)))
-        assertTrue(Hotword.listenerHeard(res(0.7, 0.7)))
-        assertFalse(Hotword.listenerHeard(res(1.0, 0.69)))
-        assertFalse(Hotword.listenerHeard("{\"text\" : \"hey atlas\"}"))          // no word confidences: not trusted
+    @Test fun wakeWordStageOneUsesOnlyFinishedUtterances() {
+        assertTrue(Hotword.listenerHeard("{\"text\" : \"hey atlas\"}"))
+        assertTrue(Hotword.listenerHeard("{\"text\" : \"[unk] hey atlas [unk]\"}"))
         assertFalse(Hotword.listenerHeard("{\"text\" : \"[unk]\"}"))
         assertFalse(Hotword.listenerHeard("{\"partial\" : \"hey atlas\"}"))       // partials never wake it
         assertFalse(Hotword.listenerHeard("not json"))
         assertFalse(Hotword.listenerHeard(null))
+        assertEquals("[\"hey atlas\",\"[unk]\"]", Hotword.grammar(Hotword.LISTEN))
     }
 
-    @Test fun wakeWordStageTwoRejectsLookAlikes() {
+    @Test fun wakeWordStageTwoNeedsTheRealWord() {
         fun t(s: String) = "{\"text\" : \"$s\"}"
         assertTrue(Hotword.checkPasses(t("hey atlas")))
-        assertTrue(Hotword.checkPasses(t("the atlas [unk]")))
-        assertTrue(Hotword.checkPasses(t("okay okay atlas")))
-        assertFalse(Hotword.checkPasses(t("hey alice")))
-        assertFalse(Hotword.checkPasses(t("hey alex")))
+        assertTrue(Hotword.checkPasses(t("the atlas")))
+        assertFalse(Hotword.checkPasses(t("hey dallas")))
         assertFalse(Hotword.checkPasses(t("hey at last")))
-        assertFalse(Hotword.checkPasses(t("hey ellis")))
-        assertFalse(Hotword.checkPasses(t("[unk]")))
+        assertFalse(Hotword.checkPasses(t("hey alice")))
+        assertFalse(Hotword.checkPasses(t("atlantic")))
+        assertFalse(Hotword.checkPasses(t("")))
         assertFalse(Hotword.checkPasses(null))
-        assertEquals("[\"hey atlas\",\"[unk]\"]", Hotword.grammar(Hotword.LISTEN))
     }
 }

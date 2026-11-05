@@ -90,7 +90,7 @@ class AvatarService : Service() {
         creature?.visibility = if (appInFront) View.GONE else View.VISIBLE
         // the wake word
         val micOk = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (wakeOn && micOk && Hotword.included(this)) {
+        if (wakeOn && micOk && Hotword.ready(this)) {
             if (!micGranted && (fromUser || appInFront)) {
                 try {
                     startForeground(ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
@@ -131,7 +131,7 @@ class AvatarService : Service() {
             wakeOn && micGranted && hotword?.state == "listening" -> "Say “Hey Atlas”, or tap to open."
             wakeOn && micGranted -> "Getting “Hey Atlas” ready…"
             wakeOn && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED -> "“Hey Atlas” needs the microphone. Open Atlas to allow it."
-            wakeOn && !Hotword.included(this) -> "This build doesn't include “Hey Atlas”."
+            wakeOn && !Hotword.ready(this) -> "“Hey Atlas” isn't set up yet. Switch it on in Atlas → Me."
             wakeOn -> "Tap “Turn on Hey Atlas” to start listening."
             else -> "Tap to open Atlas."
         }
@@ -141,7 +141,7 @@ class AvatarService : Service() {
             .setContentText(text)
             .setContentIntent(open)
             .setOngoing(true)
-        if (wakeOn && !micGranted && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && Hotword.included(this)) {
+        if (wakeOn && !micGranted && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && Hotword.ready(this)) {
             val mic = PendingIntent.getForegroundService(this, 1, Intent(this, AvatarService::class.java).setAction(ACTION_MIC), PendingIntent.FLAG_IMMUTABLE)
             b.addAction(Notification.Action.Builder(null as android.graphics.drawable.Icon?, "Turn on Hey Atlas", mic).build())
         }
