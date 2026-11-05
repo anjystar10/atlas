@@ -1,7 +1,7 @@
 """Feeds synthetic speech to Vosk in the same grammar mode Atlas uses and reports what fires."""
 import json, subprocess, sys, wave, os
 from vosk import Model, KaldiRecognizer, SetLogLevel
-SetLogLevel(-1)
+SetLogLevel(0)
 model = Model(sys.argv[1])
 GRAMMAR = json.dumps(["hey atlas", "[unk]"])
 phrases = {
