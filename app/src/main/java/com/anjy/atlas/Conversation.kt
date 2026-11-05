@@ -211,8 +211,8 @@ ${Tools.logContext(ctx)}
         while (steps < MAX_STEPS) {
             steps++
             val system = withContext(Dispatchers.IO) { systemPrompt(ctx, spoken) }
-            val req = Gemini.request(system, contents, Tools.declarations, model)
-            val turn = withContext(Dispatchers.IO) { Gemini.call(key, model, req, endpoint(ctx)) }
+            val req = Gemini.request(system, Gemini.trimScreens(contents), Tools.declarations, model)
+            val turn = callWithRetry(ctx, key, model, req)
             currentCoroutineContext().ensureActive()
             contents.add(turn.content)
             if (turn.calls.isEmpty()) { final = turn.text; break }
@@ -234,6 +234,24 @@ ${Tools.logContext(ctx)}
         history.add(Gemini.userText(q))
         history.add(Gemini.modelText(text + stepNote(reply.steps)))
         fixHistory()
+    }
+
+    /** Gemini's free tier sometimes says "busy" or "limit reached": wait and try again rather than drop a task halfway. */
+    private suspend fun callWithRetry(ctx: Context, key: String, model: String, req: JSONObject): Gemini.Turn {
+        val waits = longArrayOf(6_000, 15_000, 30_000)
+        var i = 0
+        while (true) {
+            try {
+                return withContext(Dispatchers.IO) { Gemini.call(key, model, req, endpoint(ctx)) }
+            } catch (f: Gemini.Failure) {
+                val again = f.code == 429 || f.code == 500 || f.code == 503 || f.code == 504
+                if (!again || i >= waits.size) throw f
+                val was = status
+                status = if (f.code == 429) "Waiting for Gemini's free limit" else "Gemini is busy, trying again"; changed()
+                kotlinx.coroutines.delay(waits[i++])
+                status = was; changed()
+            }
+        }
     }
 
     private fun stepNote(steps: List<String>) = if (steps.isEmpty()) "" else "\n(What I did: ${steps.joinToString("; ")})"

@@ -48,6 +48,30 @@ object Gemini {
         return JSONObject().put("role", "user").put("parts", parts)
     }
 
+    /**
+     * Every action returns a full reading of the screen, and the whole task is sent with each step. Only the latest
+     * [keep] readings are useful: older ones are cut to their first line ("Tapped “Send”."), which keeps long tasks
+     * within the free tier's limits. Returns a new list; the turns themselves aren't changed.
+     */
+    fun trimScreens(contents: List<JSONObject>, keep: Int = 2): List<JSONObject> {
+        val withResults = contents.indices.filter { i -> contents[i].optJSONArray("parts")?.let { p -> (0 until p.length()).any { p.optJSONObject(it)?.has("functionResponse") == true } } == true }
+        val old = withResults.dropLast(keep).toSet()
+        if (old.isEmpty()) return contents
+        return contents.mapIndexed { i, c ->
+            if (i !in old) c else {
+                val copy = JSONObject(c.toString())
+                val parts = copy.getJSONArray("parts")
+                for (k in 0 until parts.length()) {
+                    val resp = parts.optJSONObject(k)?.optJSONObject("functionResponse")?.optJSONObject("response") ?: continue
+                    val r = resp.optString("result")
+                    val nl = r.indexOf('\n')
+                    if (nl > 0 && r.length > 300) resp.put("result", r.substring(0, nl) + " (older screen reading left out)")
+                }
+                copy
+            }
+        }
+    }
+
     /** Reads a generateContent response. Throws [Failure] when there's no usable answer. */
     fun parse(body: JSONObject): Turn {
         body.optJSONObject("promptFeedback")?.optString("blockReason")?.takeIf { it.isNotEmpty() }?.let {

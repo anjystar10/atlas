@@ -70,6 +70,21 @@ class GeminiTest {
         assertFalse(parts.getJSONObject(1).getJSONObject("functionResponse").has("id"))
     }
 
+    @Test fun olderScreenReadingsAreShortenedLatestKept() {
+        val screen = "Tapped \"Send\".\nScreen: ChatGPT\n" + "[1] Button \"x\" (tap)\n".repeat(40)
+        fun res(n: Int) = Gemini.toolResults(listOf(Gemini.Call("tap", JSONObject().put("element", n), null) to screen))
+        val calls = JSONObject("{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"tap\",\"args\":{}},\"thoughtSignature\":\"S\"}]}")
+        val contents = listOf(Gemini.userText("go"), calls, res(1), calls, res(2), calls, res(3))
+        val out = Gemini.trimScreens(contents)
+        fun result(c: JSONObject) = c.getJSONArray("parts").getJSONObject(0).getJSONObject("functionResponse").getJSONObject("response").getString("result")
+        assertEquals("Tapped \"Send\". (older screen reading left out)", result(out[2]))
+        assertEquals(screen, result(out[4]))
+        assertEquals(screen, result(out[6]))
+        assertEquals(screen, result(contents[2]))   // the original isn't changed
+        assertEquals("S", out[1].getJSONArray("parts").getJSONObject(0).getString("thoughtSignature"))
+        assertEquals(7, out.size)
+    }
+
     @Test fun errorsReadAsPlainSentences() {
         assertTrue(Gemini.explain(429, "{}").contains("limit"))
         assertTrue(Gemini.explain(400, """{"error":{"message":"API key not valid. Please pass a valid API key."}}""").contains("key isn't valid"))
