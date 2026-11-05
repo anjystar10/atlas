@@ -45,6 +45,12 @@ class OrbView(context: Context) : View(context) {
     private val shine = Paint(Paint.ANTI_ALIAS_FLAG)
     private var sized = 0f
     private var cxS = 0f; private var cyS = 0f
+    // The orb is painted into a small picture on the CPU and the picture is shown: a few milliseconds a frame, and
+    // nothing for the GPU but one image (paths clipped by paths are slow on some GPUs and very slow in emulators).
+    private var pic: android.graphics.Bitmap? = null
+    private var picCanvas: Canvas? = null
+    private val picPaint = Paint(Paint.FILTER_BITMAP_FLAG)
+    private val dst = android.graphics.RectF()
 
     private val phases = floatArrayOf(0.3f, 1.7f, 2.9f, 4.1f, 5.3f)
     private val speeds = floatArrayOf(0.31f, -0.23f, 0.41f, -0.37f, 0.53f)
@@ -63,11 +69,20 @@ class OrbView(context: Context) : View(context) {
         shine.shader = RadialGradient(cx - r * 0.34f, cy - r * 0.5f, r * 0.42f, intArrayOf(0x73FFFFFF, 0x00FFFFFF), null, Shader.TileMode.CLAMP)
     }
 
-    override fun onDraw(c: Canvas) {
+    override fun onDraw(canvas: Canvas) {
         val w = width.toFloat(); val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
-        val r = min(w, h) * 0.34f
-        val cx = w / 2; val cy = h / 2
+        val side = min(w, h)
+        val px = side.toInt().coerceAtMost(360).coerceAtLeast(16)
+        if (pic?.width != px) {
+            pic?.recycle()
+            pic = android.graphics.Bitmap.createBitmap(px, px, android.graphics.Bitmap.Config.ARGB_8888)
+            picCanvas = Canvas(pic!!)
+        }
+        val c = picCanvas!!
+        pic!!.eraseColor(Color.TRANSPARENT)
+        val r = px * 0.34f
+        val cx = px / 2f; val cy = px / 2f
         if (r != sized || cx != cxS || cy != cyS) setup(r, cx, cy)
         val t = if (still) 0f else (SystemClock.uptimeMillis() - start) / 1000f
         shownLevel += (level - shownLevel) * 0.25f
@@ -121,6 +136,9 @@ class OrbView(context: Context) : View(context) {
         // the shine at the top left
         c.drawCircle(cx - r * 0.34f, cy - r * 0.5f, r * 0.42f, shine)
 
+        dst.set((w - side) / 2, (h - side) / 2, (w + side) / 2, (h + side) / 2)
+        canvas.drawBitmap(pic!!, null, dst, picPaint)
+
         // about 24 frames a second is plenty for a slow drift; nothing is drawn while it's off screen
         if (!still && isShown) postInvalidateDelayed(40)
     }
@@ -128,6 +146,11 @@ class OrbView(context: Context) : View(context) {
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
         if (visibility == VISIBLE) invalidate()
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        pic?.recycle(); pic = null; picCanvas = null
     }
 
     override fun onWindowVisibilityChanged(visibility: Int) {

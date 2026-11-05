@@ -1,7 +1,6 @@
 package com.anjy.atlas
 
 import android.Manifest
-import android.animation.ValueAnimator
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
@@ -38,7 +37,7 @@ class AvatarService : Service() {
     private var wm: WindowManager? = null
     private var creature: View? = null
     private var creatureImg: ImageView? = null
-    private var bob: ValueAnimator? = null
+    private val bobStart = android.os.SystemClock.uptimeMillis()
     private var pill: TextView? = null
     private var hotword: Hotword? = null
     private var micGranted = false
@@ -83,7 +82,15 @@ class AvatarService : Service() {
      * only moments Android lets an app begin using the microphone in the background.
      */
     private fun apply(fromUser: Boolean) {
-        val (avatarOn, wakeOn) = prefsOn()
+        var (avatarOn, wakeOn) = prefsOn()
+        if (wakeOn && Hotword.crashedLastTime(this)) {
+            // the speech engine took the app down last time: switch Hey Atlas off and say so, rather than loop
+            Log.e(TAG, "Hey Atlas crashed last time; switching it off")
+            Hotword.clearCrash(this)
+            try { Store.edit(applicationContext) { it.settings.wakeWord = false } } catch (_: Exception) {}
+            Store.setFlag(this, "hotwordCrashed", true)
+            wakeOn = false
+        }
         if (!avatarOn && !wakeOn) { stopSelf(); return }
         // the creature
         if (avatarOn && Settings.canDrawOverlays(this)) addCreature() else removeCreature()
@@ -207,26 +214,29 @@ class AvatarService : Service() {
     }
 
     private fun removeCreature() {
-        bob?.cancel(); bob = null
+        handler.removeCallbacks(bobStep)
         creature?.let { try { wm?.removeView(it) } catch (_: Exception) {} }
         creature = null; creatureImg = null
     }
 
-    /** A gentle float up and down; quicker while Atlas is working. */
-    private fun startBob() {
-        bob?.cancel()
-        val d = resources.displayMetrics.density
-        bob = ValueAnimator.ofFloat(0f, (2 * Math.PI).toFloat()).apply {
-            duration = 2600; repeatCount = ValueAnimator.INFINITE; interpolator = android.view.animation.LinearInterpolator()
-            addUpdateListener { a ->
-                val t = a.animatedValue as Float
+    /**
+     * A gentle float up and down, quicker while Atlas is working. It's on screen all day, so it moves in small steps
+     * about 12 times a second (smooth enough for a slow bob) instead of redrawing at the full frame rate.
+     */
+    private val bobStep = object : Runnable {
+        override fun run() {
+            val img = creatureImg ?: return
+            if (creature?.visibility == View.VISIBLE) {
+                val d = resources.displayMetrics.density
+                val t = (android.os.SystemClock.uptimeMillis() - bobStart) / 1000f * (2f * Math.PI.toFloat() / 2.6f)
                 val busy = Conversation.busy
-                creatureImg?.translationY = sin(t * (if (busy) 2 else 1)) * 3f * d
-                creatureImg?.rotation = if (busy) sin(t * 3) * 4f else 0f
+                img.translationY = sin(t * (if (busy) 2 else 1)) * 3f * d
+                img.rotation = if (busy) sin(t * 3) * 4f else 0f
             }
-            start()
+            handler.postDelayed(this, 80)
         }
     }
+    private fun startBob() { handler.removeCallbacks(bobStep); handler.post(bobStep) }
 
     private fun updateCreatureMood() { /* the bob reads Conversation.busy on every frame */ }
 

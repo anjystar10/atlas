@@ -1641,6 +1641,7 @@ class MainActivity : Activity() {
         val hwState = AvatarService.hotwordState()
         vc.add(text(when {
             downloading != null -> "Getting the Hey Atlas model (${Hotword.MODEL_MB} MB, once): $downloading…"
+            !st.wakeWord && Store.getFlag(this, "hotwordCrashed") -> "Hey Atlas was switched off because its speech engine crashed on this phone. You can switch it on to try again; if it crashes again it switches itself off."
             st.wakeWord && hwState == "listening" -> "Listening for “Hey Atlas”. Say it clearly; it's in beta and can miss. Android shows its green microphone dot while it listens, and it uses some battery. It works while the phone is unlocked."
             st.wakeWord && !AvatarService.canShow(this) -> "To open its panel from other apps, Atlas also needs “Display over other apps” (Creature below)."
             st.wakeWord -> "Starting… ($hwState)"
@@ -1748,6 +1749,7 @@ class MainActivity : Activity() {
 
     /** Switch "Hey Atlas" on: fetch its model first if this phone doesn't have it yet. */
     private fun enableWake() {
+        Store.setFlag(this, "hotwordCrashed", false)
         if (Hotword.ready(this)) {
             Store.edit(this) { it.settings.wakeWord = true }; AvatarService.refresh(this)
             body.postDelayed({ if (tab == 2) render(keepScroll = true) }, 1500)

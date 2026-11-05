@@ -31,7 +31,26 @@ adb logcat -c
 shot() { adb exec-out screencap -p > "$OUT/$1.png"; }
 launch() { adb shell am force-stop $PKG; adb shell am start -W -n $PKG/.MainActivity --es tab "$1" >> "$OUT/steps.txt" 2>&1; sleep 5; }
 alive() { adb shell pidof $PKG >/dev/null; }
-crashed() { adb logcat -d -b crash | grep -q "$PKG"; }
+# Crashes, except one known emulator limit: the wake word's speech engine is ARM code, and this x86 emulator runs ARM
+# code through a translator that can't execute some of its instructions (SIGILL on the atlas-hotword thread).
+# A real ARM phone runs it natively. Every other crash counts.
+real_crashes() {
+  adb logcat -d -b crash > /tmp/crash.txt
+  python3 - "$PKG" <<'PY'
+import re, sys
+pkg = sys.argv[1]
+lines = open('/tmp/crash.txt', encoding='utf-8', errors='replace').read().splitlines()
+real = 0
+for l in lines:
+    if 'Fatal signal' in l and pkg in l:
+        if 'SIGILL' in l and '(atlas-hotword)' in l: continue
+        real += 1
+    if 'AndroidRuntime' in l and 'Process: ' + pkg in l:
+        real += 1
+print(real)
+PY
+}
+crashed() { [ "$(real_crashes)" != "0" ]; }
 owner() { adb shell stat -c %u /data/data/$PKG | tr -d '\r'; }
 put_file() { # local-file app-relative-path
   adb push "$1" /data/local/tmp/put.tmp >/dev/null
@@ -174,6 +193,14 @@ adb shell dumpsys activity services $PKG > "$OUT/services-hey-atlas.txt"
 adb shell dumpsys notification --noredact | grep -A12 "$PKG" > "$OUT/notifications-hey-atlas.txt"
 adb logcat -d | grep -E "AtlasHotword|AtlasPresence" > "$OUT/hotword-log.txt"
 if crashed; then log "CRASH in hey atlas"; fi
+if adb logcat -d -b crash | grep -q "(atlas-hotword)"; then
+  log "EMULATOR LIMIT: the wake word engine (ARM code) hit an instruction this x86 emulator can't translate"
+  sleep 15
+  N=$(adb logcat -d -b crash | grep -c "Fatal signal.*(atlas-hotword)")
+  adb shell "cat /data/data/$PKG/files/atlas-state.json" | grep -o '"wakeWord":[a-z]*' > "$OUT/wakeword-after-crash.txt"
+  log "wake word engine crashes: $N (the guard should stop it at 1); setting now: $(cat "$OUT/wakeword-after-crash.txt")"
+  shot hey-atlas-after-guard
+fi
 
 # any "not responding" reports, with what each thread was doing
 adb shell "ls -la /data/anr/" > "$OUT/anr-list.txt" 2>&1
@@ -183,5 +210,5 @@ adb shell dumpsys gfxinfo $PKG > "$OUT/gfxinfo.txt" 2>&1
 adb logcat -d -b crash > "$OUT/crash.txt"
 adb logcat -d > "$OUT/logcat.txt"
 grep -E "AndroidRuntime|FATAL|$PKG|Atlas" "$OUT/logcat.txt" | head -600 > "$OUT/logcat-atlas.txt"
-if [ -s "$OUT/crash.txt" ] && grep -q "$PKG" "$OUT/crash.txt"; then log "RESULT: CRASHED"; exit 1; fi
+if crashed; then log "RESULT: CRASHED"; exit 1; fi
 log "RESULT: NO CRASHES"
