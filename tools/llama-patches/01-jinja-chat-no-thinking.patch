@@ -1,0 +1,59 @@
+diff --git a/examples/llama.android/lib/src/main/cpp/ai_chat.cpp b/examples/llama.android/lib/src/main/cpp/ai_chat.cpp
+index ca6f717..5e6e64c 100644
+--- a/examples/llama.android/lib/src/main/cpp/ai_chat.cpp
++++ b/examples/llama.android/lib/src/main/cpp/ai_chat.cpp
+@@ -3,6 +3,7 @@
+ #include <iomanip>
+ #include <cmath>
+ #include <string>
++#include <sstream>
+ #include <unistd.h>
+ #include <sampling.h>
+ 
+@@ -286,12 +287,44 @@ static void shift_context() {
+     LOGi("%s: Context shifting done! Current position: %d", __func__, current_position);
+ }
+ 
++// Atlas patch: format with the model's own (Jinja) chat template, with thinking switched off, so models whose
++// format isn't in llama.cpp's built-in list (e.g. Gemma 4) work, and hybrid models (e.g. Qwen3.5) answer directly.
++// Falls back to the built-in formats if the template can't be rendered.
++static std::string atlas_format_single(const std::vector<common_chat_msg> &past, const common_chat_msg &new_msg,
++                                       bool add_ass, bool use_jinja) {
++    const auto *tmpls = g_chat_templates.get();
++    common_chat_templates_inputs inputs;
++    inputs.use_jinja = use_jinja;
++    inputs.enable_thinking = false;
++    inputs.chat_template_kwargs["enable_thinking"] = "false";
++    std::string fmt_past;
++    if (!past.empty()) {
++        inputs.messages = past;
++        inputs.add_generation_prompt = false;
++        fmt_past = common_chat_templates_apply(tmpls, inputs).prompt.str();
++    }
++    std::ostringstream ss;
++    if (add_ass && !fmt_past.empty() && fmt_past.back() == '\n') ss << "\n";
++    inputs.messages.push_back(new_msg);
++    inputs.add_generation_prompt = add_ass;
++    auto fmt_new = common_chat_templates_apply(tmpls, inputs).prompt.str();
++    if (fmt_new.size() < fmt_past.size()) return fmt_new;
++    ss << fmt_new.substr(fmt_past.size());
++    return ss.str();
++}
++
+ static std::string chat_add_and_format(const std::string &role, const std::string &content) {
+     common_chat_msg new_msg;
+     new_msg.role = role;
+     new_msg.content = content;
+-    auto formatted = common_chat_format_single(
+-            g_chat_templates.get(), chat_msgs, new_msg, role == ROLE_USER, /* use_jinja */ false);
++    std::string formatted;
++    try {
++        formatted = atlas_format_single(chat_msgs, new_msg, role == ROLE_USER, /* use_jinja */ true);
++    } catch (const std::exception &e) {
++        LOGw("%s: Jinja template failed (%s), using built-in format", __func__, e.what());
++        formatted = common_chat_format_single(
++                g_chat_templates.get(), chat_msgs, new_msg, role == ROLE_USER, /* use_jinja */ false);
++    }
+     chat_msgs.push_back(new_msg);
+     LOGi("%s: Formatted and added %s message: \n%s\n", __func__, role.c_str(), formatted.c_str());
+     return formatted;

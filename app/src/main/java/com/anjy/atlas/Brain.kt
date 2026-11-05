@@ -244,7 +244,9 @@ object Brain {
         }
         val now = System.currentTimeMillis()
         val stamp = Instant.ofEpochMilli(now).atZone(Engine.zone).let { it.format(dayFmt) + " " + Reminders.fmt(now) }
-        val out = ModelManager.generate(ctx, "[Now: $stamp] $input", onPartial).trim()
+        val raw = ModelManager.generate(ctx, "[Now: $stamp] $input") { partial -> onPartial(visible(partial).ifBlank { "…" }) }
+        val out = visible(raw).trim()
+        if (out.isEmpty() && raw.contains("<think>")) return Reply("I ran out of room while thinking. Ask again, more briefly.", "Local model")
         val call = extractToolCall(out)
         if (call != null) {
             val result = if (call.optString("tool") == "open_app") runTool(ctx, call, now)
@@ -252,6 +254,14 @@ object Brain {
             if (result != null) return Reply(result, "Local model")
         }
         return Reply(out.ifBlank { "(no answer)" }, "Local model")
+    }
+
+    /** What the user should see: reasoning a model writes inside think tags is removed, finished or not. */
+    fun visible(text: String): String {
+        var t = text.replace(Regex("<think>[\\s\\S]*?</think>"), "")
+        val open = t.indexOf("<think>")
+        if (open >= 0) t = t.substring(0, open)
+        return t.replace("</think>", "").trimStart()
     }
 
     private fun extractToolCall(text: String): JSONObject? {

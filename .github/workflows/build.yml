@@ -26,6 +26,13 @@ jobs:
           ref: ${{ env.LLAMA_CPP_REF }}
           path: llama.cpp
 
+      - name: Apply Atlas's runtime patches
+        run: |
+          for p in tools/llama-patches/*.patch; do
+            echo "Applying $p"
+            git -C llama.cpp apply --verbose "$GITHUB_WORKSPACE/$p"
+          done
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
