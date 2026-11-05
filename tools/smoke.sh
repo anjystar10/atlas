@@ -62,8 +62,10 @@ for m in re.finditer(r'<node [^>]*>', x):
 PY
   [ -s /tmp/xy ] && adb shell input tap $(cat /tmp/xy)
 }
+FAILS=0
 say() {
-  tap_desc EDIT || log "no ask field"
+  adb shell cmd statusbar collapse >/dev/null 2>&1; sleep 1
+  tap_desc EDIT || { FAILS=$((FAILS+1)); log "no ask field"; cp /tmp/ui.xml "$OUT/ui-fail-$FAILS.xml" 2>/dev/null; shot "ui-fail-$FAILS"; }
   adb shell input text "$(echo "$1" | sed "s/ /%s/g; s/'//g")"; sleep 1
   tap_desc "Send" || log "no send button"; sleep "${2:-3}"
 }
@@ -89,6 +91,7 @@ done
 log "offline chat commands"
 seed dark
 launch atlas
+sleep 6   # the seeded check-in posts a reminder; let its pop-up pass
 say "help"
 say "remember my bike is blue"
 say "remind me to stretch at 23:30 for 10m"
@@ -104,14 +107,18 @@ python3 tools/mock_gemini.py 8765 "$OUT/gemini" > "$OUT/gemini/server.txt" 2>&1 
 MOCK=$!
 sleep 1
 adb reverse tcp:8765 tcp:8765
-adb shell settings put secure enabled_accessibility_services $PKG/$PKG.AtlasAccess
-adb shell settings put secure accessibility_enabled 1
 seed dark
 prefs '    <string name="gemini_key">test-key-for-the-emulator-0000</string>
     <string name="gemini_endpoint">http://127.0.0.1:8765/v1beta/models/</string>'
 launch me; shot gemini-me-connected
 launch atlas
-say "open settings and tap network and come back" 12
+# phone control on (after the last restart: stopping an app unbinds its accessibility service)
+adb shell settings put secure enabled_accessibility_services $PKG/$PKG.AtlasAccess
+adb shell settings put secure accessibility_enabled 1
+for i in $(seq 1 20); do adb logcat -d | grep -q "AtlasAccess: connected" && break; sleep 1; done
+adb logcat -d | grep -q "AtlasAccess: connected" && log "phone control connected" || log "phone control NOT connected"
+adb shell dumpsys accessibility | grep -iE "atlas|Bound services|Enabled services" > "$OUT/accessibility.txt"
+say "open settings and tap network and come back" 15
 shot gemini-after-phone-task
 launch atlas; shot gemini-chat-after-phone-task
 say "remind me to pick up my sister" 6
@@ -150,8 +157,13 @@ if crashed; then log "CRASH in creature or wake word"; fi
 # Hey Atlas: switching it on downloads its model; then the presence service loads it and opens the microphone
 log "hey atlas model download"
 launch me
-for i in 1 2 3 4 5 6; do tap_desc '“Hey Atlas” (beta)' && break; adb shell input swipe 500 1500 500 700 300; sleep 1; done
-for i in $(seq 1 40); do adb shell "test -f /data/data/$PKG/files/vosk-small-en-us-0.15/.complete" && break; sleep 3; done
+FOUND=0
+for i in 1 2 3 4 5 6 7 8; do if tap_desc '“Hey Atlas” (beta)'; then FOUND=1; break; fi; adb shell input swipe 500 1500 500 900 300; sleep 1; done
+log "hey atlas switch found: $FOUND"
+cp /tmp/ui.xml "$OUT/ui-hey-atlas.xml" 2>/dev/null
+sleep 4; shot hey-atlas-downloading
+for i in $(seq 1 100); do adb shell "test -f /data/data/$PKG/files/vosk-small-en-us-0.15/.complete" && break; sleep 3; done
+adb shell "test -f /data/data/$PKG/files/vosk-small-en-us-0.15/.complete" && log "hey atlas model ready" || log "hey atlas model NOT ready"
 sleep 12; shot hey-atlas-on
 adb shell "ls -laR /data/data/$PKG/files/vosk-small-en-us-0.15/" > "$OUT/vosk-files.txt" 2>&1
 adb shell dumpsys activity services $PKG > "$OUT/services-hey-atlas.txt"
