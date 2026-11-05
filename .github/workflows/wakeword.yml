@@ -1,0 +1,53 @@
+name: Wake word check
+
+on:
+  push:
+    branches: [wakeword-check]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Model, vocabulary, library versions and API
+        run: |
+          mkdir -p out
+          curl -sSL -o model.zip https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip
+          ls -la model.zip | tee out/model-size.txt
+          sha256sum model.zip | tee -a out/model-size.txt
+          unzip -q model.zip
+          find vosk-model-small-en-us-0.15 -type f -exec ls -la {} \; | tee out/model-files.txt
+          du -sh vosk-model-small-en-us-0.15 | tee -a out/model-files.txt
+          W=$(find vosk-model-small-en-us-0.15 -name words.txt | head -1)
+          echo "words file: $W" | tee out/vocab.txt
+          for w in hey atlas hi okay; do printf "%s: " $w; grep -cw "^$w" "$W" || true; done | tee -a out/vocab.txt
+          curl -sS https://repo1.maven.org/maven2/com/alphacephei/vosk-android/maven-metadata.xml > out/vosk-android-meta.xml
+          curl -sS https://repo1.maven.org/maven2/net/java/dev/jna/jna/maven-metadata.xml | grep -o "<latest>[^<]*" > out/jna-latest.txt
+          V=$(grep -o "<release>[^<]*" out/vosk-android-meta.xml | cut -d'>' -f2)
+          echo "vosk-android release: $V" | tee out/versions.txt
+          curl -sSL -o vosk.aar "https://repo1.maven.org/maven2/com/alphacephei/vosk-android/$V/vosk-android-$V.aar"
+          curl -sSL -o vosk.pom "https://repo1.maven.org/maven2/com/alphacephei/vosk-android/$V/vosk-android-$V.pom"
+          cp vosk.pom out/
+          mkdir aar && cd aar && unzip -q ../vosk.aar && find . -type f | sort > ../out/aar-files.txt && cd ..
+          mkdir cls && cd cls && unzip -q ../aar/classes.jar && cd ..
+          for c in org.vosk.android.SpeechService org.vosk.android.RecognitionListener org.vosk.Recognizer org.vosk.Model org.vosk.LibVosk org.vosk.LogLevel; do javap -cp cls "$c" >> out/api.txt 2>&1; done
+          cat out/api.txt
+      - name: Recognise synthetic speech
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq espeak-ng > /dev/null
+          pip install -q vosk
+          python3 tools/ww_test.py vosk-model-small-en-us-0.15 | tee out/recognition.txt
+      - name: Publish
+        if: always()
+        run: |
+          git config user.name "atlas-ci"; git config user.email "atlas-ci@users.noreply.github.com"
+          mkdir -p /tmp/res && cp -r out/* /tmp/res/ || true
+          git switch --orphan ww-tmp
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          mkdir -p results && cp -r /tmp/res/* results/ || true
+          git add -f results && git commit -qm "Wake word check" && git push -f origin ww-tmp:wakeword-results
