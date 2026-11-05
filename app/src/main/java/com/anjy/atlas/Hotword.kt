@@ -53,12 +53,6 @@ class Hotword(private val ctx: Context, private val onWake: () -> Unit) {
 
         fun grammar(words: List<String>) = words.joinToString(",", "[", "]") { "\"$it\"" }
 
-        // If the speech engine ever brings the whole app down (a native crash can't be caught), Atlas must not
-        // start it again and again: a mark is set before it starts and cleared once it has been running a second.
-        private fun guard(ctx: Context) = ctx.getSharedPreferences("hotword_guard", Context.MODE_PRIVATE)
-        /** True when the last start never got going: the app died while the speech engine was starting. */
-        fun crashedLastTime(ctx: Context) = guard(ctx).contains("starting")
-        fun clearCrash(ctx: Context) { guard(ctx).edit().remove("starting").commit() }
 
         private fun dir(ctx: Context) = File(ctx.filesDir, "vosk-$VERSION")
 
@@ -174,8 +168,6 @@ class Hotword(private val ctx: Context, private val onWake: () -> Unit) {
         var rec: AudioRecord? = null
         var listen: Recognizer? = null
         var check: Recognizer? = null
-        var cleared = false
-        guard(ctx).edit().putLong("starting", System.currentTimeMillis()).commit()
         try {
             val model = loadModel(ctx)
             listen = Recognizer(model, RATE.toFloat(), grammar(LISTEN))
@@ -193,7 +185,6 @@ class Hotword(private val ctx: Context, private val onWake: () -> Unit) {
                 val n = rec.read(buf, 0, buf.size)
                 if (n <= 0) { if (n < 0) throw IllegalStateException("microphone read failed ($n)"); continue }
                 utt.write(buf, 0, n)
-                if (!cleared && utt.size() >= RATE * 2) { cleared = true; guard(ctx).edit().remove("starting").apply() }
                 // an utterance that never ends (constant noise): keep only its last 6 seconds for the check
                 if (utt.size() > RATE * 2 * 12) { val keep = utt.toByteArray().takeLast(RATE * 2 * 6).toByteArray(); utt.reset(); utt.write(keep) }
                 if (listen.acceptWaveForm(buf, n)) {
@@ -209,11 +200,8 @@ class Hotword(private val ctx: Context, private val onWake: () -> Unit) {
                     utt.reset()
                 }
             }
-            if (!cleared) guard(ctx).edit().remove("starting").apply()
             if (wanted) state = "paused"
         } catch (e: Throwable) {
-            // a Java-side failure is caught here, so it isn't a crash: clear the mark
-            if (!cleared) guard(ctx).edit().remove("starting").apply()
             Log.e(TAG, "stopped", e)
             state = "error: ${e.message ?: e.javaClass.simpleName}"
             // try again a little later (the mic may have been busy)

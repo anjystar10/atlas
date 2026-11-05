@@ -738,6 +738,8 @@ class MainActivity : Activity() {
     private var statusLine: TextView? = null
     private var shownCount = -1
     private var voiceInput: VoiceInput? = null
+    /** Which service the Brain card in Me is showing. */
+    private var brainShown: String? = null
 
     companion object {
         private const val REQ_MODEL = 11; private const val REQ_IMPORT = 13; private const val REQ_NOTIF = 14; private const val REQ_MIC = 15; private const val REQ_MIC_WAKE = 16
@@ -753,6 +755,7 @@ class MainActivity : Activity() {
     internal fun handleBack() {
         when {
             backStack.isNotEmpty() -> backStack.removeAt(backStack.size - 1)()
+            tab == 1 && logFull -> { logFull = false; render() }
             tab != 0 -> switchTab(0, -1)
             else -> finish()
         }
@@ -896,7 +899,7 @@ class MainActivity : Activity() {
                 val sig = logSignature()
                 if (sig != lastLogSig && currentFocus !is EditText && !switching) {
                     lastLogSig = sig
-                    if (tab == 1 || (tab == 0 && Store.read(this@MainActivity) { s -> s.tasks.any { it.status == "awaiting" } })) render(keepScroll = true)
+                    if (tab == 1) render(keepScroll = true)
                 }
             }
             ticker.postDelayed(this, 30_000)
@@ -931,7 +934,6 @@ class MainActivity : Activity() {
     /** With a Gemini key, the offline model is loaded only when it's needed (it takes a lot of memory). */
     private fun autoLoadModel() {
         if (Conversation.online(this) || ModelManager.ready || ModelManager.modelName(this) == null) return
-        if (ModelManager.lastLoadCrashed(this)) { showBanner("The last model load didn't finish. Load it from Me.", MUTED); return }
         scope.launch { ModelManager.load(applicationContext); if (tab == 2) render(keepScroll = true) }
     }
 
@@ -1048,9 +1050,9 @@ class MainActivity : Activity() {
     private fun brainLine(): String {
         val phone = if (PhoneControl.on()) "phone control on" else "phone control off"
         return when {
-            Conversation.online(this) -> "Gemini · $phone"
+            Conversation.online(this) -> "${Conversation.provider(this)?.name} · $phone"
             ModelManager.ready -> "Offline model · ${ModelManager.modelName(this) ?: ""}".trimEnd(' ', '·')
-            else -> "No brain set up yet · add a Gemini key in Me"
+            else -> "No brain set up yet · add an API key in Me"
         }
     }
 
@@ -1075,8 +1077,6 @@ class MainActivity : Activity() {
         bar.addView(ThemeSwitch(this, dark, MED).apply { onChange = { d -> swapTheme(d, this) }; k = 0.78f })
         body.add(bar)
 
-        // anything waiting on an answer from you comes first
-        s.tasks.filter { it.status == "awaiting" }.sortedBy { it.promptedAt }.forEach { body.add(askCard(s.settings, it), 14) }
 
         if (msgs.isEmpty()) {
             val orb = OrbView(this).apply { still = Prefs.reduceMotion(this@MainActivity); isClickable = true; contentDescription = "Talk to Atlas"; setOnClickListener { voice() } }
@@ -1095,7 +1095,7 @@ class MainActivity : Activity() {
                 }, if (i == 0) 0 else 8)
             }
             body.add(col, 20)
-            if (!Conversation.online(this)) body.add(text("To think properly Atlas needs a free Gemini key: Me → Brain.", 13f, MUTED).apply { gravity = Gravity.CENTER }, 18)
+            if (!Conversation.online(this)) body.add(text("To think properly Atlas needs an API key (Gemini's is free): Me → Brain.", 13f, MUTED).apply { gravity = Gravity.CENTER }, 18)
             return
         }
 
@@ -1249,7 +1249,7 @@ class MainActivity : Activity() {
         }
         if (voiceInput != null) { voiceInput?.finish(); return }
         Conversation.hush()
-        AvatarService.holdMic(true)
+        AvatarService.holdMic(this, true)
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         val orb = OrbView(this).apply { energy = 1f; still = Prefs.reduceMotion(this@MainActivity) }
         col.addView(orb, LinearLayout.LayoutParams(dp(170), dp(170)))
@@ -1275,132 +1275,73 @@ class MainActivity : Activity() {
     private fun stopVoice() {
         voiceInput?.cancel(); voiceInput = null
         closeVoiceSheet?.invoke(); closeVoiceSheet = null
-        AvatarService.holdMic(false)
+        AvatarService.holdMic(this, false)
         homeOrb?.energy = if (Conversation.busy) 1f else 0f
     }
 
     // ================================================================ LOG
+    // What Atlas keeps: reminders (they ring at their time) and things to remember. Newest first; the last 15 here,
+    // everything under Full History.
 
-    private fun promptFor(st: com.anjy.atlas.core.Settings, t: Task) = when (st.tone) {
-        "gentle" -> "How did “${t.title}” go?"
-        "challenging" -> "Time is up on “${t.title}”. Did you do it?"
-        else -> "“${t.title}” was due to finish. What's the status?"
+    /** Showing every entry rather than the latest 15. */
+    private var logFull = false
+
+    private class Entry(val at: Long, val task: Task?, val memory: com.anjy.atlas.core.Memory?)
+
+    private fun entries(s: AtlasState): List<Entry> =
+        (s.tasks.map { Entry(it.createdAt, it, null) } + s.memories.map { Entry(it.createdAt, null, it) }).sortedByDescending { it.at }
+
+    private fun logged(ms: Long): String {
+        val d = Instant.ofEpochMilli(ms).atZone(Engine.zone)
+        return if (d.toLocalDate() == LocalDate.now(Engine.zone)) "Today ${Reminders.fmt(ms)}" else d.format(DateTimeFormatter.ofPattern("EEE d MMM, HH:mm", Locale.getDefault()))
     }
 
-    private fun askCard(st: com.anjy.atlas.core.Settings, t: Task): View {
-        val c = card()
-        c.background = StoneDrawable(SURFACE, dp(26).toFloat(), dark, density, edge = if (dark) ACCENT else null, page = BG)
-        c.addView(eyebrow("Check-In").apply { setTextColor(ACCENT) })
-        c.add(text(promptFor(st, t), 20f, FG, HEAD), 6)
-        val meta = buildString {
-            t.startAt?.let { append(Reminders.fmt(it)).append(" · ") }
-            append("${t.durationMin} min")
-            if (t.status == "awaiting" && t.followUpsSent >= st.followUps.coerceIn(0, 3)) t.promptedAt?.let { append(" · waiting since ${Reminders.fmt(it)}") }
-        }
-        c.add(text(meta, 13f, MUTED), 4)
-        val id = t.id
-        c.add(primary("Done") { respond(id, "done") }, 16)
-        val grid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        listOf(listOf("Still Working" to { pickMinutes(id) }, "Delayed" to { pickDelay(id, t) }),
-            listOf("Blocked" to { askReason(id, "blocked") }, "Skipped" to { askReason(id, "skipped") })).forEach { pair ->
-            val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            pair.forEachIndexed { i, (label, act) -> r.addView(secondary(label) { act() }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { if (i > 0) leftMargin = dp(8) }) }
-            grid.add(r, 8)
-        }
-        c.addView(grid)
-        return c
-    }
-
-    private fun respond(id: String, kind: String, minutes: Int? = null, startAt: Long? = null, reason: String = "") {
-        val now = System.currentTimeMillis()
-        try {
-            val (t, next) = Store.edit(this) { Engine.respond(it, id, kind, now, minutes, startAt, reason) }
-            getSystemService(android.app.NotificationManager::class.java).cancel(id.hashCode())
-            when (kind) {
-                "done" -> { celebrate(); showBanner(if (next != null) "Done. Next one ${whenLabel(next.startAt)}" else "Done at ${Reminders.fmt(now)}", DONE) }
-                "progress" -> showBanner("I'll check again in $minutes minutes")
-                "delay" -> showBanner("Moved to ${whenLabel(t.startAt)}")
-                "blocked" -> showBanner("Marked blocked", MUTED)
-                "skipped" -> showBanner("Recorded as skipped", MUTED)
-                "unblock" -> showBanner("Moved to No Time Yet")
-            }
-        } catch (e: Exception) { showBanner(e.message ?: "That didn't work.", MISS) }
-        scope.launch(Dispatchers.IO) { Reminders.tickAndSchedule(applicationContext) }
-        render(keepScroll = true)
-    }
-
-    private fun pickMinutes(id: String) {
-        val vals = listOf(10, 15, 30, 60)
-        choose("Check Again In", vals.map { "$it minutes" }) { i -> respond(id, "progress", minutes = vals[i]) }
-    }
-
-    private fun pickDelay(id: String, t: Task) {
-        val now = System.currentTimeMillis()
-        choose("Move It To", listOf("In 30 Minutes", "In 1 Hour", "Tomorrow, Same Time", "Pick a Day and Time")) { i ->
-            when (i) {
-                0 -> respond(id, "delay", startAt = now + 30 * Engine.MIN)
-                1 -> respond(id, "delay", startAt = now + 60 * Engine.MIN)
-                2 -> {
-                    var nx = Instant.ofEpochMilli(t.startAt ?: now).atZone(Engine.zone).plusDays(1)
-                    while (nx.toInstant().toEpochMilli() < now) nx = nx.plusDays(1)
-                    respond(id, "delay", startAt = nx.toInstant().toEpochMilli())
-                }
-                else -> body.post { dateTimeSheet("New Time", now + 30 * Engine.MIN) { ms -> respond(id, "delay", startAt = ms) } }
-            }
-        }
-    }
-
-    private fun askReason(id: String, kind: String) {
-        var r = ""
-        val f = field(if (kind == "blocked") "The blocker" else "Reason (optional)", "") { r = it }
-        sheet(null, if (kind == "blocked") "What's in the Way?" else "Skipped", null, content = f, primaryLabel = "Save", onPrimary = {
-            if (kind == "blocked" && r.isBlank()) { keepSheet = true; showBanner("Say what's blocking it.", MUTED) }
-            else respond(id, kind, reason = r)
-        }, secondaryLabel = "Cancel")
-    }
-
-    private fun taskRow(t: Task, clashes: Set<String>): View {
+    private fun entryRow(e: Entry): View {
         val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(14), 0, dp(14)); gravity = Gravity.CENTER_VERTICAL; isClickable = true }
-        val whenTxt = t.startAt?.let { at ->
-            val sameDay = Instant.ofEpochMilli(at).atZone(Engine.zone).toLocalDate() == LocalDate.now(Engine.zone)
-            if (sameDay) Reminders.fmt(at) else Instant.ofEpochMilli(at).atZone(Engine.zone).format(DateTimeFormatter.ofPattern("EEE d", Locale.getDefault())) + "\n" + Reminders.fmt(at)
-        } ?: "—"
-        r.addView(text(whenTxt, 15f, if (t.startAt != null) FG else MUTED, NUM), LinearLayout.LayoutParams(dp(76), WRAP))
         val mid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        mid.addView(text(t.title, 16f, if (t.status == "done") MUTED else FG, MED, keepEmoji = true))
-        val meta = mutableListOf<String>()
-        if (t.startAt != null) meta.add("${t.durationMin} min")
-        if (t.recurrence != "none") meta.add(t.recurrence.replaceFirstChar { it.uppercase() })
-        if (t.priority == "high") meta.add("High priority")
-        if (t.status == "blocked" && t.blockedReason.isNotBlank()) meta.add(t.blockedReason)
-        if (t.status == "done") t.completedAt?.let { meta.add("Done ${Reminders.fmt(it)}") }
-        if (t.notes.isNotBlank()) meta.add(t.notes)
-        if (meta.isNotEmpty()) mid.addView(text(meta.joinToString(" · "), 13f, MUTED, keepEmoji = true))
-        if (t.id in clashes) mid.addView(text("Overlaps another reminder", 13f, ACCENT, MED))
+        val t = e.task; val m = e.memory
+        if (t != null) {
+            mid.addView(text(t.title, 16f, if (t.status in setOf("done", "skipped", "cancelled")) MUTED else FG, MED, keepEmoji = true))
+            val meta = mutableListOf<String>()
+            t.startAt?.let { meta.add("⏰ ${whenLabel(it)}") }
+            if (t.recurrence != "none") meta.add(t.recurrence.replaceFirstChar { it.uppercase() })
+            if (t.notes.isNotBlank()) meta.add(t.notes)
+            meta.add("Logged ${logged(t.createdAt)}")
+            mid.addView(text(meta.joinToString(" · "), 13f, MUTED, keepEmoji = true))
+        } else if (m != null) {
+            mid.addView(text(m.text, 16f, FG, keepEmoji = true))
+            mid.addView(text("Remembered · ${logged(m.createdAt)}", 13f, MUTED))
+        }
         r.addView(mid, LinearLayout.LayoutParams(0, WRAP, 1f))
-        val (label, colr) = when (t.status) {
-            "active" -> "Now" to ACCENT; "awaiting" -> "Answer" to ACCENT; "blocked" -> "Blocked" to MISS
-            "done" -> "Done" to DONE; "skipped" -> "Skipped" to MUTED; "cancelled" -> "Cancelled" to MUTED
-            else -> "" to MUTED
+        val (label, colr) = when {
+            m != null -> "Memory" to GOLD
+            t == null -> "" to MUTED
+            t.status == "done" -> "Doing it" to DONE
+            t.status == "skipped" -> "Not doing" to MUTED
+            t.status == "cancelled" -> "Cancelled" to MUTED
+            t.status == "planned" && t.startAt != null && t.remindedAt == null -> "Upcoming" to ACCENT
+            t.status == "planned" && t.startAt != null -> "Rang" to MUTED
+            else -> "Note" to MUTED
         }
         if (label.isNotEmpty()) r.addView(text(label, 12f, colr, SEMI).apply {
             background = Finish(SURFACE, -1f, dark, density, glass = true); setPadding(dp(10), dp(4), dp(10), dp(5))
         })
-        r.setOnClickListener { taskActions(t) }
+        r.setOnClickListener { if (t != null) taskActions(t) else if (m != null) forgetSheet(m) }
         return r
+    }
+
+    private fun forgetSheet(m: com.anjy.atlas.core.Memory) {
+        sheet(null, "Forget This?", m.text, primaryLabel = "Forget", primaryColor = MISS, onPrimary = {
+            Store.edit(this@MainActivity) { Engine.forget(it, m.id, System.currentTimeMillis()) }; ModelManager.markStale(); render(keepScroll = true)
+        }, secondaryLabel = "Keep")
     }
 
     private fun taskActions(t: Task) {
         val acts = mutableListOf<Pair<String, () -> Unit>>()
         val now = System.currentTimeMillis()
         val reschedule = { scope.launch(Dispatchers.IO) { Reminders.tickAndSchedule(applicationContext) }; render(keepScroll = true) }
-        if (t.status == "planned") acts.add("Start Now" to { Store.edit(this) { Engine.startNow(it, t.id, now) }; reschedule() })
-        if (t.status in Engine.OPEN) acts.add("Mark Done" to { respond(t.id, "done") })
-        if (t.status == "blocked") acts.add("Unblock" to { respond(t.id, "unblock") })
-        if (t.status in Engine.OPEN) {
-            acts.add("Edit" to { body.post { editTask(t) } })
-            acts.add("Cancel It" to { Store.edit(this) { Engine.cancel(it, t.id, now) }; reschedule() })
-        }
+        acts.add("Edit" to { body.post { editTask(t) } })
+        if (t.status == "planned") acts.add("Cancel It" to { Store.edit(this) { Engine.cancel(it, t.id, now) }; reschedule() })
         acts.add("Delete" to {
             body.post {
                 sheet(null, "Delete This?", t.title, primaryLabel = "Delete", primaryColor = MISS, onPrimary = {
@@ -1414,36 +1355,31 @@ class MainActivity : Activity() {
     private fun editTask(t: Task?) {
         var title = t?.title ?: ""
         var startAt: Long? = t?.startAt
-        var minutes = t?.durationMin ?: 30
-        var priority = t?.priority ?: "normal"
         var recurrence = t?.recurrence ?: "none"
         var notes = t?.notes ?: ""
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         col.add(field("What", title) { title = it })
-        col.add(eyebrow("When"), 16)
+        col.add(eyebrow("Alarm"), 16)
         val whenRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         lateinit var whenBtn: TextView
         whenBtn = secondary(whenLabel(startAt)) {
             dateTimeSheet("When", startAt ?: (System.currentTimeMillis() + 60 * Engine.MIN)) { ms -> startAt = ms; whenBtn.text = whenLabel(ms) }
         }
         whenRow.addView(whenBtn, LinearLayout.LayoutParams(0, WRAP, 1f))
-        whenRow.addView(secondary("Clear") { startAt = null; whenBtn.text = whenLabel(null) }, LinearLayout.LayoutParams(WRAP, WRAP).apply { leftMargin = dp(8) })
+        whenRow.addView(secondary("No Alarm") { startAt = null; whenBtn.text = whenLabel(null) }, LinearLayout.LayoutParams(WRAP, WRAP).apply { leftMargin = dp(8) })
         col.add(whenRow, 8)
-        col.add(eyebrow("Minutes"), 16)
-        col.add(chipGroup(listOf(10, 15, 30, 45, 60, 90, 120).map { "$it" to "$it" }, { it == "$minutes" }) { minutes = it.toInt() }, 8)
-        col.add(eyebrow("Priority"), 16)
-        col.add(chipGroup(listOf("high" to "High", "normal" to "Normal", "low" to "Low"), { it == priority }) { priority = it }, 8)
         col.add(eyebrow("Repeats"), 16)
         col.add(chipGroup(listOf("none" to "Never", "daily" to "Daily", "weekdays" to "Weekdays", "weekly" to "Weekly"), { it == recurrence }) { recurrence = it }, 8)
         col.add(eyebrow("Notes"), 16)
         col.add(field("Optional", notes, multi = true) { notes = it }, 8)
         sheet(null, if (t == null) "New Reminder" else "Edit Reminder", null, content = col, primaryLabel = if (t == null) "Add" else "Save", onPrimary = {
             if (recurrence != "none" && startAt == null) { keepSheet = true; showBanner("A repeating reminder needs a day and time.", MUTED); return@sheet }
+            if (startAt != null && startAt!! < System.currentTimeMillis() - Engine.MIN && t == null) { keepSheet = true; showBanner("That time has passed.", MUTED); return@sheet }
             val now = System.currentTimeMillis()
             try {
                 Store.edit(this) { s ->
-                    if (t == null) Engine.create(s, title, now, startAt, minutes, notes, priority, recurrence)
-                    else Engine.update(s, t.id, title, now, startAt, minutes, notes, priority, recurrence)
+                    if (t == null) Engine.create(s, title, now, startAt, 15, notes, "normal", recurrence)
+                    else Engine.update(s, t.id, title, now, startAt, t.durationMin, notes, t.priority, recurrence).also { if (startAt != null && startAt!! > now) { it.status = "planned"; it.remindedAt = null } }
                 }
                 scope.launch(Dispatchers.IO) { Reminders.tickAndSchedule(applicationContext) }
                 render(keepScroll = true)
@@ -1452,88 +1388,46 @@ class MainActivity : Activity() {
     }
 
     private fun renderLog() {
-        val now = System.currentTimeMillis()
-        val today = LocalDate.now(Engine.zone)
-        fun isToday(ms: Long?) = ms != null && Instant.ofEpochMilli(ms).atZone(Engine.zone).toLocalDate() == today
         val s = snapshot()
-        val st = s.settings
-        pageTitle("Log", roundIcon("plus", "New reminder") { editTask(null) }.apply { layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)) })
-        body.add(text("What Atlas is keeping for you: reminders, and things to remember.", 15f, MUTED), 6)
-
-        val awaiting = s.tasks.filter { it.status == "awaiting" }.sortedBy { it.promptedAt }
-        val active = s.tasks.filter { it.status == "active" }.sortedBy { it.startAt }
-        val blocked = s.tasks.filter { it.status == "blocked" }
-        val todayList = s.tasks.filter { it.status == "planned" && isToday(it.startAt) }.sortedBy { it.startAt }
-        val upcoming = s.tasks.filter { it.status == "planned" && it.startAt != null && !isToday(it.startAt) && it.startAt!! > now }.sortedBy { it.startAt }.take(40)
-        val overdue = s.tasks.filter { it.status == "planned" && it.startAt != null && !isToday(it.startAt) && it.startAt!! <= now }.sortedBy { it.startAt }
-        val noTime = s.tasks.filter { it.status == "planned" && it.startAt == null }
-        val done = s.tasks.filter { it.status == "done" && it.completedAt != null }.sortedByDescending { it.completedAt }.take(10)
-        val clashes = Engine.collisions(s)
-
-        awaiting.forEach { body.add(askCard(st, it), 14) }
-        fun section(title: String, list: List<Task>) {
-            if (list.isEmpty()) return
-            body.add(eyebrow("$title · ${list.size}"), 16)
-            val c = card().apply { setPadding(dp(18), dp(4), dp(18), dp(4)) }
-            list.forEachIndexed { i, t ->
-                if (i > 0) c.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
-                c.addView(taskRow(t, clashes))
-            }
-            body.add(c, 8)
+        val all = entries(s)
+        if (logFull) {
+            pageTitle("Full History", roundIcon("close", "Back to the Log") { logFull = false; render() }.apply { layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)) })
+            body.add(text("Everything Atlas has logged, newest first (${all.size}).", 15f, MUTED), 6)
+        } else {
+            pageTitle("Log", roundIcon("plus", "New reminder") { editTask(null) }.apply { layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)) })
+            body.add(text("What Atlas is keeping for you. Reminders ring like an alarm at their time.", 15f, MUTED), 6)
         }
-        section("Now", active); section("Today", todayList); section("Coming Up", upcoming); section("Missed", overdue)
-        section("No Time Yet", noTime); section("Blocked", blocked)
-        if (awaiting.isEmpty() && active.isEmpty() && todayList.isEmpty() && upcoming.isEmpty() && overdue.isEmpty() && noTime.isEmpty() && blocked.isEmpty()) {
+        if (all.isEmpty()) {
             body.add(card().apply {
-                addView(text("No reminders", 18f, FG, HEAD))
-                add(text("Tell Atlas “remind me to pick up my sister next Thursday at 4” and it lands here.", 15f, MUTED), 6)
+                addView(text("Nothing logged yet", 18f, FG, HEAD))
+                add(text("Tell Atlas “remind me to pick up my sister Thursday at 4” or “remember my locker code is on the fridge”, and it lands here.", 15f, MUTED), 6)
             }, 16)
+            return
         }
-
-        // things to remember
-        val mems = s.memories.toList().reversed()
-        body.add(eyebrow("Remembered · ${mems.size}"), 20)
-        val mc = card().apply { setPadding(dp(18), dp(10), dp(18), dp(10)) }
-        var v = ""
-        val f = field("Something to remember", "") { v = it }
-        val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        r.addView(f, LinearLayout.LayoutParams(0, WRAP, 1f).apply { rightMargin = dp(8) })
-        r.addView(primary("Save") {
-            val t = v.trim()
-            if (t.isNotEmpty()) { Store.edit(this) { Engine.remember(it, t, System.currentTimeMillis()) }; ModelManager.markStale(); showBanner("Saved"); render(keepScroll = true) }
-        }.apply { minHeight = dp(52); setPadding(dp(22), dp(13), dp(22), dp(13)) })
-        mc.addView(r, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(6); bottomMargin = dp(6) })
-        mems.forEach { m ->
-            mc.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
-            mc.addView(text(m.text, 16f, FG, keepEmoji = true).apply {
-                setPadding(0, dp(14), 0, dp(14)); isClickable = true
-                setOnClickListener {
-                    sheet(null, "Forget This?", m.text, primaryLabel = "Forget", primaryColor = MISS, onPrimary = {
-                        Store.edit(this@MainActivity) { Engine.forget(it, m.id, System.currentTimeMillis()) }; ModelManager.markStale(); render(keepScroll = true)
-                    }, secondaryLabel = "Keep")
-                }
-            })
+        val shown = if (logFull) all else all.take(15)
+        val c = card().apply { setPadding(dp(18), dp(4), dp(18), dp(4)) }
+        shown.forEachIndexed { i, e ->
+            if (i > 0) c.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
+            c.addView(entryRow(e))
         }
-        body.add(mc, 8)
+        body.add(c, 16)
+        if (!logFull && all.size > 15) body.add(secondary("Full History (${all.size})") { logFull = true; render() }, 12)
+        else if (!logFull) body.add(secondary("Full History") { logFull = true; render() }, 12)
 
-        section("Done Lately", done)
-
-        val log = s.log.takeLast(40).reversed().map { l -> Triple(l.at, l.type, l.title + if (l.detail.isNotBlank() && l.type in setOf("blocked", "skipped", "note", "progress")) " (${l.detail})" else "") }
-        if (log.isNotEmpty()) {
-            body.add(eyebrow("Activity"), 20)
-            val a = card().apply { setPadding(dp(18), dp(10), dp(18), dp(10)) }
-            val names = mapOf("created" to "Added", "edited" to "Edited", "deleted" to "Deleted", "cancelled" to "Cancelled", "started" to "Started",
-                "reminded" to "Reminded", "checkin" to "Asked", "followup" to "Followed up", "done" to "Done", "progress" to "Still working",
-                "delayed" to "Delayed", "unblocked" to "Unblocked", "blocked" to "Blocked", "skipped" to "Skipped", "note" to "Note",
-                "remembered" to "Remembered", "forgot" to "Forgot")
-            log.forEach { (at, type, title) ->
-                val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(7), 0, dp(7)) }
-                val sameDay = Instant.ofEpochMilli(at).atZone(Engine.zone).toLocalDate() == today
-                line.addView(text(if (sameDay) Reminders.fmt(at) else Instant.ofEpochMilli(at).atZone(Engine.zone).format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())), 13f, MUTED, NUM), LinearLayout.LayoutParams(dp(64), WRAP))
-                line.addView(text("${names[type] ?: type} · $title", 14f, FG, keepEmoji = true), LinearLayout.LayoutParams(0, WRAP, 1f))
-                a.addView(line)
-            }
-            body.add(a, 8)
+        if (!logFull) {
+            // quick note to remember
+            body.add(eyebrow("Remember Something"), 20)
+            val mc = card().apply { setPadding(dp(18), dp(12), dp(18), dp(12)) }
+            var v = ""
+            val f = field("Something to remember", "") { v = it }
+            val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            r.addView(f, LinearLayout.LayoutParams(0, WRAP, 1f).apply { rightMargin = dp(8) })
+            r.addView(primary("Save") {
+                val t = v.trim()
+                if (t.isNotEmpty()) { Store.edit(this) { Engine.remember(it, t, System.currentTimeMillis()) }; ModelManager.markStale(); showBanner("Saved"); render(keepScroll = true) }
+            }.apply { minHeight = dp(52); setPadding(dp(22), dp(13), dp(22), dp(13)) })
+            mc.addView(r)
+            body.add(mc, 8)
         }
     }
 
@@ -1543,52 +1437,70 @@ class MainActivity : Activity() {
         val st = Store.read(this) { it.settings }
         pageTitle("Me", ThemeSwitch(this, dark, MED).apply { onChange = { d -> swapTheme(d, this) } })
 
-        // Brain: Gemini
+        // Brain: any AI service, with the user's own key
         body.add(eyebrow("Brain"), 16)
         val brain = card()
-        val key = Conversation.key(this)
-        brain.addView(text("Gemini", 20f, FG, HEAD))
-        brain.add(text(if (key != null) "Connected · ${Conversation.model(this)}" else "Not set up. Atlas needs a Gemini key to think properly and to use your phone.", 14f, if (key != null) DONE else MUTED), 4)
+        val active = Providers.active(this)
+        val shown = Providers.byId(brainShown) ?: active ?: Providers.all.first()
+        brainShown = shown.id
+        brain.addView(text(active?.let { "${it.name} · ${Providers.model(this, it)}" } ?: "Not set up", 20f, FG, HEAD))
+        brain.add(text(if (active != null) "Atlas thinks with ${active.name}. Paste a key for any other service to switch."
+            else "Paste a key from any AI service below. Atlas needs one to think properly and to use your phone.", 14f, if (active != null) DONE else MUTED), 4)
         var keyDraft = ""
-        val kf = field(if (key != null) "Paste a new key to replace it" else "Paste your Gemini API key", "") { keyDraft = it }.apply {
+        val kf = field("Paste an API key (${shown.keyHint})", "") { keyDraft = it }.apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; setSingleLine(true)
         }
         brain.add(kf, 14)
+        brain.add(eyebrow("Service"), 12)
+        brain.add(chipGroup(Providers.all.map { it.id to it.name }, { it == shown.id }) { id ->
+            brainShown = id; render(keepScroll = true)
+        }, 8)
         val kr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         kr.addView(primary("Save Key") {
             val k = keyDraft.trim()
-            if (k.length < 20) { showBanner("That doesn't look like a whole key.", MUTED); return@primary }
-            Store.putString(this, "gemini_key", k); showBanner("Key saved. Testing it…"); testKey()
+            if (k.length < 16) { showBanner("That doesn't look like a whole key.", MUTED); return@primary }
+            // a recognisable key picks its own service; DeepSeek and custom keys look like OpenAI's, so the chip decides
+            val id = Providers.guess(k)?.takeIf { g -> !(g == "openai" && shown.id in setOf("deepseek", "custom", "openrouter", "groq", "xai")) } ?: shown.id
+            Providers.setKey(this, id, k); Providers.choose(this, id); brainShown = id
+            showBanner("Key saved for ${Providers.byId(id)?.name}. Testing it…"); testKey()
             render(keepScroll = true)
         }, LinearLayout.LayoutParams(0, WRAP, 1f))
-        kr.addView(secondary("Get a Free Key") {
-            try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(AI_STUDIO_KEYS))) } catch (_: Exception) { showBanner("Open $AI_STUDIO_KEYS in your browser.", MUTED) }
+        if (shown.keyUrl.isNotEmpty()) kr.addView(secondary("Get a Key") {
+            try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(shown.keyUrl))) } catch (_: Exception) { showBanner("Open ${shown.keyUrl} in your browser.", MUTED) }
         }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
-        brain.add(kr, 8)
-        if (key != null) {
-            brain.add(settingRow("Model", Conversation.model(this)) {
-                var m = Conversation.model(this)
-                sheet(null, "Gemini Model", "Leave it as ${Gemini.DEFAULT_MODEL} unless you know you want another.", content = field("Model name", m) { m = it }, primaryLabel = "Save", onPrimary = {
-                    Store.putString(this, "gemini_model", m.trim().ifEmpty { Gemini.DEFAULT_MODEL }); render(keepScroll = true)
+        brain.add(kr, 10)
+        if (shown.id == "custom") brain.add(settingRow("Address", Providers.baseUrl(this, shown).ifEmpty { "Not set" }) {
+            var v = Providers.baseUrl(this, shown)
+            sheet(null, "Service Address", "The OpenAI-compatible address, ending in /v1 (for example https://api.example.com/v1).", content = field("https://…/v1", v) { v = it }, primaryLabel = "Save", onPrimary = {
+                Store.putString(this, "base_custom", v.trim()); render(keepScroll = true)
+            }, secondaryLabel = "Cancel")
+        }, 10)
+        brain.add(settingRow("Model", Providers.model(this, shown).ifEmpty { "Not set" }) {
+            var m = Providers.model(this, shown)
+            sheet(null, "${shown.name} Model", if (shown.defaultModel.isNotEmpty()) "Leave it as ${shown.defaultModel} unless you want another of ${shown.name}'s models." else "The model's name, as your service writes it.",
+                content = field("Model name", m) { m = it }, primaryLabel = "Save", onPrimary = {
+                    Providers.setModel(this, shown.id, m.trim().ifEmpty { shown.defaultModel }); render(keepScroll = true)
                 }, secondaryLabel = "Cancel")
-            }, 10)
+        }, 10)
+        if (Providers.key(this, shown.id) != null) {
             val tr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-            tr.addView(secondary("Test") { testKey() }, LinearLayout.LayoutParams(0, WRAP, 1f))
+            if (active?.id != shown.id) tr.addView(secondary("Use ${shown.name}") { Providers.choose(this, shown.id); render(keepScroll = true) }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { rightMargin = dp(8) })
+            tr.addView(secondary("Test") { Providers.choose(this, shown.id); testKey() }, LinearLayout.LayoutParams(0, WRAP, 1f))
             tr.addView(secondary("Remove Key") {
-                sheet(null, "Remove the Gemini Key?", "Atlas will fall back to fixed commands and the offline model.", primaryLabel = "Remove", primaryColor = MISS, onPrimary = {
-                    Store.putString(this, "gemini_key", ""); render(keepScroll = true)
+                sheet(null, "Remove the ${shown.name} Key?", "Atlas will use another service you've added, or fall back to the offline model.", primaryLabel = "Remove", primaryColor = MISS, onPrimary = {
+                    Providers.setKey(this, shown.id, ""); render(keepScroll = true)
                 }, secondaryLabel = "Keep")
             }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
-            brain.add(tr, 8)
+            brain.add(tr, 10)
         }
-        brain.add(text("Get the key at aistudio.google.com (sign in with Google, “Create API key”), copy it, paste it here. When Atlas thinks online, what you say goes to Google; on the free tier Google may use it to improve its products.", 13f, MUTED), 12)
+        brain.add(text("Keys stay on this phone (not in backups). When Atlas thinks online, what you say goes to that service; free tiers may use it to improve their products.", 13f, MUTED), 12)
         body.add(brain, 8)
 
         // Offline model
         body.add(eyebrow("Offline Brain"), 16)
         val off = card()
         off.addView(text(ModelManager.modelName(this) ?: "No Offline Model", 18f, FG, HEAD, keepEmoji = true))
-        off.add(text(if (key != null) "Used only when there's no internet. ${ModelManager.status}" else ModelManager.status, 14f, MUTED), 4)
+        off.add(text((if (active != null) "Used only when there's no internet. It runs separately, so it can't close Atlas. " else "Runs separately, so it can't close Atlas. ") + ModelManager.status, 14f, MUTED), 4)
         val progress = text("", 14f, ACCENT, MED, keepEmoji = true)
         off.add(progress, 4)
         modelProgressView = progress
@@ -1600,7 +1512,7 @@ class MainActivity : Activity() {
             br.addView(secondary(if (ModelManager.ready) "Reload" else "Load") {
                 progress.text = "Loading…"; scope.launch { ModelManager.load(applicationContext); render(keepScroll = true) }
             }, LinearLayout.LayoutParams(0, WRAP, 1f))
-            if (ModelManager.ready) br.addView(secondary("Unload") { ModelManager.unload(); render(keepScroll = true) }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
+            if (ModelManager.ready) br.addView(secondary("Unload") { ModelManager.unload(this); render(keepScroll = true) }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
             br.addView(secondary("Remove") {
                 sheet(null, "Remove the Model?", ModelManager.modelName(this) ?: "Model file", primaryLabel = "Remove", primaryColor = MISS, onPrimary = {
                     scope.launch(Dispatchers.IO) { ModelManager.remove(applicationContext); withContext(Dispatchers.Main) { render(keepScroll = true) } }
@@ -1638,33 +1550,48 @@ class MainActivity : Activity() {
             }
             enableWake()
         })
-        val hwState = AvatarService.hotwordState()
+        val hwState = AvatarService.hotwordState(this)
+        val crash = Store.getString(this, "hotwordCrash")?.takeIf { it.isNotBlank() }
         vc.add(text(when {
             downloading != null -> "Getting the Hey Atlas model (${Hotword.MODEL_MB} MB, once): $downloading…"
-            !st.wakeWord && Store.getFlag(this, "hotwordCrashed") -> "Hey Atlas was switched off because its speech engine crashed on this phone. You can switch it on to try again; if it crashes again it switches itself off."
-            st.wakeWord && hwState == "listening" -> "Listening for “Hey Atlas”. Say it clearly; it's in beta and can miss. Android shows its green microphone dot while it listens, and it uses some battery. It works while the phone is unlocked."
-            st.wakeWord && !AvatarService.canShow(this) -> "To open its panel from other apps, Atlas also needs “Display over other apps” (Creature below)."
-            st.wakeWord -> "Starting… ($hwState)"
+            !st.wakeWord && crash != null -> "Hey Atlas switched itself off because its speech engine crashed twice on this phone (Atlas itself was fine). Details are under Diagnostics. You can switch it on to try again."
+            st.wakeWord && hwState == "listening" -> "Listening for “Hey Atlas”. Say it clearly; it's in beta and can miss. Atlas on screen grows and listens; when you stop talking it shrinks back. Android shows its green microphone dot while it listens, and it uses some battery."
+            st.wakeWord && !AvatarService.canShow(this) -> "Atlas also needs “Display over other apps” (Atlas On Screen below) to answer over other apps."
+            st.wakeWord -> "Starting… If it stays like this, tap “Start listening” on Atlas's notification."
             else -> "Say “Hey Atlas” from anywhere to ask something without opening the app. It's heard on the phone only; nothing is recorded or sent. Switching it on downloads a ${Hotword.MODEL_MB} MB speech model once."
         }, 13f, MUTED), 8)
         vc.add(switchRow(null, "Speak Replies", st.speakReplies) { on -> Store.edit(this) { it.settings.speakReplies = on } }, 8)
         vc.add(text("Spoken questions always get a spoken answer.", 13f, MUTED), 6)
+        vc.add(switchRow(null, "Natural Voice", Voice.natural(this)) { on -> Store.setFlag(this, "voice_natural", on); render(keepScroll = true) }, 10)
+        val eng = Voice.engine(this)
+        vc.add(text(when {
+            !Voice.natural(this) -> "Using the phone's own voice."
+            eng == "gemini" -> "A human-sounding voice from Gemini (uses your Gemini key)."
+            eng == "openai" -> "A human-sounding voice from OpenAI (uses your OpenAI key)."
+            else -> "Natural voices come from Gemini or OpenAI: add one of their keys. Until then Atlas uses the phone's best voice."
+        } + (Voice.lastProblem?.let { "\nLast time it couldn't: $it (the phone's voice stood in)." } ?: ""), 13f, MUTED), 6)
+        if (eng != null) {
+            val names = if (eng == "gemini") Voice.geminiVoices else Voice.openAiVoices
+            vc.add(chipGroup(names.map { it to it.replaceFirstChar { c -> c.uppercase() } }, { it == Voice.voiceName(this, eng) }) { v ->
+                Store.putString(this, "voice_$eng", v); Voice.speak(this, "Hey, I'm Atlas. This is how I sound.")
+            }, 8)
+        }
         body.add(vc, 8)
 
-        // Creature
-        body.add(eyebrow("Creature"), 16)
+        // Atlas on screen
+        body.add(eyebrow("Atlas On Screen"), 16)
         val av = card()
         if (!AvatarService.canShow(this)) {
-            av.addView(text("Your creature can float over your other apps. Tap it to ask Atlas something. Android needs your permission first.", 15f, MUTED))
+            av.addView(text("Atlas can float over your other apps. Tap it, or say “Hey Atlas”, and it grows and listens. Android needs your permission first.", 15f, MUTED))
             av.add(primary("Allow Display Over Apps") {
                 startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
             }, 14)
         } else {
-            av.addView(switchRow(null, "Creature On Screen", st.avatarOn) { on ->
+            av.addView(switchRow(null, "Atlas On Screen", st.avatarOn) { on ->
                 Store.edit(this) { it.settings.avatarOn = on }
                 if (on || st.wakeWord) AvatarService.refresh(this) else AvatarService.stop(this)
             })
-            av.add(text("Drag it anywhere. Tap it to ask Atlas something.", 13f, MUTED), 8)
+            av.add(text("Drag it anywhere. Tap it to talk; tap again to stop.", 13f, MUTED), 8)
         }
         body.add(av, 8)
 
@@ -1677,33 +1604,10 @@ class MainActivity : Activity() {
                 Store.edit(this) { it.settings.name = v.trim().take(40) }; ModelManager.markStale(); render(keepScroll = true)
             }, secondaryLabel = "Cancel")
         })
-        val tones = listOf("gentle" to "Supportive", "firm" to "Firm", "challenging" to "Challenging")
-        you.add(settingRow("Check-In Tone", tones.firstOrNull { it.first == st.tone }?.second ?: "Firm") {
-            val i = tones.indexOfFirst { it.first == st.tone }
-            Store.edit(this) { it.settings.tone = tones[(i + 1) % tones.size].first }; render(keepScroll = true)
-        }, 8)
         you.add(switchRow(null, "Reduce Motion", Prefs.reduceMotion(this)) { on ->
             Store.setFlag(this, "reduceMotion", on); aurora.still = on; render(keepScroll = true)
         }, 8)
         body.add(you, 8)
-
-        // Reminders
-        body.add(eyebrow("Reminders"), 16)
-        val rem = card()
-        fun hm(v: String) = Engine.hm(v) ?: 0
-        rem.add(settingRow("Quiet From", st.quietStart) {
-            timeSheet("Quiet From", hm(st.quietStart) / 60, hm(st.quietStart) % 60) { h, m -> saveSetting { it.quietStart = "%02d:%02d".format(Locale.US, h, m) } }
-        })
-        rem.add(settingRow("Quiet Until", st.quietEnd) {
-            timeSheet("Quiet Until", hm(st.quietEnd) / 60, hm(st.quietEnd) % 60) { h, m -> saveSetting { it.quietEnd = "%02d:%02d".format(Locale.US, h, m) } }
-        }, 8)
-        val graces = listOf(5, 10, 15, 30, 60)
-        rem.add(settingRow("Follow Up After", "${st.graceMin} min") {
-            saveSetting { it.graceMin = graces[(graces.indexOf(st.graceMin).coerceAtLeast(0) + 1) % graces.size] }
-        }, 8)
-        rem.add(settingRow("Follow-Ups", "${st.followUps}") { saveSetting { it.followUps = (st.followUps + 1) % 4 } }, 8)
-        rem.add(text("After the last follow-up a reminder stays marked as needing an answer. It's never marked done or skipped for you.", 13f, MUTED), 10)
-        body.add(rem, 8)
 
         // Reliability
         body.add(eyebrow("Make Atlas Reliable"), 16)
@@ -1722,18 +1626,31 @@ class MainActivity : Activity() {
         }, 8)
         rel.add(settingRow("App Info", "Open") { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }, 8)
         rel.add(text("On OPPO phones, also allow background activity and auto-launch in App Info → Battery, or Android may stop Atlas in the background.", 13f, MUTED), 10)
-        rel.add(secondary("Test a Reminder in 1 Minute") {
+        rel.add(secondary("Test an Alarm in 1 Minute") {
             val now = System.currentTimeMillis()
-            Store.edit(this) { Engine.create(it, "Atlas test reminder", now, now + 60_000, 5) }
+            Store.edit(this) { Engine.create(it, "Atlas test alarm", now, now + 60_000, 5) }
             scope.launch(Dispatchers.IO) { Reminders.tickAndSchedule(applicationContext) }
-            showBanner("Lock the phone. It should arrive in a minute.")
+            showBanner("Lock the phone. It should ring in a minute.")
         }, 14)
         body.add(rel, 8)
+
+        // Diagnostics: how Atlas's parts last stopped, to report a crash exactly
+        body.add(eyebrow("Diagnostics"), 16)
+        val dg = card()
+        val report = Diagnostics.report(this)
+        val extra = listOfNotNull(Store.getString(this, "hotwordCrash")?.takeIf { it.isNotBlank() }?.let { "Hey Atlas switched off after: $it" }, ModelLink.died)
+        dg.addView(text((extra + report).joinToString("\n"), 12f, MUTED, keepEmoji = true).apply { setTextIsSelectable(true) })
+        dg.add(secondary("Copy Report") {
+            getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas diagnostics",
+                "Atlas ${packageManager.getPackageInfo(packageName, 0).versionName} · ${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE}\n" + (extra + report).joinToString("\n")))
+            showBanner("Report copied. Paste it to whoever is fixing Atlas.")
+        }, 10)
+        body.add(dg, 8)
 
         // Backup
         body.add(eyebrow("Backup"), 16)
         val bk = card()
-        bk.addView(text("Your Log lives only on this phone. The backup doesn't include your Gemini key.", 15f, MUTED))
+        bk.addView(text("Your Log lives only on this phone. The backup doesn't include your keys.", 15f, MUTED))
         val bkr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         bkr.addView(secondary("Copy Backup") {
             getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas backup", Store.exportJson(this)))
@@ -1749,7 +1666,7 @@ class MainActivity : Activity() {
 
     /** Switch "Hey Atlas" on: fetch its model first if this phone doesn't have it yet. */
     private fun enableWake() {
-        Store.setFlag(this, "hotwordCrashed", false)
+        Store.putString(this, "hotwordCrash", "")
         if (Hotword.ready(this)) {
             Store.edit(this) { it.settings.wakeWord = true }; AvatarService.refresh(this)
             body.postDelayed({ if (tab == 2) render(keepScroll = true) }, 1500)
@@ -1774,17 +1691,16 @@ class MainActivity : Activity() {
 
     /** One tiny request, to say whether the key and model work. */
     private fun testKey() {
-        val k = Conversation.key(this) ?: return
-        val model = Conversation.model(this)
+        val p = Providers.active(this) ?: return
         scope.launch {
             val msg = withContext(Dispatchers.IO) {
                 try {
-                    val req = Gemini.request("Reply with exactly: ready", listOf(Gemini.userText("Are you there?")), Tools.declarations, model)
-                    val t = Gemini.call(k, model, req, Conversation.endpoint(applicationContext))
-                    "Gemini works: “${t.text.take(40)}”"
-                } catch (e: Gemini.Failure) { e.message ?: "Gemini failed." }
+                    val t = Providers.session(applicationContext, p, emptyList(), "Are you there? Answer in three words.").call("You are Atlas, a friendly assistant. Reply briefly.")
+                    "${p.name} works: “${t.text.ifBlank { "(used a tool)" }.take(40)}”"
+                } catch (e: Gemini.Failure) { e.message ?: "${p.name} failed." }
+                catch (e: Exception) { "${p.name} failed: ${e.message}" }
             }
-            showBanner(msg, if (msg.startsWith("Gemini works")) DONE else MISS)
+            showBanner(msg, if (msg.contains(" works: ")) DONE else MISS)
             if (tab == 2) render(keepScroll = true)
         }
     }

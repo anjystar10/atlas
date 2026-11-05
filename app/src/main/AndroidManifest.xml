@@ -14,6 +14,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- talking to Atlas, and "Hey Atlas" -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- reminders ring like an alarm, over the lock screen -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <!-- Lets Atlas see launchable apps so "open whatsapp" works. -->
@@ -77,6 +80,31 @@
                 android:value="Always-on assistant: a creature drawn over other apps and a status pill while it works, at the user's request" />
         </service>
 
+        <!-- The alarm pop-up: rings and asks whether you'll do it. -->
+        <activity
+            android:name=".AlarmActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.anjy.atlas.alarm"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
+
+        <!-- "Hey Atlas" listens in its own process, so a crash in the speech engine can't close Atlas. -->
+        <service
+            android:name=".HotwordService"
+            android:exported="false"
+            android:process=":hotword"
+            android:foregroundServiceType="microphone" />
+
+        <!-- The offline model runs in its own process: running out of memory there can't close Atlas. -->
+        <service
+            android:name=".ModelService"
+            android:exported="false"
+            android:process=":brain" />
+
         <!-- Phone control: lets Atlas read the screen and tap, type and scroll when the user asks it to. -->
         <service
             android:name=".AtlasAccess"
@@ -92,7 +120,6 @@
         </service>
 
         <receiver android:name=".AlarmReceiver" android:exported="false" />
-        <receiver android:name=".ActionReceiver" android:exported="false" />
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />

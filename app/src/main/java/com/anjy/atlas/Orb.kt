@@ -23,8 +23,10 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /**
- * Atlas's face: a living blob of blue and violet light. It drifts slowly at rest, stirs while Atlas works,
- * and swells with your voice while it listens.
+ * Atlas's face: a living glass blob, after the reference the user chose. A silvery shell with fine lines, lit from
+ * the top left; a near-black core; wisps of blue light drifting inside; a warm edge at the lower right.
+ * Drawn per pixel by a GPU shader (AGSL). It drifts slowly at rest, and stirs and brightens while Atlas
+ * listens or works ([energy]); [level] swells it with your voice.
  */
 class OrbView(context: Context) : View(context) {
     /** Loudness of the voice it's hearing, 0..1 (eased while drawing). */
@@ -36,111 +38,36 @@ class OrbView(context: Context) : View(context) {
     private var shownLevel = 0f
     private var shownEnergy = 0f
     private val start = SystemClock.uptimeMillis()
-    private val path = Path()
-    private val swirlPath = Path()
-    private val body = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val glow = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    private val swirl = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeCap = Paint.Cap.ROUND }
-    private val shine = Paint(Paint.ANTI_ALIAS_FLAG)
-    private var sized = 0f
-    private var cxS = 0f; private var cyS = 0f
-    // The orb is painted into a small picture on the CPU and the picture is shown: a few milliseconds a frame, and
-    // nothing for the GPU but one image (paths clipped by paths are slow on some GPUs and very slow in emulators).
-    private var pic: android.graphics.Bitmap? = null
-    private var picCanvas: Canvas? = null
-    private val picPaint = Paint(Paint.FILTER_BITMAP_FLAG)
-    private val dst = android.graphics.RectF()
-
-    private val phases = floatArrayOf(0.3f, 1.7f, 2.9f, 4.1f, 5.3f)
-    private val speeds = floatArrayOf(0.31f, -0.23f, 0.41f, -0.37f, 0.53f)
-    private val harmonics = intArrayOf(2, 3, 4, 5, 7)
-    private val weights = floatArrayOf(1f, 0.7f, 0.45f, 0.3f, 0.18f)
-
-    // Every soft edge here is a gradient, not a blur: blurs are redrawn on the CPU each frame and cost real battery.
-    private fun setup(r: Float, cx: Float, cy: Float) {
-        sized = r; cxS = cx; cyS = cy
-        glow.shader = RadialGradient(cx, cy, r * 1.75f, intArrayOf(0x8C4664FF.toInt(), 0x403C3CE0, 0x00000000), floatArrayOf(0.45f, 0.7f, 1f), Shader.TileMode.CLAMP)
-        body.shader = RadialGradient(cx - r * 0.3f, cy - r * 0.35f, r * 1.55f,
-            intArrayOf(0xFFB7DCFF.toInt(), 0xFF4C7DFF.toInt(), 0xFF2236C9.toInt(), 0xFF140F5C.toInt(), 0xFF080A2A.toInt()),
-            floatArrayOf(0f, 0.22f, 0.5f, 0.78f, 1f), Shader.TileMode.CLAMP)
-        rim.strokeWidth = r * 0.06f
-        rim.shader = SweepGradient(cx, cy, intArrayOf(0xB38B6CFF.toInt(), 0x00000000, 0xB35FD0FF.toInt(), 0x00000000, 0xB38B6CFF.toInt()), null)
-        shine.shader = RadialGradient(cx - r * 0.34f, cy - r * 0.5f, r * 0.42f, intArrayOf(0x73FFFFFF, 0x00FFFFFF), null, Shader.TileMode.CLAMP)
+    private val shader: android.graphics.RuntimeShader? = try { android.graphics.RuntimeShader(AGSL) } catch (e: Throwable) {
+        android.util.Log.e("AtlasOrb", "orb shader didn't compile", e); null
     }
+    private val paint = Paint().apply { shader?.let { setShader(it) } }
+    private val still2 = Paint(Paint.FILTER_BITMAP_FLAG)
+    private var stillPic: android.graphics.Bitmap? = null
+    private val dst = android.graphics.RectF()
 
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat(); val h = height.toFloat()
         if (w <= 0f || h <= 0f) return
-        val side = min(w, h)
-        val px = side.toInt().coerceAtMost(360).coerceAtLeast(16)
-        if (pic?.width != px) {
-            pic?.recycle()
-            pic = android.graphics.Bitmap.createBitmap(px, px, android.graphics.Bitmap.Config.ARGB_8888)
-            picCanvas = Canvas(pic!!)
-        }
-        val c = picCanvas!!
-        pic!!.eraseColor(Color.TRANSPARENT)
-        val r = px * 0.34f
-        val cx = px / 2f; val cy = px / 2f
-        if (r != sized || cx != cxS || cy != cyS) setup(r, cx, cy)
         val t = if (still) 0f else (SystemClock.uptimeMillis() - start) / 1000f
         shownLevel += (level - shownLevel) * 0.25f
         shownEnergy += (energy - shownEnergy) * 0.08f
-        val amp = 0.045f + 0.05f * shownEnergy + 0.12f * shownLevel
-        val pace = 1f + 1.8f * shownEnergy
-        val scale = 1f + 0.10f * shownLevel
-
-        path.reset()
-        val n = 72
-        for (i in 0..n) {
-            val a = (i.toFloat() / n) * 2f * PI.toFloat()
-            var k = 1f
-            for (j in harmonics.indices) k += amp * weights[j] * sin(harmonics[j] * a + phases[j] + t * speeds[j] * pace)
-            val rr = r * k * scale
-            val x = cx + rr * cos(a); val y = cy + rr * sin(a)
-            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        val sh = shader
+        if (sh != null && canvas.isHardwareAccelerated) {
+            sh.setFloatUniform("size", w, h)
+            sh.setFloatUniform("time", t)
+            sh.setFloatUniform("energy", shownEnergy)
+            sh.setFloatUniform("level", shownLevel)
+            canvas.drawRect(0f, 0f, w, h, paint)
+        } else {
+            // a software canvas can't run shaders: the same orb, as a still picture that swells with the voice
+            val pic = stillPic ?: android.graphics.BitmapFactory.decodeResource(resources, R.drawable.orb_still).also { stillPic = it }
+            val side = min(w, h) * (1f + 0.08f * shownLevel)
+            dst.set((w - side) / 2, (h - side) / 2, (w + side) / 2, (h + side) / 2)
+            canvas.drawBitmap(pic, null, dst, still2)
         }
-        path.close()
-
-        // the light it gives off, brighter while it works
-        glow.alpha = (180 + 75 * shownEnergy).toInt().coerceIn(0, 255)
-        c.drawCircle(cx, cy, r * 1.75f * scale, glow)
-        // the body: deep navy at the heart, bright blue toward the light
-        c.drawPath(path, body)
-        // swirls of light inside, turning slowly: a wide faint stroke under a thin bright one reads as soft light
-        c.save()
-        c.clipPath(path)
-        c.rotate(t * 14f * pace, cx, cy)
-        for (k in 0 until 3) {
-            val ang = k * 2.1f + t * 0.2f
-            swirlPath.reset()
-            swirlPath.moveTo(cx + r * 0.75f * cos(ang), cy + r * 0.75f * sin(ang))
-            swirlPath.cubicTo(cx + r * 0.2f * cos(ang + 1.4f), cy + r * 0.2f * sin(ang + 1.4f),
-                cx + r * 0.6f * cos(ang + 2.6f), cy + r * 0.6f * sin(ang + 2.6f),
-                cx + r * 0.9f * cos(ang + 3.4f), cy + r * 0.9f * sin(ang + 3.4f))
-            val violet = k == 1
-            swirl.strokeWidth = r * (0.22f - k * 0.04f)
-            swirl.color = if (violet) Color.argb(40, 170, 140, 255) else Color.argb(44, 120, 210, 255)
-            c.drawPath(swirlPath, swirl)
-            swirl.strokeWidth = r * (0.08f - k * 0.015f)
-            swirl.color = if (violet) Color.argb(150, 185, 160, 255) else Color.argb(160, 140, 220, 255)
-            c.drawPath(swirlPath, swirl)
-        }
-        c.restore()
-        // a rim of light that travels round: violet and cyan
-        c.save()
-        c.rotate(-t * 22f * pace, cx, cy)
-        c.drawPath(path, rim)
-        c.restore()
-        // the shine at the top left
-        c.drawCircle(cx - r * 0.34f, cy - r * 0.5f, r * 0.42f, shine)
-
-        dst.set((w - side) / 2, (h - side) / 2, (w + side) / 2, (h + side) / 2)
-        canvas.drawBitmap(pic!!, null, dst, picPaint)
-
-        // about 24 frames a second is plenty for a slow drift; nothing is drawn while it's off screen
-        if (!still && isShown) postInvalidateDelayed(40)
+        // about 30 frames a second; nothing is drawn while it's off screen
+        if (!still && isShown) postInvalidateDelayed(33)
     }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
@@ -148,14 +75,93 @@ class OrbView(context: Context) : View(context) {
         if (visibility == VISIBLE) invalidate()
     }
 
-    override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-        pic?.recycle(); pic = null; picCanvas = null
-    }
-
     override fun onWindowVisibilityChanged(visibility: Int) {
         super.onWindowVisibilityChanged(visibility)
         if (visibility == VISIBLE) invalidate()
+    }
+
+    companion object {
+        /** The orb, per pixel. Mirrors tools/orb_proto.py line for line (that's where it was tuned against the reference). */
+        const val AGSL = """
+uniform float2 size;
+uniform float time;
+uniform float energy;
+uniform float level;
+
+float hash2(float2 p) { return fract(sin(p.x * 127.1 + p.y * 311.7) * 43758.5453); }
+float vnoise(float2 p) {
+    float2 i = floor(p); float2 f = p - i;
+    float2 u = f * f * (3.0 - 2.0 * f);
+    float a = hash2(i); float b = hash2(i + float2(1.0, 0.0));
+    float c = hash2(i + float2(0.0, 1.0)); float d = hash2(i + float2(1.0, 1.0));
+    float ab = a + (b - a) * u.x; float cd = c + (d - c) * u.x;
+    return ab + (cd - ab) * u.y;
+}
+float fbm(float2 p) {
+    float v = 0.0; float amp = 0.5;
+    for (int k = 0; k < 3; k++) { v += amp * vnoise(p); p = p * 2.03 + float2(1.7, 9.2); amp *= 0.5; }
+    return v;
+}
+float wrapA(float x) { return atan(sin(x), cos(x)); }
+float radiusAt(float th, float t) {
+    float k = 1.0 + 0.060 * sin(2.0 * th + 0.4 + t * 0.31) + 0.045 * sin(3.0 * th + 1.9 - t * 0.23)
+        + 0.025 * sin(5.0 * th + 4.1 + t * 0.41) + 0.015 * energy * sin(7.0 * th + t * 1.7);
+    float bite = -0.42 + 0.12 * sin(t * 0.21);
+    float d0 = wrapA(th - bite); float d1 = wrapA(th - bite + 0.62); float d2 = wrapA(th - bite - 2.6);
+    return k - 0.46 * exp(-(d0 * d0) / (2.0 * 0.0676)) + 0.10 * exp(-(d1 * d1) / (2.0 * 0.0784))
+        + 0.07 * exp(-(d2 * d2) / (2.0 * 0.25));
+}
+
+half4 main(float2 xy) {
+    float side = min(size.x, size.y);
+    float s = side * 0.33 * (1.0 + 0.08 * level) * (1.0 + 0.05 * energy);
+    float px = (xy.x - size.x * 0.5) / s;
+    float py = (xy.y - size.y * 0.5) / s / 1.12;
+    float th = atan(py, px);
+    float rad = sqrt(px * px + py * py);
+    float d = rad / radiusAt(th, time);
+    float aa = 1.5 / s;
+    float inside = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, d);
+    float glow = exp(-max(d - 1.0, 0.0) * 6.0) * (1.0 - inside) * (0.10 + 0.25 * energy);
+    if (inside <= 0.0 && glow < 0.004) { return half4(0.0); }
+
+    float t = time;
+    float fx = px * 1.05 + 0.35 * sin(t * 0.21);
+    float fy = py * 1.05 + 0.3 * cos(t * 0.17);
+    float warpx = fbm(float2(fx + 3.1, fy - 1.3 + t * 0.05));
+    float warpy = fbm(float2(fx - 2.4 + t * 0.04, fy + 5.2));
+    float n = fbm(float2(fx + 1.4 * warpx, fy + 1.4 * warpy));
+    float rib = 1.0 - smoothstep(0.0, 0.07, abs(n - 0.52));
+    float rib2 = 1.0 - smoothstep(0.0, 0.045, abs(n - 0.42));
+    float halo = 1.0 - smoothstep(0.0, 0.16, abs(n - 0.50));
+    float zone = smoothstep(0.15, 0.7, d) * (1.0 - smoothstep(0.97, 1.0, d));
+    float grain = hash2(floor(xy));
+    float speck = 0.7 + 0.6 * grain;
+    float band = (rib + rib2 * 0.5) * zone * speck;
+    float soft = smoothstep(0.30, 0.8, fbm(float2(fx * 0.8 + 4.0, fy * 0.8 - t * 0.03))) * zone * 0.35;
+
+    float3 blue = float3(0.06, 0.32, 1.0);
+    float3 bright = float3(0.55, 0.80, 1.0);
+    float3 col = float3(0.004, 0.008, 0.03);
+    col += blue * band * (0.9 + 0.5 * energy);
+    col += bright * band * band * band * 0.35;
+    col += blue * (soft * 0.4 + halo * zone * 0.35);
+
+    float inv = 1.0 / max(rad, 0.000001);
+    float nx = px * inv; float ny = py * inv;
+    float light = clamp(0.7 - 0.75 * (nx * 0.70 + ny * 0.72), 0.0, 1.0);
+    float shell = smoothstep(0.66, 0.995, d);
+    float lines = 0.62 + 0.38 * sin(xy.y * 3.14159265 / 1.15);
+    col += float3(0.80, 0.88, 1.0) * pow(shell, 1.5) * light * lines * 0.92;
+    col += blue * shell * (1.0 - light) * 0.25;
+    float wl = clamp(nx * 0.75 + ny * 0.66, 0.0, 1.0);
+    col += float3(1.0, 0.50, 0.32) * wl * wl * wl * smoothstep(0.88, 1.0, d) * 0.85;
+
+    float3 outc = clamp(col, 0.0, 1.0) * inside + float3(0.1, 0.3, 1.0) * glow;
+    float a = clamp(inside + glow, 0.0, 1.0);
+    return half4(half3(outc), half(a));
+}
+"""
     }
 }
 

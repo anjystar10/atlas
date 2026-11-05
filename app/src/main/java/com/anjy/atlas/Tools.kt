@@ -35,7 +35,7 @@ object Tools {
 
     val declarations: JSONArray by lazy {
         JSONArray().apply {
-            put(fn("set_reminder", "Log a reminder or task the user wants to be reminded about. Atlas notifies them at the time and checks in afterwards.",
+            put(fn("set_reminder", "Log a reminder. If it has a time, an alarm rings then and asks the user whether they'll do it.",
                 JSONObject().put("title", str("Short title, e.g. 'Pick up my sister'"))
                     .put("when", str("Local date and time as 'YYYY-MM-DD HH:MM' (24h). Leave out only if the user gave no time at all."))
                     .put("duration_min", int("How long it takes, in minutes (default 30)"))
@@ -48,6 +48,9 @@ object Tools {
                     .put("title", str("For rename: the new title")), listOf("id", "action")))
             put(fn("remember", "Save a lasting fact or preference the user wants Atlas to keep (shown in the Log).",
                 JSONObject().put("text", str("The fact, in a short sentence")), listOf("text")))
+            put(fn("read_log", "Look things up in the user's Log: reminders (upcoming, done, snoozed, skipped, missed), things they asked you to remember, and what happened when. Newest first.",
+                JSONObject().put("query", str("Words to search for; leave out to get the latest entries"))
+                    .put("limit", int("How many entries at most (default 30)"))))
             put(fn("forget", "Delete a saved memory.", JSONObject().put("id", str("The memory's id from your instructions")), listOf("id")))
             put(fn("open_app", "Open an installed app by name. Returns the screen once it has opened.",
                 JSONObject().put("name", str("The app's name as it appears on the phone, e.g. 'ChatGPT', 'Instagram', 'Settings'")), listOf("name")))
@@ -102,6 +105,34 @@ object Tools {
         sb.toString()
     }
 
+    private val stamp = DateTimeFormatter.ofPattern("EEE d MMM yyyy HH:mm")
+    private fun at(ms: Long) = Instant.ofEpochMilli(ms).atZone(Engine.zone).format(stamp)
+
+    /** The Log as text for the model: entries newest first, optionally only those mentioning [query]. */
+    fun readLog(ctx: Context, query: String?, limit: Int): String = Store.read(ctx) { s ->
+        data class Line(val time: Long, val text: String)
+        val lines = mutableListOf<Line>()
+        s.tasks.forEach { t ->
+            val status = when (t.status) {
+                "planned" -> if (t.startAt != null) "upcoming" else "no time set"
+                "done" -> "said they'd do it / done" + (t.completedAt?.let { " (${at(it)})" } ?: "")
+                "skipped" -> "not doing it" + (t.skipReason.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "")
+                else -> t.status
+            }
+            lines.add(Line(t.createdAt, "[${t.id}] Reminder: ${t.title}" + (t.startAt?.let { " — for ${at(it)}" } ?: "") + " — $status" +
+                (if (t.recurrence != "none") " — repeats ${t.recurrence}" else "") + (if (t.notes.isNotBlank()) " — notes: ${t.notes}" else "") + " (logged ${at(t.createdAt)})"))
+        }
+        s.memories.forEach { m -> lines.add(Line(m.createdAt, "[${m.id}] Remembered: ${m.text} (saved ${at(m.createdAt)})")) }
+        s.log.filter { it.type in setOf("done", "skipped", "delayed", "note", "deleted", "cancelled") }.forEach { l ->
+            lines.add(Line(l.at, "${at(l.at)}: ${l.type} — ${l.title}${if (l.detail.isNotBlank()) " (${l.detail})" else ""}"))
+        }
+        val q = query?.trim()?.lowercase().orEmpty()
+        val hits = lines.filter { q.isEmpty() || q.split(' ').filter { w -> w.length > 1 }.all { w -> w in it.text.lowercase() } }
+            .sortedByDescending { it.time }.take(limit)
+        if (hits.isEmpty()) (if (q.isEmpty()) "The Log is empty." else "Nothing in the Log matches \"$query\".")
+        else "Log (${hits.size} of ${lines.size} entries, newest first):\n" + hits.joinToString("\n") { it.text }
+    }
+
     suspend fun run(ctx: Context, c: Gemini.Call): Result {
         val a = c.args
         val now = System.currentTimeMillis()
@@ -141,6 +172,7 @@ object Tools {
                     val act = a.optString("action")
                     Result("Done: $act on '$title'.", when (act) { "done" -> "Marked “$title” done"; "cancel" -> "Cancelled “$title”"; "delete" -> "Deleted “$title”"; "move" -> "Moved “$title”"; else -> "Renamed “$title”" })
                 }
+                "read_log" -> withContext(Dispatchers.IO) { Result(readLog(ctx, a.optString("query"), a.optInt("limit", 30).coerceIn(1, 200))) }
                 "remember" -> withContext(Dispatchers.IO) {
                     val txt = a.optString("text").trim()
                     if (txt.isEmpty()) Result("Error: nothing to remember.") else {

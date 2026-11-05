@@ -6,11 +6,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import com.anjy.atlas.core.AtlasState
 import com.anjy.atlas.core.Engine
-import com.arm.aichat.AiChat
-import com.arm.aichat.InferenceEngine
-import com.arm.aichat.isModelLoaded
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -23,23 +19,12 @@ data class Reply(val text: String, val source: String)
 object ModelManager {
     @Volatile var status: String = "No model loaded"; private set
     @Volatile var ready = false; private set
-    private var engine: InferenceEngine? = null
-    private var nativeOk: Boolean? = null
 
     fun modelFile(ctx: Context) = File(File(ctx.filesDir, "models").apply { mkdirs() }, "atlas-model.gguf")
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("model", Context.MODE_PRIVATE)
     fun modelName(ctx: Context): String? = prefs(ctx).getString("name", null)?.takeIf { modelFile(ctx).exists() }
-    fun lastLoadCrashed(ctx: Context) = prefs(ctx).getBoolean("loading", false)
-
-    private fun engine(ctx: Context): InferenceEngine? {
-        engine?.let { return it }
-        if (nativeOk == null) {
-            nativeOk = try { System.loadLibrary("ai-chat"); true } catch (t: Throwable) { status = "Model runtime is missing from this build: ${t.message}"; false }
-        }
-        if (nativeOk != true) return null
-        return try { AiChat.getInferenceEngine(ctx.applicationContext).also { engine = it } }
-        catch (t: Throwable) { status = "Model runtime failed to start: ${t.message}"; null }
-    }
+    /** Called when the model's process died. */
+    internal fun onProcessDied() { ready = false; status = ModelLink.died ?: "The offline model stopped." }
 
     /** Copy a .gguf file the user picked into Atlas's private storage. */
     suspend fun import(ctx: Context, uri: Uri, onProgress: (Long, Long) -> Unit): String = withContext(Dispatchers.IO) {
@@ -77,7 +62,7 @@ object ModelManager {
         } catch (e: Throwable) {
             tmp.delete(); throw e
         }
-        if (ready) unload()
+        if (ready) unload(ctx)
         if (dest.exists()) dest.delete()
         if (!tmp.renameTo(dest)) throw IllegalStateException("Could not save the model file.")
         prefs(ctx).edit().putString("name", name).apply()
@@ -104,41 +89,36 @@ object ModelManager {
         return "“$name” ($mb) isn't a GGUF model. $what$small\nFirst bytes: $hex (a model starts 47 47 55 46)."
     }
 
-    suspend fun load(ctx: Context): Boolean = withContext(Dispatchers.IO) {
+    /** Loads the model in its own process (see [ModelService]). A crash or out-of-memory there can't close Atlas. */
+    suspend fun load(ctx: Context): Boolean {
         val f = modelFile(ctx)
-        if (!f.exists()) { status = "No model file. Choose one in Me."; return@withContext false }
-        val e = engine(ctx) ?: return@withContext false
-        prefs(ctx).edit().putBoolean("loading", true).commit()
-        try {
+        if (!f.exists()) { status = "No model file. Choose one in Me."; return false }
+        return try {
             status = "Loading ${modelName(ctx) ?: "model"}…"
-            val st = e.state.first { it is InferenceEngine.State.Initialized || it is InferenceEngine.State.Error || it.isModelLoaded }
-            if (st.isModelLoaded || st is InferenceEngine.State.Error) e.cleanUp()
-            e.loadModel(f.absolutePath)
-            e.setSystemPrompt(Brain.systemPrompt(ctx))
+            ModelLink.died = null
+            val system = withContext(Dispatchers.IO) { Brain.systemPrompt(ctx) }
+            ModelLink.request(ctx, ModelService.LOAD, android.os.Bundle().apply { putString("path", f.absolutePath); putString("system", system) })
             usedChars = 0; stale = false
             ready = true
             status = "${modelName(ctx) ?: "Model"} ready, running on this phone"
             true
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e
         } catch (t: Throwable) {
             ready = false
-            status = if ((t.message ?: "").startsWith("Cannot unload")) "The model got stuck. Close Atlas from recent apps and open it again."
-            else "Model failed to load: ${t.message ?: t.javaClass.simpleName}"
-            try { e.cleanUp() } catch (_: Throwable) {}
+            status = ModelLink.died ?: "Model failed to load: ${t.message ?: t.javaClass.simpleName}"
             false
-        } finally {
-            prefs(ctx).edit().putBoolean("loading", false).apply()
         }
     }
 
-    fun unload() {
-        val e = engine ?: return
-        try { if (e.state.value.isModelLoaded || e.state.value is InferenceEngine.State.Error) e.cleanUp() } catch (_: Throwable) {}
+    fun unload(ctx: Context? = null) {
         ready = false
         status = "Model unloaded"
+        // ending the model's process frees all of its memory at once
+        ctx?.let { ModelLink.disconnect(it) }
     }
 
     fun remove(ctx: Context) {
-        unload()
+        unload(ctx)
         modelFile(ctx).delete()
         prefs(ctx).edit().remove("name").apply()
         status = "No model loaded"
@@ -154,17 +134,17 @@ object ModelManager {
     fun markStale() { stale = true }
 
     suspend fun generate(ctx: Context, text: String, onToken: (String) -> Unit): String {
-        var e = engine ?: throw IllegalStateException("No model loaded.")
-        if (stale || usedChars + text.length > CHAR_BUDGET || e.state.value !is InferenceEngine.State.ModelReady) {
+        if (!ready || stale || usedChars + text.length > CHAR_BUDGET) {
             if (!load(ctx)) throw IllegalStateException(status)
-            e = engine ?: throw IllegalStateException("No model loaded.")
         }
-        val sb = StringBuilder()
-        e.sendUserPrompt(text, 320).collect { tok -> sb.append(tok); onToken(sb.toString()) }
-        usedChars += text.length + sb.length + 40
+        val out = try {
+            ModelLink.request(ctx, ModelService.GENERATE, android.os.Bundle().apply { putString("text", text); putInt("max", 320) }, onToken)
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e
+        } catch (t: Throwable) { ready = ready && ModelLink.died == null; throw IllegalStateException(ModelLink.died ?: t.message ?: "The model failed.") }
+        usedChars += text.length + out.length + 40
         // An empty answer means the runtime refused the prompt; start fresh next time.
-        if (sb.isBlank()) stale = true
-        return sb.toString()
+        if (out.isBlank()) stale = true
+        return out
     }
 }
 
@@ -315,7 +295,7 @@ object Brain {
 
     private fun describeAdded(title: String, at: Long?, dur: Int): String =
         if (at == null) "Added “$title” to Unscheduled. Tell me a time and I'll remind you."
-        else "Added “$title” for ${dayLabel(at)} ${Reminders.fmt(at)} ($dur min). I'll remind you when it starts and check in after."
+        else "Added “$title” for ${dayLabel(at)} ${Reminders.fmt(at)} ($dur min). An alarm will ring then and ask if you'll do it."
 
     fun dayLabel(ms: Long): String {
         val d = Instant.ofEpochMilli(ms).atZone(Engine.zone).toLocalDate()

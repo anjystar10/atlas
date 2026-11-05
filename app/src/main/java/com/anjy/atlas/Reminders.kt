@@ -1,163 +1,124 @@
 package com.anjy.atlas
 
 import android.app.AlarmManager
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.app.Notification
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.util.Log
 import com.anjy.atlas.core.Engine
-import com.anjy.atlas.core.Event
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 
 /**
- * Deterministic reminder engine glue: one exact system alarm, always set to the engine's next wake time.
- * State lives in [Store]; the alarm is rebuilt from it after every change, on boot, and on clock changes.
+ * Timed entries in the Log ring like an alarm: at their time an alarm sounds and a pop-up asks whether you'll do it
+ * (I'll do it / Snooze 10 min / Not doing it). Nothing else: no check-ins, no follow-ups.
+ * Scheduled with the system's alarm clock, which phones (OPPO included) keep even under battery saving.
  */
 object Reminders {
-    private const val TAG = "AtlasReminders"
-    const val CH_REMIND = "atlas_reminders"
+    private const val TAG = "AtlasAlarms"
+    const val CH_ALARM = "atlas_alarm"
     const val CH_AVATAR = "atlas_avatar"
-    const val CH_QUIET = "atlas_quiet"
     const val ACTION_TICK = "com.anjy.atlas.TICK"
-    const val ACTION_DONE = "com.anjy.atlas.DONE"
-    const val ACTION_PROGRESS = "com.anjy.atlas.PROGRESS"
-    const val EXTRA_ID = "taskId"
+    /** An alarm that comes this late (the phone was off) is logged as missed rather than rung. */
+    private const val STALE_MS = 6 * 60 * 60 * 1000L
+    private val hhmm = DateTimeFormatter.ofPattern("HH:mm")
 
-    private val hhmm: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     fun fmt(ms: Long): String = Instant.ofEpochMilli(ms).atZone(Engine.zone).format(hhmm)
 
     fun channels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CH_REMIND, "Reminders and check-ins", NotificationManager.IMPORTANCE_HIGH).apply {
-            description = "Task starts, check-ins and follow-ups"
+        // the old reminder channels go
+        listOf("atlas_reminders", "atlas_quiet").forEach { try { nm.deleteNotificationChannel(it) } catch (_: Exception) {} }
+        nm.createNotificationChannel(NotificationChannel(CH_ALARM, "Alarms", NotificationManager.IMPORTANCE_HIGH).apply {
+            description = "Rings at the time of things you asked Atlas to remind you about"
+            setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+            enableVibration(true); vibrationPattern = longArrayOf(0, 600, 400, 600)
+            setBypassDnd(true)
         })
-        nm.createNotificationChannel(NotificationChannel(CH_QUIET, "Reminders during quiet hours", NotificationManager.IMPORTANCE_LOW).apply {
-            description = "Delivered silently so nothing is lost while you're not to be disturbed"
-        })
-        nm.createNotificationChannel(NotificationChannel(CH_AVATAR, "Avatar", NotificationManager.IMPORTANCE_MIN).apply {
-            description = "Keeps the on-screen avatar running"
+        nm.createNotificationChannel(NotificationChannel(CH_AVATAR, "Atlas on screen", NotificationManager.IMPORTANCE_MIN).apply {
+            description = "Shown while Atlas floats on screen or listens for “Hey Atlas”"
         })
     }
 
-    /** Advance the engine to now, notify, and set the next alarm. Safe to call any time. */
+    /** Ring anything that's due now, then set the system alarm for the next one. Safe to call any time, off the main thread. */
     fun tickAndSchedule(ctx: Context) {
         val now = System.currentTimeMillis()
-        val (events, wake) = Store.edit(ctx) { s -> Pair(Engine.tick(s, now), Engine.nextWake(s, now)) }
-        notifyEvents(ctx, events)
-        schedule(ctx, wake)
-        AvatarService.refresh(ctx)
+        val due = mutableListOf<String>()
+        val next = Store.edit(ctx) { s ->
+            s.tasks.filter { it.status == "planned" && it.remindedAt == null && it.startAt != null && it.startAt!! <= now + 30_000 }.forEach { t ->
+                t.remindedAt = now
+                if (now - t.startAt!! <= STALE_MS) due.add(t.id)
+                else s.log.add(com.anjy.atlas.core.LogEntry(java.util.UUID.randomUUID().toString(), now, "note", t.id, t.title, "missed: the phone was off at its time"))
+            }
+            s.tasks.filter { it.status == "planned" && it.remindedAt == null && it.startAt != null && it.startAt!! > now }.minOfOrNull { it.startAt!! }
+        }
+        if (due.isNotEmpty()) ring(ctx, due)
+        schedule(ctx, next)
     }
 
-    private fun schedule(ctx: Context, wake: Long?) {
+    private fun schedule(ctx: Context, at: Long?) {
         val am = ctx.getSystemService(AlarmManager::class.java)
-        val pi = PendingIntent.getBroadcast(
-            ctx, 1, Intent(ctx, AlarmReceiver::class.java).setAction(ACTION_TICK),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        am.cancel(pi)
-        if (wake == null) return
+        val pi = PendingIntent.getBroadcast(ctx, 0, Intent(ctx, AlarmReceiver::class.java).setAction(ACTION_TICK),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        if (at == null) { am.cancel(pi); return }
         try {
-            if (am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, wake, pi)
-            else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, wake, pi)
+            val show = PendingIntent.getActivity(ctx, 1, Intent(ctx, MainActivity::class.java).putExtra("tab", "log"), PendingIntent.FLAG_IMMUTABLE)
+            am.setAlarmClock(AlarmManager.AlarmClockInfo(at, show), pi)
         } catch (e: SecurityException) {
-            Log.w(TAG, "Exact alarm refused, using inexact", e)
-            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, wake, pi)
+            Log.w(TAG, "exact alarms not allowed; using an inexact one", e)
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
         }
     }
 
-    private fun notifyEvents(ctx: Context, events: List<Event>) {
-        val latest = LinkedHashMap<String, Event>()
-        events.forEach { latest[it.task.id] = it }
-        val nm = ctx.getSystemService(NotificationManager::class.java)
-        if (!nm.areNotificationsEnabled()) return
-        for (e in latest.values) {
-            // During quiet hours nothing is dropped: it arrives silently instead.
-            val t = e.task
-            val (title, body) = when (e.type) {
-                "remind" -> Pair(if (e.late) "Was due at ${fmt(t.startAt ?: 0)}" else "Starting now", "${t.title} · ${t.durationMin} min")
-                "checkin" -> Pair("Check-in", "How did “${t.title}” go?")
-                else -> Pair("Still waiting on you", "“${t.title}” needs an answer.")
-            }
-            val code = t.id.hashCode()
-            val open = PendingIntent.getActivity(
-                ctx, code, Intent(ctx, MainActivity::class.java).putExtra("tab", "today").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val b = Notification.Builder(ctx, if (e.quiet) CH_QUIET else CH_REMIND)
-                .setSmallIcon(R.drawable.ic_stat)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setContentIntent(open)
-                .setAutoCancel(true)
-                .setCategory(Notification.CATEGORY_REMINDER)
-            if (e.type != "remind") {
-                b.addAction(Notification.Action.Builder(null as android.graphics.drawable.Icon?, "Done", actionIntent(ctx, ACTION_DONE, t.id, code)).build())
-                b.addAction(Notification.Action.Builder(null as android.graphics.drawable.Icon?, "Still working · 15 min", actionIntent(ctx, ACTION_PROGRESS, t.id, code + 1)).build())
-                b.addAction(Notification.Action.Builder(null as android.graphics.drawable.Icon?, "Other answer", open).build())
-            }
-            try { nm.notify(code, b.build()) } catch (se: SecurityException) { Log.w(TAG, "Notification permission missing", se) }
-        }
+    /** The alarm itself: the pop-up with sound, and a notification that opens it again if it's dismissed. */
+    private fun ring(ctx: Context, ids: List<String>) {
+        val open = Intent(ctx, AlarmActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(AlarmActivity.EXTRA_IDS, ids.toTypedArray())
+        val pi = PendingIntent.getActivity(ctx, ids.first().hashCode(), open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val title = Store.read(ctx) { s -> s.tasks.firstOrNull { it.id == ids.first() }?.title } ?: "Reminder"
+        val n = Notification.Builder(ctx, CH_ALARM)
+            .setSmallIcon(R.drawable.ic_stat)
+            .setContentTitle(title)
+            .setContentText(if (ids.size > 1) "and ${ids.size - 1} more. Will you do it?" else "It's time. Will you do it?")
+            .setCategory(Notification.CATEGORY_ALARM)
+            .setContentIntent(pi)
+            .setFullScreenIntent(pi, true)
+            .setAutoCancel(true)
+            .build()
+        try { ctx.getSystemService(NotificationManager::class.java).notify(AlarmActivity.NOTIF_ID, n) } catch (e: SecurityException) { Log.w(TAG, "notify", e) }
+        // with "display over other apps" Atlas may open its pop-up straight away
+        try { ctx.startActivity(open) } catch (e: Exception) { Log.w(TAG, "couldn't open the alarm directly; the notification will", e) }
     }
-
-    private fun actionIntent(ctx: Context, action: String, id: String, code: Int): PendingIntent =
-        PendingIntent.getBroadcast(
-            ctx, code, Intent(ctx, ActionReceiver::class.java).setAction(action).putExtra(EXTRA_ID, id),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
 }
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val pending = goAsync()
         Thread {
-            try { Reminders.tickAndSchedule(context.applicationContext) } finally { pending.finish() }
+            try { Reminders.tickAndSchedule(context.applicationContext) } catch (e: Exception) { Log.e("AtlasAlarms", "tick failed", e) }
+            finally { pending.finish() }
         }.start()
     }
 }
 
-/** Rebuilds the alarm after a reboot, an app update, or a clock/time-zone change. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val app = context.applicationContext
         val pending = goAsync()
         Thread {
             try {
                 Engine.zone = java.time.ZoneId.systemDefault()
-                Reminders.tickAndSchedule(app)
-                if (intent.action == Intent.ACTION_BOOT_COMPLETED || intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
-                    AvatarService.startIfEnabled(app)
-                }
-            } finally { pending.finish() }
-        }.start()
-    }
-}
-
-/** Handles Done / Still working buttons on check-in notifications without opening the app. */
-class ActionReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        val id = intent.getStringExtra(Reminders.EXTRA_ID) ?: return
-        val app = context.applicationContext
-        val pending = goAsync()
-        Thread {
-            try {
-                val now = System.currentTimeMillis()
-                try {
-                    Store.edit(app) { s ->
-                        when (intent.action) {
-                            Reminders.ACTION_DONE -> Engine.respond(s, id, "done", now)
-                            Reminders.ACTION_PROGRESS -> Engine.respond(s, id, "progress", now, minutes = 15)
-                            else -> null
-                        }
-                    }
-                } catch (e: Exception) { Log.w("AtlasAction", "Action failed", e) }
-                app.getSystemService(NotificationManager::class.java).cancel(id.hashCode())
-                Reminders.tickAndSchedule(app)
-            } finally { pending.finish() }
+                Reminders.channels(context)
+                Reminders.tickAndSchedule(context.applicationContext)
+                AvatarService.startIfEnabled(context)
+            } catch (e: Exception) { Log.e("AtlasAlarms", "boot", e) }
+            finally { pending.finish() }
         }.start()
     }
 }

@@ -1,7 +1,6 @@
 package com.anjy.atlas
 
 import android.content.Context
-import android.speech.tts.TextToSpeech
 import android.util.AtomicFile
 import android.util.Log
 import com.anjy.atlas.core.Engine
@@ -50,14 +49,14 @@ object Conversation {
     /** Which request is current: a stopped one finishing late must not touch the state of the next. */
     private var gen = 0
     /** Earlier turns as Gemini sees them (words only; tool calls of finished turns are folded into a short note). */
-    private val history = mutableListOf<JSONObject>()
+    private val history = mutableListOf<Pair<Boolean, String>>()
     private var loaded = false
 
     // ---------------------------------------------------------------- settings
 
-    fun key(ctx: Context): String? = Store.getString(ctx, "gemini_key")?.trim()?.takeIf { it.isNotEmpty() }
-    fun model(ctx: Context): String = Store.getString(ctx, "gemini_model")?.trim()?.takeIf { it.isNotEmpty() } ?: Gemini.DEFAULT_MODEL
-    fun online(ctx: Context) = key(ctx) != null
+    /** The AI service Atlas thinks with (the user's own key), or null when none is set up. */
+    fun provider(ctx: Context) = Providers.active(ctx)
+    fun online(ctx: Context) = provider(ctx) != null
     fun endpoint(ctx: Context) = Gemini.endpoint(Store.getString(ctx, "gemini_endpoint"))
 
     // ---------------------------------------------------------------- saving the chat
@@ -79,7 +78,7 @@ object Conversation {
             // the model picks up from the last few exchanges
             messages.takeLast(KEEP_TURNS * 2).forEach { m ->
                 if (m.source == "error") return@forEach
-                history.add(if (m.fromUser) Gemini.userText(m.text) else Gemini.modelText(m.text + stepNote(m.steps)))
+                history.add(m.fromUser to (if (m.fromUser) m.text else m.text + stepNote(m.steps)))
             }
             fixHistory()
         } catch (e: Exception) { Log.w(TAG, "chat unreadable", e) }
@@ -114,7 +113,7 @@ object Conversation {
     }
 
     /** Send [text] as the user. [spoken]: it came by voice, so the answer is read out too. */
-    fun send(ctx: Context, text: String, spoken: Boolean = false) {
+    fun send(ctx: Context, text: String, spoken: Boolean = false, onSpoken: (() -> Unit)? = null) {
         val app = ctx.applicationContext
         load(app)
         val q = text.trim()
@@ -144,18 +143,18 @@ object Conversation {
                 save(app)
                 changed()
             }
-            if (reply.source != "error" && (spoken || Store.read(app) { it.settings.speakReplies })) speak(app, reply.text)
+            if (spoken || Store.read(app) { it.settings.speakReplies }) speak(app, reply.text, onSpoken) else onSpoken?.invoke()
         }
     }
 
     private suspend fun answer(ctx: Context, q: String, spoken: Boolean, reply: Msg) {
-        val key = key(ctx)
-        if (key != null) {
+        val p = provider(ctx)
+        if (p != null) {
             try {
-                cloud(ctx, key, q, spoken, reply)
+                cloud(ctx, p, q, spoken, reply)
                 return
             } catch (f: Gemini.Failure) {
-                if (!f.offline) { reply.text = f.message ?: "Gemini failed."; reply.source = "error"; return }
+                if (!f.offline) { reply.text = f.message ?: "${p.name} failed."; reply.source = "error"; return }
                 Log.i(TAG, "offline: ${f.message}")
                 reply.steps.add("${f.message} Answering offline.")
             }
@@ -172,7 +171,7 @@ object Conversation {
         val now = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(Engine.zone)
         val phone = if (PhoneControl.on()) "on" else "OFF (the user must turn it on in Atlas → Me → Phone control before you can use apps)"
         return """
-You are Atlas, $name's personal AI assistant. You live on their Android phone and you can use it the way a person would: open apps, read the screen, tap, type, scroll and press keys. You also keep their reminders and the things they want remembered in Atlas's Log.
+You are Atlas, $name's personal AI assistant. You live on their Android phone and you can use it the way a person would: open apps, read the screen, tap, type, scroll and press keys. You also keep a Log for them: reminders (which ring like an alarm at their time) and things they want remembered.
 
 How you talk:
 - Like a sharp, warm friend. Natural and relaxed, short by default, longer when they want detail.
@@ -183,8 +182,9 @@ How you talk:
 - Plain text only: no markdown, no asterisks, no headings.${if (spoken) "\n- This message came by voice and your answer will be read aloud: one to three short spoken sentences, no lists." else ""}
 
 The Log (only what's worth keeping):
-- set_reminder when they want reminding or have something to do at a time ("remind me to pick up my sister next Thursday"). Work out the exact date from today's date. If they gave a day but no time, ask what time unless one is obvious from context.
+- set_reminder when they want reminding or have something to do at a time ("remind me to pick up my sister next Thursday"). At that time an alarm rings and asks if they'll do it. Work out the exact date from today's date. If they gave a day but no time, ask what time unless one is obvious from context.
 - remember for lasting facts or preferences they want kept. update_reminder / forget to change the Log.
+- read_log to look things up in the Log (what's coming, what they said they'd do, what they skipped, what they asked you to remember). Use it whenever they ask about something they logged.
 - Don't log ordinary questions, chat or phone actions.
 
 Using the phone:
@@ -201,20 +201,16 @@ ${Tools.logContext(ctx)}
 """.trim()
     }
 
-    private suspend fun cloud(ctx: Context, key: String, q: String, spoken: Boolean, reply: Msg) {
-        val model = model(ctx)
-        reply.source = "Gemini"
-        val contents = ArrayList(history)
-        contents.add(Gemini.userText(q))
+    private suspend fun cloud(ctx: Context, p: Providers.Provider, q: String, spoken: Boolean, reply: Msg) {
+        reply.source = p.name
+        val session = Providers.session(ctx, p, history.toList(), q)
         var final: String? = null
         var steps = 0
         while (steps < MAX_STEPS) {
             steps++
             val system = withContext(Dispatchers.IO) { systemPrompt(ctx, spoken) }
-            val req = Gemini.request(system, Gemini.trimScreens(contents), Tools.declarations, model)
-            val turn = callWithRetry(ctx, key, model, req)
+            val turn = callWithRetry(p) { session.call(system) }
             currentCoroutineContext().ensureActive()
-            contents.add(turn.content)
             if (turn.calls.isEmpty()) { final = turn.text; break }
             if (turn.text.isNotBlank()) { reply.text = turn.text; changed() }
             val results = mutableListOf<Pair<Gemini.Call, String>>()
@@ -226,28 +222,28 @@ ${Tools.logContext(ctx)}
                 results.add(c to r.out)
                 changed()
             }
-            contents.add(Gemini.toolResults(results))
+            session.results(results)
         }
         val text = final ?: "I stopped after $MAX_STEPS steps without finishing. Tell me how you'd like me to continue."
         reply.text = text
         // keep the exchange for next time as plain words, with a note of what was done
-        history.add(Gemini.userText(q))
-        history.add(Gemini.modelText(text + stepNote(reply.steps)))
+        history.add(true to q)
+        history.add(false to text + stepNote(reply.steps))
         fixHistory()
     }
 
-    /** Gemini's free tier sometimes says "busy" or "limit reached": wait and try again rather than drop a task halfway. */
-    private suspend fun callWithRetry(ctx: Context, key: String, model: String, req: JSONObject): Gemini.Turn {
+    /** Free tiers sometimes say "busy" or "limit reached": wait and try again rather than drop a task halfway. */
+    private suspend fun callWithRetry(p: Providers.Provider, call: () -> Gemini.Turn): Gemini.Turn {
         val waits = longArrayOf(6_000, 15_000, 30_000)
         var i = 0
         while (true) {
             try {
-                return withContext(Dispatchers.IO) { Gemini.call(key, model, req, endpoint(ctx)) }
+                return withContext(Dispatchers.IO) { call() }
             } catch (f: Gemini.Failure) {
                 val again = f.code == 429 || f.code == 500 || f.code == 503 || f.code == 504
                 if (!again || i >= waits.size) throw f
                 val was = status
-                status = if (f.code == 429) "Waiting for Gemini's free limit" else "Gemini is busy, trying again"; changed()
+                status = if (f.code == 429) "Waiting for ${p.name}'s limit" else "${p.name} is busy, trying again"; changed()
                 kotlinx.coroutines.delay(waits[i++])
                 status = was; changed()
             }
@@ -259,7 +255,7 @@ ${Tools.logContext(ctx)}
     /** At most [KEEP_TURNS] exchanges, starting with the user. */
     private fun fixHistory() {
         while (history.size > KEEP_TURNS * 2) history.removeAt(0)
-        while (history.isNotEmpty() && history[0].optString("role") != "user") history.removeAt(0)
+        while (history.isNotEmpty() && !history[0].first) history.removeAt(0)
     }
 
     private fun label(c: Gemini.Call): String = when (c.name) {
@@ -297,24 +293,6 @@ ${Tools.logContext(ctx)}
 
     // ---------------------------------------------------------------- speaking
 
-    private var tts: TextToSpeech? = null
-    private var ttsReady = false
-    private var pendingSpeech: String? = null
-
-    fun speak(ctx: Context, s: String) {
-        val text = s.replace(Regex("[*_#`]"), "").trim()
-        if (text.isEmpty()) return
-        val t = tts
-        if (t == null) {
-            pendingSpeech = text
-            tts = TextToSpeech(ctx.applicationContext) { st ->
-                ttsReady = st == TextToSpeech.SUCCESS
-                if (ttsReady) pendingSpeech?.let { tts?.speak(it, TextToSpeech.QUEUE_FLUSH, null, "atlas") }
-                pendingSpeech = null
-            }
-        } else if (ttsReady) t.speak(text, TextToSpeech.QUEUE_FLUSH, null, "atlas")
-        else pendingSpeech = text
-    }
-
-    fun hush() { try { tts?.stop() } catch (_: Exception) {} }
+    fun speak(ctx: Context, s: String, onDone: (() -> Unit)? = null) = Voice.speak(ctx, s, onDone)
+    fun hush() = Voice.hush()
 }

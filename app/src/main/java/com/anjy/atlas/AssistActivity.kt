@@ -149,7 +149,7 @@ class AssistActivity : Activity() {
     override fun onResume() {
         super.onResume()
         AvatarService.setAppInFront(this, true)
-        AvatarService.holdMic(true)
+        AvatarService.holdMic(this, true)
         Conversation.listen(onChat)
         show()
     }
@@ -158,7 +158,7 @@ class AssistActivity : Activity() {
         Conversation.unlisten(onChat)
         voice?.cancel(); voice = null; listening = false; orb.level = 0f
         AvatarService.setAppInFront(this, false)
-        AvatarService.holdMic(false)
+        AvatarService.holdMic(this, false)
         super.onPause()
     }
 
