@@ -3,9 +3,9 @@ name: Emulator smoke test
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: Release tag whose APK to test (e.g. build-3)
-        required: true
+      note:
+        description: Why this run (optional)
+        required: false
   workflow_run:
     workflows: [Build Atlas APK]
     types: [completed]
@@ -24,13 +24,14 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Pick the APK
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # the newest APK lives on the apk-builds branch, with the commit it was built from
         run: |
-          TAG="${{ github.event.inputs.tag }}"
-          if [ -z "$TAG" ]; then TAG="build-${{ github.event.workflow_run.run_number }}"; fi
-          echo "TAG=$TAG" >> "$GITHUB_ENV"
-          gh release download "$TAG" -p '*.apk' -D apk
+          git fetch --depth 1 origin apk-builds
+          mkdir -p apk
+          git show FETCH_HEAD:Atlas-latest.apk > apk/Atlas-latest.apk
+          BUILT=$(git show FETCH_HEAD:built-from.txt 2>/dev/null || echo unknown)
+          echo "TAG=${BUILT:0:7}" >> "$GITHUB_ENV"
+          echo "APK built from $BUILT"
           ls -la apk
 
       - name: Enable KVM

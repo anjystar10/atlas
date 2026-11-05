@@ -74,10 +74,14 @@ jobs:
           git rm -rf --cached . >/dev/null 2>&1 || true
           cp out/*.apk ./Atlas-latest.apk
           git add -f Atlas-latest.apk
+          echo "${GITHUB_SHA}" > built-from.txt
+          git add -f built-from.txt
           git commit -m "APK from build ${{ github.run_number }} (${GITHUB_SHA::7})"
           git push -f origin apk-tmp:apk-builds
 
       - name: Attach to a GitHub release
+        # optional: some repos don't let workflows create releases; the apk-builds branch always has the APK
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
