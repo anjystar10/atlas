@@ -26,8 +26,8 @@
 
     <application
         android:allowBackup="false"
-        android:icon="@drawable/ic_atlas"
-        android:roundIcon="@drawable/ic_atlas"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:label="Atlas"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
         android:largeHeap="true">
