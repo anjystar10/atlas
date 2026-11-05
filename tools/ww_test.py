@@ -9,11 +9,13 @@ phrases = {
     "hey alice": False, "atlas": False, "the atlas mountains": False, "hey alex": False, "hey at last": False,
     "open whatsapp": False, "what is the weather like today": False, "hey": False, "hello there": False,
 }
-voices = ["en-us", "en-gb", "en-us+m3", "en-us+f3", "en-gb-x-rp"]
-speeds = [140, 175]
+voices = ["en-us", "en-gb", "en-us+f3"]
+speeds = [160]
+REC = KaldiRecognizer(model, 16000, GRAMMAR)   # one recogniser, reset between clips, as on the phone
 def fires(path):
     wf = wave.open(path, "rb")
-    rec = KaldiRecognizer(model, wf.getframerate(), GRAMMAR)
+    rec = REC
+    rec.Reset()
     hit = False; heard = []
     while True:
         d = wf.readframes(1600)
@@ -40,5 +42,5 @@ for ph, want in phrases.items():
             elif want: fn += 1
             elif hit: fp += 1
             else: tn += 1
-            print(f"{mark} want={want!s:5} fired={hit!s:5} voice={v:12} speed={s} said='{ph}' heard='{heard}'")
+            print(f"{mark} want={want!s:5} fired={hit!s:5} voice={v:12} speed={s} said='{ph}' heard='{heard}'", flush=True)
 print(f"\nSUMMARY true-pos={tp} missed={fn} false-alarms={fp} true-neg={tn}")
