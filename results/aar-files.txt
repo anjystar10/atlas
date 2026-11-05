@@ -1,0 +1,8 @@
+./AndroidManifest.xml
+./META-INF/com/android/build/gradle/aar-metadata.properties
+./R.txt
+./classes.jar
+./jni/arm64-v8a/libvosk.so
+./jni/armeabi-v7a/libvosk.so
+./jni/x86/libvosk.so
+./jni/x86_64/libvosk.so

@@ -1,0 +1,15 @@
+-rw-r--r-- 1 runner runner 15962575 Dec  8  2020 vosk-model-small-en-us-0.15/am/final.mdl
+-rw-r--r-- 1 runner runner 1761 Dec  8  2020 vosk-model-small-en-us-0.15/graph/phones/word_boundary.int
+-rw-r--r-- 1 runner runner 24013795 Dec  8  2020 vosk-model-small-en-us-0.15/graph/Gr.fst
+-rw-r--r-- 1 runner runner 102 Dec  8  2020 vosk-model-small-en-us-0.15/graph/disambig_tid.int
+-rw-r--r-- 1 runner runner 22416994 Dec  8  2020 vosk-model-small-en-us-0.15/graph/HCLr.fst
+-rw-r--r-- 1 runner runner 1080 Dec  8  2020 vosk-model-small-en-us-0.15/ivector/global_cmvn.stats
+-rw-r--r-- 1 runner runner 95 Dec  8  2020 vosk-model-small-en-us-0.15/ivector/online_cmvn.conf
+-rw-r--r-- 1 runner runner 168048 Dec  8  2020 vosk-model-small-en-us-0.15/ivector/final.dubm
+-rw-r--r-- 1 runner runner 44975 Dec  8  2020 vosk-model-small-en-us-0.15/ivector/final.mat
+-rw-r--r-- 1 runner runner 35 Dec  8  2020 vosk-model-small-en-us-0.15/ivector/splice.conf
+-rw-r--r-- 1 runner runner 8288887 Dec  8  2020 vosk-model-small-en-us-0.15/ivector/final.ie
+-rw-rw-r-- 1 runner runner 131 Dec  8  2020 vosk-model-small-en-us-0.15/conf/mfcc.conf
+-rw-r--r-- 1 runner runner 290 Dec  8  2020 vosk-model-small-en-us-0.15/conf/model.conf
+-rw-r--r-- 1 runner runner 199 Dec  8  2020 vosk-model-small-en-us-0.15/README
+68M	vosk-model-small-en-us-0.15

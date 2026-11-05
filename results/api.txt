@@ -1,0 +1,93 @@
+Compiled from "SpeechService.java"
+public class org.vosk.android.SpeechService {
+  public org.vosk.android.SpeechService(org.vosk.Recognizer, float) throws java.io.IOException;
+  public boolean startListening(org.vosk.android.RecognitionListener);
+  public boolean startListening(org.vosk.android.RecognitionListener, int);
+  public boolean stop();
+  public boolean cancel();
+  public void shutdown();
+  public void setPause(boolean);
+  public void reset();
+  static int access$000(org.vosk.android.SpeechService);
+  static android.media.AudioRecord access$100(org.vosk.android.SpeechService);
+  static android.os.Handler access$200(org.vosk.android.SpeechService);
+  static int access$300(org.vosk.android.SpeechService);
+  static org.vosk.Recognizer access$400(org.vosk.android.SpeechService);
+}
+Compiled from "RecognitionListener.java"
+public interface org.vosk.android.RecognitionListener {
+  public abstract void onPartialResult(java.lang.String);
+  public abstract void onResult(java.lang.String);
+  public abstract void onFinalResult(java.lang.String);
+  public abstract void onError(java.lang.Exception);
+  public abstract void onTimeout();
+}
+Compiled from "Recognizer.java"
+public class org.vosk.Recognizer extends com.sun.jna.PointerType implements java.lang.AutoCloseable {
+  public org.vosk.Recognizer(org.vosk.Model, float) throws java.io.IOException;
+  public org.vosk.Recognizer(org.vosk.Model, float, org.vosk.SpeakerModel) throws java.io.IOException;
+  public org.vosk.Recognizer(org.vosk.Model, float, java.lang.String) throws java.io.IOException;
+  public void setMaxAlternatives(int);
+  public void setWords(boolean);
+  public void setPartialWords(boolean);
+  public void setSpeakerModel(org.vosk.SpeakerModel);
+  public boolean acceptWaveForm(byte[], int);
+  public boolean acceptWaveForm(short[], int);
+  public boolean acceptWaveForm(float[], int);
+  public java.lang.String getResult();
+  public java.lang.String getPartialResult();
+  public java.lang.String getFinalResult();
+  public void setGrammar(java.lang.String);
+  public void reset();
+  public void setEndpointerMode(int);
+  public void setEndpointerDelays(float, float, float);
+  public void close();
+}
+Compiled from "Model.java"
+public class org.vosk.Model extends com.sun.jna.PointerType implements java.lang.AutoCloseable {
+  public org.vosk.Model();
+  public org.vosk.Model(java.lang.String) throws java.io.IOException;
+  public void close();
+}
+Compiled from "LibVosk.java"
+public class org.vosk.LibVosk {
+  public org.vosk.LibVosk();
+  public static native void vosk_set_log_level(int);
+  public static native com.sun.jna.Pointer vosk_model_new(java.lang.String);
+  public static native void vosk_model_free(com.sun.jna.Pointer);
+  public static native com.sun.jna.Pointer vosk_spk_model_new(java.lang.String);
+  public static native void vosk_spk_model_free(com.sun.jna.Pointer);
+  public static native com.sun.jna.Pointer vosk_recognizer_new(org.vosk.Model, float);
+  public static native com.sun.jna.Pointer vosk_recognizer_new_spk(com.sun.jna.Pointer, float, com.sun.jna.Pointer);
+  public static native com.sun.jna.Pointer vosk_recognizer_new_grm(com.sun.jna.Pointer, float, java.lang.String);
+  public static native void vosk_recognizer_set_max_alternatives(com.sun.jna.Pointer, int);
+  public static native void vosk_recognizer_set_words(com.sun.jna.Pointer, boolean);
+  public static native void vosk_recognizer_set_partial_words(com.sun.jna.Pointer, boolean);
+  public static native void vosk_recognizer_set_spk_model(com.sun.jna.Pointer, com.sun.jna.Pointer);
+  public static native boolean vosk_recognizer_accept_waveform(com.sun.jna.Pointer, byte[], int);
+  public static native boolean vosk_recognizer_accept_waveform_s(com.sun.jna.Pointer, short[], int);
+  public static native boolean vosk_recognizer_accept_waveform_f(com.sun.jna.Pointer, float[], int);
+  public static native java.lang.String vosk_recognizer_result(com.sun.jna.Pointer);
+  public static native java.lang.String vosk_recognizer_final_result(com.sun.jna.Pointer);
+  public static native java.lang.String vosk_recognizer_partial_result(com.sun.jna.Pointer);
+  public static native void vosk_recognizer_set_grm(com.sun.jna.Pointer, java.lang.String);
+  public static native void vosk_recognizer_reset(com.sun.jna.Pointer);
+  public static native void vosk_recognizer_set_endpointer_mode(com.sun.jna.Pointer, int);
+  public static native void vosk_recognizer_set_endpointer_delays(com.sun.jna.Pointer, float, float, float);
+  public static native void vosk_recognizer_free(com.sun.jna.Pointer);
+  public static native com.sun.jna.Pointer vosk_text_processor_new(java.lang.String, java.lang.String);
+  public static native void vosk_text_processor_free(com.sun.jna.Pointer);
+  public static native java.lang.String vosk_text_processor_itn(com.sun.jna.Pointer, java.lang.String);
+  public static void setLogLevel(org.vosk.LogLevel);
+  static {};
+}
+Compiled from "LogLevel.java"
+public final class org.vosk.LogLevel extends java.lang.Enum<org.vosk.LogLevel> {
+  public static final org.vosk.LogLevel WARNINGS;
+  public static final org.vosk.LogLevel INFO;
+  public static final org.vosk.LogLevel DEBUG;
+  public static org.vosk.LogLevel[] values();
+  public static org.vosk.LogLevel valueOf(java.lang.String);
+  public int getValue();
+  static {};
+}
