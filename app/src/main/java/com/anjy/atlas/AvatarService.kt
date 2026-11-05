@@ -58,7 +58,7 @@ class AvatarService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_REFRESH) updateMood()
+        if (intent?.action == ACTION_REFRESH) { applyVisibility(); updateMood() }
         if (intent?.action == ACTION_CELEBRATE) { view?.mood = FlameView.Mood.HAPPY; view?.burst(); handler.postDelayed({ updateMood() }, 4000) }
         return START_STICKY
     }
@@ -105,11 +105,17 @@ class AvatarService : Service() {
         try {
             wm?.addView(v, params)
             view = v; lp = params
+            applyVisibility()
             updateMood()
         } catch (e: Exception) {
             Log.e("AtlasAvatar", "Could not add avatar", e)
             stopSelf()
         }
+    }
+
+    /** Atlas's own screens already show Ember, so the floating one steps aside while Atlas is open. */
+    private fun applyVisibility() {
+        view?.visibility = if (appInFront) android.view.View.GONE else android.view.View.VISIBLE
     }
 
     private fun updateMood() {
@@ -142,6 +148,13 @@ class AvatarService : Service() {
         const val ACTION_REFRESH = "com.anjy.atlas.AVATAR_REFRESH"
         const val ACTION_CELEBRATE = "com.anjy.atlas.AVATAR_CELEBRATE"
         @Volatile var running = false; private set
+        @Volatile var appInFront = false; private set
+
+        /** Called by Atlas's screen as it comes and goes. */
+        fun setAppInFront(ctx: Context, inFront: Boolean) {
+            appInFront = inFront
+            refresh(ctx)
+        }
 
         fun canShow(ctx: Context) = Settings.canDrawOverlays(ctx)
 

@@ -182,6 +182,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        AvatarService.setAppInFront(this, true)
         // the avatar may have just been allowed in system settings
         if (Store.read(this) { it.settings.avatarOn } && AvatarService.canShow(this) && !AvatarService.running) AvatarService.start(this)
         if (returnedFromSystem && tab == "settings") { returnedFromSystem = false; render(keepScroll = true) }
@@ -198,7 +199,7 @@ class MainActivity : Activity() {
         }
     }
 
-    override fun onPause() { refreshJob?.cancel(); returnedFromSystem = true; super.onPause() }
+    override fun onPause() { refreshJob?.cancel(); returnedFromSystem = true; AvatarService.setAppInFront(this, false); super.onPause() }
 
     /** Set when Atlas goes to the background (e.g. to grant a permission), so Me shows the new state on return. */
     private var returnedFromSystem = false
