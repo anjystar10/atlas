@@ -1753,7 +1753,7 @@ class MainActivity : Activity() {
             val msg = withContext(Dispatchers.IO) {
                 try {
                     val req = Gemini.request("Reply with exactly: ready", listOf(Gemini.userText("Are you there?")), Tools.declarations, model)
-                    val t = Gemini.call(k, model, req)
+                    val t = Gemini.call(k, model, req, Conversation.endpoint(applicationContext))
                     "Gemini works: “${t.text.take(40)}”"
                 } catch (e: Gemini.Failure) { e.message ?: "Gemini failed." }
             }

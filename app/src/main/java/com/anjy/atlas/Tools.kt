@@ -165,16 +165,17 @@ object Tools {
                         Result(afterAction(ctx, 1800, "Opened the link."), "Opened ${url.take(60)}", phone = true)
                     } catch (e: Exception) { Result("Error: nothing on the phone can open that link.") }
                 }
-                "read_screen" -> Result(PhoneControl.readScreen(), null, phone = true)
-                "tap" -> PhoneControl.tap(a.optInt("element", -1), long = false)
-                "long_press" -> PhoneControl.tap(a.optInt("element", -1), long = true)
-                "type_text" -> PhoneControl.type(if (a.has("element")) a.optInt("element", -1) else -1, a.optString("text"), a.optBoolean("press_enter", false))
-                "scroll" -> PhoneControl.scroll(a.optString("direction", "down"), if (a.has("element")) a.optInt("element", -1) else -1)
-                "press_key" -> PhoneControl.key(a.optString("key"))
+                // reading and touching the screen talks to the system for every element: kept off the main thread
+                "read_screen" -> withContext(Dispatchers.Default) { Result(PhoneControl.readScreen(), null, phone = true) }
+                "tap" -> withContext(Dispatchers.Default) { PhoneControl.tap(a.optInt("element", -1), long = false) }
+                "long_press" -> withContext(Dispatchers.Default) { PhoneControl.tap(a.optInt("element", -1), long = true) }
+                "type_text" -> withContext(Dispatchers.Default) { PhoneControl.type(if (a.has("element")) a.optInt("element", -1) else -1, a.optString("text"), a.optBoolean("press_enter", false)) }
+                "scroll" -> withContext(Dispatchers.Default) { PhoneControl.scroll(a.optString("direction", "down"), if (a.has("element")) a.optInt("element", -1) else -1) }
+                "press_key" -> withContext(Dispatchers.Default) { PhoneControl.key(a.optString("key")) }
                 "wait" -> {
                     val s = a.optInt("seconds", 2).coerceIn(1, 15)
                     delay(s * 1000L)
-                    Result(PhoneControl.readScreen(), null, phone = true)
+                    withContext(Dispatchers.Default) { Result(PhoneControl.readScreen(), null, phone = true) }
                 }
                 else -> Result("Error: there's no tool called ${c.name}.")
             }
@@ -186,7 +187,7 @@ object Tools {
     /** After opening something: give it a moment, then report the screen (or just [said] if Atlas can't see it). */
     private suspend fun afterAction(ctx: Context, waitMs: Long, said: String): String {
         delay(waitMs)
-        return if (PhoneControl.on()) "$said\n" + PhoneControl.readScreen() else "$said (Atlas can't see the screen: phone control is off.)"
+        return if (PhoneControl.on()) "$said\n" + withContext(Dispatchers.Default) { PhoneControl.readScreen() } else "$said (Atlas can't see the screen: phone control is off.)"
     }
 
     private fun appNames(ctx: Context): String {

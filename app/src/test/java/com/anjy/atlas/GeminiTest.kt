@@ -112,6 +112,14 @@ class GeminiTest {
         assertNull(Tools.parseWhen(null))
     }
 
+    @Test fun requestsOnlyEverGoToGoogleOrThePhoneItself() {
+        assertEquals(Gemini.ENDPOINT, Gemini.endpoint(null))
+        assertEquals(Gemini.ENDPOINT, Gemini.endpoint(""))
+        assertEquals(Gemini.ENDPOINT, Gemini.endpoint("https://evil.example.com/"))
+        assertEquals(Gemini.ENDPOINT, Gemini.endpoint("http://10.0.2.2:8765/"))
+        assertEquals("http://127.0.0.1:8765/v1beta/models/", Gemini.endpoint("http://127.0.0.1:8765/v1beta/models/"))
+    }
+
     @Test fun wakeWordMatchesOnlyThePhrase() {
         assertTrue(Hotword.heard("{\n  \"partial\" : \"hey atlas\"\n}"))
         assertTrue(Hotword.heard("{\"text\" : \"hey atlas\"}"))

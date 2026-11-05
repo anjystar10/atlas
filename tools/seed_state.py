@@ -21,7 +21,7 @@ tasks = [
 ]
 state = dict(schema=1, deviceId="seed",
              settings=dict(name="Anjy", tone="firm", quietStart="23:59", quietEnd="00:00", graceMin=15, followUps=1,
-                           sound=True, avatarOn=True, speakReplies=False, theme=theme),
+                           sound=True, avatarOn=True, speakReplies=False, theme=theme, wakeWord=True),
              tasks=tasks,
              log=[dict(id=str(uuid.uuid4()), at=now - 20 * M, type="checkin", taskId=tasks[0]["id"], title="Read 20 pages", detail="")],
              memories=[dict(id=str(uuid.uuid4()), text="My chess goal is 1500", createdAt=now - 300 * M)])

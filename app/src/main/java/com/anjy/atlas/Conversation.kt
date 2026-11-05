@@ -58,6 +58,7 @@ object Conversation {
     fun key(ctx: Context): String? = Store.getString(ctx, "gemini_key")?.trim()?.takeIf { it.isNotEmpty() }
     fun model(ctx: Context): String = Store.getString(ctx, "gemini_model")?.trim()?.takeIf { it.isNotEmpty() } ?: Gemini.DEFAULT_MODEL
     fun online(ctx: Context) = key(ctx) != null
+    fun endpoint(ctx: Context) = Gemini.endpoint(Store.getString(ctx, "gemini_endpoint"))
 
     // ---------------------------------------------------------------- saving the chat
 
@@ -211,7 +212,7 @@ ${Tools.logContext(ctx)}
             steps++
             val system = withContext(Dispatchers.IO) { systemPrompt(ctx, spoken) }
             val req = Gemini.request(system, contents, Tools.declarations, model)
-            val turn = withContext(Dispatchers.IO) { Gemini.call(key, model, req) }
+            val turn = withContext(Dispatchers.IO) { Gemini.call(key, model, req, endpoint(ctx)) }
             currentCoroutineContext().ensureActive()
             contents.add(turn.content)
             if (turn.calls.isEmpty()) { final = turn.text; break }

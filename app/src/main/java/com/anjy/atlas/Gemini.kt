@@ -94,9 +94,15 @@ object Gemini {
         }
     }
 
+    /**
+     * Where requests go. Always Google, except that the emulator test may point it at a stand-in running on the
+     * same phone (127.0.0.1 only, so a key can never be sent anywhere else).
+     */
+    fun endpoint(override: String?): String = override?.takeIf { it.startsWith("http://127.0.0.1:") } ?: ENDPOINT
+
     /** One call to generateContent. Network work: never call on the main thread. */
-    fun call(key: String, model: String, req: JSONObject): Turn {
-        val url = URL(ENDPOINT + model.trim() + ":generateContent")
+    fun call(key: String, model: String, req: JSONObject, endpoint: String = ENDPOINT): Turn {
+        val url = URL(endpoint + model.trim() + ":generateContent")
         val con = try { url.openConnection() as HttpURLConnection } catch (e: IOException) { throw Failure("Couldn't reach Gemini.", offline = true) }
         try {
             con.requestMethod = "POST"

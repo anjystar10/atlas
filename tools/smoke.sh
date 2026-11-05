@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Emulator smoke test: install, open every screen in Night and Day, exercise reminders, chat and the avatar.
-# Writes screenshots and logs to smoke-out/. Exit code is non-zero if Atlas crashed or failed to install.
+# Emulator smoke test: install, open every screen in Night and Day, talk to Atlas offline, run a scripted Gemini
+# conversation that uses phone control (against a stand-in server), open the Hey Atlas panel, and check reminders
+# and the floating creature. Writes screenshots and logs to smoke-out/. Non-zero exit if Atlas crashed.
 set -u
 PKG=com.anjy.atlas
 OUT=smoke-out
@@ -24,31 +25,22 @@ shot() { adb exec-out screencap -p > "$OUT/$1.png"; }
 launch() { adb shell am force-stop $PKG; adb shell am start -W -n $PKG/.MainActivity --es tab "$1" >> "$OUT/steps.txt" 2>&1; sleep 5; }
 alive() { adb shell pidof $PKG >/dev/null; }
 crashed() { adb logcat -d -b crash | grep -q "$PKG"; }
+owner() { adb shell stat -c %u /data/data/$PKG | tr -d '\r'; }
+put_file() { # local-file app-relative-path
+  adb push "$1" /data/local/tmp/put.tmp >/dev/null
+  adb shell "mkdir -p \$(dirname /data/data/$PKG/$2) && cp /data/local/tmp/put.tmp /data/data/$PKG/$2 && chown -R $(owner):$(owner) /data/data/$PKG/$(dirname $2) && chmod 600 /data/data/$PKG/$2 && restorecon -R /data/data/$PKG"
+}
 seed() {
   NOW=$(( $(adb shell date +%s | tr -d '\r') * 1000 ))
   python3 tools/seed_state.py "$NOW" "$1" /tmp/state.json
   adb shell am force-stop $PKG
-  adb push /tmp/state.json /data/local/tmp/state.json >/dev/null
-  adb shell "cp /data/local/tmp/state.json /data/data/$PKG/files/atlas-state.json && chown \$(stat -c %u /data/data/$PKG) /data/data/$PKG/files/atlas-state.json && chmod 600 /data/data/$PKG/files/atlas-state.json && restorecon /data/data/$PKG/files/atlas-state.json"
+  put_file /tmp/state.json files/atlas-state.json
 }
-
-log "first launch, empty state"
-launch chat; shot 00-first-launch
-if crashed || ! alive; then log "CRASH ON FIRST LAUNCH"; fi
-
-for theme in dark light; do
-  seed $theme
-  for tab in chat today memory settings; do
-    log "open $tab ($theme)"
-    launch $tab; shot "$theme-$tab"
-    if crashed || ! alive; then log "CRASH on $tab ($theme)"; fi
-  done
-  # scroll the long pages
-  launch settings; adb shell input swipe 500 1800 500 400 300; sleep 1; shot "$theme-settings-2"
-  adb shell input swipe 500 1800 500 400 300; sleep 1; shot "$theme-settings-3"
-done
-
-# Chat: type fixed commands and send them
+prefs() { # writes Atlas's small settings file: $1 = extra <string> lines
+  printf '<?xml version="1.0" encoding="utf-8" standalone="yes" ?>\n<map>\n%s\n</map>\n' "$1" > /tmp/atlas_ui.xml
+  adb shell am force-stop $PKG
+  put_file /tmp/atlas_ui.xml shared_prefs/atlas_ui.xml
+}
 tap_desc() {
   adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
   python3 - "$1" <<'PY' > /tmp/xy || return 1
@@ -66,19 +58,70 @@ PY
   [ -s /tmp/xy ] && adb shell input tap $(cat /tmp/xy)
 }
 say() {
-  tap_desc EDIT || log "no chat field"
-  adb shell input text "$(echo "$1" | sed 's/ /%s/g')"; sleep 1
-  tap_desc "Send" || log "no send button"; sleep 3
+  tap_desc EDIT || log "no ask field"
+  adb shell input text "$(echo "$1" | sed "s/ /%s/g; s/'//g")"; sleep 1
+  tap_desc "Send" || log "no send button"; sleep "${2:-3}"
 }
-log "chat commands"
-launch chat
+
+log "first launch, empty state"
+launch atlas; shot 00-first-launch
+if crashed || ! alive; then log "CRASH ON FIRST LAUNCH"; fi
+
+for theme in dark light; do
+  seed $theme
+  for tab in atlas log me; do
+    log "open $tab ($theme)"
+    launch $tab; shot "$theme-$tab"
+    if crashed || ! alive; then log "CRASH on $tab ($theme)"; fi
+  done
+  launch me; adb shell input swipe 500 1800 500 400 300; sleep 1; shot "$theme-me-2"
+  adb shell input swipe 500 1800 500 400 300; sleep 1; shot "$theme-me-3"
+  adb shell input swipe 500 1800 500 400 300; sleep 1; shot "$theme-me-4"
+  launch log; adb shell input swipe 500 1800 500 400 300; sleep 1; shot "$theme-log-2"
+done
+
+# Offline: no Gemini key, so the fixed commands answer
+log "offline chat commands"
+seed dark
+launch atlas
 say "help"
 say "remember my bike is blue"
 say "remind me to stretch at 23:30 for 10m"
 say "whats my day"
 adb shell input keyevent 4; sleep 1
-shot light-chat-after
-if crashed || ! alive; then log "CRASH in chat"; fi
+shot dark-chat-offline
+if crashed || ! alive; then log "CRASH in offline chat"; fi
+
+# Online, against a stand-in Gemini on this machine (forwarded to the phone's 127.0.0.1): phone control and the Log
+log "gemini conversation with phone control (stand-in server)"
+mkdir -p "$OUT/gemini"
+python3 tools/mock_gemini.py 8765 "$OUT/gemini" > "$OUT/gemini/server.txt" 2>&1 &
+MOCK=$!
+sleep 1
+adb reverse tcp:8765 tcp:8765
+adb shell settings put secure enabled_accessibility_services $PKG/$PKG.AtlasAccess
+adb shell settings put secure accessibility_enabled 1
+seed dark
+prefs '    <string name="gemini_key">test-key-for-the-emulator-0000</string>
+    <string name="gemini_endpoint">http://127.0.0.1:8765/v1beta/models/</string>'
+launch me; shot gemini-me-connected
+launch atlas
+say "open settings and tap network and come back" 12
+shot gemini-after-phone-task
+launch atlas; shot gemini-chat-after-phone-task
+say "remind me to pick up my sister" 6
+shot gemini-after-reminder
+launch log; shot gemini-log-after-reminder
+adb shell "cat /data/data/$PKG/files/chat.json" > "$OUT/gemini/chat.json" 2>/dev/null
+adb shell "cat /data/data/$PKG/files/atlas-state.json" > "$OUT/gemini/state.json" 2>/dev/null
+kill $MOCK 2>/dev/null
+if crashed || ! alive; then log "CRASH in gemini conversation"; fi
+
+# The Hey Atlas panel, opened the way the wake word opens it
+log "assist panel"
+adb shell am start -n $PKG/.AssistActivity >> "$OUT/steps.txt" 2>&1; sleep 4; shot assist-panel
+adb shell input keyevent 4; sleep 1
+if crashed; then log "CRASH in assist panel"; fi
 
 # Reminders: alarm path, notification buttons, reboot recovery
 log "reminder engine"
@@ -90,16 +133,17 @@ adb shell am broadcast -n $PKG/.BootReceiver -a android.intent.action.BOOT_COMPL
 adb shell dumpsys alarm | grep -A3 "$PKG" > "$OUT/alarms-after-boot.txt"
 if crashed; then log "CRASH in reminder path"; fi
 
-# Avatar: grant overlay, launch, go home, look at it
-log "avatar"
+# Creature and wake word: overlay allowed, Hey Atlas on (this emulator has no microphone input, so it can load but not hear)
+log "creature and wake word"
 adb shell appops set $PKG SYSTEM_ALERT_WINDOW allow
-launch today
-adb shell input keyevent 3; sleep 4; shot avatar-home
+launch atlas; sleep 8
+adb shell input keyevent 3; sleep 4; shot creature-home
 adb shell dumpsys activity services $PKG > "$OUT/services.txt"
-if crashed; then log "CRASH in avatar"; fi
+adb shell "ls -la /data/data/$PKG/files/" > "$OUT/files.txt" 2>&1
+if crashed; then log "CRASH in creature or wake word"; fi
 
 adb logcat -d -b crash > "$OUT/crash.txt"
 adb logcat -d > "$OUT/logcat.txt"
-grep -E "AndroidRuntime|FATAL|$PKG|Atlas" "$OUT/logcat.txt" | head -400 > "$OUT/logcat-atlas.txt"
+grep -E "AndroidRuntime|FATAL|$PKG|Atlas" "$OUT/logcat.txt" | head -600 > "$OUT/logcat-atlas.txt"
 if [ -s "$OUT/crash.txt" ] && grep -q "$PKG" "$OUT/crash.txt"; then log "RESULT: CRASHED"; exit 1; fi
 log "RESULT: NO CRASHES"
