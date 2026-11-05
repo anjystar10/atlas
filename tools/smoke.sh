@@ -18,6 +18,10 @@ adb shell settings put global transition_animation_scale 0
 adb shell settings put global animator_duration_scale 0
 adb shell getprop ro.product.cpu.abilist > "$OUT/abi.txt"
 
+# the screen's real size: swipes are given in its pixels
+read W H < <(adb shell wm size | tail -1 | sed 's/.*: //; s/x/ /' | tr -d '\r')
+up() { adb shell input swipe $((W/2)) $((H*4/5)) $((W/2)) $((H/4)) 300; sleep 1; }
+echo "screen ${W}x${H}" >> "$OUT/steps.txt"
 log "install $APK"
 if ! adb install -r -g "$APK" > "$OUT/install.txt" 2>&1; then
   cat "$OUT/install.txt"; log "INSTALL FAILED"; exit 2
@@ -81,10 +85,10 @@ for theme in dark light; do
     launch $tab; shot "$theme-$tab"
     if crashed || ! alive; then log "CRASH on $tab ($theme)"; fi
   done
-  launch me; adb shell input swipe 500 1800 500 400 300; sleep 1; shot "$theme-me-2"
-  adb shell input swipe 500 1800 500 400 300; sleep 1; shot "$theme-me-3"
-  adb shell input swipe 500 1800 500 400 300; sleep 1; shot "$theme-me-4"
-  launch log; adb shell input swipe 500 1800 500 400 300; sleep 1; shot "$theme-log-2"
+  launch me; up; shot "$theme-me-2"
+  up; shot "$theme-me-3"
+  up; shot "$theme-me-4"
+  launch log; up; shot "$theme-log-2"
 done
 
 # Offline: no Gemini key, so the fixed commands answer
@@ -158,7 +162,7 @@ if crashed; then log "CRASH in creature or wake word"; fi
 log "hey atlas model download"
 launch me
 FOUND=0
-for i in 1 2 3 4 5 6 7 8; do if tap_desc '“Hey Atlas” (beta)'; then FOUND=1; break; fi; adb shell input swipe 500 1500 500 900 300; sleep 1; done
+for i in 1 2 3 4 5 6 7 8; do if tap_desc '“Hey Atlas” (beta)'; then FOUND=1; break; fi; up; done
 log "hey atlas switch found: $FOUND"
 cp /tmp/ui.xml "$OUT/ui-hey-atlas.xml" 2>/dev/null
 sleep 4; shot hey-atlas-downloading
@@ -170,6 +174,11 @@ adb shell dumpsys activity services $PKG > "$OUT/services-hey-atlas.txt"
 adb shell dumpsys notification --noredact | grep -A12 "$PKG" > "$OUT/notifications-hey-atlas.txt"
 adb logcat -d | grep -E "AtlasHotword|AtlasPresence" > "$OUT/hotword-log.txt"
 if crashed; then log "CRASH in hey atlas"; fi
+
+# any "not responding" reports, with what each thread was doing
+adb shell "ls -la /data/anr/" > "$OUT/anr-list.txt" 2>&1
+mkdir -p "$OUT/anr" && adb pull /data/anr/ "$OUT/anr/" >/dev/null 2>&1
+adb shell dumpsys gfxinfo $PKG > "$OUT/gfxinfo.txt" 2>&1
 
 adb logcat -d -b crash > "$OUT/crash.txt"
 adb logcat -d > "$OUT/logcat.txt"
