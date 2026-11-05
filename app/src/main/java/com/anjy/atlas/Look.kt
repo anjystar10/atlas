@@ -50,6 +50,8 @@ class Backdrop(context: Context, private val bg: Int, private val dark: Boolean,
     private val g = Paint().apply { shader = Grain.shader() }
     private var glow: Shader? = null
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
+        // a gradient needs a radius above zero; a collapsed view has none
+        if (w <= 0 || h <= 0) { glow = null; return }
         val c = if (dark) warm else Color.WHITE
         val a = if (dark) 34 else 70
         glow = RadialGradient(w * 0.92f, -h * 0.02f, w * 0.95f, Color.argb(a, Color.red(c), Color.green(c), Color.blue(c)),

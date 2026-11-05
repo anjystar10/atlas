@@ -4,7 +4,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
-import java.time.ZonedDateTime
 import java.util.UUID
 
 /*
@@ -43,6 +42,8 @@ class Task(
     var blockedReason: String = "",
     var skipReason: String = "",
     var seriesId: String? = null,
+    /** For a repeating task: the slot this occurrence was scheduled for. Delaying it keeps the slot, so the series never drifts. */
+    var seriesAt: Long? = null,
     var remindedAt: Long? = null,
     var nextCheckAt: Long? = null,
     var promptedAt: Long? = null,
@@ -106,6 +107,7 @@ object Engine {
             recurrence = if (startAt != null && recurrence in RECURRENCES) recurrence else "none",
             createdAt = now, updatedAt = now, deviceId = s.deviceId, seriesId = seriesId
         )
+        if (t.recurrence != "none") t.seriesAt = startAt
         s.tasks.add(t)
         log(s, now, "created", t)
         return t
@@ -122,6 +124,7 @@ object Engine {
         val timeChanged = startAt != t.startAt || dur != t.durationMin
         t.title = clean; t.notes = notes; t.priority = priority; t.durationMin = dur; t.startAt = startAt
         t.recurrence = if (startAt != null && recurrence in RECURRENCES) recurrence else "none"
+        t.seriesAt = if (t.recurrence != "none") startAt else null
         if (timeChanged && t.status in setOf("planned", "active", "awaiting")) {
             t.status = "planned"; resetRem(t)
         }
@@ -256,7 +259,7 @@ object Engine {
     }
 
     private fun spawnNext(s: AtlasState, t: Task, now: Long): Task? {
-        val start = t.startAt ?: return null
+        val start = t.seriesAt ?: t.startAt ?: return null
         if (t.recurrence == "none") return null
         var at = nextOcc(start, t.recurrence) ?: return null
         var missed = 0
@@ -352,6 +355,7 @@ object Engine {
         var minute = 0
         var explicitDay = false
         var tonight = false
+        var hadAmPm = false
         Regex("\\sfor\\s+(\\d+(?:\\.\\d+)?)\\s*(minutes|minute|mins|min|m|hours|hour|hrs|hr|h)(?=\\s)", RegexOption.IGNORE_CASE)
             .find(s)?.let { m ->
                 val v = m.groupValues[1].toDouble()
@@ -374,17 +378,27 @@ object Engine {
                 ok = ok && h in 1..12
                 h = if (ap == "am") h % 12 else (h % 12) + 12
             } else ok = ok && h <= 23
-            if (ok) { hour = h; minute = mi; s = s.replaceFirst(m.value, " ") }
+            if (ok) { hour = h; minute = mi; hadAmPm = ap != null; s = s.replaceFirst(m.value, " ") }
         }
         if (hour == null && tonight) { hour = 20; minute = 0 }
         val title = s.replace(Regex("\\s+"), " ").trim()
         val h = hour
         if (h != null) {
-            val nowZ = Instant.ofEpochMilli(now).atZone(zone)
-            var d: ZonedDateTime = nowZ.toLocalDate().plusDays((dayOffset ?: 0).toLong())
-                .atTime(h, minute).atZone(zone)
-            if (!explicitDay && d.toInstant().toEpochMilli() < now - MIN) d = d.plusDays(1)
-            return Parsed(title, d.toInstant().toEpochMilli(), durationMin)
+            val day = Instant.ofEpochMilli(now).atZone(zone).toLocalDate().plusDays((dayOffset ?: 0).toLong())
+            fun at(date: LocalDate, hh: Int) = date.atTime(hh, minute).atZone(zone).toInstant().toEpochMilli()
+            val ambiguous = !hadAmPm && h in 1..11
+            val ms = when {
+                // "tonight at 9" is 21:00
+                ambiguous && tonight -> at(day, h + 12)
+                // "tomorrow at 6" is taken as written: 06:00
+                explicitDay && dayOffset == 1 -> at(day, h)
+                // "at 6" (today or no day): the next 6 o'clock, morning or evening
+                ambiguous -> listOf(at(day, h), at(day, h + 12), at(day.plusDays(1), h)).firstOrNull { it >= now - MIN }
+                    ?: at(day, h)
+                !explicitDay && at(day, h) < now - MIN -> at(day.plusDays(1), h)
+                else -> at(day, h)
+            }
+            return Parsed(title, ms, durationMin)
         }
         if (explicitDay && dayOffset == 1) {
             // A day without a time stays unscheduled; keep the word in the title so nothing is lost.

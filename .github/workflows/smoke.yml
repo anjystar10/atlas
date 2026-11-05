@@ -58,9 +58,8 @@ jobs:
           mkdir -p /tmp/res && cp -r smoke-out/* /tmp/res/
           git switch --orphan smoke-tmp
           git rm -rf --cached . >/dev/null 2>&1 || true
-          rm -rf ./* 2>/dev/null || true
-          cp -r /tmp/res/* .
-          echo "$TAG" > tag.txt
-          git add -f -A .
+          mkdir -p results && cp -r /tmp/res/* results/
+          echo "$TAG" > results/tag.txt
+          git add -f results
           git commit -qm "Smoke results for $TAG"
           git push -f origin smoke-tmp:smoke-results

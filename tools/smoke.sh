@@ -29,7 +29,7 @@ seed() {
   python3 tools/seed_state.py "$NOW" "$1" /tmp/state.json
   adb shell am force-stop $PKG
   adb push /tmp/state.json /data/local/tmp/state.json >/dev/null
-  adb shell "cp /data/local/tmp/state.json /data/data/$PKG/files/atlas-state.json && chown \$(stat -c %u /data/data/$PKG) /data/data/$PKG/files/atlas-state.json && chmod 600 /data/data/$PKG/files/atlas-state.json"
+  adb shell "cp /data/local/tmp/state.json /data/data/$PKG/files/atlas-state.json && chown \$(stat -c %u /data/data/$PKG) /data/data/$PKG/files/atlas-state.json && chmod 600 /data/data/$PKG/files/atlas-state.json && restorecon /data/data/$PKG/files/atlas-state.json"
 }
 
 log "first launch, empty state"
@@ -56,7 +56,9 @@ import re, sys
 x = open('/tmp/ui.xml', encoding='utf-8').read()
 for m in re.finditer(r'<node [^>]*>', x):
     n = m.group(0)
-    if f'content-desc="{sys.argv[1]}"' in n or f'text="{sys.argv[1]}"' in n:
+    want = sys.argv[1]
+    hit = ('class="android.widget.EditText"' in n) if want == 'EDIT' else (f'content-desc="{want}"' in n or f'text="{want}"' in n)
+    if hit:
         b = re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', n)
         if b:
             a, c, d, e = map(int, b.groups()); print((a + d) // 2, (c + e) // 2); break
@@ -64,7 +66,7 @@ PY
   [ -s /tmp/xy ] && adb shell input tap $(cat /tmp/xy)
 }
 say() {
-  tap_desc "Message Atlas" || log "no chat field"
+  tap_desc EDIT || log "no chat field"
   adb shell input text "$(echo "$1" | sed 's/ /%s/g')"; sleep 1
   tap_desc "Send" || log "no send button"; sleep 3
 }

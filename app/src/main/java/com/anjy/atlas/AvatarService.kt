@@ -77,7 +77,7 @@ class AvatarService : Service() {
             x = prefs.getInt("x", resources.displayMetrics.widthPixels - size - (8 * density).toInt())
             y = prefs.getInt("y", (resources.displayMetrics.heightPixels * 0.55f).toInt())
         }
-        val v = FlameView(this, withGlow = false, fps = 24)
+        val v = FlameView(this, withGlow = false, fps = 15)
         v.contentDescription = "Atlas"
         val slop = ViewConfiguration.get(this).scaledTouchSlop
         var downX = 0f; var downY = 0f; var startX = 0; var startY = 0; var dragging = false

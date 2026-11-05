@@ -57,9 +57,12 @@ class FlameView(context: Context, private val withGlow: Boolean = true, private 
     )
     private val seeds = floatArrayOf(0f, 1.7f, 3.1f)
 
+    private val power = context.getSystemService(android.os.PowerManager::class.java)
     private val ticker = object : Runnable {
         override fun run() {
             if (!running) return
+            // with the screen off nobody can see it: check back once a second instead of drawing
+            if (power?.isInteractive == false) { postDelayed(this, 1000L); return }
             invalidate()
             postDelayed(this, (1000L / fps))
         }

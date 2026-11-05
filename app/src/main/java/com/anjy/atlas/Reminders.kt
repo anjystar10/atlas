@@ -22,6 +22,7 @@ object Reminders {
     private const val TAG = "AtlasReminders"
     const val CH_REMIND = "atlas_reminders"
     const val CH_AVATAR = "atlas_avatar"
+    const val CH_QUIET = "atlas_quiet"
     const val ACTION_TICK = "com.anjy.atlas.TICK"
     const val ACTION_DONE = "com.anjy.atlas.DONE"
     const val ACTION_PROGRESS = "com.anjy.atlas.PROGRESS"
@@ -34,6 +35,9 @@ object Reminders {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CH_REMIND, "Reminders and check-ins", NotificationManager.IMPORTANCE_HIGH).apply {
             description = "Task starts, check-ins and follow-ups"
+        })
+        nm.createNotificationChannel(NotificationChannel(CH_QUIET, "Reminders during quiet hours", NotificationManager.IMPORTANCE_LOW).apply {
+            description = "Delivered silently so nothing is lost while you're not to be disturbed"
         })
         nm.createNotificationChannel(NotificationChannel(CH_AVATAR, "Avatar", NotificationManager.IMPORTANCE_MIN).apply {
             description = "Keeps the on-screen avatar running"
@@ -72,7 +76,7 @@ object Reminders {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         if (!nm.areNotificationsEnabled()) return
         for (e in latest.values) {
-            if (e.quiet) continue
+            // During quiet hours nothing is dropped: it arrives silently instead.
             val t = e.task
             val (title, body) = when (e.type) {
                 "remind" -> Pair(if (e.late) "Was due at ${fmt(t.startAt ?: 0)}" else "Starting now", "${t.title} · ${t.durationMin} min")
@@ -84,7 +88,7 @@ object Reminders {
                 ctx, code, Intent(ctx, MainActivity::class.java).putExtra("tab", "today").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            val b = Notification.Builder(ctx, CH_REMIND)
+            val b = Notification.Builder(ctx, if (e.quiet) CH_QUIET else CH_REMIND)
                 .setSmallIcon(R.drawable.ic_stat)
                 .setContentTitle(title)
                 .setContentText(body)

@@ -11,15 +11,26 @@ android {
         applicationId = "com.anjy.atlas"
         minSdk = 33
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.2.1"
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
     }
 
+    // One fixed key for every build, so each new APK installs over the last one instead of being refused.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("signing/atlas.jks")
+            storePassword = "atlas-android"
+            keyAlias = "atlas"
+            keyPassword = "atlas-android"
+        }
+    }
+
     buildTypes {
         debug {
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = false
         }
     }

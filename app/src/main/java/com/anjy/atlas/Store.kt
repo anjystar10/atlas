@@ -88,7 +88,7 @@ object Store {
                     put("recurrence", t.recurrence); put("status", t.status); put("createdAt", t.createdAt)
                     put("updatedAt", t.updatedAt); put("version", t.version); put("deviceId", t.deviceId)
                     put("completedAt", t.completedAt ?: JSONObject.NULL); put("blockedReason", t.blockedReason)
-                    put("skipReason", t.skipReason); put("seriesId", t.seriesId ?: JSONObject.NULL)
+                    put("skipReason", t.skipReason); put("seriesId", t.seriesId ?: JSONObject.NULL); put("seriesAt", t.seriesAt ?: JSONObject.NULL)
                     put("remindedAt", t.remindedAt ?: JSONObject.NULL); put("nextCheckAt", t.nextCheckAt ?: JSONObject.NULL)
                     put("promptedAt", t.promptedAt ?: JSONObject.NULL); put("followUpsSent", t.followUpsSent)
                 })
@@ -135,7 +135,7 @@ object Store {
                 status = j.optString("status", "planned"), createdAt = j.optLong("createdAt", 0),
                 updatedAt = j.optLong("updatedAt", 0), version = j.optInt("version", 1), deviceId = j.optString("deviceId", ""),
                 completedAt = j.optLongOrNull("completedAt"), blockedReason = j.optString("blockedReason", ""),
-                skipReason = j.optString("skipReason", ""), seriesId = j.optStringOrNull("seriesId"),
+                skipReason = j.optString("skipReason", ""), seriesId = j.optStringOrNull("seriesId"), seriesAt = j.optLongOrNull("seriesAt"),
                 remindedAt = j.optLongOrNull("remindedAt") ?: rem?.optLongOrNull("remindedAt"),
                 nextCheckAt = j.optLongOrNull("nextCheckAt") ?: rem?.optLongOrNull("nextCheckAt"),
                 promptedAt = j.optLongOrNull("promptedAt") ?: rem?.optLongOrNull("promptedAt"),

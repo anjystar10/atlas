@@ -141,6 +141,8 @@ class MainActivity : Activity() {
             (nav.layoutParams as FrameLayout.LayoutParams).bottomMargin = bars.bottom + dp(14)
             nav.visibility = if (imeOpen) View.GONE else View.VISIBLE
             nav.requestLayout()
+            // the chat box sits above the floating tab bar, or right on the keyboard when it's open
+            chatBar?.let { it.setPadding(dp(16), dp(6), dp(16), dp(if (imeOpen) 10 else 84)) }
             WindowInsets.CONSUMED
         }
 
@@ -179,18 +181,45 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // the avatar may have just been allowed in system settings
+        if (Store.read(this) { it.settings.avatarOn } && AvatarService.canShow(this) && !AvatarService.running) AvatarService.start(this)
+        if (returnedFromSystem && tab == "settings") { returnedFromSystem = false; render(keepScroll = true) }
+        returnedFromSystem = false
         refreshJob?.cancel()
         refreshJob = scope.launch {
             while (isActive) {
                 withContext(Dispatchers.IO) { Reminders.tickAndSchedule(applicationContext) }
                 updateHero()
-                if (tab == "today" && currentFocus !is EditText) render()
+                val sig = todaySignature()
+                if (tab == "today" && currentFocus !is EditText && sig != lastTodaySig) render(keepScroll = true)
                 delay(30_000)
             }
         }
     }
 
-    override fun onPause() { refreshJob?.cancel(); super.onPause() }
+    override fun onPause() { refreshJob?.cancel(); returnedFromSystem = true; super.onPause() }
+
+    /** Set when Atlas goes to the background (e.g. to grant a permission), so Me shows the new state on return. */
+    private var returnedFromSystem = false
+    private var lastTodaySig = ""
+    /** What the Today page shows, minute by minute; it is only rebuilt when this changes. */
+    private fun todaySignature(): String = Store.read(this) { s ->
+        val day = LocalDate.now(Engine.zone)
+        day.toString() + s.tasks.joinToString("|") { "${it.id}:${it.status}:${it.version}" }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (tab == "settings") render(keepScroll = true)
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // "System" follows the phone's dark mode, which can change while Atlas is open
+        val wasDark = dark
+        applyPalette()
+        if (dark != wasDark) recreate()
+    }
     override fun onSaveInstanceState(outState: Bundle) { outState.putString("tab", tab); super.onSaveInstanceState(outState) }
     override fun onDestroy() { scope.cancel(); tts?.shutdown(); super.onDestroy() }
 
@@ -280,6 +309,7 @@ class MainActivity : Activity() {
     /** A bottom sheet in Stoa's pop-up material. */
     private fun sheet(title: String, build: (LinearLayout, Dialog) -> Unit): Dialog {
         val d = Dialog(this)
+        d.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = SheetDrawable(if (dark) SURFACE2 else SURFACE, dp(28).toFloat(), dark, density)
@@ -289,6 +319,11 @@ class MainActivity : Activity() {
         box.addView(text(title, 20f, FG, DISPLAY))
         build(box, d)
         val sc = ScrollView(this).apply { addView(box) }
+        sc.setOnApplyWindowInsetsListener { v, insets ->
+            val b = insets.getInsets(WindowInsets.Type.navigationBars() or WindowInsets.Type.ime()).bottom
+            box.setPadding(dp(22), dp(14), dp(22), dp(28) + b)
+            insets
+        }
         d.setContentView(sc)
         d.window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
@@ -398,23 +433,28 @@ class MainActivity : Activity() {
         scope.launch { delay(4000); flame.mood = FlameView.Mood.IDLE; updateHero() }
     }
 
-    private fun render() {
+    private fun render(keepScroll: Boolean = false) {
         updateHero()
-        content.removeAllViews()
+        val oldY = if (keepScroll) (content.getChildAt(0) as? ScrollView)?.scrollY ?: 0 else 0
+        if (tab == "today") lastTodaySig = todaySignature()
+        chatBar = null
         val v = when (tab) {
             "today" -> todayView()
             "memory" -> memoryView()
             "settings" -> settingsView()
             else -> chatView()
         }
+        content.removeAllViews()
         content.addView(v)
-        if (tab != "chat") {
+        if (keepScroll && oldY > 0) (v as? ScrollView)?.post { v.scrollTo(0, oldY) }
+        if (tab != "chat" && !keepScroll) {
             v.alpha = 0f; v.translationY = dp(10).toFloat()
             v.animate().alpha(1f).translationY(0f).setDuration(240).setInterpolator(android.view.animation.DecelerateInterpolator(2f)).start()
         }
     }
 
     // ================= CHAT =================
+    private var chatBar: LinearLayout? = null
     private lateinit var chatList: LinearLayout
     private lateinit var chatScroll: ScrollView
 
@@ -445,10 +485,7 @@ class MainActivity : Activity() {
         bar.addView(fieldView, LinearLayout.LayoutParams(0, WRAP, 1f).apply { marginStart = dp(8); marginEnd = dp(8) })
         bar.addView(send, LinearLayout.LayoutParams(dp(48), dp(48)))
         col.addView(bar)
-        col.viewTreeObserver.addOnGlobalLayoutListener {
-            val want = dp(if (imeOpen) 10 else 84)
-            if (bar.paddingBottom != want) bar.setPadding(dp(16), dp(6), dp(16), want)
-        }
+        chatBar = bar
         chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
         return col
     }
@@ -473,6 +510,7 @@ class MainActivity : Activity() {
     }
 
     private fun sendMessage(q: String) {
+        if (busy) { toast("Atlas is still answering."); return }
         chat.add(Msg(true, q, "You"))
         chatList.addView(bubble(chat.last()))
         chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) }
@@ -485,11 +523,11 @@ class MainActivity : Activity() {
                 val pendingView = bubble(pending)
                 chatList.addView(pendingView)
                 val tv = (pendingView as LinearLayout).getChildAt(0) as TextView
-                val r = try {
+                try {
                     Brain.ask(applicationContext, q) { partial -> tv.text = partial; chatScroll.post { chatScroll.fullScroll(View.FOCUS_DOWN) } }
-                } catch (e: Exception) { Reply("The model failed: ${e.message}", "Atlas") }
-                chat.remove(pending); chatList.removeView(pendingView)
-                r
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e
+                } catch (e: Exception) { Reply("The model failed: ${e.message}", "Atlas")
+                } finally { chat.remove(pending); (pendingView.parent as? ViewGroup)?.removeView(pendingView) }
             }
             chat.add(Msg(false, reply.text, reply.source))
             if (chat.size > 200) chat.subList(0, chat.size - 200).clear()
@@ -666,7 +704,7 @@ class MainActivity : Activity() {
         val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(14), 0, dp(14)); gravity = Gravity.CENTER_VERTICAL }
         val whenTxt = t.startAt?.let { at ->
             val sameDay = Instant.ofEpochMilli(at).atZone(Engine.zone).toLocalDate() == LocalDate.now(Engine.zone)
-            if (sameDay) Reminders.fmt(at) else Brain.dayLabel(at).take(3).replaceFirstChar { it.uppercase() } + "\n" + Reminders.fmt(at)
+            if (sameDay) Reminders.fmt(at) else Instant.ofEpochMilli(at).atZone(Engine.zone).format(DateTimeFormatter.ofPattern("EEE", Locale.getDefault())) + "\n" + Reminders.fmt(at)
         } ?: "—"
         r.addView(text(whenTxt, 15f, if (t.startAt != null) FG else MUTED, NUM), LinearLayout.LayoutParams(dp(68), WRAP))
         val mid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -774,7 +812,7 @@ class MainActivity : Activity() {
         r.addView(f, LinearLayout.LayoutParams(0, WRAP, 1f).apply { marginEnd = dp(8) })
         r.addView(primary("Save") {
             val v = f.text.toString().trim()
-            if (v.isNotEmpty()) { Store.edit(this) { Engine.remember(it, v, System.currentTimeMillis()) }; render() }
+            if (v.isNotEmpty()) { Store.edit(this) { Engine.remember(it, v, System.currentTimeMillis()) }; ModelManager.markStale(); render() }
         }.apply { minHeight = dp(50); setPadding(dp(22), dp(12), dp(22), dp(12)) })
         body.add(r)
 
@@ -787,7 +825,7 @@ class MainActivity : Activity() {
                 if (i > 0) c.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
                 c.addView(text(m.text, 16f, FG).apply {
                     setPadding(0, dp(14), 0, dp(14))
-                    setOnClickListener { confirm("Forget this?", m.text, "Forget") { Store.edit(this@MainActivity) { Engine.forget(it, m.id, System.currentTimeMillis()) }; render() } }
+                    setOnClickListener { confirm("Forget this?", m.text, "Forget") { Store.edit(this@MainActivity) { Engine.forget(it, m.id, System.currentTimeMillis()) }; ModelManager.markStale(); render() } }
                 })
             }
             body.add(c, 10)

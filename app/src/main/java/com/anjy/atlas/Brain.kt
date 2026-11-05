@@ -48,22 +48,32 @@ object ModelManager {
         cr.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)?.use { c ->
             if (c.moveToFirst()) { name = c.getString(0) ?: name; if (!c.isNull(1)) size = c.getLong(1) }
         }
-        val input = cr.openInputStream(uri) ?: throw IllegalStateException("Could not open that file.")
+        val input = cr.openInputStream(uri) ?: throw IllegalStateException("Couldn't open that file.")
         val dest = modelFile(ctx)
         val tmp = File(dest.parentFile, "incoming.tmp")
-        input.use { ins ->
-            val head = ByteArray(4)
-            if (ins.read(head) != 4 || String(head, Charsets.US_ASCII) != "GGUF") throw IllegalArgumentException("That file is not a GGUF model.")
-            tmp.outputStream().use { out ->
-                out.write(head)
-                val buf = ByteArray(1 shl 20)
-                var done = 4L
-                while (true) {
-                    val n = ins.read(buf); if (n < 0) break
-                    out.write(buf, 0, n); done += n
+        if (size > 0 && dest.parentFile!!.usableSpace < size + 200_000_000L) {
+            input.close()
+            throw IllegalStateException("Not enough free space: the model needs ${size / 1_000_000} MB.")
+        }
+        try {
+            input.use { ins ->
+                val head = ins.readNBytes(4)
+                if (head.size != 4 || String(head, Charsets.US_ASCII) != "GGUF") throw IllegalArgumentException("That file isn't a GGUF model.")
+                tmp.outputStream().use { out ->
+                    out.write(head)
+                    val buf = ByteArray(1 shl 20)
+                    var done = 4L
+                    var lastReport = 0L
+                    while (true) {
+                        val n = ins.read(buf); if (n < 0) break
+                        out.write(buf, 0, n); done += n
+                        if (done - lastReport >= (8 shl 20)) { lastReport = done; onProgress(done, size) }
+                    }
                     onProgress(done, size)
                 }
             }
+        } catch (e: Throwable) {
+            tmp.delete(); throw e
         }
         if (ready) unload()
         if (dest.exists()) dest.delete()
@@ -74,7 +84,7 @@ object ModelManager {
 
     suspend fun load(ctx: Context): Boolean = withContext(Dispatchers.IO) {
         val f = modelFile(ctx)
-        if (!f.exists()) { status = "No model file. Choose one in Settings."; return@withContext false }
+        if (!f.exists()) { status = "No model file. Choose one in Me."; return@withContext false }
         val e = engine(ctx) ?: return@withContext false
         prefs(ctx).edit().putBoolean("loading", true).commit()
         try {
@@ -83,12 +93,14 @@ object ModelManager {
             if (st.isModelLoaded || st is InferenceEngine.State.Error) e.cleanUp()
             e.loadModel(f.absolutePath)
             e.setSystemPrompt(Brain.systemPrompt(ctx))
+            usedChars = 0; stale = false
             ready = true
             status = "${modelName(ctx) ?: "Model"} ready, running on this phone"
             true
         } catch (t: Throwable) {
             ready = false
-            status = "Model failed to load: ${t.message ?: t.javaClass.simpleName}"
+            status = if ((t.message ?: "").startsWith("Cannot unload")) "The model got stuck. Close Atlas from recent apps and open it again."
+            else "Model failed to load: ${t.message ?: t.javaClass.simpleName}"
             try { e.cleanUp() } catch (_: Throwable) {}
             false
         } finally {
@@ -110,10 +122,26 @@ object ModelManager {
         status = "No model loaded"
     }
 
-    suspend fun generate(text: String, onToken: (String) -> Unit): String {
-        val e = engine ?: throw IllegalStateException("No model loaded.")
+    /**
+     * The runtime keeps the whole conversation in an 8192-token window and stops answering for good once it is full,
+     * so Atlas starts a fresh conversation well before that (and after memories change, so the model sees them).
+     */
+    private const val CHAR_BUDGET = 12_000
+    @Volatile private var usedChars = 0
+    @Volatile private var stale = false
+    fun markStale() { stale = true }
+
+    suspend fun generate(ctx: Context, text: String, onToken: (String) -> Unit): String {
+        var e = engine ?: throw IllegalStateException("No model loaded.")
+        if (stale || usedChars + text.length > CHAR_BUDGET || e.state.value !is InferenceEngine.State.ModelReady) {
+            if (!load(ctx)) throw IllegalStateException(status)
+            e = engine ?: throw IllegalStateException("No model loaded.")
+        }
         val sb = StringBuilder()
         e.sendUserPrompt(text, 320).collect { tok -> sb.append(tok); onToken(sb.toString()) }
+        usedChars += text.length + sb.length + 40
+        // An empty answer means the runtime refused the prompt; start fresh next time.
+        if (sb.isBlank()) stale = true
         return sb.toString()
     }
 }
@@ -141,7 +169,8 @@ object Brain {
         }
     }
 
-    private fun clean(s: String) = s.trim().trimEnd('.', '!', '?').trim()
+    /** Phone keyboards type curly quotes ("what’s", "I’m"); the commands are written with straight ones. */
+    private fun clean(s: String) = s.replace('\u2019', '\'').replace('\u2018', '\'').trim().trimEnd('.', '!', '?').trim()
 
     /** Fixed commands. Returns null when the message is not one of them. */
     fun route(ctx: Context, input: String): Reply? {
@@ -149,9 +178,11 @@ object Brain {
         val low = raw.lowercase()
         val now = System.currentTimeMillis()
 
-        Regex("^(?:please\\s+)?(?:remember|note|save)(?:\\s+that)?[:,]?\\s+(.+)$", RegexOption.IGNORE_CASE).find(raw)?.let { m ->
+        // "remember when…?" is a question, not something to save
+        if (!input.trim().endsWith("?")) Regex("^(?:please\\s+)?(?:remember|note|save)(?:\\s+that)?[:,]?\\s+(.+)$", RegexOption.IGNORE_CASE).find(raw)?.let { m ->
             val text = m.groupValues[1]
             Store.edit(ctx) { Engine.remember(it, text, now) }
+            ModelManager.markStale()
             return Reply("Saved to memory: “$text”", "Atlas")
         }
         if (Regex("^(?:what do you (?:remember|know)(?: about me)?|show (?:my )?(?:memories|notes)|what did i (?:save|tell you)|my (?:memories|notes))$").matches(low)) {
@@ -159,20 +190,25 @@ object Brain {
             return Reply(if (mems.isEmpty()) "Nothing saved yet. Say “remember …” and I'll keep it." else mems.joinToString("\n") { "• $it" }, "Atlas")
         }
         Regex("^(?:open|launch)\\s+(?:the\\s+)?(.+?)(?:\\s+app)?$", RegexOption.IGNORE_CASE).find(raw)?.let { m ->
-            return Reply(openApp(ctx, m.groupValues[1]), "Atlas")
+            val app = findApp(ctx, m.groupValues[1])
+            // "open the door…" isn't an app: let the model answer it when there is one
+            if (app != null) return Reply(launchApp(ctx, app), "Atlas")
+            if (!ModelManager.ready) return Reply("I couldn't find an app called “${m.groupValues[1]}” on this phone.", "Atlas")
         }
-        Regex("^(?:remind me(?: to)?|add(?: a task)?|schedule|todo|to-do|task)[:\\s]+(.+)$", RegexOption.IGNORE_CASE).find(raw)?.let { m ->
+        Regex("^(?:remind me(?: to)?|add (?:a )?task|new task|schedule|to-?do)[:\\s]+(.+)$", RegexOption.IGNORE_CASE).find(raw)?.let { m ->
             val p = Engine.parseQuick(m.groupValues[1], now)
             if (p.title.isBlank()) return Reply("What should the task be called?", "Atlas")
             val t = Store.edit(ctx) { Engine.create(it, p.title, now, p.startAt, p.durationMin ?: 30) }
             Reminders.tickAndSchedule(ctx)
             return Reply(describeAdded(t.title, t.startAt, t.durationMin), "Atlas")
         }
-        if (Regex("^(?:what(?:'s| is) (?:on )?(?:my )?(?:plan|schedule|agenda|day)(?: today| for today)?|today|my day|agenda|what do i have(?: today)?)$").matches(low)) {
+        if (Regex("^(?:what(?:'?s| is) (?:on )?(?:my )?(?:plan|schedule|agenda|day)(?: today| for today)?|today|my day|agenda|what do i have(?: today)?)$").matches(low)) {
             return Reply(Store.read(ctx) { daySummary(it, now) }, "Atlas")
         }
         Regex("^(?:i'?m |i am |i'?ve |i have )?(?:done|finished)(?: with)?\\s*(.*)$", RegexOption.IGNORE_CASE).find(raw)?.let { m ->
             val q = m.groupValues[1].trim().lowercase()
+            // a long sentence starting with "done" is conversation, not a command
+            if (q.split(Regex("\\s+")).size > 6) return null
             val target = Store.read(ctx) { s ->
                 val cands = s.tasks.filter { it.status == "awaiting" || it.status == "active" }
                 when {
@@ -203,15 +239,16 @@ object Brain {
         if (!ModelManager.ready) {
             return Reply(
                 "No model is loaded, so I can only handle fixed commands right now (say “help”). " +
-                    "Add a GGUF model in Settings to talk freely.", "Atlas"
+                    "Add a GGUF model in Me to talk freely.", "Atlas"
             )
         }
         val now = System.currentTimeMillis()
         val stamp = Instant.ofEpochMilli(now).atZone(Engine.zone).let { it.format(dayFmt) + " " + Reminders.fmt(now) }
-        val out = ModelManager.generate("[Now: $stamp] $input", onPartial).trim()
+        val out = ModelManager.generate(ctx, "[Now: $stamp] $input", onPartial).trim()
         val call = extractToolCall(out)
         if (call != null) {
-            val result = runTool(ctx, call, now)
+            val result = if (call.optString("tool") == "open_app") runTool(ctx, call, now)
+            else withContext(Dispatchers.IO) { runTool(ctx, call, now) }
             if (result != null) return Reply(result, "Local model")
         }
         return Reply(out.ifBlank { "(no answer)" }, "Local model")
@@ -245,9 +282,11 @@ object Brain {
             }
         }
         "remember" -> o.optString("text").trim().takeIf { it.isNotEmpty() }?.let { txt ->
-            Store.edit(ctx) { Engine.remember(it, txt, now) }; "Saved to memory: “$txt”"
+            Store.edit(ctx) { Engine.remember(it, txt, now) }; ModelManager.markStale(); "Saved to memory: “$txt”"
         }
-        "open_app" -> o.optString("name").trim().takeIf { it.isNotEmpty() }?.let { openApp(ctx, it) }
+        "open_app" -> o.optString("name").trim().takeIf { it.isNotEmpty() }?.let { n ->
+            findApp(ctx, n)?.let { launchApp(ctx, it) } ?: "I couldn't find an app called “$n” on this phone."
+        }
         else -> null
     }
 
@@ -279,16 +318,21 @@ object Brain {
         return lines.joinToString("\n")
     }
 
-    fun openApp(ctx: Context, name: String): String {
+    /** The launchable app whose name best matches [name], as (label, package). */
+    fun findApp(ctx: Context, name: String): Pair<String, String>? {
         val pm = ctx.packageManager
         val apps = pm.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER), 0)
             .map { Pair(it.loadLabel(pm).toString(), it.activityInfo.packageName) }
             .filter { it.second != ctx.packageName }
         val q = name.trim().lowercase()
-        val hit = apps.firstOrNull { it.first.lowercase() == q }
+        if (q.length < 2) return null
+        return apps.firstOrNull { it.first.lowercase() == q }
             ?: apps.firstOrNull { it.first.lowercase().startsWith(q) }
             ?: apps.firstOrNull { it.first.lowercase().contains(q) }
-            ?: return "I couldn't find an app called “$name” on this phone."
+    }
+
+    fun launchApp(ctx: Context, hit: Pair<String, String>): String {
+        val pm = ctx.packageManager
         val launch = pm.getLaunchIntentForPackage(hit.second) ?: return "“${hit.first}” can't be opened directly."
         return try {
             ctx.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); "Opening ${hit.first}."

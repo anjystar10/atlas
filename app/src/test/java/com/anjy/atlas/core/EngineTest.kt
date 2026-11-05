@@ -103,6 +103,31 @@ class EngineTest {
         assertTrue(s.log.any { it.type == "note" && it.detail.startsWith("3 past") })
     }
 
+    @Test fun delayDoesNotDriftASeries() {
+        val s = state()
+        val t0 = at("2026-11-04T07:00:00")
+        val gym = Engine.create(s, "Gym", t0 - 60 * MIN, t0, 60, recurrence = "daily")
+        Engine.tick(s, t0)
+        Engine.respond(s, gym.id, "delay", t0 + 5 * MIN, startAt = at("2026-11-04T09:00:00"))
+        val (_, next) = Engine.respond(s, gym.id, "done", at("2026-11-04T10:05:00"))
+        assertEquals(at("2026-11-05T07:00:00"), next!!.startAt)
+        assertEquals(at("2026-11-05T07:00:00"), next.seriesAt)
+        // editing the time on purpose does move the series
+        Engine.update(s, next.id, "Gym", t0, at("2026-11-05T18:00:00"), 60, "", "normal", "daily")
+        val (_, after) = Engine.respond(s, next.id, "done", at("2026-11-05T19:00:00"))
+        assertEquals(at("2026-11-06T18:00:00"), after!!.startAt)
+    }
+
+    @Test fun bareHourMeansTheNextOne() {
+        assertEquals(at("2026-11-04T18:00:00"), Engine.parseQuick("Gym at 6", at("2026-11-04T15:00:00")).startAt)
+        assertEquals(at("2026-11-05T06:00:00"), Engine.parseQuick("Gym at 6", at("2026-11-04T20:40:00")).startAt)
+        assertEquals(at("2026-11-04T06:00:00"), Engine.parseQuick("Gym at 6", at("2026-11-04T05:00:00")).startAt)
+        assertEquals(at("2026-11-04T21:00:00"), Engine.parseQuick("Journal tonight at 9", at("2026-11-04T10:00:00")).startAt)
+        assertEquals(at("2026-11-05T06:00:00"), Engine.parseQuick("Run tomorrow at 6", at("2026-11-04T10:00:00")).startAt)
+        assertEquals(at("2026-11-04T18:00:00"), Engine.parseQuick("Gym today at 6", at("2026-11-04T10:00:00")).startAt)
+        assertEquals(at("2026-11-04T12:30:00"), Engine.parseQuick("Lunch at 12:30", at("2026-11-04T10:00:00")).startAt)
+    }
+
     @Test fun editAndCollisions() {
         val s = state()
         val now = at("2026-11-04T10:00:00")
