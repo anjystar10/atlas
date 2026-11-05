@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- marks a text view that already shrinks to fit (from Stoa's UI code) -->
+    <item name="widget_art" type="id" />
+</resources>

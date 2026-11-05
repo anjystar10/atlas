@@ -94,10 +94,14 @@ object ModelManager {
                 "It's a web page saved with a model's name, not the model. Download it again with the direct link."
             start.startsWith("{") -> "It's a small text reply from the website, not the model. Download it again with the direct link."
             head[0] == 'P'.code.toByte() && head[1] == 'K'.code.toByte() -> "It's a zip file, not a model."
+            (0 until minOf(got, 16)).all { head[it] == 0.toByte() } ->
+                "Its first bytes are empty, which usually means the download didn't finish. Download it again and wait until it's complete."
             else -> "It doesn't start like a GGUF model."
         }
         val small = if (size in 1 until 100_000_000) " The model is about 2.5 GB, so this is far too small." else ""
-        return "“$name” ($mb) isn't a GGUF model. $what$small"
+        // the first bytes, so a wrong file can be told apart from a damaged one
+        val hex = (0 until minOf(got, 8)).joinToString(" ") { "%02X".format(head[it]) }
+        return "“$name” ($mb) isn't a GGUF model. $what$small\nFirst bytes: $hex (a model starts 47 47 55 46)."
     }
 
     suspend fun load(ctx: Context): Boolean = withContext(Dispatchers.IO) {

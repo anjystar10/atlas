@@ -26,6 +26,7 @@ import kotlin.math.abs
 class AvatarService : Service() {
     private var wm: WindowManager? = null
     private var view: FlameView? = null
+    @Volatile private var celebrating = false
     private var lp: WindowManager.LayoutParams? = null
     private val handler = Handler(Looper.getMainLooper())
     private val moodPoll = object : Runnable {
@@ -59,7 +60,7 @@ class AvatarService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_REFRESH) { applyVisibility(); updateMood() }
-        if (intent?.action == ACTION_CELEBRATE) { view?.mood = FlameView.Mood.HAPPY; view?.burst(); handler.postDelayed({ updateMood() }, 4000) }
+        if (intent?.action == ACTION_CELEBRATE) { celebrating = true; view?.mood = "happy"; view?.celebrate(); handler.postDelayed({ celebrating = false; updateMood() }, 4000) }
         return START_STICKY
     }
 
@@ -77,7 +78,8 @@ class AvatarService : Service() {
             x = prefs.getInt("x", resources.displayMetrics.widthPixels - size - (8 * density).toInt())
             y = prefs.getInt("y", (resources.displayMetrics.heightPixels * 0.55f).toInt())
         }
-        val v = FlameView(this, withGlow = false, fps = 15)
+        // Stoa's Ember, with its face; capped at 15 frames a second while it floats over other apps
+        val v = FlameView(this).apply { tier = Tiers.list[2]; lit = true; face = true; arms = false; mood = "ready"; maxFps = 15 }
         v.contentDescription = "Atlas"
         val slop = ViewConfiguration.get(this).scaledTouchSlop
         var downX = 0f; var downY = 0f; var startX = 0; var startY = 0; var dragging = false
@@ -125,14 +127,13 @@ class AvatarService : Service() {
             val mood = try {
                 Store.read(applicationContext) { s ->
                     when {
-                        s.tasks.any { it.status == "awaiting" } -> FlameView.Mood.ALERT
-                        Engine.inQuiet(s.settings, now) -> FlameView.Mood.SLEEP
-                        s.tasks.any { it.status == "active" } -> FlameView.Mood.FOCUS
-                        else -> FlameView.Mood.IDLE
+                        s.tasks.any { it.status == "awaiting" } -> "worried"
+                        Engine.inQuiet(s.settings, now) -> "sleepy"
+                        else -> "ready"
                     }
                 }
-            } catch (e: Exception) { FlameView.Mood.IDLE }
-            handler.post { if (v.mood != FlameView.Mood.HAPPY) v.mood = mood }
+            } catch (e: Exception) { "ready" }
+            handler.post { if (!celebrating) v.mood = mood }
         }.start()
     }
 

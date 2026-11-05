@@ -1,0 +1,32 @@
+name: Compile check
+
+# Fast feedback for work branches: compiles the Kotlin and runs the unit tests (no native build, no APK).
+on:
+  push:
+    branches-ignore: [main, apk-builds, smoke-results]
+
+env:
+  LLAMA_CPP_REF: 9e2a04a439edc49f08c5acdafefae19dfa25a658
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          ref: ${{ env.LLAMA_CPP_REF }}
+          path: llama.cpp
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile and test
+        run: ./gradlew --no-daemon :app:compileDebugKotlin :app:testDebugUnitTest 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+      - name: Errors
+        if: failure()
+        run: |
+          grep -E "^e: |error:|What went wrong" -A3 build.log | head -120

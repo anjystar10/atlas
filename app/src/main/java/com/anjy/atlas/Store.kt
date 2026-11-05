@@ -57,6 +57,13 @@ object Store {
         }
     }
 
+    // ---- small settings, the way Stoa's UI code reads and writes them ----
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences("atlas_ui", Context.MODE_PRIVATE)
+    fun getString(ctx: Context, key: String): String? = prefs(ctx).getString(key, null)
+    fun putString(ctx: Context, key: String, value: String) { prefs(ctx).edit().putString(key, value).apply() }
+    fun getFlag(ctx: Context, key: String, default: Boolean = false): Boolean = prefs(ctx).getBoolean(key, default)
+    fun setFlag(ctx: Context, key: String, value: Boolean = true) { prefs(ctx).edit().putBoolean(key, value).apply() }
+
     fun exportJson(ctx: Context): String = read(ctx) { toJson(it).toString(2) }
 
     fun importJson(ctx: Context, text: String): Int = synchronized(lock) {
