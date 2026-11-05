@@ -10,6 +10,8 @@ def task(title, start, dur, status, **kw):
              blockedReason=kw.get("blockedReason", ""), skipReason="", seriesId=None,
              remindedAt=kw.get("remindedAt"), nextCheckAt=kw.get("nextCheckAt"), promptedAt=kw.get("promptedAt"), followUpsSent=0)
     return t
+alarm_now = theme.endswith("-alarm")
+theme = theme.replace("-alarm", "")
 tasks = [
     task("Read 20 pages", now - 50 * M, 30, "awaiting", remindedAt=now - 50 * M, nextCheckAt=now - 20 * M, promptedAt=now - 20 * M),
     task("Code Atlas", now - 10 * M, 90, "active", remindedAt=now - 10 * M, nextCheckAt=now + 80 * M, priority="high"),
@@ -19,6 +21,9 @@ tasks = [
     task("Fix bike", None, 45, "blocked", blockedReason="Waiting for the part"),
     task("Pray", now - 200 * M, 15, "done", completedAt=now - 185 * M),
 ]
+if alarm_now:
+    # one reminder that is due right now, for the alarm test
+    tasks.append(task("Pick up my sister", now - 20 * 1000, 15, "planned"))
 state = dict(schema=1, deviceId="seed",
              settings=dict(name="Anjy", tone="firm", quietStart="23:59", quietEnd="00:00", graceMin=15, followUps=1,
                            sound=True, avatarOn=True, speakReplies=False, theme=theme, wakeWord=True),

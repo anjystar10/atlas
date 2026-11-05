@@ -159,23 +159,33 @@ adb shell input keyevent 4; sleep 1
 if crashed; then log "CRASH in assist panel"; fi
 
 # Reminders: alarm path, notification buttons, reboot recovery
-log "reminder engine"
-seed dark
-adb shell am broadcast -n $PKG/.AlarmReceiver -a com.anjy.atlas.TICK >> "$OUT/steps.txt" 2>&1; sleep 4
+log "alarm"
+seed dark-alarm
+adb shell am broadcast -n $PKG/.AlarmReceiver -a com.anjy.atlas.TICK >> "$OUT/steps.txt" 2>&1; sleep 5
+shot alarm-popup
 adb shell dumpsys notification --noredact > "$OUT/notifications.txt"
+adb shell dumpsys audio | grep -iE "usage=USAGE_ALARM|player.*state:started" | head -5 > "$OUT/alarm-sound.txt"
+if tap_desc "I'll do it"; then log "answered the alarm: I'll do it"; else log "alarm pop-up NOT found"; cp /tmp/ui.xml "$OUT/ui-alarm.xml"; fi
+sleep 3
+adb shell "cat /data/data/$PKG/files/atlas-state.json" | python3 -c "
+import json,sys; s=json.load(sys.stdin); t=[x for x in s['tasks'] if x['title']=='Pick up my sister']
+print('alarm task status:', t[0]['status'] if t else 'missing')" >> "$OUT/steps.txt" 2>&1
 adb shell dumpsys alarm | grep -A3 "$PKG" > "$OUT/alarms.txt"
 adb shell am broadcast -n $PKG/.BootReceiver -a android.intent.action.BOOT_COMPLETED >> "$OUT/steps.txt" 2>&1; sleep 4
 adb shell dumpsys alarm | grep -A3 "$PKG" > "$OUT/alarms-after-boot.txt"
 if crashed; then log "CRASH in reminder path"; fi
 
 # Creature and wake word: overlay allowed, Hey Atlas on (this emulator has no microphone input, so it can load but not hear)
-log "creature and wake word"
+log "atlas on screen and wake"
 adb shell appops set $PKG SYSTEM_ALERT_WINDOW allow
 launch atlas; sleep 8
-adb shell input keyevent 3; sleep 4; shot creature-home
+adb shell input keyevent 3; sleep 4; shot orb-home
+# what "Hey Atlas" does: the orb grows and listens (this emulator has no speech service, so it then says why and shrinks)
+adb shell am startservice -n $PKG/.AvatarService -a com.anjy.atlas.WAKE >> "$OUT/steps.txt" 2>&1; sleep 1; shot orb-listening
+sleep 5; shot orb-after-listening
 adb shell dumpsys activity services $PKG > "$OUT/services.txt"
 adb shell "ls -la /data/data/$PKG/files/" > "$OUT/files.txt" 2>&1
-if crashed; then log "CRASH in creature or wake word"; fi
+if crashed; then log "CRASH in atlas on screen"; fi
 
 # Hey Atlas: switching it on downloads its model; then the presence service loads it and opens the microphone
 log "hey atlas model download"
@@ -198,9 +208,11 @@ if adb logcat -d -b crash | grep -q "(atlas-hotword)"; then
   sleep 15
   N=$(adb logcat -d -b crash | grep -c "Fatal signal.*(atlas-hotword)")
   adb shell "cat /data/data/$PKG/files/atlas-state.json" | grep -o '"wakeWord":[a-z]*' > "$OUT/wakeword-after-crash.txt"
-  log "wake word engine crashes: $N (the guard should stop it at 1); setting now: $(cat "$OUT/wakeword-after-crash.txt")"
+  log "wake word engine crashes: $N (it runs in its own process, which may not restart the microphone in the background, so it should stop at 1); setting now: $(cat "$OUT/wakeword-after-crash.txt")"
   shot hey-atlas-after-guard
 fi
+if adb shell pidof $PKG >/dev/null; then log "main app still running after the wake word engine: yes"; else log "main app still running after the wake word engine: NO"; fi
+adb shell ps -A | grep "$PKG" > "$OUT/processes.txt"
 
 # any "not responding" reports, with what each thread was doing
 adb shell "ls -la /data/anr/" > "$OUT/anr-list.txt" 2>&1

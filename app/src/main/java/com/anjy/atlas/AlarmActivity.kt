@@ -57,7 +57,7 @@ class AlarmActivity : Activity() {
         val med = font(R.font.geist_medium, Typeface.DEFAULT)
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(28), dp(40), dp(28), dp(32)) }
         col.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
-        col.addView(OrbView(this).apply { energy = 1f }, LinearLayout.LayoutParams(dp(190), dp(190)))
+        col.addView(OrbView(this).apply { energy = 1f; still = Prefs.reduceMotion(this@AlarmActivity) }, LinearLayout.LayoutParams(dp(190), dp(190)))
         whenView = TextView(this).apply { setTextColor(Color.parseColor("#9BA1C9")); textSize = 16f; typeface = med; gravity = Gravity.CENTER }
         col.addView(whenView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
         titleView = TextView(this).apply { setTextColor(Color.parseColor("#EEF0FF")); textSize = 28f; typeface = display; gravity = Gravity.CENTER; setLineSpacing(0f, 1.1f) }
