@@ -44,7 +44,15 @@ jobs:
         run: ./gradlew --no-daemon :app:testDebugUnitTest
 
       - name: Build APK
-        run: ./gradlew --no-daemon :app:assembleDebug
+        # the model runtime downloads a dependency from GitHub while configuring; retry if that download times out
+        run: |
+          for attempt in 1 2 3; do
+            if ./gradlew --no-daemon :app:assembleDebug; then exit 0; fi
+            echo "Build attempt $attempt failed; retrying in 30 seconds"
+            rm -rf llama.cpp/examples/llama.android/lib/.cxx
+            sleep 30
+          done
+          exit 1
 
       - name: Name the APK
         run: |
