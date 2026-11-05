@@ -24,6 +24,11 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+      - name: Accept SDK licences, install the NDK
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "ndk;29.0.13113456" "cmake;3.31.6" > /dev/null
       - name: Compile and test
         run: ./gradlew --no-daemon :app:compileDebugKotlin :app:testDebugUnitTest 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
       - name: Errors
