@@ -33,23 +33,28 @@ object Grain {
     }
 }
 
-/** Behind every page: the ground colour, one faint warm light from the top corner, and grain. */
-class Backdrop(context: Context, private val bg: Int, private val dark: Boolean, private val warm: Int) : View(context) {
+/** Behind every page: the ground colour, a faint violet light from the top corner, a blue one from below, and grain. */
+class Backdrop(context: Context, private val bg: Int, private val dark: Boolean, private val warm: Int, private val cool: Int = Color.parseColor("#2F7BFF")) : View(context) {
     var scrollRef: android.widget.ScrollView? = null
     var still = false
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val g = Paint().apply { shader = Grain.shader() }
     private var glow: Shader? = null
+    private var glow2: Shader? = null
     fun pause() {}
     fun resume() {}
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         val c = if (dark) warm else Color.WHITE
         val a = if (dark) 34 else 70
         glow = RadialGradient(w * 0.92f, -h * 0.02f, w * 0.95f, Color.argb(a, Color.red(c), Color.green(c), Color.blue(c)), Color.argb(0, Color.red(c), Color.green(c), Color.blue(c)), Shader.TileMode.CLAMP)
+        val k = if (dark) cool else Color.WHITE
+        val a2 = if (dark) 22 else 40
+        glow2 = RadialGradient(w * 0.05f, h * 1.02f, w * 1.0f, Color.argb(a2, Color.red(k), Color.green(k), Color.blue(k)), Color.argb(0, Color.red(k), Color.green(k), Color.blue(k)), Shader.TileMode.CLAMP)
     }
     override fun onDraw(cv: Canvas) {
         cv.drawColor(bg)
         p.shader = glow; cv.drawRect(0f, 0f, width.toFloat(), height.toFloat(), p)
+        p.shader = glow2; cv.drawRect(0f, 0f, width.toFloat(), height.toFloat(), p)
         // plain see-through grain: a MULTIPLY blend here also multiplied the window's alpha and turned the
         // whole Day page black on real phones
         g.alpha = if (dark) 9 else 6
@@ -114,7 +119,7 @@ class StoneDrawable(private val fill: Int, private val radius: Float, private va
         c.drawRoundRect(r, radius, radius, p); p.shader = null
         // the rim: bright white on top, thinning toward the foot, where a faint warm line gives the pane its thickness
         s.strokeWidth = density
-        s.shader = LinearGradient(0f, r.top, 0f, r.bottom, intArrayOf(w(0.95f), w(0.45f), Color.argb(34, 90, 60, 30)),
+        s.shader = LinearGradient(0f, r.top, 0f, r.bottom, intArrayOf(w(0.95f), w(0.45f), Color.argb(34, 40, 44, 110)),
             floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
         val rr = RectF(r); rr.inset(density / 2, density / 2); c.drawRoundRect(rr, radius, radius, s); s.shader = null
     }

@@ -21,7 +21,7 @@ import java.util.Locale
  */
 internal fun MainActivity.goPill(label: String, color: Int = BLUE, icon: String = "arrow", hint: Boolean = false, height: Int = 58, onClick: () -> Unit): View {
     val ink = if (color == BLUE) ON else Color.WHITE
-    val frame = SlideFrame(this, ORANGE).apply {
+    val frame = SlideFrame(this, ACCENT).apply {
         background = finished(color)
         minimumHeight = dp(height)
         // [hint]: when it sits untouched, the knob nudges toward the end and a light runs along the pill, showing it slides
@@ -287,6 +287,10 @@ class LineIcon(context: android.content.Context, private val kind: String) : Vie
                 c.drawRoundRect(6.5f, 5f, 10.5f, 19f, 1.6f, 1.6f, f); c.drawRoundRect(13.5f, 5f, 17.5f, 19f, 1.6f, 1.6f, f)
             }
             "close" -> { c.drawLine(6f, 6f, 18f, 18f, p); c.drawLine(18f, 6f, 6f, 18f, p) }
+            "stop" -> { // a filled, rounded square
+                val f = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = this@LineIcon.color }
+                c.drawRoundRect(6.5f, 6.5f, 17.5f, 17.5f, 2.5f, 2.5f, f)
+            }
             "mic" -> { // Atlas: a microphone in the same line style
                 c.drawRoundRect(9f, 3.5f, 15f, 14.5f, 3f, 3f, p)
                 path.moveTo(6f, 11.5f); path.cubicTo(6f, 19f, 18f, 19f, 18f, 11.5f); c.drawPath(path, p)

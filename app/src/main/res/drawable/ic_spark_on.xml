@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Atlas's spark: a four-pointed star (filled), drawn for Atlas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="256" android:viewportHeight="256">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M128,22 C135,86 170,121 234,128 C170,135 135,170 128,234 C121,170 86,135 22,128 C86,121 121,86 128,22 Z" />
+</vector>

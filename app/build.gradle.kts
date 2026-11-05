@@ -11,8 +11,8 @@ android {
         applicationId = "com.anjy.atlas"
         minSdk = 33
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.3.0"
+        versionCode = 9
+        versionName = "0.4.0"
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
@@ -50,5 +50,10 @@ kotlin {
 dependencies {
     implementation(project(":lib"))
     implementation(libs.kotlinx.coroutines.android)
+    // "Hey Atlas": Vosk, offline speech recognition (Apache 2.0). Its model is added to the assets by CI.
+    implementation("com.alphacephei:vosk-android:0.3.75")
+    implementation("net.java.dev.jna:jna:5.18.1@aar")
     testImplementation(libs.junit)
+    // the real org.json for JVM unit tests (Android's copy is only a stub off the phone)
+    testImplementation("org.json:json:20240303")
 }

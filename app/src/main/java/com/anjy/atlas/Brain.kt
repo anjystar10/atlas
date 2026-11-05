@@ -175,9 +175,10 @@ object Brain {
     fun systemPrompt(ctx: Context): String {
         val (name, mems) = Store.read(ctx) { s -> Pair(s.settings.name, s.memories.takeLast(25).map { it.text }) }
         return buildString {
-            append("You are Atlas, a personal assistant that lives on ")
+            append("You are Atlas, a friendly personal assistant on ")
             append(if (name.isNotBlank()) "$name's" else "the user's")
-            append(" phone. Be brief, direct and honest. Never claim to have done something you did not do.\n")
+            append(" phone, answering offline. Talk like a warm, relaxed friend: short, natural, never curt. ")
+            append("The user often writes casually with slang; understand what they mean. Be honest and never claim to have done something you did not do.\n")
             append("When the user asks you to schedule or remind something, to remember something, or to open an app, ")
             append("reply with exactly one line of JSON and nothing else, using one of these forms:\n")
             append("{\"tool\":\"create_task\",\"title\":\"...\",\"day\":\"today|tomorrow|YYYY-MM-DD\",\"time\":\"HH:MM\",\"duration_min\":30}\n")

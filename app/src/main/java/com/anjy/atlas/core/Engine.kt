@@ -22,7 +22,9 @@ class Settings(
     var sound: Boolean = true,
     var avatarOn: Boolean = true,
     var speakReplies: Boolean = false,
-    var theme: String = "dark"
+    var theme: String = "dark",
+    /** Listen for "Hey Atlas". */
+    var wakeWord: Boolean = false
 )
 
 class Task(

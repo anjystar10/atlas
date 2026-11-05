@@ -9,6 +9,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- Gemini, Atlas's online brain -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- talking to Atlas, and "Hey Atlas" -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
 
     <!-- Lets Atlas see launchable apps so "open whatsapp" works. -->
     <queries>
@@ -21,6 +27,10 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
         </intent>
     </queries>
 
@@ -44,13 +54,40 @@
             </intent-filter>
         </activity>
 
+        <!-- The "Hey Atlas" panel: opens over whatever is on screen, even the lock screen. -->
+        <activity
+            android:name=".AssistActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.anjy.atlas.assist"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
+
         <service
             android:name=".AvatarService"
             android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse|microphone">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="Always-on assistant avatar drawn over other apps at the user's request" />
+                android:value="Always-on assistant: a creature drawn over other apps and a status pill while it works, at the user's request" />
+        </service>
+
+        <!-- Phone control: lets Atlas read the screen and tap, type and scroll when the user asks it to. -->
+        <service
+            android:name=".AtlasAccess"
+            android:exported="false"
+            android:label="Atlas"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/atlas_access" />
         </service>
 
         <receiver android:name=".AlarmReceiver" android:exported="false" />

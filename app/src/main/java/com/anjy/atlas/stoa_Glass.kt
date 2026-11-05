@@ -233,7 +233,7 @@ internal fun MainActivity.finishThemeSwap() {
  * name doesn't fit, and the bar never runs past the edges.
  */
 internal fun MainActivity.renderNavBar() {
-    val names = listOf("Today", "Chat", "Memory", "Me")
+    val names = listOf("Atlas", "Log", "Me")
     val n = order.size
     val dm = resources.displayMetrics
     val wDp = dm.widthPixels / dm.density
@@ -268,9 +268,9 @@ internal fun MainActivity.renderNavBar() {
         val pill = FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 cornerRadius = dp(999).toFloat()
-                if (dark) { setColor(Color.parseColor("#1C1C1E")); setStroke(dp(1), Color.argb(26, 255, 255, 255)) }
+                if (dark) { setColor(Color.parseColor("#16172E")); setStroke(dp(1), Color.argb(30, 200, 205, 255)) }
                 // by day, frosted glass: the page shows faintly through it, whiter at the top, with a bright white rim
-                else { colors = intArrayOf(Color.argb(214, 255, 255, 255), Color.argb(170, 250, 244, 236)); orientation = GradientDrawable.Orientation.TOP_BOTTOM; setStroke(dp(1), Color.argb(235, 255, 255, 255)) }
+                else { colors = intArrayOf(Color.argb(214, 255, 255, 255), Color.argb(170, 238, 239, 252)); orientation = GradientDrawable.Orientation.TOP_BOTTOM; setStroke(dp(1), Color.argb(235, 255, 255, 255)) }
             }
             // a shadow under see-through glass would show through it as a smudge, so the day bar floats without one
             elevation = if (dark) dp(6).toFloat() else 0f
@@ -313,7 +313,7 @@ internal fun MainActivity.renderNavBar() {
         // the round Start button
         val go = FrameLayout(this).apply {
             // ink, so the coloured drop in the bar stays the one bright thing
-            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(tint(BLUE, if (dark) Color.WHITE else Color.parseColor("#3A3A38"), 0.25f), BLUE)).apply { shape = GradientDrawable.OVAL }
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(tint(BLUE, if (dark) Color.WHITE else Color.parseColor("#2A2C52"), 0.25f), BLUE)).apply { shape = GradientDrawable.OVAL }
             elevation = dp(10).toFloat()
             contentDescription = L.t("Talk to Atlas")
             isClickable = true
@@ -336,7 +336,7 @@ internal fun MainActivity.renderNavBar() {
     }
 
     // the drop moves to the current tab: it stretches toward the new tab, the leading edge first, then settles
-    val iconOff = if (dark) Color.parseColor("#8F8E8A") else Color.parseColor("#4A4540")
+    val iconOff = if (dark) Color.parseColor("#8E93BC") else Color.parseColor("#3E4170")
     val from = navShown; val to = tab
     navShown = to
     val d = dm.density
@@ -379,8 +379,8 @@ internal fun MainActivity.renderNavBar() {
     }
 }
 
-/** Each tab's light (Stoa's colours): Today in Ember's orange, Chat sky blue, Memory indigo, Me rose. */
-internal val NAV_COLORS = intArrayOf(0xFFFF7A2E.toInt(), 0xFF2F9BFF.toInt(), 0xFF6E70EE.toInt(), 0xFFE7458C.toInt())
+/** Each tab's light, in Atlas's blues and purples: Atlas violet, Log blue, Me purple. */
+internal val NAV_COLORS = intArrayOf(0xFF7C5CFF.toInt(), 0xFF2F7BFF.toInt(), 0xFFB05CFF.toInt())
 
 /**
  * The drop of light behind the current tab. Moving, it stretches: the end heading for the new tab races ahead

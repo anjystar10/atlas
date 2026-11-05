@@ -11,11 +11,10 @@ import android.view.View
  * you are, tinted to whatever colour the bar asks for.
  */
 class NavIcon(context: Context, kind: Int) : View(context) {
-    // Atlas's tabs: Today, Chat, Memory, Me. Chat and Memory have only Phosphor's light outline here, used for both states.
+    // Atlas's tabs: Atlas (the spark), Log, Me. Log has only Phosphor's light outline here, used for both states.
     private val ids = when (kind) {
-        0 -> R.drawable.nav_home_off to R.drawable.nav_home_on
-        1 -> R.drawable.ic_chat to R.drawable.ic_chat
-        2 -> R.drawable.ic_book to R.drawable.ic_book
+        0 -> R.drawable.ic_spark_off to R.drawable.ic_spark_on
+        1 -> R.drawable.ic_book to R.drawable.ic_book
         else -> R.drawable.nav_me_off to R.drawable.nav_me_on
     }
     private val off: Drawable = context.getDrawable(ids.first)!!.mutate()
