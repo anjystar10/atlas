@@ -1016,7 +1016,13 @@ class MainActivity : Activity() {
                         }
                         modelProgressView?.text = "Copied $name. Loading…"
                         ModelManager.load(applicationContext)
-                    } catch (e: Exception) { toast(e.message ?: "Couldn't use that file.") }
+                    } catch (e: kotlinx.coroutines.CancellationException) { throw e
+                    } catch (e: Throwable) {
+                        // long enough to read: the message says what the file really is
+                        modelProgressView?.text = e.message ?: "Couldn't use that file."
+                        toast(e.message ?: "Couldn't use that file.")
+                        return@launch
+                    }
                     render()
                 }
             }

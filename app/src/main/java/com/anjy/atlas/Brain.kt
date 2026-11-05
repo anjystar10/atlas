@@ -57,12 +57,14 @@ object ModelManager {
         }
         try {
             input.use { ins ->
-                val head = ins.readNBytes(4)
-                if (head.size != 4 || String(head, Charsets.US_ASCII) != "GGUF") throw IllegalArgumentException("That file isn't a GGUF model.")
+                // read the first bytes ourselves (readNBytes isn't on every Android version)
+                val head = ByteArray(64); var got = 0
+                while (got < head.size) { val n = ins.read(head, got, head.size - got); if (n < 0) break; got += n }
+                if (got < 4 || String(head, 0, 4, Charsets.US_ASCII) != "GGUF") throw IllegalArgumentException(notGguf(name, size, head, got))
                 tmp.outputStream().use { out ->
-                    out.write(head)
+                    out.write(head, 0, got)
                     val buf = ByteArray(1 shl 20)
-                    var done = 4L
+                    var done = got.toLong()
                     var lastReport = 0L
                     while (true) {
                         val n = ins.read(buf); if (n < 0) break
@@ -80,6 +82,22 @@ object ModelManager {
         if (!tmp.renameTo(dest)) throw IllegalStateException("Could not save the model file.")
         prefs(ctx).edit().putString("name", name).apply()
         name
+    }
+
+    /** Says what a picked file actually is, so a wrong download is easy to spot. */
+    internal fun notGguf(name: String, size: Long, head: ByteArray, got: Int): String {
+        val start = String(head, 0, got, Charsets.ISO_8859_1).trimStart().lowercase()
+        val mb = if (size >= 0) "%.1f MB".format(size / 1_000_000.0) else "unknown size"
+        val what = when {
+            got == 0 -> "It's empty, so the download didn't finish."
+            start.startsWith("<!doctype") || start.startsWith("<html") || start.startsWith("<") ->
+                "It's a web page saved with a model's name, not the model. Download it again with the direct link."
+            start.startsWith("{") -> "It's a small text reply from the website, not the model. Download it again with the direct link."
+            head[0] == 'P'.code.toByte() && head[1] == 'K'.code.toByte() -> "It's a zip file, not a model."
+            else -> "It doesn't start like a GGUF model."
+        }
+        val small = if (size in 1 until 100_000_000) " The model is about 2.5 GB, so this is far too small." else ""
+        return "“$name” ($mb) isn't a GGUF model. $what$small"
     }
 
     suspend fun load(ctx: Context): Boolean = withContext(Dispatchers.IO) {
