@@ -23,52 +23,88 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /**
- * Atlas's face: a living glass blob, after the reference the user chose. A silvery shell with fine lines, lit from
- * the top left; a near-black core; wisps of blue light drifting inside; a warm edge at the lower right.
- * Drawn per pixel by a GPU shader (AGSL). It drifts slowly at rest, and stirs and brightens while Atlas
- * listens or works ([energy]); [level] swells it with your voice.
+ * Atlas's face: a living glass blob, after the reference the user chose. A silvery striated shell lit from the
+ * top left; a near-black core; wisps of blue light drifting inside; a warm edge at the lower right.
+ *
+ * Painted on the CPU by [OrbPainter], off the main thread, at up to [MAX_SIDE] pixels and smoothly scaled up.
+ * (A GPU shader drew it before, but some graphics drivers silently drew a black square instead; this way every
+ * phone shows the same orb.) It drifts slowly at rest (15 frames a second, to spare the battery), and stirs at
+ * 30 while Atlas listens or works ([energy]); [level] swells it with your voice.
  */
 class OrbView(context: Context) : View(context) {
     /** Loudness of the voice it's hearing, 0..1 (eased while drawing). */
     var level = 0f
     /** 0 at rest, 1 while thinking or listening. */
     var energy = 0f
-    /** Reduce Motion: drawn once, holding still. */
+    /** Reduce Motion: painted once, holding still. */
     var still = false
+        set(v) { field = v; invalidate() }
     private var shownLevel = 0f
     private var shownEnergy = 0f
     private val start = SystemClock.uptimeMillis()
-    private val shader: android.graphics.RuntimeShader? = try { android.graphics.RuntimeShader(AGSL) } catch (e: Throwable) {
-        android.util.Log.e("AtlasOrb", "orb shader didn't compile", e); null
-    }
-    private val paint = Paint().apply { shader?.let { setShader(it) } }
-    private val still2 = Paint(Paint.FILTER_BITMAP_FLAG)
-    private var stillPic: android.graphics.Bitmap? = null
+    private val painter = OrbPainter()
+    private val filter = Paint(Paint.FILTER_BITMAP_FLAG)
+    private var front: android.graphics.Bitmap? = null
+    private var pixels = IntArray(0)
+    private var busy = false
+    private var lastFrame = 0L
+    private var paintedStill = false
+    private var placeholder: android.graphics.Bitmap? = null
     private val dst = android.graphics.RectF()
+    private val tick = Runnable { invalidate() }
 
     override fun onDraw(canvas: Canvas) {
-        val w = width.toFloat(); val h = height.toFloat()
-        if (w <= 0f || h <= 0f) return
-        val t = if (still) 0f else (SystemClock.uptimeMillis() - start) / 1000f
-        shownLevel += (level - shownLevel) * 0.25f
-        shownEnergy += (energy - shownEnergy) * 0.08f
-        val sh = shader
-        if (sh != null && canvas.isHardwareAccelerated) {
-            sh.setFloatUniform("size", w, h)
-            sh.setFloatUniform("time", t)
-            sh.setFloatUniform("energy", shownEnergy)
-            sh.setFloatUniform("level", shownLevel)
-            canvas.drawRect(0f, 0f, w, h, paint)
-        } else {
-            // a software canvas can't run shaders: the same orb, as a still picture that swells with the voice
-            val pic = stillPic ?: android.graphics.BitmapFactory.decodeResource(resources, R.drawable.orb_still).also { stillPic = it }
-            val side = min(w, h) * (1f + 0.08f * shownLevel)
-            dst.set((w - side) / 2, (h - side) / 2, (w + side) / 2, (h + side) / 2)
-            canvas.drawBitmap(pic, null, dst, still2)
+        val w = width; val h = height
+        if (w <= 0 || h <= 0) return
+        dst.set(0f, 0f, w.toFloat(), h.toFloat())
+        val f = front
+        if (f != null) canvas.drawBitmap(f, null, dst, filter)
+        else {
+            // the first frame is still being painted: show the same orb as a picture meanwhile
+            val pic = placeholder ?: android.graphics.BitmapFactory.decodeResource(resources, R.drawable.orb_still).also { placeholder = it }
+            val side = min(w, h).toFloat()
+            canvas.drawBitmap(pic, null, android.graphics.RectF((w - side) / 2, (h - side) / 2, (w + side) / 2, (h + side) / 2), filter)
         }
-        // about 30 frames a second; nothing is drawn while it's off screen
-        if (!still && isShown) postInvalidateDelayed(33)
+        next()
     }
+
+    /** Paints the next frame on the orb thread, unless one is under way or it isn't time yet. */
+    private fun next() {
+        if (busy || !isAttachedToWindow || !isShown) return
+        if (still && paintedStill && front != null && front!!.width == renderW() && front!!.height == renderH()) return
+        val now = SystemClock.uptimeMillis()
+        val gap = if (still) 0L else if (energy > 0.05f || shownEnergy > 0.05f || level > 0.02f) 33L else 66L
+        val wait = lastFrame + gap - now
+        if (wait > 0) { removeCallbacks(tick); postDelayed(tick, wait); return }
+        lastFrame = now
+        shownLevel += (level - shownLevel) * 0.35f
+        shownEnergy += (energy - shownEnergy) * 0.12f
+        val rw = renderW(); val rh = renderH()
+        val t = if (still) 0f else (now - start) / 1000f
+        val e = shownEnergy; val l = shownLevel
+        if (pixels.size != rw * rh) pixels = IntArray(rw * rh)
+        val buf = pixels
+        busy = true
+        worker.post {
+            try { painter.paint(buf, rw, rh, t, e, l) } catch (x: Throwable) { android.util.Log.e("AtlasOrb", "paint", x) }
+            post {
+                busy = false
+                var b = front
+                if (b == null || b.width != rw || b.height != rh) {
+                    b = android.graphics.Bitmap.createBitmap(rw, rh, android.graphics.Bitmap.Config.ARGB_8888); front = b
+                }
+                if (buf.size == rw * rh) b.setPixels(buf, 0, rw, 0, 0, rw, rh)
+                if (still) paintedStill = true
+                invalidate()
+            }
+        }
+    }
+
+    private fun scale() = min(1f, MAX_SIDE.toFloat() / min(width, height).coerceAtLeast(1))
+    private fun renderW() = (width * scale()).toInt().coerceAtLeast(8)
+    private fun renderH() = (height * scale()).toInt().coerceAtLeast(8)
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { super.onSizeChanged(w, h, oldw, oldh); paintedStill = false }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         super.onVisibilityChanged(changedView, visibility)
@@ -80,88 +116,15 @@ class OrbView(context: Context) : View(context) {
         if (visibility == VISIBLE) invalidate()
     }
 
+    override fun onDetachedFromWindow() { removeCallbacks(tick); super.onDetachedFromWindow() }
+
     companion object {
-        /** The orb, per pixel. Mirrors tools/orb_proto.py line for line (that's where it was tuned against the reference). */
-        const val AGSL = """
-uniform float2 size;
-uniform float time;
-uniform float energy;
-uniform float level;
-
-float hash2(float2 p) { return fract(sin(p.x * 127.1 + p.y * 311.7) * 43758.5453); }
-float vnoise(float2 p) {
-    float2 i = floor(p); float2 f = p - i;
-    float2 u = f * f * (3.0 - 2.0 * f);
-    float a = hash2(i); float b = hash2(i + float2(1.0, 0.0));
-    float c = hash2(i + float2(0.0, 1.0)); float d = hash2(i + float2(1.0, 1.0));
-    float ab = a + (b - a) * u.x; float cd = c + (d - c) * u.x;
-    return ab + (cd - ab) * u.y;
-}
-float fbm(float2 p) {
-    float v = 0.0; float amp = 0.5;
-    for (int k = 0; k < 3; k++) { v += amp * vnoise(p); p = p * 2.03 + float2(1.7, 9.2); amp *= 0.5; }
-    return v;
-}
-float wrapA(float x) { return atan(sin(x), cos(x)); }
-float radiusAt(float th, float t) {
-    float k = 1.0 + 0.060 * sin(2.0 * th + 0.4 + t * 0.31) + 0.045 * sin(3.0 * th + 1.9 - t * 0.23)
-        + 0.025 * sin(5.0 * th + 4.1 + t * 0.41) + 0.015 * energy * sin(7.0 * th + t * 1.7);
-    float bite = -0.42 + 0.12 * sin(t * 0.21);
-    float d0 = wrapA(th - bite); float d1 = wrapA(th - bite + 0.62); float d2 = wrapA(th - bite - 2.6);
-    return k - 0.46 * exp(-(d0 * d0) / (2.0 * 0.0676)) + 0.10 * exp(-(d1 * d1) / (2.0 * 0.0784))
-        + 0.07 * exp(-(d2 * d2) / (2.0 * 0.25));
-}
-
-half4 main(float2 xy) {
-    float side = min(size.x, size.y);
-    float s = side * 0.33 * (1.0 + 0.08 * level) * (1.0 + 0.05 * energy);
-    float px = (xy.x - size.x * 0.5) / s;
-    float py = (xy.y - size.y * 0.5) / s / 1.12;
-    float th = atan(py, px);
-    float rad = sqrt(px * px + py * py);
-    float d = rad / radiusAt(th, time);
-    float aa = 1.5 / s;
-    float inside = 1.0 - smoothstep(1.0 - aa, 1.0 + aa, d);
-    float glow = exp(-max(d - 1.0, 0.0) * 6.0) * (1.0 - inside) * (0.10 + 0.25 * energy);
-    if (inside <= 0.0 && glow < 0.004) { return half4(0.0); }
-
-    float t = time;
-    float fx = px * 1.05 + 0.35 * sin(t * 0.21);
-    float fy = py * 1.05 + 0.3 * cos(t * 0.17);
-    float warpx = fbm(float2(fx + 3.1, fy - 1.3 + t * 0.05));
-    float warpy = fbm(float2(fx - 2.4 + t * 0.04, fy + 5.2));
-    float n = fbm(float2(fx + 1.4 * warpx, fy + 1.4 * warpy));
-    float rib = 1.0 - smoothstep(0.0, 0.07, abs(n - 0.52));
-    float rib2 = 1.0 - smoothstep(0.0, 0.045, abs(n - 0.42));
-    float halo = 1.0 - smoothstep(0.0, 0.16, abs(n - 0.50));
-    float zone = smoothstep(0.15, 0.7, d) * (1.0 - smoothstep(0.97, 1.0, d));
-    float grain = hash2(floor(xy));
-    float speck = 0.7 + 0.6 * grain;
-    float band = (rib + rib2 * 0.5) * zone * speck;
-    float soft = smoothstep(0.30, 0.8, fbm(float2(fx * 0.8 + 4.0, fy * 0.8 - t * 0.03))) * zone * 0.35;
-
-    float3 blue = float3(0.06, 0.32, 1.0);
-    float3 bright = float3(0.55, 0.80, 1.0);
-    float3 col = float3(0.004, 0.008, 0.03);
-    col += blue * band * (0.9 + 0.5 * energy);
-    col += bright * band * band * band * 0.35;
-    col += blue * (soft * 0.4 + halo * zone * 0.35);
-
-    float inv = 1.0 / max(rad, 0.000001);
-    float nx = px * inv; float ny = py * inv;
-    float light = clamp(0.7 - 0.75 * (nx * 0.70 + ny * 0.72), 0.0, 1.0);
-    float shell = smoothstep(0.66, 0.995, d);
-    float lines = 0.62 + 0.38 * sin(xy.y * 3.14159265 / 1.15);
-    col += float3(0.80, 0.88, 1.0) * pow(shell, 1.5) * light * lines * 0.92;
-    col += blue * shell * (1.0 - light) * 0.25;
-    float wl = clamp(nx * 0.75 + ny * 0.66, 0.0, 1.0);
-    col += float3(1.0, 0.50, 0.32) * wl * wl * wl * smoothstep(0.88, 1.0, d) * 0.85;
-
-    float3 outc = clamp(col, 0.0, 1.0) * inside + float3(0.1, 0.3, 1.0) * glow;
-    float a = clamp(inside + glow, 0.0, 1.0);
-    return half4(half3(outc), half(a));
-}
-"""
+        /** The orb is painted at most this many pixels across, then scaled up smoothly. */
+        const val MAX_SIDE = 150
+        private val worker: android.os.Handler by lazy {
+            val th = android.os.HandlerThread("atlas-orb", android.os.Process.THREAD_PRIORITY_DISPLAY); th.start()
+            android.os.Handler(th.looper)
+        }
     }
 }
 
