@@ -49,6 +49,8 @@ class AvatarService : Service() {
     private var voice: VoiceInput? = null
     private var turns = 0
     private var grow: ValueAnimator? = null
+    /** Where the small orb sat before growing, so it returns to the same spot. */
+    private var restAt: Pair<Int, Int>? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -177,7 +179,7 @@ class AvatarService : Service() {
                     val dx = ev.rawX - downX; val dy = ev.rawY - downY
                     if (!dragging && (abs(dx) > slop || abs(dy) > slop)) dragging = true
                     if (dragging) {
-                        params.x = (startX + dx).toInt(); params.y = (startY + dy).toInt()
+                        params.x = (startX + dx).toInt(); params.y = (startY + dy).toInt(); restAt = null
                         try { wm?.updateViewLayout(frame, params) } catch (_: Exception) {}
                         placeCaption()
                     }
@@ -212,8 +214,13 @@ class AvatarService : Service() {
         val frame = orbFrame ?: return; val p = orbParams ?: return; val o = orb ?: return
         grow?.cancel()
         if (on) {
+            if (p.width != big) restAt = p.x to p.y
             val d = (big - p.width) / 2
             p.width = big; p.height = big; p.x -= d; p.y -= d
+            // grown, it stays fully on screen (it may sit at an edge when small)
+            val dm = resources.displayMetrics
+            p.x = p.x.coerceIn(0, (dm.widthPixels - big).coerceAtLeast(0))
+            p.y = p.y.coerceIn(0, (dm.heightPixels - big).coerceAtLeast(0))
             try { wm?.updateViewLayout(frame, p) } catch (_: Exception) {}
             o.scaleX = small.toFloat() / big; o.scaleY = o.scaleX
             grow = ValueAnimator.ofFloat(o.scaleX, 1f).apply {
@@ -230,7 +237,9 @@ class AvatarService : Service() {
                         val pp = orbParams ?: return
                         if (talking || pp.width == small) return
                         val d = (pp.width - small) / 2
-                        pp.width = small; pp.height = small; pp.x += d; pp.y += d
+                        pp.width = small; pp.height = small
+                        val back = restAt; restAt = null
+                        if (back != null) { pp.x = back.first; pp.y = back.second } else { pp.x += d; pp.y += d }
                         o.scaleX = 1f; o.scaleY = 1f
                         try { wm?.updateViewLayout(orbFrame, pp) } catch (_: Exception) {}
                         orbFrame?.visibility = if (appInFront) View.GONE else View.VISIBLE
