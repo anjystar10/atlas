@@ -86,7 +86,9 @@ class GeminiTest {
             assertTrue("duplicate $name", names.add(name))
             assertTrue(Regex("^[a-z_]+$").matches(name))
             assertTrue(f.getString("description").isNotBlank())
-            val p = f.getJSONObject("parameters")
+            // no arguments: no "parameters" (an object without properties is refused)
+            val p = f.optJSONObject("parameters") ?: continue
+            assertTrue("$name has empty parameters", p.getJSONObject("properties").length() > 0)
             assertEquals("object", p.getString("type"))
             val props = p.getJSONObject("properties")
             props.keys().forEach { k ->

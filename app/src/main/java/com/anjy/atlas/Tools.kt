@@ -22,10 +22,13 @@ object Tools {
     /** [out] goes back to the model; [step] is the short line the user sees under Atlas's reply (null: nothing to show). */
     class Result(val out: String, val step: String? = null, val phone: Boolean = false)
 
+    /** A function for Gemini. One that takes nothing has no "parameters" at all: Gemini refuses an object with no properties. */
     private fun fn(name: String, desc: String, props: JSONObject = JSONObject(), required: List<String> = emptyList()): JSONObject =
-        JSONObject().put("name", name).put("description", desc).put("parameters", JSONObject().put("type", "object").put("properties", props).apply {
-            if (required.isNotEmpty()) put("required", JSONArray(required))
-        })
+        JSONObject().put("name", name).put("description", desc).apply {
+            if (props.length() > 0) put("parameters", JSONObject().put("type", "object").put("properties", props).apply {
+                if (required.isNotEmpty()) put("required", JSONArray(required))
+            })
+        }
     private fun str(desc: String, enum: List<String>? = null) = JSONObject().put("type", "string").put("description", desc).apply { if (enum != null) put("enum", JSONArray(enum)) }
     private fun int(desc: String) = JSONObject().put("type", "integer").put("description", desc)
     private fun bool(desc: String) = JSONObject().put("type", "boolean").put("description", desc)
