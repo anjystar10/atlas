@@ -44,14 +44,82 @@ object Providers {
         }
     }
 
-    // ---- settings (keys stay on the phone, outside the backup) ----
+    // ---- keys: as many per service as you like (they stay on the phone, outside the backup) ----
 
-    fun key(ctx: Context, id: String): String? =
-        (Store.getString(ctx, "key_$id") ?: if (id == "gemini") Store.getString(ctx, "gemini_key") else null)?.trim()?.takeIf { it.isNotEmpty() }
-    fun setKey(ctx: Context, id: String, key: String) {
-        Store.putString(ctx, "key_$id", key.trim())
-        if (id == "gemini") Store.putString(ctx, "gemini_key", key.trim())
+    /**
+     * One key in the pool. [restUntil]: when it ran out, Atlas rests it until then (free tiers refill); [bad]: the
+     * service turned it down (wrong or revoked key), so it's skipped until you try it again. [fails]: runs in a row
+     * that ran out, so the rest grows (2 min, 4, 8 … up to a day).
+     */
+    class KeyEntry(val key: String, var restUntil: Long = 0, var bad: Boolean = false, var fails: Int = 0, var problem: String = "") {
+        fun usable(now: Long = System.currentTimeMillis()) = !bad && restUntil <= now
+        fun json() = JSONObject().put("key", key).put("restUntil", restUntil).put("bad", bad).put("fails", fails).put("problem", problem)
     }
+
+    @Synchronized fun keys(ctx: Context, id: String): MutableList<KeyEntry> {
+        val raw = Store.getString(ctx, "keys_$id")
+        val list = mutableListOf<KeyEntry>()
+        if (raw != null) try {
+            val a = JSONArray(raw)
+            for (i in 0 until a.length()) a.getJSONObject(i).let { o -> list.add(KeyEntry(o.getString("key"), o.optLong("restUntil"), o.optBoolean("bad"), o.optInt("fails"), o.optString("problem"))) }
+        } catch (_: Exception) {}
+        if (raw == null) {
+            // the one key saved before the pool existed
+            (Store.getString(ctx, "key_$id") ?: if (id == "gemini") Store.getString(ctx, "gemini_key") else null)?.trim()?.takeIf { it.isNotEmpty() }?.let { list.add(KeyEntry(it)) }
+            saveKeys(ctx, id, list)
+        }
+        return list
+    }
+    @Synchronized private fun saveKeys(ctx: Context, id: String, list: List<KeyEntry>) =
+        Store.putString(ctx, "keys_$id", JSONArray().apply { list.forEach { put(it.json()) } }.toString())
+
+    /** The key to use for [id] now: the first one not resting; if all are resting, the one that wakes soonest. */
+    fun key(ctx: Context, id: String): String? {
+        val list = keys(ctx, id).filter { !it.bad }
+        if (list.isEmpty()) return null
+        return (list.firstOrNull { it.usable() } ?: list.minByOrNull { it.restUntil })?.key
+    }
+    /** A key for [id] that is ready right now (not resting, not turned down), other than [except]. */
+    fun readyKey(ctx: Context, id: String, except: String? = null): String? = keys(ctx, id).firstOrNull { it.usable() && it.key != except }?.key
+    fun hasKeys(ctx: Context, id: String) = keys(ctx, id).any { !it.bad }
+
+    /** Adds a key to the service's pool (or wakes it, if it's already there). */
+    fun setKey(ctx: Context, id: String, key: String) = addKey(ctx, id, key)
+    fun addKey(ctx: Context, id: String, key: String) {
+        val k = key.trim(); if (k.isEmpty()) return
+        val list = keys(ctx, id)
+        val have = list.firstOrNull { it.key == k }
+        if (have != null) { have.bad = false; have.restUntil = 0; have.fails = 0; have.problem = "" } else list.add(KeyEntry(k))
+        saveKeys(ctx, id, list)
+    }
+    fun removeKey(ctx: Context, id: String, key: String) { saveKeys(ctx, id, keys(ctx, id).filter { it.key != key }) }
+    fun wakeKey(ctx: Context, id: String, key: String) { val l = keys(ctx, id); l.firstOrNull { it.key == key }?.apply { bad = false; restUntil = 0; fails = 0; problem = "" }; saveKeys(ctx, id, l) }
+
+    /** A key failed with [code]: rest it (ran out of quota or credit) or set it aside (turned down). */
+    fun rest(ctx: Context, id: String, key: String, code: Int, problem: String) {
+        val list = keys(ctx, id)
+        val e = list.firstOrNull { it.key == key } ?: return
+        val now = System.currentTimeMillis()
+        when (code) {
+            401, 403, 400 -> { e.bad = true }
+            402 -> { e.restUntil = now + 6 * 3_600_000L }
+            else -> { e.fails++; e.restUntil = now + minOf(24 * 3_600_000L, 120_000L shl minOf(e.fails - 1, 10)) }
+        }
+        e.problem = problem.take(160)
+        saveKeys(ctx, id, list)
+    }
+    /** A call with this key worked: its run of failures is over. */
+    fun worked(ctx: Context, id: String, key: String) {
+        val list = keys(ctx, id); val e = list.firstOrNull { it.key == key } ?: return
+        if (e.fails != 0 || e.problem.isNotEmpty()) { e.fails = 0; e.problem = ""; saveKeys(ctx, id, list) }
+    }
+
+    /** Whether a failure means "this key can't go on" (switch keys), rather than a passing hiccup. */
+    fun keyExhausted(f: Gemini.Failure) = f.code == 429 || f.code == 402 || f.code == 401 || f.code == 403 ||
+        (f.code == 400 && (f.message ?: "").contains("key", ignoreCase = true))
+
+    /** The services that can take over, in list order: those with a key ready now. */
+    fun fallbacks(ctx: Context, except: String): List<Provider> = all.filter { it.id != except && readyKey(ctx, it.id) != null && (it.id != "custom" || baseUrl(ctx, it).isNotEmpty()) }
     fun model(ctx: Context, p: Provider): String =
         (Store.getString(ctx, "model_${p.id}") ?: if (p.id == "gemini") Store.getString(ctx, "gemini_model") else null)?.trim()?.takeIf { it.isNotEmpty() } ?: p.defaultModel
     fun setModel(ctx: Context, id: String, model: String) = Store.putString(ctx, "model_$id", model.trim())
@@ -61,8 +129,13 @@ object Providers {
     /** The service Atlas thinks with: the chosen one if it has a key, else the first that does. Null: none set up. */
     fun active(ctx: Context): Provider? {
         val chosen = byId(Store.getString(ctx, "provider"))
-        if (chosen != null && key(ctx, chosen.id) != null && (chosen.id != "custom" || baseUrl(ctx, chosen).isNotEmpty())) return chosen
-        return all.firstOrNull { key(ctx, it.id) != null && (it.id != "custom" || baseUrl(ctx, it).isNotEmpty()) }
+        if (chosen != null && hasKeys(ctx, chosen.id) && (chosen.id != "custom" || baseUrl(ctx, chosen).isNotEmpty())) {
+            // the chosen service, unless all its keys are resting and another service has one ready
+            if (readyKey(ctx, chosen.id) != null) return chosen
+            return fallbacks(ctx, chosen.id).firstOrNull() ?: chosen
+        }
+        return all.firstOrNull { readyKey(ctx, it.id) != null && (it.id != "custom" || baseUrl(ctx, it).isNotEmpty()) }
+            ?: all.firstOrNull { hasKeys(ctx, it.id) && (it.id != "custom" || baseUrl(ctx, it).isNotEmpty()) }
     }
     fun choose(ctx: Context, id: String) = Store.putString(ctx, "provider", id)
 
@@ -128,6 +201,8 @@ object Providers {
     // ---- a conversation with tools, one task long ----
 
     abstract class Session {
+        /** The key it's using; swapped for another when one runs out partway through a task. */
+        abstract var key: String
         /** One round: the model answers, maybe asking for tools. */
         abstract fun call(system: String): Gemini.Turn
         /** The answers to the tools it asked for, in order. */
@@ -152,7 +227,7 @@ object Providers {
         }
     }
 
-    class GeminiSession(private val key: String, private val model: String, private val endpoint: String, history: List<Pair<Boolean, String>>, user: String,
+    class GeminiSession(override var key: String, private val model: String, private val endpoint: String, history: List<Pair<Boolean, String>>, user: String,
                         media: List<Media> = emptyList()) : Session() {
         private val contents = ArrayList<JSONObject>().apply {
             history.forEach { (u, t) -> add(if (u) Gemini.userText(t) else Gemini.modelText(t)) }
@@ -172,7 +247,7 @@ object Providers {
         override fun results(results: List<Pair<Gemini.Call, String>>) { contents.add(Gemini.toolResults(results)) }
     }
 
-    class OpenAiSession(private val key: String, private val model: String, private val base: String, private val p: Provider,
+    class OpenAiSession(override var key: String, private val model: String, private val base: String, private val p: Provider,
                         history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList()) : Session() {
         private val messages = ArrayList<JSONObject>().apply {
             history.forEach { (u, t) -> add(JSONObject().put("role", if (u) "user" else "assistant").put("content", t)) }
@@ -218,7 +293,7 @@ object Providers {
         }
     }
 
-    class AnthropicSession(private val key: String, private val model: String, private val base: String,
+    class AnthropicSession(override var key: String, private val model: String, private val base: String,
                            history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList()) : Session() {
         private val messages = ArrayList<JSONObject>().apply {
             history.forEach { (u, t) -> add(JSONObject().put("role", if (u) "user" else "assistant").put("content", t)) }

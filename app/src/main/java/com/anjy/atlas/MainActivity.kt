@@ -1593,7 +1593,7 @@ class MainActivity : Activity() {
         val shown = Providers.byId(brainShown) ?: active ?: Providers.all.first()
         brainShown = shown.id
         brain.addView(text(active?.let { "${it.name} · ${Providers.model(this, it)}" } ?: "Not set up", 20f, FG, HEAD))
-        brain.add(text(if (active != null) "Atlas thinks with ${active.name}. Paste a key for any other service to switch."
+        brain.add(text(if (active != null) "Atlas thinks with ${active.name}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on, then to another service."
             else "Paste a key from any AI service below. Atlas needs one to think properly and to use your phone.", 14f, if (active != null) DONE else MUTED), 4)
         var keyDraft = ""
         val kf = field("Paste an API key (${shown.keyHint})", "") { keyDraft = it }.apply {
@@ -1605,13 +1605,13 @@ class MainActivity : Activity() {
             brainShown = id; render(keepScroll = true)
         }, 8)
         val kr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        kr.addView(primary("Save Key") {
+        kr.addView(primary("Add Key") {
             val k = keyDraft.trim()
             if (k.length < 16) { showBanner("That doesn't look like a whole key.", MUTED); return@primary }
             // a recognisable key picks its own service; DeepSeek and custom keys look like OpenAI's, so the chip decides
             val id = Providers.guess(k)?.takeIf { g -> !(g == "openai" && shown.id in setOf("deepseek", "custom", "openrouter", "groq", "xai")) } ?: shown.id
             Providers.setKey(this, id, k); Providers.choose(this, id); brainShown = id
-            showBanner("Key saved for ${Providers.byId(id)?.name}. Testing it…"); testKey()
+            showBanner("Key added to ${Providers.byId(id)?.name}. Testing it…"); testKey(k, id)
             render(keepScroll = true)
         }, LinearLayout.LayoutParams(0, WRAP, 1f))
         if (shown.keyUrl.isNotEmpty()) kr.addView(secondary("Get a Key") {
@@ -1631,16 +1631,39 @@ class MainActivity : Activity() {
                     Providers.setModel(this, shown.id, m.trim().ifEmpty { shown.defaultModel }); render(keepScroll = true)
                 }, secondaryLabel = "Cancel")
         }, 10)
-        if (Providers.key(this, shown.id) != null) {
+        // the service's keys: each with its state; tap one to wake it or remove it
+        val pool = Providers.keys(this, shown.id)
+        if (pool.isNotEmpty()) {
+            brain.add(eyebrow("${shown.name} Keys (${pool.size})"), 14)
+            val kc = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            val now = System.currentTimeMillis()
+            pool.forEachIndexed { i, e ->
+                if (i > 0) kc.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
+                val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(10), 0, dp(10)); isClickable = true }
+                val masked = if (e.key.length > 10) e.key.take(4) + "••••" + e.key.takeLast(4) else "••••"
+                val words = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                words.addView(text(masked, 15f, FG, MONO))
+                val state = when {
+                    e.bad -> "Turned down" + if (e.problem.isNotBlank()) ": ${e.problem.take(70)}" else ""
+                    e.restUntil > now -> "Ran out · back at ${Reminders.fmt(e.restUntil)}"
+                    i == pool.indexOfFirst { it.usable(now) } && active?.id == shown.id -> "In use"
+                    else -> "Ready"
+                }
+                words.addView(text(state, 12f, when { e.bad -> MISS; e.restUntil > now -> MUTED; else -> DONE }))
+                row.addView(words, LinearLayout.LayoutParams(0, WRAP, 1f))
+                row.setOnClickListener {
+                    choose(masked, listOf("Try It Again Now", "Remove This Key")) { pick ->
+                        if (pick == 0) { Providers.wakeKey(this, shown.id, e.key); render(keepScroll = true) }
+                        else { Providers.removeKey(this, shown.id, e.key); render(keepScroll = true) }
+                    }
+                }
+                kc.addView(row)
+            }
+            brain.add(kc, 4)
             val tr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             if (active?.id != shown.id) tr.addView(secondary("Use ${shown.name}") { Providers.choose(this, shown.id); render(keepScroll = true) }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { rightMargin = dp(8) })
-            tr.addView(secondary("Test") { Providers.choose(this, shown.id); testKey() }, LinearLayout.LayoutParams(0, WRAP, 1f))
-            tr.addView(secondary("Remove Key") {
-                sheet(null, "Remove the ${shown.name} Key?", "Atlas will use another service you've added, or fall back to the offline model.", primaryLabel = "Remove", primaryColor = MISS, onPrimary = {
-                    Providers.setKey(this, shown.id, ""); render(keepScroll = true)
-                }, secondaryLabel = "Keep")
-            }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
-            brain.add(tr, 10)
+            tr.addView(secondary("Test") { testKey(Providers.key(this, shown.id), shown.id) }, LinearLayout.LayoutParams(0, WRAP, 1f))
+            brain.add(tr, 8)
         }
         brain.add(text("Keys stay on this phone (not in backups). When Atlas thinks online, what you say goes to that service; free tiers may use it to improve their products.", 13f, MUTED), 12)
         body.add(brain, 8)
@@ -1894,14 +1917,21 @@ class MainActivity : Activity() {
     }
 
     /** One tiny request, to say whether the key and model work. */
-    private fun testKey() {
-        val p = Providers.active(this) ?: return
+    /** Tries a key ([key], or the service's current one) with a tiny question; a key that fails is marked so in the list. */
+    private fun testKey(key: String? = null, serviceId: String? = null) {
+        val p = Providers.byId(serviceId) ?: Providers.active(this) ?: return
         scope.launch {
             val msg = withContext(Dispatchers.IO) {
+                val sess = try { Providers.session(applicationContext, p, emptyList(), "Are you there? Answer in three words.") } catch (e: Gemini.Failure) { return@withContext e.message ?: "${p.name} failed." }
+                if (key != null) sess.key = key
                 try {
-                    val t = Providers.session(applicationContext, p, emptyList(), "Are you there? Answer in three words.").call("You are Atlas, a friendly assistant. Reply briefly.")
+                    val t = sess.call("You are Atlas, a friendly assistant. Reply briefly.")
+                    Providers.worked(applicationContext, p.id, sess.key)
                     "${p.name} works: “${t.text.ifBlank { "(used a tool)" }.take(40)}”"
-                } catch (e: Gemini.Failure) { e.message ?: "${p.name} failed." }
+                } catch (e: Gemini.Failure) {
+                    if (Providers.keyExhausted(e)) Providers.rest(applicationContext, p.id, sess.key, e.code, e.message ?: "")
+                    e.message ?: "${p.name} failed."
+                }
                 catch (e: Exception) { "${p.name} failed: ${e.message}" }
             }
             showBanner(msg, if (msg.contains(" works: ")) DONE else MISS)

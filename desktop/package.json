@@ -1,0 +1,28 @@
+{
+  "name": "atlas-desktop",
+  "productName": "Atlas",
+  "version": "0.7.0",
+  "description": "Atlas, King Anjy's personal AI assistant, on Windows. Synced with Atlas on the phone.",
+  "main": "main.js",
+  "author": "King Anjy",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/",
+    "dist": "electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.anjy.atlas.desktop",
+    "productName": "Atlas",
+    "artifactName": "Atlas-Setup.${ext}",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "pc.js", "renderer/**/*", "build/icon.png"],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },
+    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "Atlas", "runAfterFinish": true }
+  }
+}
