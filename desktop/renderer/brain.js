@@ -62,7 +62,7 @@ const available = (p) => hasKeys(p.id) && (p.id !== 'custom' || baseOf(p));
 export function fallbacks(except) { return PROVIDERS.filter((p) => p.id !== except && available(p) && readyKey(p.id)); }
 export function active() {
   const chosen = byId(pref('provider', ''));
-  if (chosen && available(chosen)) return readyKey(chosen.id) ? chosen : fallbacks(chosen.id)[0] || chosen;
+  if (chosen && available(chosen)) return readyKey(chosen.id) || dontSwitch() ? chosen : fallbacks(chosen.id)[0] || chosen;
   return PROVIDERS.find((p) => available(p) && readyKey(p.id)) || PROVIDERS.find(available) || null;
 }
 
@@ -204,7 +204,7 @@ const str = (description, e) => ({ type: 'string', description, ...(e ? { enum: 
 const int = (description) => ({ type: 'integer', description });
 const bool = (description) => ({ type: 'boolean', description });
 const fn = (name, description, props, required = []) => ({ name, description, ...(props ? { parameters: { type: 'object', properties: props, ...(required.length ? { required } : {}) } } : {}) });
-export const SETTINGS = ['speak_replies', 'voice', 'theme', 'on_screen', 'your_name', 'alarm_sound', 'start_with_windows'];
+export const SETTINGS = ['speak_replies', 'voice', 'theme', 'on_screen', 'your_name', 'alarm_sound', 'start_with_windows', 'dont_switch'];
 
 export const TOOLS = [
   fn('set_reminder', 'Log a reminder. At its time Atlas rings an alarm (important things) or sends a notification (lighter things), on this PC and on the phone.', {
@@ -463,33 +463,67 @@ export function stop() { convo.stopFlag++; convo.busy = false; convo.status = nu
 
 export class Switch extends Error { constructor(to, msg) { super(msg); this.to = to; } }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// The key pool's rules (the same as the phone's KeyRouter):
+// - A failure that can pass (429 limit, busy server 500/502/503/504, timeout or dropped connection) is retried on the
+//   SAME key up to RETRIES times (2, 5, 10 s) before anything switches.
+// - A failure retrying can't fix switches at once: the key was turned down (401/403, or a 400 about the key) or the
+//   account has no credit (402). Waiting won't change those answers.
+// - Then the key is rested (limit, credit) or set aside (turned down) and the next ready key of the service takes over;
+//   when the service has none left, Switch moves to the next service with one, unless "Don't Switch Services" is on:
+//   then Atlas stays put, waits out a used-up limit (30 s, 60 s) and, if it still can't, says so plainly.
+// - No internet after the retries: the local model takes over if there is one (not with Don't Switch on).
+export const RETRIES = 3;
+export const RETRY_WAITS = [2000, 5000, 10000];
+export const WAIT_OUT = [30000, 60000];
+export const dontSwitch = () => !!pref('dont_switch', false);
+export function cause(f) {
+  if ([401, 403, 402].includes(f.code) || (f.code === 400 && /key/i.test(f.message || ''))) return 'key';
+  if ([429, 500, 502, 503, 504].includes(f.code) || f.offline) return 'passing';
+  return 'other';
+}
+
 /**
  * One model call with the key pool behind it (used by the chat and anything else that talks to a model).
- * [onStatus] shows a short line while waiting or switching; [cancelled] () => true stops the waiting.
+ * [onStatus] shows a short line while waiting or switching (null when that's over); [cancelled] () => true stops the waiting.
  */
-export async function callWithKeys(p, sess, call, mine, { onStatus = (st) => { convo.status = st; changed('chat'); }, cancelled = () => mine !== convo.stopFlag } = {}) {
-  const waits = [6000, 15000, 30000]; let i = 0;
+export async function callWithKeys(p, sess, call, mine, { onStatus = (st) => { convo.status = st; changed('chat'); }, cancelled = () => mine !== convo.stopFlag, wait = sleep } = {}) {
+  let retries = 0, waitedOut = 0; const rested = new Set();
+  const nap = async (ms) => { await wait(ms); if (cancelled()) throw new Failure('Stopped.'); };
   for (;;) {
+    let f;
     try { const t = await call(); if (!p.local) worked(p.id, sess.key); return t; }
-    catch (f) {
-      if (!(f instanceof Failure)) throw f;
-      if (!p.local && keyExhausted(f)) {
-        rest(p.id, sess.key, f.code, f.message);
-        const next = readyKey(p.id, sess.key);
-        if (next) { sess.key = next; onStatus(`Switching to another ${p.name} key`); continue; }
-        const other = fallbacks(p.id)[0];
-        if (other) throw new Switch(other, `All your ${p.name} keys are used up for now.`);
-        if (f.code !== 429 && f.code !== 402) throw new Failure(f.message + ' (No other key is ready: add more in Me → Brain.)', f.code);
-      }
-      if (f.offline && !p.local) {
-        // no internet: a local model, if there is one, carries on
-        const loc = byId('local'); if (hasKeys('local') && p.id !== 'local') throw new Switch(loc, 'Offline.');
-      }
-      const again = [429, 500, 503, 504].includes(f.code);
-      if (!again || i >= waits.length || cancelled()) throw f;
-      onStatus(f.code === 429 ? `Waiting for ${p.name}'s limit` : `${p.name} is busy, trying again`);
-      await sleep(waits[i++]);
+    catch (e) { f = e; }
+    if (!(f instanceof Failure)) throw f;
+    if (cancelled()) throw f;
+    const c = cause(f);
+    if (c === 'other') throw f;
+    if (c === 'passing' && retries < RETRIES) {
+      retries++;
+      onStatus(f.code === 429 ? `Waiting for ${p.name}'s limit (${retries} of ${RETRIES})` : f.offline ? `Can't reach ${p.name}, trying again (${retries} of ${RETRIES})` : `${p.name} is busy, trying again (${retries} of ${RETRIES})`);
+      await nap(RETRY_WAITS[retries - 1]); onStatus(null);
+      continue;
     }
+    const stay = dontSwitch();
+    if (f.offline) {
+      // no internet: a local model, if there is one, carries on
+      if (!p.local && !stay && hasKeys('local')) throw new Switch(byId('local'), 'Offline.');
+      throw f;
+    }
+    if (!p.local && (c === 'key' || f.code === 429)) {
+      if (!rested.has(sess.key)) { rested.add(sess.key); rest(p.id, sess.key, f.code, f.message); }
+      const next = readyKey(p.id, sess.key);
+      if (next && !rested.has(next)) { sess.key = next; retries = 0; onStatus(`Switching to another ${p.name} key`); await nap(300); onStatus(null); continue; }
+    }
+    const other = fallbacks(p.id)[0];
+    if (other && !stay) throw new Switch(other, c === 'key' || f.code === 429 ? `All your ${p.name} keys are used up for now.` : `${p.name} kept failing (tried ${RETRIES} times).`);
+    if (f.code === 429 && waitedOut < WAIT_OUT.length) { onStatus(`Waiting for ${p.name}'s limit to reset`); await nap(WAIT_OUT[waitedOut++]); onStatus(null); continue; }
+    const stayed = stay && !!other;
+    throw new Failure(
+      stayed && f.code === 429 ? `${p.name}'s limit is used up for now. Don't Switch Services is on, so I stayed on ${p.name}: try again in a few minutes, or add another ${p.name} key in Me → Brain.`
+        : stayed && c === 'key' ? `${f.message} Don't Switch Services is on, so I didn't move to another service. Add another ${p.name} key in Me → Brain.`
+        : stayed ? `${f.message} I tried ${RETRIES} times. Don't Switch Services is on, so I didn't move to another service.`
+        : c === 'key' || f.code === 429 ? `${f.message} (No other key is ready: add more in Me → Brain.)`
+        : `${f.message} I tried ${RETRIES} times.`, f.code);
   }
 }
 

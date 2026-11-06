@@ -1593,7 +1593,7 @@ class MainActivity : Activity() {
         val shown = Providers.byId(brainShown) ?: active ?: Providers.all.first()
         brainShown = shown.id
         brain.addView(text(active?.let { "${it.name} · ${Providers.model(this, it)}" } ?: "Not set up", 20f, FG, HEAD))
-        brain.add(text(if (active != null) "Atlas thinks with ${active.name}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on, then to another service."
+        brain.add(text(if (active != null) "Atlas thinks with ${active.name}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on${if (KeyRouter.dontSwitch(this)) "." else ", then to another service."}"
             else "Paste a key from any AI service below. Atlas needs one to think properly and to use your phone.", 14f, if (active != null) DONE else MUTED), 4)
         var keyDraft = ""
         val kf = field("Paste an API key (${shown.keyHint})", "") { keyDraft = it }.apply {
@@ -1665,6 +1665,9 @@ class MainActivity : Activity() {
             tr.addView(secondary("Test") { testKey(Providers.key(this, shown.id), shown.id) }, LinearLayout.LayoutParams(0, WRAP, 1f))
             brain.add(tr, 8)
         }
+        brain.add(switchRow(null, "Don't Switch Services", KeyRouter.dontSwitch(this)) { on -> KeyRouter.setDontSwitch(this, on); render(keepScroll = true) }, 14)
+        brain.add(text(if (KeyRouter.dontSwitch(this)) "Atlas stays on ${active?.name ?: "the service you chose"}, even when it runs out or there's no internet. Your other ${active?.name ?: ""} keys can still take over.".replace("  ", " ")
+            else "Off: when a service keeps failing (Atlas tries it 3 times first) or all its keys run out, Atlas moves to another service with a key and carries on.", 13f, MUTED), 6)
         brain.add(text("Keys stay on this phone (not in backups). When Atlas thinks online, what you say goes to that service; free tiers may use it to improve their products.", 13f, MUTED), 12)
         body.add(brain, 8)
 

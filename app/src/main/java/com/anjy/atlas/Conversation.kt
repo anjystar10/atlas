@@ -201,6 +201,8 @@ object Conversation {
                 return
             } catch (f: Gemini.Failure) {
                 if (!f.offline) { reply.text = f.message ?: "${p.name} failed."; reply.source = "error"; return }
+                // Don't Switch Services: stay on the chosen service, so no answer from the offline model either
+                if (KeyRouter.dontSwitch(ctx)) { reply.text = "${f.message} Don't Switch Services is on, so I didn't answer with the offline model."; reply.source = "error"; return }
                 Log.i(TAG, "offline: ${f.message}")
                 reply.steps.add("${f.message} Answering offline.")
             }

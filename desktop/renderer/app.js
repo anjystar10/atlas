@@ -85,7 +85,7 @@ function renderAtlas(page) {
   const chat = h('<div class="chat" id="chat"></div>'); col.appendChild(chat);
   fillChat();
 }
-function brainLine() { const p = brain.active(); return p ? `${p.name} · ${brain.modelOf(p)}` + (brain.fallbacks(p.id).length ? ` · ${brain.fallbacks(p.id).length} backup service${brain.fallbacks(p.id).length > 1 ? 's' : ''}` : '') : 'No brain set up yet · add an AI key in Me'; }
+function brainLine() { const p = brain.active(); return p ? `${p.name} · ${brain.modelOf(p)}` + (brain.dontSwitch() ? ' · stays on this service' : '') + (!brain.dontSwitch() && brain.fallbacks(p.id).length ? ` · ${brain.fallbacks(p.id).length} backup service${brain.fallbacks(p.id).length > 1 ? 's' : ''}` : '') : 'No brain set up yet · add an AI key in Me'; }
 function fillChat() {
   const chat = $('#chat'); if (!chat) return;
   const bl = $('#brainline'); if (bl) bl.textContent = brain.convo.busy && brain.convo.status ? brain.convo.status + '…' : brainLine();
@@ -300,7 +300,7 @@ function renderMe(page) {
   const act = brain.active(); const shown = brain.byId(brainShown) || act || brain.PROVIDERS[0]; brainShown = shown.id;
   const bc = h('<div class="card"></div>'); col.appendChild(bc);
   bc.appendChild(h(`<div style="font:400 24px var(--serif)">${esc(act ? `${act.name} · ${brain.modelOf(act)}` : 'Not set up')}</div>`));
-  bc.appendChild(h(`<p class="${act ? 'ok' : 'muted'}" style="margin:4px 0 14px">${act ? `Atlas thinks with ${esc(act.name)}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on, then to another service.` : 'Add a key from any AI service, or use a model running on this PC.'}</p>`));
+  bc.appendChild(h(`<p class="${act ? 'ok' : 'muted'}" style="margin:4px 0 14px">${act ? `Atlas thinks with ${esc(act.name)}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on${brain.dontSwitch() ? '.' : ', then to another service.'}` : 'Add a key from any AI service, or use a model running on this PC.'}</p>`));
   const chips = h('<div class="chips"></div>');
   for (const p of brain.PROVIDERS) { const c = h(`<span class="chip ${p.id === shown.id ? 'on' : ''}">${esc(p.name)}</span>`); c.onclick = () => { brainShown = p.id; render(true); }; chips.appendChild(c); }
   bc.appendChild(chips);
@@ -349,6 +349,10 @@ function renderMe(page) {
   }
   if (!shown.local) { const mr = h(`<div class="setting"><div class="grow">Model<div class="small muted">${esc(brain.modelOf(shown) || 'Not set')}</div></div><button class="btn">Change</button></div>`);
     mr.querySelector('button').onclick = () => askText(`${shown.name} Model`, shown.model ? `Leave it as ${shown.model} unless you want another of ${shown.name}'s models.` : "The model's name, as your service writes it.", brain.modelOf(shown), (v) => setPref('model_' + shown.id, v.trim())); bc.appendChild(mr); }
+  const stayOn = brain.dontSwitch();
+  bc.appendChild(settingRow("Don't Switch Services", stayOn, (on) => { setPref('dont_switch', on); render(true); },
+    stayOn ? `Atlas stays on ${act ? act.name : 'the service you chose'}, even when it runs out or you're offline (no local model either). Your other keys for it can still take over.`
+      : 'Off: when a service keeps failing (Atlas tries it 3 times first) or all its keys run out, Atlas moves to another service, or a local model when offline, and carries on.'));
   bc.appendChild(h('<p class="small muted" style="margin-top:10px">Keys stay on this PC (they don\'t sync). When Atlas thinks online, what you say goes to that service.</p>'));
 
   // Voice
@@ -523,7 +527,7 @@ brain.ui.settingsText = () => {
   return [`- speak_replies (on/off) — now ${on(pref('speakReplies', false))}`,
     `- voice: now ${eng ? voice.current(eng).label : "Windows' voice"}; choices: ${voice.voices(eng).map((v) => v.label).join(', ')}`,
     `- theme (dark/light) — now ${pref('theme', 'dark')}`, `- on_screen (on/off): the orb in the corner of the PC — now ${on(pref('onScreen', true))}`,
-    `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)'].join('\n');
+    `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)', `- dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${on(brain.dontSwitch())}`].join('\n');
 };
 brain.ui.setting = async (name, value) => {
   const flag = { on: true, true: true, yes: true, off: false, false: false, no: false }[String(value).toLowerCase().trim()];
@@ -536,6 +540,7 @@ brain.ui.setting = async (name, value) => {
       case 'on_screen': setPref('onScreen', need()); host.showOrb(flag); return flag ? "I'm in the corner of your screen now." : "I'm off your screen.";
       case 'your_name': if (!value.trim()) return 'Error: give the name.'; db.state.settings.name = value.trim().slice(0, 40); store.saveState(); return `I'll call you ${value.trim()}.`;
       case 'alarm_sound': db.state.settings.sound = need(); store.saveState(); return `Alarm sound ${flag ? 'on' : 'off'}.`;
+      case 'dont_switch': setPref('dont_switch', need()); return flag ? "I'll stay on the service you chose and won't switch to another one (your other keys for it can still take over)." : "I'll switch to another service again when one keeps failing or runs out.";
       case 'start_with_windows': await host.autostart(need()); return flag ? 'I\'ll start with Windows (quietly, in the tray).' : "I won't start with Windows.";
     }
     return `Error: I can't change "${name}".`;

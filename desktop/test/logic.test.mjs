@@ -43,3 +43,58 @@ test('encryption round trip, and the same owner as the phone', async () => {
 test('canonical form ignores field order', () => {
   assert.equal(sync.canonical({ b: 1, a: [1, { d: 2, c: null }] }), sync.canonical({ a: [1, { c: null, d: 2 }], b: 1 }));
 });
+
+// ------------------------------------------------------------------ the key pool: retries before switching, Don't Switch
+const brain = await import('../renderer/brain.js');
+const { db } = await import('../renderer/store.js');
+const gem = brain.byId('gemini');
+function pool(keys, { other = false, stay = false } = {}) {
+  db.prefs = { keys: { gemini: keys.map((k) => ({ key: k, restUntil: 0, bad: false, fails: 0, problem: '' })), ...(other ? { groq: [{ key: 'gsk_x', restUntil: 0, bad: false, fails: 0, problem: '' }] } : {}) }, dont_switch: stay };
+}
+/** Calls through the router with a call that fails with [fails] in order, then answers 'ok'. */
+async function run(fails) {
+  const sess = { key: brain.keys('gemini')[0].key }; const used = []; const waits = []; let n = 0;
+  const out = await brain.callWithKeys(gem, sess, async () => { used.push(sess.key); if (n < fails.length) throw fails[n++]; return 'ok'; }, 0,
+    { onStatus: () => {}, cancelled: () => false, wait: async (ms) => { waits.push(ms); } });
+  return { out, used, waits };
+}
+const busy = () => new brain.Failure('Gemini is having trouble right now (503).', 503);
+const limit = () => new brain.Failure('The Gemini limit is used up for now.', 429);
+
+test('a busy service is retried 3 times on the same key', async () => {
+  pool(['k1', 'k2'], { other: true });
+  const r = await run([busy(), busy(), busy()]);
+  assert.equal(r.out, 'ok'); assert.deepEqual(r.used, ['k1', 'k1', 'k1', 'k1']); assert.deepEqual(r.waits, [2000, 5000, 10000]);
+});
+test('a fourth limit rests the key and the next key takes over', async () => {
+  pool(['k1', 'k2'], { other: true });
+  const r = await run([limit(), limit(), limit(), limit()]);
+  assert.deepEqual(r.used, ['k1', 'k1', 'k1', 'k1', 'k2']);
+  assert.ok(brain.keys('gemini')[0].restUntil > Date.now());
+});
+test('a turned-down key switches at once', async () => {
+  pool(['k1', 'k2'], { other: true });
+  const r = await run([new brain.Failure('Gemini turned the key down: no', 401)]);
+  assert.deepEqual(r.used, ['k1', 'k2']); assert.ok(brain.keys('gemini')[0].bad);
+});
+test('with no keys left it moves to another service, after the retries', async () => {
+  pool(['k1'], { other: true });
+  await assert.rejects(run(Array(10).fill(0).map(busy)), (e) => e instanceof brain.Switch && e.to.id === 'groq');
+  pool(['k1'], { other: true });
+  await assert.rejects(run(Array(10).fill(0).map(limit)), (e) => e instanceof brain.Switch && e.to.id === 'groq');
+});
+test("Don't Switch stays on the service and says so", async () => {
+  pool(['k1'], { other: true, stay: true });
+  await assert.rejects(run(Array(20).fill(0).map(limit)), (e) => e instanceof brain.Failure && !(e instanceof brain.Switch) && /Don't Switch Services is on/.test(e.message));
+  // other keys of the same service still take over
+  pool(['k1', 'k2'], { other: true, stay: true });
+  const r = await run([limit(), limit(), limit(), limit()]); assert.equal(r.used.at(-1), 'k2');
+  // the chosen service stays chosen even while its keys rest; without Don't Switch another service takes over
+  pool(['k1'], { other: true, stay: true }); db.prefs.provider = 'gemini'; db.prefs.keys.gemini[0].restUntil = Date.now() + 60000;
+  assert.equal(brain.active().id, 'gemini');
+  db.prefs.dont_switch = false; assert.equal(brain.active().id, 'groq');
+});
+test('other errors are not retried', async () => {
+  pool(['k1'], { other: true });
+  await assert.rejects(run([new brain.Failure("Gemini doesn't know that model", 404)]), (e) => e.code === 404);
+});

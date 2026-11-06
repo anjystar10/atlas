@@ -7,7 +7,7 @@ import android.content.Context
  * "switch to light mode", "stop floating on my screen"). Each returns a sentence saying what changed, or why not.
  */
 object Self {
-    val names = listOf("speak_replies", "natural_voice", "voice", "theme", "on_screen", "hey_atlas", "reduce_motion", "alarm_sound", "your_name")
+    val names = listOf("speak_replies", "natural_voice", "voice", "theme", "on_screen", "hey_atlas", "reduce_motion", "alarm_sound", "your_name", "dont_switch")
 
     /** For the model: what each setting is and its current value. */
     fun describe(ctx: Context): String {
@@ -22,7 +22,8 @@ object Self {
             "hey_atlas (on/off): listening for \"Hey Atlas\" — now ${onOff(s.wakeWord)}",
             "reduce_motion (on/off): keep the orb still — now ${onOff(Prefs.reduceMotion(ctx))}",
             "alarm_sound (on/off) — now ${onOff(s.sound)}",
-            "your_name (text): what Atlas calls the user — now ${s.name.ifBlank { "not set" }}"
+            "your_name (text): what Atlas calls the user — now ${s.name.ifBlank { "not set" }}",
+            "dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${onOff(KeyRouter.dontSwitch(ctx))}"
         ).joinToString("\n- ", prefix = "- ")
     }
 
@@ -63,6 +64,7 @@ object Self {
                 "reduce_motion" -> { val b = needFlag(); Store.setFlag(ctx, "reduceMotion", b); if (b) "The orb will hold still." else "The orb will move again." }
                 "alarm_sound" -> { val b = needFlag(); Store.edit(ctx) { it.settings.sound = b }; "Alarm sound ${onOff(b)}." }
                 "your_name" -> { if (v.isBlank()) throw AtlasError("Give the name."); Store.edit(ctx) { it.settings.name = v.take(40) }; "I'll call you ${v.take(40)}." }
+                "dont_switch" -> { val b = needFlag(); KeyRouter.setDontSwitch(ctx, b); if (b) "I'll stay on the service you chose and won't switch to another one (your other keys for it can still take over)." else "I'll switch to another service again when one keeps failing or runs out." }
                 else -> "Error: I can't change \"$name\". Settings I can change: ${names.joinToString(", ")}."
             }
         } catch (e: AtlasError) { "Error: ${e.message}" }

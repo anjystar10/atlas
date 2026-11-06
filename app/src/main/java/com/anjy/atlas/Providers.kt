@@ -131,7 +131,8 @@ object Providers {
         val chosen = byId(Store.getString(ctx, "provider"))
         if (chosen != null && hasKeys(ctx, chosen.id) && (chosen.id != "custom" || baseUrl(ctx, chosen).isNotEmpty())) {
             // the chosen service, unless all its keys are resting and another service has one ready
-            if (readyKey(ctx, chosen.id) != null) return chosen
+            // (with Don't Switch Services on, always the chosen service)
+            if (readyKey(ctx, chosen.id) != null || KeyRouter.dontSwitch(ctx)) return chosen
             return fallbacks(ctx, chosen.id).firstOrNull() ?: chosen
         }
         return all.firstOrNull { readyKey(ctx, it.id) != null && (it.id != "custom" || baseUrl(ctx, it).isNotEmpty()) }

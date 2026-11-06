@@ -74,7 +74,7 @@ object Tools {
                 JSONObject().put("query", str("What to search for")), listOf("query")))
             put(fn("read_page", "Read a web page directly and get its text (from a search result or a link the user gave).",
                 JSONObject().put("url", str("The page's address")), listOf("url")))
-            put(fn("change_setting", "Change one of Atlas's own settings when the user asks (voice, speaking replies, theme, being on screen, Hey Atlas, motion, alarm sound, their name). The current values are in your instructions.",
+            put(fn("change_setting", "Change one of Atlas's own settings when the user asks (voice, speaking replies, theme, being on screen, Hey Atlas, motion, alarm sound, their name, not switching AI services). The current values are in your instructions.",
                 JSONObject().put("setting", str("Which setting", Self.names)).put("value", str("The new value: on/off, a voice name, dark/light, or the name")), listOf("setting", "value")))
             put(fn("start_focus", "Start a focus session when the user says they're doing something right now (\"I'm doing it now\", \"starting my homework\"). Opens a distraction-free screen with a timer.",
                 JSONObject().put("title", str("What they're doing")).put("minutes", int("Planned length in minutes, if they said or it's known (default: none, the timer counts up)"))
