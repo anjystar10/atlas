@@ -101,7 +101,7 @@ async function post(url, headers, body, service, timeout = 180000) {
 function params(f) { return f.parameters || { type: 'object', properties: {} }; }
 
 /** One conversation with a service for one request. call() → {text, calls:[{name,args,id}]}; results(list) answers the calls. */
-function session(p, key, history, user, media) {
+export function session(p, key, history, user, media) {
   const model = modelOf(p), base = baseOf(p);
   if (p.style === 'gemini') {
     const contents = history.map(([u, t]) => ({ role: u ? 'user' : 'model', parts: [{ text: t }] }));
@@ -461,9 +461,13 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
 }
 export function stop() { convo.stopFlag++; convo.busy = false; convo.status = null; changed('chat'); }
 
-class Switch extends Error { constructor(to, msg) { super(msg); this.to = to; } }
+export class Switch extends Error { constructor(to, msg) { super(msg); this.to = to; } }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function callWithKeys(p, sess, call, mine) {
+/**
+ * One model call with the key pool behind it (used by the chat and anything else that talks to a model).
+ * [onStatus] shows a short line while waiting or switching; [cancelled] () => true stops the waiting.
+ */
+export async function callWithKeys(p, sess, call, mine, { onStatus = (st) => { convo.status = st; changed('chat'); }, cancelled = () => mine !== convo.stopFlag } = {}) {
   const waits = [6000, 15000, 30000]; let i = 0;
   for (;;) {
     try { const t = await call(); if (!p.local) worked(p.id, sess.key); return t; }
@@ -472,7 +476,7 @@ async function callWithKeys(p, sess, call, mine) {
       if (!p.local && keyExhausted(f)) {
         rest(p.id, sess.key, f.code, f.message);
         const next = readyKey(p.id, sess.key);
-        if (next) { sess.key = next; convo.status = `Switching to another ${p.name} key`; changed('chat'); continue; }
+        if (next) { sess.key = next; onStatus(`Switching to another ${p.name} key`); continue; }
         const other = fallbacks(p.id)[0];
         if (other) throw new Switch(other, `All your ${p.name} keys are used up for now.`);
         if (f.code !== 429 && f.code !== 402) throw new Failure(f.message + ' (No other key is ready: add more in Me → Brain.)', f.code);
@@ -482,8 +486,8 @@ async function callWithKeys(p, sess, call, mine) {
         const loc = byId('local'); if (hasKeys('local') && p.id !== 'local') throw new Switch(loc, 'Offline.');
       }
       const again = [429, 500, 503, 504].includes(f.code);
-      if (!again || i >= waits.length || mine !== convo.stopFlag) throw f;
-      convo.status = f.code === 429 ? `Waiting for ${p.name}'s limit` : `${p.name} is busy, trying again`; changed('chat');
+      if (!again || i >= waits.length || cancelled()) throw f;
+      onStatus(f.code === 429 ? `Waiting for ${p.name}'s limit` : `${p.name} is busy, trying again`);
       await sleep(waits[i++]);
     }
   }

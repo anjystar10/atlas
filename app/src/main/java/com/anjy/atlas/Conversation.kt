@@ -257,9 +257,6 @@ ${Tools.logContext(ctx)}
 """.trim()
     }
 
-    /** All of a service's keys are out: carry on with [to]. */
-    private class SwitchService(val to: Providers.Provider, why: String) : Exception(why)
-
     private suspend fun cloud(ctx: Context, first: Providers.Provider, q: String, spoken: Boolean, reply: Msg, media: List<Attach.Item> = emptyList()) {
         var p = first
         reply.source = p.name
@@ -273,7 +270,7 @@ ${Tools.logContext(ctx)}
         while (steps < MAX_STEPS) {
             steps++
             val system = withContext(Dispatchers.IO) { systemPrompt(ctx, spoken) }
-            val turn = try { callWithKeys(ctx, p, session) { session.call(system) } } catch (sw: SwitchService) {
+            val turn = try { callWithKeys(ctx, p, session) { session.call(system) } } catch (sw: KeyRouter.SwitchService) {
                 // carry on with the next service; it hears what was already done so nothing is repeated
                 if (!tried.add(sw.to.id)) throw Gemini.Failure(sw.message ?: "All your keys have run out for now.")
                 p = sw.to; reply.source = p.name
@@ -305,41 +302,11 @@ ${Tools.logContext(ctx)}
         fixHistory()
     }
 
-    /**
-     * One call, with the key pool behind it. A key that runs out (or is turned down) is rested and the next ready key
-     * of the same service takes over at once; when the service has none left, [SwitchService] moves to the next
-     * service that does. Busy servers, and a limit with no other key to turn to, are waited out (6, 15, 30 s).
-     */
     private suspend fun callWithKeys(ctx: Context, p: Providers.Provider, session: Providers.Session, call: () -> Gemini.Turn): Gemini.Turn {
-        val waits = longArrayOf(6_000, 15_000, 30_000)
-        var i = 0
-        while (true) {
-            try {
-                val t = withContext(Dispatchers.IO) { call() }
-                withContext(Dispatchers.IO) { Providers.worked(ctx, p.id, session.key) }
-                return t
-            } catch (f: Gemini.Failure) {
-                if (Providers.keyExhausted(f)) {
-                    withContext(Dispatchers.IO) { Providers.rest(ctx, p.id, session.key, f.code, f.message ?: "") }
-                    val next = withContext(Dispatchers.IO) { Providers.readyKey(ctx, p.id, except = session.key) }
-                    if (next != null) {
-                        session.key = next
-                        val was = status; status = "Switching to another ${p.name} key"; changed()
-                        kotlinx.coroutines.delay(300); status = was; changed()
-                        continue
-                    }
-                    val other = withContext(Dispatchers.IO) { Providers.fallbacks(ctx, p.id).firstOrNull() }
-                    if (other != null) throw SwitchService(other, "All your ${p.name} keys are used up for now.")
-                    if (f.code != 429 && f.code != 402) throw Gemini.Failure("${f.message} (No other key is ready: add more in Me → Brain.)", code = f.code)
-                }
-                val again = f.code == 429 || f.code == 500 || f.code == 503 || f.code == 504
-                if (!again || i >= waits.size) throw f
-                val was = status
-                status = if (f.code == 429) "Waiting for ${p.name}'s limit" else "${p.name} is busy, trying again"; changed()
-                kotlinx.coroutines.delay(waits[i++])
-                status = was; changed()
-            }
-        }
+        val was = status
+        return try {
+            KeyRouter.call(ctx, p, session, onStatus = { st -> status = st ?: was; changed() }, call = call)
+        } finally { if (status != was) { status = was; changed() } }
     }
 
     private fun stepNote(steps: List<String>) = if (steps.isEmpty()) "" else "\n(What I did: ${steps.joinToString("; ")})"
