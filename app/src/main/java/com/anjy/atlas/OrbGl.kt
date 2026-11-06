@@ -156,6 +156,13 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
         private var flow = 0.0
         private var last = 0L
         private val main = Handler(Looper.getMainLooper())
+        private var config: EGLConfig? = null
+        /** Share of full sharpness it draws at; lowered if the chip is slow (the screen scales it up smoothly). */
+        private var scale = 1f
+        private var scaleApplied = 1f
+        private var bw = 0; private var bh = 0
+        private var frames = 0
+        private val recent = FloatArray(8)
 
         fun wake() = synchronized(lock) { lock.notifyAll() }
         fun resize(nw: Int, nh: Int) { w = nw; h = nh; resized = true; drewStill = false; wake() }
@@ -202,6 +209,7 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
             check(EGL14.eglChooseConfig(display, attrs, 0, configs, 0, 1, n, 0) && n[0] > 0) { "no 8-bit RGBA ES3 config" }
             ctx = EGL14.eglCreateContext(display, configs[0], EGL14.EGL_NO_CONTEXT, intArrayOf(EGL14.EGL_CONTEXT_CLIENT_VERSION, 3, EGL14.EGL_NONE), 0)
             check(ctx != EGL14.EGL_NO_CONTEXT) { "eglCreateContext ${EGL14.eglGetError()}" }
+            config = configs[0]
             surface = EGL14.eglCreateWindowSurface(display, configs[0], st, intArrayOf(EGL14.EGL_NONE), 0)
             check(surface != EGL14.EGL_NO_SURFACE) { "eglCreateWindowSurface ${EGL14.eglGetError()}" }
             check(EGL14.eglMakeCurrent(display, surface, surface, ctx)) { "eglMakeCurrent" }
@@ -238,9 +246,10 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
 
         /** Draws one frame; false if the surface is gone. */
         private fun draw(): Boolean {
-            val cw = w; val ch = h
-            if (cw <= 0 || ch <= 0) return true
-            if (resized) { resized = false }
+            if (w <= 0 || h <= 0) return true
+            if (resized || scale != scaleApplied || bw == 0) { resized = false; applyScale() }
+            val cw = bw; val ch = bh
+            val started = System.nanoTime()
             GLES30.glViewport(0, 0, cw, ch)
             GLES30.glClearColor(0f, 0f, 0f, 0f)
             GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT)
@@ -258,11 +267,45 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
                 checked = true
                 main.post { firstFrameShown() }
             }
+            GLES30.glFinish()
+            if (!judge((System.nanoTime() - started) / 1e6f)) return false
             if (!EGL14.eglSwapBuffers(display, surface)) {
                 val err = EGL14.eglGetError()
                 if (err == EGL14.EGL_BAD_SURFACE || err == EGL14.EGL_BAD_NATIVE_WINDOW) return false
                 Log.w("AtlasOrb", "swap failed: $err")
             }
+            return true
+        }
+
+        /** Draws at [scale] of the view's size: a smaller buffer that the screen stretches to fit. */
+        private fun applyScale() {
+            bw = (w * scale).toInt().coerceAtLeast(8); bh = (h * scale).toInt().coerceAtLeast(8)
+            if (scale == scaleApplied && bw == w && bh == h) return
+            st.setDefaultBufferSize(bw, bh)
+            EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
+            if (surface != EGL14.EGL_NO_SURFACE) EGL14.eglDestroySurface(display, surface)
+            surface = EGL14.eglCreateWindowSurface(display, config, st, intArrayOf(EGL14.EGL_NONE), 0)
+            check(surface != EGL14.EGL_NO_SURFACE) { "eglCreateWindowSurface ${EGL14.eglGetError()}" }
+            check(EGL14.eglMakeCurrent(display, surface, surface, ctx)) { "eglMakeCurrent" }
+            scaleApplied = scale
+        }
+
+        /**
+         * Keeps the orb from ever hogging the graphics chip (that would stall the whole screen). A phone's chip
+         * draws a frame in a few milliseconds; if frames take far longer, it draws at lower sharpness, and if
+         * that is still slow, hands over to the processor. False when it has handed over.
+         */
+        private fun judge(ms: Float): Boolean {
+            val n = frames++
+            recent[n % recent.size] = ms
+            val avg = if (n + 1 >= recent.size) recent.average().toFloat() else 0f
+            // the first two frames may include the driver preparing the shader: only an extreme time counts
+            val slow = if (n < 2) ms > 800f else ms > 120f || avg > 18f
+            if (!slow) return true
+            Log.w("AtlasOrb", "frame took ${"%.1f".format(ms)} ms (average ${"%.1f".format(avg)}) at ${(scale * 100).toInt()}% sharpness")
+            frames = 0; recent.fill(0f)
+            scale = when (scale) { 1f -> 0.6f; 0.6f -> 0.4f; else -> 0f }
+            if (scale == 0f) { running = false; main.post { onFailed("too slow to draw (${"%.0f".format(ms)} ms a frame)") }; return false }
             return true
         }
 
