@@ -184,6 +184,8 @@ adb shell input keyevent 3; sleep 4; shot orb-home
 adb shell am startservice -n $PKG/.AvatarService -a com.anjy.atlas.WAKE >> "$OUT/steps.txt" 2>&1; sleep 1; shot orb-listening
 sleep 5; shot orb-after-listening
 adb shell dumpsys activity services $PKG > "$OUT/services.txt"
+# was the orb drawn by the graphics chip, or did it fall back to the processor? (and why)
+adb logcat -d -s AtlasOrb:V > "$OUT/orb-log.txt" 2>&1
 adb shell "ls -la /data/data/$PKG/files/" > "$OUT/files.txt" 2>&1
 if crashed; then log "CRASH in atlas on screen"; fi
 

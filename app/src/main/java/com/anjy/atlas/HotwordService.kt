@@ -142,8 +142,9 @@ object Diagnostics {
         val am = ctx.getSystemService(ActivityManager::class.java)
         val fmt = java.time.format.DateTimeFormatter.ofPattern("d MMM HH:mm:ss")
         val list = try { am.getHistoricalProcessExitReasons(ctx.packageName, 0, max) } catch (e: Exception) { return "Couldn't read: ${e.message}" }
-        if (list.isEmpty()) return "Nothing recorded."
         val sb = StringBuilder()
+        sb.append("Orb: ").append(OrbView.gpuProblem?.let { "drawn by the processor (graphics chip: $it)" } ?: "graphics chip").append('\n')
+        if (list.isEmpty()) return sb.append("No exits recorded.").toString()
         list.forEach { e ->
             val at = java.time.Instant.ofEpochMilli(e.timestamp).atZone(java.time.ZoneId.systemDefault()).format(fmt)
             val proc = e.processName.substringAfter(':', "app")

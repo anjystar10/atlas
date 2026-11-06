@@ -52,7 +52,7 @@ class AlarmActivity : Activity() {
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(bg))
         queue.addAll(intent?.getStringArrayExtra(EXTRA_IDS)?.toList() ?: emptyList())
 
-        val display = font(R.font.unbounded_500, Typeface.DEFAULT_BOLD)
+        val display = font(R.font.newsreader_medium, Typeface.create("serif", Typeface.BOLD))
         val body = font(R.font.geist_regular, Typeface.DEFAULT)
         val med = font(R.font.geist_medium, Typeface.DEFAULT)
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(28), dp(40), dp(28), dp(32)) }

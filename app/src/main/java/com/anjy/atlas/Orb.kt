@@ -23,15 +23,11 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /**
- * Atlas's face: a living glass blob, after the reference the user chose. A silvery striated shell lit from the
- * top left; a near-black core; wisps of blue light drifting inside; a warm edge at the lower right.
- *
- * Painted on the CPU by [OrbPainter], off the main thread, at up to [MAX_SIDE] pixels and smoothly scaled up.
- * (A GPU shader drew it before, but some graphics drivers silently drew a black square instead; this way every
- * phone shows the same orb.) It drifts slowly at rest (15 frames a second, to spare the battery), and stirs at
- * 30 while Atlas listens or works ([energy]); [level] swells it with your voice.
+ * The orb painted on the CPU by [OrbPainter], used only when the graphics chip can't draw it (see [OrbView]).
+ * Painted off the main thread at up to [MAX_SIDE] pixels and smoothly scaled up; 15 frames a second at rest,
+ * 30 while busy.
  */
-class OrbView(context: Context) : View(context) {
+class CpuOrbView(context: Context) : View(context) {
     /** Loudness of the voice it's hearing, 0..1 (eased while drawing). */
     var level = 0f
     /** 0 at rest, 1 while thinking or listening. */
@@ -41,13 +37,13 @@ class OrbView(context: Context) : View(context) {
         set(v) { field = v; invalidate() }
     private var shownLevel = 0f
     private var shownEnergy = 0f
-    private val start = SystemClock.uptimeMillis()
     private val painter = OrbPainter()
     private val filter = Paint(Paint.FILTER_BITMAP_FLAG)
     private var front: android.graphics.Bitmap? = null
     private var pixels = IntArray(0)
     private var busy = false
     private var lastFrame = 0L
+    private var flow = 0.0
     private var paintedStill = false
     private var placeholder: android.graphics.Bitmap? = null
     private val dst = android.graphics.RectF()
@@ -76,17 +72,19 @@ class OrbView(context: Context) : View(context) {
         val gap = if (still) 0L else if (energy > 0.05f || shownEnergy > 0.05f || level > 0.02f) 33L else 66L
         val wait = lastFrame + gap - now
         if (wait > 0) { removeCallbacks(tick); postDelayed(tick, wait); return }
+        val dt = if (lastFrame == 0L) 0f else ((now - lastFrame) / 1000f).coerceAtMost(0.2f)
         lastFrame = now
+        flow += dt * OrbView.flowRate(shownEnergy, shownLevel)
         shownLevel += (level - shownLevel) * 0.35f
         shownEnergy += (energy - shownEnergy) * 0.12f
         val rw = renderW(); val rh = renderH()
-        val t = if (still) 0f else (now - start) / 1000f
-        val e = shownEnergy; val l = shownLevel
+        val t = if (still) 0f else OrbView.clock()
+        val e = shownEnergy; val l = shownLevel; val fl = if (still) 0f else flow.toFloat()
         if (pixels.size != rw * rh) pixels = IntArray(rw * rh)
         val buf = pixels
         busy = true
         worker.post {
-            try { painter.paint(buf, rw, rh, t, e, l) } catch (x: Throwable) { android.util.Log.e("AtlasOrb", "paint", x) }
+            try { painter.paint(buf, rw, rh, t, e, l, fl) } catch (x: Throwable) { android.util.Log.e("AtlasOrb", "paint", x) }
             post {
                 busy = false
                 var b = front

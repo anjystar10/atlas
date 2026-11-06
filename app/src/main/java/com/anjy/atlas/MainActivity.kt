@@ -117,12 +117,12 @@ class MainActivity : Activity() {
     internal val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
 
     private fun font(id: Int, fallback: Typeface) = try { resources.getFont(id) } catch (e: Throwable) { fallback }
-    // Unbounded, wide and geometric, for numbers and titles; Geist for everything you read.
-    internal val THIN by lazy { font(R.font.unbounded_200, Typeface.create("sans-serif-light", Typeface.NORMAL)) }
-    internal val NUM by lazy { font(R.font.unbounded_300, Typeface.create("sans-serif-light", Typeface.NORMAL)) }
-    internal val DISPLAY by lazy { font(R.font.unbounded_500, Typeface.create("sans-serif-medium", Typeface.NORMAL)) }
-    internal val WORDMARK by lazy { font(R.font.unbounded_700, Typeface.create("sans-serif-black", Typeface.NORMAL)) }
-    /** Titles. Under 18sp a wide display face gets heavy, so small "headings" are set in Geist SemiBold (see text()). */
+    // Newsreader, an elegant serif, for titles, the greeting and numbers; Geist for everything you read.
+    internal val THIN by lazy { font(R.font.newsreader_light, Typeface.create("serif", Typeface.NORMAL)) }
+    internal val NUM by lazy { font(R.font.newsreader_light, Typeface.create("serif", Typeface.NORMAL)) }
+    internal val DISPLAY by lazy { font(R.font.newsreader_regular, Typeface.create("serif", Typeface.NORMAL)) }
+    internal val WORDMARK by lazy { font(R.font.newsreader_medium, Typeface.create("serif", Typeface.BOLD)) }
+    /** Titles. Small "headings" (under 18sp) are set in Geist SemiBold (see text()). */
     internal val HEAD get() = DISPLAY
     internal val SEMI by lazy { font(R.font.geist_semibold, Typeface.create("sans-serif-medium", Typeface.NORMAL)) }
     internal val MED by lazy { font(R.font.geist_medium, Typeface.create("sans-serif-medium", Typeface.NORMAL)) }
@@ -217,7 +217,7 @@ class MainActivity : Activity() {
         plain = !keepEmoji
         text = L.t(s)
         textSize = size; setTextColor(color); typeface = f
-        if (f === HEAD || f === NUM || f === THIN) letterSpacing = if (size >= 30f) -0.04f else -0.02f
+        if (f === HEAD || f === NUM || f === THIN) letterSpacing = if (size >= 30f) -0.015f else -0.005f
         // a lone symbol means nothing to a screen reader: give it its word (a caller can still set its own)
         symbolWords[s.trim()]?.let { contentDescription = L.t(it) }
         setLineSpacing(0f, if (size <= 16f) 1.3f else 1.1f)
@@ -1083,8 +1083,8 @@ class MainActivity : Activity() {
             homeOrb = orb
             body.add(orb, 14, dp(184), dp(184))
             (orb.layoutParams as LinearLayout.LayoutParams).gravity = Gravity.CENTER_HORIZONTAL
-            body.add(text(if (name.isNotEmpty()) "Hey $name,\nWhat can I help with?" else "Hey there,\nWhat can I help with?", 24f, FG, NUM).apply {
-                gravity = Gravity.CENTER; setLineSpacing(0f, 1.15f)
+            body.add(text(if (name.isNotEmpty()) "Hey $name,\nWhat can I help with?" else "Hey there,\nWhat can I help with?", 29f, FG, DISPLAY).apply {
+                gravity = Gravity.CENTER; setLineSpacing(0f, 1.05f)
             }, 6)
             val ideas = listOf("Remind me to call mum tomorrow at 6pm", "Open ChatGPT and ask it how to find diamonds in Minecraft", "What can you do?")
             val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }

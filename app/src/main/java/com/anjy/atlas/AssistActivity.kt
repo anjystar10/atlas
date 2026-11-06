@@ -56,7 +56,7 @@ class AssistActivity : Activity() {
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(BG))
         Conversation.load(applicationContext)
 
-        val display = font(R.font.unbounded_300, Typeface.create("sans-serif-light", Typeface.NORMAL))
+        val display = font(R.font.newsreader_regular, Typeface.create("serif", Typeface.NORMAL))
         val body = font(R.font.geist_regular, Typeface.DEFAULT)
         val med = font(R.font.geist_medium, Typeface.DEFAULT)
 
@@ -76,8 +76,8 @@ class AssistActivity : Activity() {
         val name = Store.read(this) { it.settings.name }.trim().split(" ").firstOrNull().orEmpty()
         greet = TextView(this).apply {
             text = if (name.isNotEmpty()) "Hey $name,\nWhat can I help with?" else "Hey there,\nWhat can I help with?"
-            setTextColor(FG); textSize = 22f; typeface = display; gravity = Gravity.CENTER; letterSpacing = -0.02f
-            setLineSpacing(0f, 1.15f)
+            setTextColor(FG); textSize = 27f; typeface = display; gravity = Gravity.CENTER; letterSpacing = -0.005f
+            setLineSpacing(0f, 1.05f)
         }
         col.addView(greet, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
         said = TextView(this).apply { setTextColor(MUTED); textSize = 16f; typeface = med; gravity = Gravity.CENTER; visibility = View.GONE }

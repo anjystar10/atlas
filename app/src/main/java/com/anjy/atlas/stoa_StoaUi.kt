@@ -352,7 +352,7 @@ internal fun TextView.fitLine(minSp: Float = 12f): TextView {
 
 /** A number with a small unit after it ("1,650 kcal") on one line, the unit in the body face. */
 internal fun MainActivity.numberUnit(big: String, unit: String?, size: Float, color: Int, unitColor: Int = color, face: android.graphics.Typeface = NUM): TextView {
-    val tv = text(big, size, color, face).apply { includeFontPadding = false; letterSpacing = -0.03f }
+    val tv = text(big, size, color, face).apply { includeFontPadding = false; letterSpacing = -0.01f }
     tv.text = numberUnitText(big, unit, unitColor)
     return tv.fitLine(14f) as TextView
 }

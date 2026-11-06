@@ -18,8 +18,8 @@ import android.view.View
  * How buttons are finished, so they read as objects rather than flat paint.
  *  SOLID: glass over the colour: lit from above, a clear sheen over the upper half, a rim bright on top and darker
  *         below. A white button is whitish glass (warm frosted glass by day).
- *  GLASS: a clear pane: barely-there fill (by day frosted white over the brown), an edge that
- *         is bright on top and fades toward the bottom.
+ *  GLASS: a clear pane: a faint cool tint (frosted white by day), a soft sheen over the upper half, and an
+ *         edge that is bright on top and catches a little coloured light along the bottom.
  */
 class Finish(private val color: Int, private val radius: Float, private val dark: Boolean, private val density: Float,
              private val glass: Boolean = false, private val pressed: Boolean = false) : Drawable() {
@@ -32,15 +32,27 @@ class Finish(private val color: Int, private val radius: Float, private val dark
         val rad = if (radius < 0) r.height() / 2 else radius
         val top = r.top; val bot = r.bottom
         if (glass) {
+            // the pane: a faint cool tint, a touch brighter at the top where the light falls
             p.shader = LinearGradient(0f, top, 0f, bot,
-                if (dark) Color.argb(if (pressed) 34 else 20, 255, 255, 255) else Color.argb(if (pressed) 40 else 64, 255, 255, 255),
-                if (dark) Color.argb(if (pressed) 22 else 8, 255, 255, 255) else Color.argb(if (pressed) 20 else 34, 255, 255, 255), Shader.TileMode.CLAMP)
+                if (dark) Color.argb(if (pressed) 40 else 24, 210, 218, 255) else Color.argb(if (pressed) 44 else 70, 255, 255, 255),
+                if (dark) Color.argb(if (pressed) 26 else 10, 180, 190, 255) else Color.argb(if (pressed) 22 else 36, 255, 255, 255), Shader.TileMode.CLAMP)
             c.drawRoundRect(r, rad, rad, p)
+            // a soft sheen across the upper half
+            val inset = 1.2f * density
+            val sh = RectF(r.left + inset, r.top + inset, r.right - inset, r.top + r.height() * 0.5f)
+            val shRad = (rad - inset).coerceAtLeast(0f)
+            p.shader = LinearGradient(0f, sh.top, 0f, sh.bottom, Color.argb(if (pressed) 8 else if (dark) 16 else 44, 255, 255, 255), Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
+            c.drawRoundRect(sh, shRad, shRad, p)
+            p.shader = null
+            // the rim: bright on top; along the bottom it catches a little coloured light, as real glass does
             s.strokeWidth = density
             s.shader = LinearGradient(0f, top, 0f, bot,
-                if (dark) Color.argb(90, 255, 255, 255) else Color.argb(190, 255, 255, 255),
-                if (dark) Color.argb(18, 255, 255, 255) else Color.argb(46, 0, 0, 0), Shader.TileMode.CLAMP)
+                intArrayOf(if (dark) Color.argb(110, 255, 255, 255) else Color.argb(210, 255, 255, 255),
+                    if (dark) Color.argb(16, 255, 255, 255) else Color.argb(40, 255, 255, 255),
+                    if (dark) Color.argb(46, 150, 160, 255) else Color.argb(40, 40, 40, 90)),
+                floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
             r.inset(density / 2, density / 2); c.drawRoundRect(r, rad, rad, s)
+            s.shader = null
             return
         }
         // every coloured button is glass over its colour; a white one is whitish glass, not bare white
