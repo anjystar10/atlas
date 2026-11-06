@@ -97,6 +97,8 @@ test("Don't Switch stays on the service and says so", async () => {
 test('other errors are not retried', async () => {
   pool(['k1'], { other: true });
   await assert.rejects(run([new brain.Failure("Gemini doesn't know that model", 404)]), (e) => e.code === 404);
+});
+
 test('links keep underscores and stay links; trailing punctuation stays outside', () => {
   const h = renderMarkdown('See https://ex.com/_a_/b_c. and [**x**](https://a.com/x_y_z)');
   assert.ok(h.includes('href="https://ex.com/_a_/b_c"')); assert.ok(h.includes('</a>.'));
