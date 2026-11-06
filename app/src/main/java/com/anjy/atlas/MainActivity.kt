@@ -1714,8 +1714,8 @@ class MainActivity : Activity() {
         body.add(eyebrow("Voice"), 16)
         val vc = card()
         val micOk = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val downloading = Hotword.downloadState
-        vc.addView(switchRow(null, "“Hey Atlas” (beta)", st.wakeWord && micOk && Hotword.ready(this), enabled = downloading == null) { on ->
+        val downloading = HotwordFiles.downloadState
+        vc.addView(switchRow(null, "“Hey Atlas” (beta)", st.wakeWord && micOk && HotwordFiles.ready(this), enabled = downloading == null) { on ->
             if (!on) { Store.edit(this) { it.settings.wakeWord = false }; AvatarService.refresh(this); body.postDelayed({ if (tab == 2) render(keepScroll = true) }, 600); return@switchRow }
             if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC_WAKE); return@switchRow
@@ -1725,12 +1725,12 @@ class MainActivity : Activity() {
         val hwState = AvatarService.hotwordState(this)
         val crash = Store.getString(this, "hotwordCrash")?.takeIf { it.isNotBlank() }
         vc.add(text(when {
-            downloading != null -> "Getting the Hey Atlas model (${Hotword.MODEL_MB} MB, once): $downloading…"
+            downloading != null -> "Getting the Hey Atlas model (${HotwordFiles.MODEL_MB} MB, once): $downloading…"
             !st.wakeWord && crash != null -> "Hey Atlas switched itself off because its speech engine crashed twice on this phone (Atlas itself was fine). Details are under Diagnostics. You can switch it on to try again."
             st.wakeWord && hwState == "listening" -> "Listening for “Hey Atlas”. Say it clearly; it's in beta and can miss. Atlas on screen grows and listens; when you stop talking it shrinks back. Android shows its green microphone dot while it listens, and it uses some battery."
             st.wakeWord && !AvatarService.canShow(this) -> "Atlas also needs “Display over other apps” (Atlas On Screen below) to answer over other apps."
             st.wakeWord -> "Starting… If it stays like this, tap “Start listening” on Atlas's notification."
-            else -> "Say “Hey Atlas” from anywhere to ask something without opening the app. It's heard on the phone only; nothing is recorded or sent. Switching it on downloads a ${Hotword.MODEL_MB} MB speech model once."
+            else -> "Say “Hey Atlas” from anywhere to ask something without opening the app. It's heard on the phone only; nothing is recorded or sent. Switching it on downloads a ${HotwordFiles.MODEL_MB} MB speech model once."
         }, 13f, MUTED), 8)
         vc.add(switchRow(null, "Speak Replies", st.speakReplies) { on -> Store.edit(this) { it.settings.speakReplies = on } }, 8)
         vc.add(text("Spoken questions always get a spoken answer.", 13f, MUTED), 6)
@@ -1894,18 +1894,18 @@ class MainActivity : Activity() {
     /** Switch "Hey Atlas" on: fetch its model first if this phone doesn't have it yet. */
     private fun enableWake() {
         Store.putString(this, "hotwordCrash", "")
-        if (Hotword.ready(this)) {
+        if (HotwordFiles.ready(this)) {
             Store.edit(this) { it.settings.wakeWord = true }; AvatarService.refresh(this)
             body.postDelayed({ if (tab == 2) render(keepScroll = true) }, 1500)
             return
         }
-        if (Hotword.downloadState != null) return
+        if (HotwordFiles.downloadState != null) return
         var shown = -1
         scope.launch {
             render(keepScroll = true)
             val err = withContext(Dispatchers.IO) {
                 try {
-                    Hotword.download(applicationContext) { pct -> if (pct / 5 != shown / 5) { shown = pct; runOnUiThread { if (tab == 2) render(keepScroll = true) } } }
+                    HotwordFiles.download(applicationContext) { pct -> if (pct / 5 != shown / 5) { shown = pct; runOnUiThread { if (tab == 2) render(keepScroll = true) } } }
                     null
                 } catch (e: Exception) { e.message ?: e.javaClass.simpleName }
             }

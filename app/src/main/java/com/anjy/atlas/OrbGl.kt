@@ -46,7 +46,10 @@ class OrbView(context: Context) : FrameLayout(context) {
 
     init {
         clipChildren = false
-        if (gpuBroken) useCpu() else {
+        if (gpuBroken || remembersCpu(context)) {
+            if (!gpuBroken) { gpuBroken = true; gpuProblem = "software or too slow (found earlier)" }
+            useCpu()
+        } else {
             val g = GlOrbView(context) { reason -> post { onGpuFailed(reason) } }
             gl = g
             addView(g, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -55,9 +58,11 @@ class OrbView(context: Context) : FrameLayout(context) {
 
     // a watchdog: an orb that is on screen but hasn't shown a frame within 4 s (say, in a window the graphics
     // chip doesn't draw) switches to the processor rather than leaving an empty space
-    private val watchdog = Runnable {
-        val g = gl
-        if (g != null && !g.hasShown && isShown && windowVisibility == View.VISIBLE) onGpuFailed("no frame within 4 s" + if (!isHardwareAccelerated) " (window not hardware-drawn)" else "")
+    private val watchdog: Runnable = Runnable {
+        val g = gl ?: return@Runnable
+        if (g.hasShown) return@Runnable
+        if (isAttachedToWindow && windowVisibility == View.VISIBLE) onGpuFailed("no frame within 4 s" + if (!isHardwareAccelerated) " (window not hardware-drawn)" else "")
+        else postDelayed(watchdog, 4000)   // not on screen yet: check again later
     }
 
     override fun onAttachedToWindow() { super.onAttachedToWindow(); armWatchdog() }
@@ -66,12 +71,14 @@ class OrbView(context: Context) : FrameLayout(context) {
     override fun onVisibilityChanged(changedView: View, visibility: Int) { super.onVisibilityChanged(changedView, visibility); armWatchdog() }
     private fun armWatchdog() {
         removeCallbacks(watchdog)
-        if (gl?.hasShown == false && windowVisibility == View.VISIBLE) postDelayed(watchdog, 4000)
+        if (gl?.hasShown == false && isAttachedToWindow) postDelayed(watchdog, 4000)
     }
 
     private fun onGpuFailed(reason: String) {
         if (gl == null) return
         removeCallbacks(watchdog)
+        // a software chip or one too slow won't change: remember it (for this version of Atlas) and don't try again
+        if (reason.startsWith("software graphics") || reason.startsWith("too slow")) rememberCpu(context)
         Log.w(TAG, "graphics chip can't draw the orb ($reason); painting it on the processor instead")
         gpuBroken = true; gpuProblem = reason
         gl?.let { removeView(it) }; gl = null
@@ -89,6 +96,9 @@ class OrbView(context: Context) : FrameLayout(context) {
         private const val TAG = "AtlasOrb"
         /** Set once the graphics chip has failed the first-frame check: every orb then uses the processor. */
         @Volatile var gpuBroken = false; private set
+        private fun versionKey(ctx: Context) = "orb_cpu_" + try { ctx.packageManager.getPackageInfo(ctx.packageName, 0).longVersionCode } catch (_: Exception) { 0L }
+        private fun remembersCpu(ctx: Context) = Store.getFlag(ctx, versionKey(ctx))
+        private fun rememberCpu(ctx: Context) = Store.setFlag(ctx, versionKey(ctx), true)
         /** Why, for Me → Diagnostics. */
         @Volatile var gpuProblem: String? = null; private set
         private val t0 = SystemClock.elapsedRealtime()
@@ -115,7 +125,7 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
     init {
         isOpaque = false
         surfaceTextureListener = this
-        alpha = 0f      // fades in once the first good frame is ready
+        // (no fading in from invisible: a fully transparent TextureView may never be given its surface)
     }
 
     override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
@@ -136,7 +146,6 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
     private fun firstFrameShown() {
         if (shown) return
         shown = true
-        animate().alpha(1f).setDuration(260).start()
     }
 
     private inner class Renderer(private val st: SurfaceTexture, @Volatile private var w: Int, @Volatile private var h: Int) : Thread("atlas-orb-gl") {
@@ -277,7 +286,9 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
             if (!EGL14.eglSwapBuffers(display, surface)) {
                 val err = EGL14.eglGetError()
                 if (err == EGL14.EGL_BAD_SURFACE || err == EGL14.EGL_BAD_NATIVE_WINDOW) return false
-                Log.w("AtlasOrb", "swap failed: $err")
+                // a software chip or one too slow won't change: remember it (for this version of Atlas) and don't try again
+        if (reason.startsWith("software graphics") || reason.startsWith("too slow")) rememberCpu(context)
+        Log.w("AtlasOrb", "swap failed: $err")
             }
             return true
         }
@@ -307,7 +318,9 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
             // the first two frames may include the driver preparing the shader: only an extreme time counts
             val slow = if (n < 2) ms > 800f else ms > 120f || avg > 18f
             if (!slow) return true
-            Log.w("AtlasOrb", "frame took ${"%.1f".format(ms)} ms (average ${"%.1f".format(avg)}) at ${(scale * 100).toInt()}% sharpness")
+            // a software chip or one too slow won't change: remember it (for this version of Atlas) and don't try again
+        if (reason.startsWith("software graphics") || reason.startsWith("too slow")) rememberCpu(context)
+        Log.w("AtlasOrb", "frame took ${"%.1f".format(ms)} ms (average ${"%.1f".format(avg)}) at ${(scale * 100).toInt()}% sharpness")
             frames = 0; recent.fill(0f)
             scale = when (scale) { 1f -> 0.6f; 0.6f -> 0.4f; else -> 0f }
             if (scale == 0f) { running = false; main.post { onFailed("too slow to draw (${"%.0f".format(ms)} ms a frame)") }; return false }

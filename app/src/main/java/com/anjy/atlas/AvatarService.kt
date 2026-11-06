@@ -107,7 +107,7 @@ class AvatarService : Service() {
         if (avatarOn && Settings.canDrawOverlays(this)) addOrb() else removeOrb()
         orbFrame?.visibility = if (appInFront && !talking) View.GONE else View.VISIBLE
         val micOk = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        if (wakeOn && micOk && Hotword.ready(this)) {
+        if (wakeOn && micOk && HotwordFiles.ready(this)) {
             // talking back after "Hey Atlas" uses the microphone from here too
             if (!micGranted && (fromUser || appInFront)) {
                 try {
@@ -132,7 +132,7 @@ class AvatarService : Service() {
     private fun notification(): Notification {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val (_, wakeOn) = settingsOn()
-        val canWake = wakeOn && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && Hotword.ready(this)
+        val canWake = wakeOn && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && HotwordFiles.ready(this)
         val b = Notification.Builder(this, Reminders.CH_AVATAR)
             .setSmallIcon(R.drawable.ic_stat)
             .setContentTitle("Atlas is with you")

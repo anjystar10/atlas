@@ -56,7 +56,7 @@ object Self {
                 "hey_atlas" -> {
                     val b = needFlag()
                     if (!b) { Store.edit(ctx) { it.settings.wakeWord = false }; AvatarService.refresh(ctx); "Stopped listening for Hey Atlas." }
-                    else if (!Hotword.ready(ctx) || ctx.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                    else if (!HotwordFiles.ready(ctx) || ctx.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED)
                         "Hey Atlas needs a one-time setup (microphone permission and a small download). Turn it on in Atlas → Me → Voice."
                     else { Store.edit(ctx) { it.settings.wakeWord = true }; AvatarService.refresh(ctx); "Listening for Hey Atlas. It starts once Atlas is open on screen." }
                 }
