@@ -15,17 +15,24 @@ let lastShot = null;   // size of the last screenshot, to turn its coordinates i
 function ps(script, timeoutMs = 60000) {
   return new Promise((resolve) => {
     if (!WIN) return resolve({ code: -1, out: '', err: 'This only works on Windows.' });
-    const enc = Buffer.from(script, 'utf16le').toString('base64');
+    // no progress bars (PowerShell sends them as noise on the error stream when run like this)
+    const enc = Buffer.from("$ProgressPreference = 'SilentlyContinue'\n" + script, 'utf16le').toString('base64');
     const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', enc], { windowsHide: true });
     let out = '', err = '';
     const t = setTimeout(() => { try { p.kill(); } catch {} ; err += '\n(stopped after ' + Math.round(timeoutMs / 1000) + 's)'; }, timeoutMs);
     p.stdout.on('data', (d) => { if (out.length < 200000) out += d.toString(); });
     p.stderr.on('data', (d) => { if (err.length < 50000) err += d.toString(); });
-    p.on('close', (code) => { clearTimeout(t); resolve({ code, out: out.trim(), err: err.trim() }); });
+    p.on('close', (code) => { clearTimeout(t); resolve({ code, out: out.trim(), err: cleanErr(err) }); });
     p.on('error', (e) => { clearTimeout(t); resolve({ code: -1, out: '', err: e.message }); });
   });
 }
 const q = (s) => "'" + String(s).replace(/'/g, "''") + "'";   // a PowerShell single-quoted string
+/** PowerShell's error stream in plain lines: its XML wrapping ("#< CLIXML") becomes just the error messages. */
+function cleanErr(e) {
+  const t = String(e || '').trim();
+  if (!t.startsWith('#< CLIXML')) return t;
+  return [...t.matchAll(/<S S="Error">([\s\S]*?)<\/S>/g)].map((m) => m[1].replace(/_x000D__x000A_/g, '\n').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')).join('').trim();
+}
 
 const INPUT = `
 Add-Type -TypeDefinition @"

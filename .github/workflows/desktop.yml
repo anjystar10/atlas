@@ -42,3 +42,19 @@ jobs:
           gh release view desktop 2>$null; if ($LASTEXITCODE -ne 0) { gh release create desktop --title "Atlas for Windows" --notes $notes --latest=false }
           gh release upload desktop dist\Atlas-Setup.exe --clobber
           gh release edit desktop --notes $notes
+      - name: Keep the screenshots on the windows-results branch
+        shell: pwsh
+        run: |
+          git config user.name "atlas-ci"; git config user.email "atlas-ci@users.noreply.github.com"
+          $tmp = Join-Path $env:RUNNER_TEMP "wr"; New-Item -ItemType Directory -Force $tmp | Out-Null
+          Copy-Item desktop\shots\* $tmp
+          git fetch origin windows-results 2>$null
+          git checkout --orphan windows-results-new
+          git rm -rf --quiet . 2>$null
+          Get-ChildItem -Force | Where-Object { $_.Name -ne '.git' } | Remove-Item -Recurse -Force
+          New-Item -ItemType Directory results | Out-Null
+          Copy-Item "$tmp\*" results\
+          "${{ github.sha }}" | Out-File results\tag.txt
+          git add results; git commit -q -m "Windows check for ${{ github.sha }}"
+          git push -q -f origin HEAD:windows-results
+        working-directory: ${{ github.workspace }}
