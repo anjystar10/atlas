@@ -25,6 +25,10 @@ object BotRules {
     /** Waiting on the user: the bot can't go on until they answer. */
     val WAITING_ON_USER = setOf(AWAITING_APPROVAL, AWAITING_ANSWER, NEEDS_REVIEW)
 
+    /** On the phone: after this many steps without finishing, the bot suggests carrying on from the laptop. */
+    const val BIG_JOB_STEPS = 40
+    const val LAPTOP_HINT = "This is a big one: open Atlas on your laptop and I can do it there."
+
     /** How many bots work at once. */
     const val MAX_RUNNING = 2
 
@@ -127,11 +131,17 @@ class PlanItem(val text: String, var done: Boolean = false)
 /** An action the bot wants to take that needs the user's OK. [tool] is null when the bot asked for approval itself. */
 class Approval(val what: String, val tool: String?, val args: JSONObject?, val elementLabel: String?, var decision: String? = null)
 
+/**
+ * One job. Plain JSON with no secrets (never a key), an id, updated_ms and the device that owns it, so it can later
+ * sync between devices like the Log does.
+ */
 class BotJob(
     val id: String,
     val goal: String,
     val details: String,
     val createdAt: Long,
+    /** The device running it (Store's deviceId). */
+    var device: String = "",
 ) {
     var state: String = BotRules.QUEUED
     var updatedAt: Long = createdAt
@@ -162,6 +172,8 @@ class BotJob(
     /** What it's doing right now, in a few words. */
     var current: String? = null
     var posted = false
+    /** Why this job would be better done on the laptop, once the bot has said so (null: it hasn't). */
+    var suggestPc: String? = null
 
     val final get() = state in BotRules.FINAL
 
@@ -187,12 +199,13 @@ class BotJob(
             .put("elementLabel", a.elementLabel ?: JSONObject.NULL).put("decision", a.decision ?: JSONObject.NULL) } ?: JSONObject.NULL)
         .put("question", question ?: JSONObject.NULL).put("answer", answer ?: JSONObject.NULL).put("report", report ?: JSONObject.NULL)
         .put("error", error ?: JSONObject.NULL).put("retryAt", retryAt).put("retries", retries).put("current", current ?: JSONObject.NULL).put("posted", posted)
+        .put("device", device).put("updated_ms", updatedAt).put("suggestPc", suggestPc ?: JSONObject.NULL)
 
     companion object {
         private fun JSONObject.str(k: String): String? = if (isNull(k)) null else optString(k).takeIf { has(k) }
         private fun JSONArray?.strings(): List<String> = if (this == null) emptyList() else List(length()) { optString(it) }
 
-        fun from(o: JSONObject): BotJob = BotJob(o.getString("id"), o.optString("goal"), o.optString("details"), o.optLong("createdAt")).apply {
+        fun from(o: JSONObject): BotJob = BotJob(o.getString("id"), o.optString("goal"), o.optString("details"), o.optLong("createdAt"), o.optString("device")).apply {
             state = o.optString("state", BotRules.QUEUED).takeIf { it in BotRules.ALL } ?: BotRules.FAILED
             updatedAt = o.optLong("updatedAt", createdAt)
             o.optJSONArray("history")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { history.add(it.optLong("at") to it.optString("state")) } }
@@ -203,6 +216,7 @@ class BotJob(
             approval = o.optJSONObject("approval")?.let { a -> Approval(a.optString("what"), a.str("tool"), a.optJSONObject("args"), a.str("elementLabel"), a.str("decision")) }
             question = o.str("question"); answer = o.str("answer"); report = o.str("report"); error = o.str("error")
             retryAt = o.optLong("retryAt"); retries = o.optInt("retries"); current = o.str("current"); posted = o.optBoolean("posted")
+            suggestPc = o.str("suggestPc")
         }
 
         fun listJson(jobs: List<BotJob>): String = JSONArray().apply { jobs.forEach { put(it.json()) } }.toString()

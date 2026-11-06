@@ -50,12 +50,23 @@ const ICON = {
 
 // ------------------------------------------------------------------ the screens
 
-function render(keepScroll) {
+/**
+ * Draws the current tab. [keepInputs]: a redraw that comes from the background (a sync, a reminder changing) keeps
+ * what you were typing (a link code, a key, something to remember) and where the cursor was.
+ */
+function render(keepScroll, keepInputs) {
   const page = $('#page'); const y = page.scrollTop;
+  const kept = keepInputs ? [...page.querySelectorAll('input[id]:not([type=checkbox]),textarea[id]')]
+    .map((el) => ({ id: el.id, v: el.value, f: el === document.activeElement, s: el.selectionStart, e: el.selectionEnd })).filter((x) => x.v || x.f) : [];
   document.querySelectorAll('.nav').forEach((n) => n.classList.toggle('on', n.dataset.tab === tab));
   page.innerHTML = '';
   if (tab === 'atlas') renderAtlas(page); else if (tab === 'log') renderLog(page); else if (tab === 'bots') renderBots(page); else renderMe(page);
   $('#composer').style.display = tab === 'atlas' ? '' : 'none';
+  for (const k of kept) {
+    const el = page.querySelector('#' + CSS.escape(k.id)); if (!el) continue;
+    if (k.v && !el.value) el.value = k.v;
+    if (k.f) { el.focus(); try { el.setSelectionRange(k.s, k.e); } catch {} }
+  }
   if (keepScroll) page.scrollTop = y;
   renderFoot();
 }
@@ -90,7 +101,7 @@ function renderAtlas(page) {
   const chat = h('<div class="chat" id="chat"></div>'); col.appendChild(chat);
   fillChat();
 }
-function brainLine() { const p = brain.active(); return p ? `${p.name} · ${brain.modelOf(p)}` + (brain.fallbacks(p.id).length ? ` · ${brain.fallbacks(p.id).length} backup service${brain.fallbacks(p.id).length > 1 ? 's' : ''}` : '') : 'No brain set up yet · add an AI key in Me'; }
+function brainLine() { const p = brain.active(); return p ? `${p.name} · ${brain.modelOf(p)}` + (brain.dontSwitch() ? ' · stays on this service' : '') + (!brain.dontSwitch() && brain.fallbacks(p.id).length ? ` · ${brain.fallbacks(p.id).length} backup service${brain.fallbacks(p.id).length > 1 ? 's' : ''}` : '') : 'No brain set up yet · add an AI key in Me'; }
 function fillChat() {
   const chat = $('#chat'); if (!chat) return;
   const bl = $('#brainline'); if (bl) bl.textContent = brain.convo.busy && brain.convo.status ? brain.convo.status + '…' : brainLine();
@@ -240,12 +251,47 @@ function updateSend() {
   if (go.dataset.k === k) return;
   go.dataset.k = k; go.innerHTML = k === 'stop' ? ICON.stop : k === 'send' ? ICON.up : ICON.mic; go.title = k === 'stop' ? 'Stop' : k === 'send' ? 'Send' : 'Speak';
 }
-async function addFileObject(file) { const p = host.pathOf(file); if (p) return addPath(p); toast("Couldn't add that."); }
+async function addFileObject(file) {
+  const p = host.pathOf(file); if (p) return addPath(p);
+  // a pasted screenshot (or a picture dragged from a browser) has no file on disk: it's read here instead
+  if (file && /^image\//.test(file.type)) {
+    if (attachments.some((a) => a.kind === 'video') || attachments.length >= 4) return toast('Up to 4 per message (a video goes on its own).');
+    try { const a = await pictureFrom(file); attachments.push(a); showTray(); updateSend(); } catch { toast("Couldn't add that picture."); }
+    return;
+  }
+  toast("Couldn't add that.");
+}
+/** A picture as an attachment: at most 1600 px on its longest side, as JPEG (the same as files picked from disk). */
+function pictureFrom(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      const data = c.toDataURL('image/jpeg', 0.85);
+      resolve({ kind: 'image', mime: 'image/jpeg', name: file.name || 'Pasted picture.jpg', base64: data.split(',')[1], thumb: data });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+    img.src = url;
+  });
+}
+/** How long a video is, in seconds (NaN if it can't tell). */
+function videoSeconds(a) {
+  return new Promise((resolve) => {
+    const v = document.createElement('video'); let done = false;
+    const end = (x) => { if (done) return; done = true; v.removeAttribute('src'); try { v.load(); } catch {} resolve(x); };
+    v.preload = 'metadata'; v.onloadedmetadata = () => end(v.duration); v.onerror = () => end(NaN); setTimeout(() => end(NaN), 6000);
+    v.src = `data:${a.mime};base64,${a.base64}`;
+  });
+}
 async function addPath(p) {
   if (attachments.some((a) => a.kind === 'video') || attachments.length >= 4) return toast('Up to 4 per message (a video goes on its own).');
   try {
     const a = await host.loadFile(p);
     if (a.kind === 'video' && attachments.length) return toast('A video goes on its own. Send the others first.');
+    if (a.kind === 'video') { const secs = await videoSeconds(a); if (secs > 61) return toast(`That video is ${Math.round(secs)} seconds; videos can be up to a minute.`); }
     if (a.kind === 'image') a.thumb = 'data:image/jpeg;base64,' + a.base64;
     attachments.push(a); showTray(); updateSend();
   } catch (e) { toast(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); }
@@ -267,7 +313,7 @@ async function submit(spoken = false, textOverride) {
   host.orbState({ energy: 1 });
   const reply = await brain.send(text, { spoken, attachments: att });
   host.orbState({ energy: 0 });
-  if (reply && reply.source !== 'error' && (spoken || pref('speakReplies', false))) voice.speak(reply.text, () => { if (spoken && pref('keepTalking', true) && document.hasFocus()) startListening(true); });
+  if (reply && reply.source !== 'error' && reply.source !== 'Stopped' && (spoken || pref('speakReplies', false))) voice.speak(reply.text, () => { if (spoken && pref('keepTalking', true) && document.hasFocus()) startListening(true); });
 }
 
 // ---- listening ----
@@ -393,7 +439,7 @@ function renderMe(page) {
   const act = brain.active(); const shown = brain.byId(brainShown) || act || brain.PROVIDERS[0]; brainShown = shown.id;
   const bc = h('<div class="card"></div>'); col.appendChild(bc);
   bc.appendChild(h(`<div style="font:400 24px var(--serif)">${esc(act ? `${act.name} · ${brain.modelOf(act)}` : 'Not set up')}</div>`));
-  bc.appendChild(h(`<p class="${act ? 'ok' : 'muted'}" style="margin:4px 0 14px">${act ? `Atlas thinks with ${esc(act.name)}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on, then to another service.` : 'Add a key from any AI service, or use a model running on this PC.'}</p>`));
+  bc.appendChild(h(`<p class="${act ? 'ok' : 'muted'}" style="margin:4px 0 14px">${act ? `Atlas thinks with ${esc(act.name)}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on${brain.dontSwitch() ? '.' : ', then to another service.'}` : 'Add a key from any AI service, or use a model running on this PC.'}</p>`));
   const chips = h('<div class="chips"></div>');
   for (const p of brain.PROVIDERS) { const c = h(`<span class="chip ${p.id === shown.id ? 'on' : ''}">${esc(p.name)}</span>`); c.onclick = () => { brainShown = p.id; render(true); }; chips.appendChild(c); }
   bc.appendChild(chips);
@@ -442,6 +488,10 @@ function renderMe(page) {
   }
   if (!shown.local) { const mr = h(`<div class="setting"><div class="grow">Model<div class="small muted">${esc(brain.modelOf(shown) || 'Not set')}</div></div><button class="btn">Change</button></div>`);
     mr.querySelector('button').onclick = () => askText(`${shown.name} Model`, shown.model ? `Leave it as ${shown.model} unless you want another of ${shown.name}'s models.` : "The model's name, as your service writes it.", brain.modelOf(shown), (v) => setPref('model_' + shown.id, v.trim())); bc.appendChild(mr); }
+  const stayOn = brain.dontSwitch();
+  bc.appendChild(settingRow("Don't Switch Services", stayOn, (on) => { setPref('dont_switch', on); render(true); },
+    stayOn ? `Atlas stays on ${act ? act.name : 'the service you chose'}, even when it runs out or you're offline (no local model either). Your other keys for it can still take over.`
+      : 'Off: when a service keeps failing (Atlas tries it 3 times first) or all its keys run out, Atlas moves to another service, or a local model when offline, and carries on.'));
   bc.appendChild(h('<p class="small muted" style="margin-top:10px">Keys stay on this PC (they don\'t sync). When Atlas thinks online, what you say goes to that service.</p>'));
 
   // Voice
@@ -616,7 +666,7 @@ brain.ui.settingsText = () => {
   return [`- speak_replies (on/off) — now ${on(pref('speakReplies', false))}`,
     `- voice: now ${eng ? voice.current(eng).label : "Windows' voice"}; choices: ${voice.voices(eng).map((v) => v.label).join(', ')}`,
     `- theme (dark/light) — now ${pref('theme', 'dark')}`, `- on_screen (on/off): the orb in the corner of the PC — now ${on(pref('onScreen', true))}`,
-    `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)'].join('\n');
+    `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)', `- dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${on(brain.dontSwitch())}`].join('\n');
 };
 brain.ui.setting = async (name, value) => {
   const flag = { on: true, true: true, yes: true, off: false, false: false, no: false }[String(value).toLowerCase().trim()];
@@ -629,6 +679,7 @@ brain.ui.setting = async (name, value) => {
       case 'on_screen': setPref('onScreen', need()); host.showOrb(flag); return flag ? "I'm in the corner of your screen now." : "I'm off your screen.";
       case 'your_name': if (!value.trim()) return 'Error: give the name.'; db.state.settings.name = value.trim().slice(0, 40); store.saveState(); return `I'll call you ${value.trim()}.`;
       case 'alarm_sound': db.state.settings.sound = need(); store.saveState(); return `Alarm sound ${flag ? 'on' : 'off'}.`;
+      case 'dont_switch': setPref('dont_switch', need()); return flag ? "I'll stay on the service you chose and won't switch to another one (your other keys for it can still take over)." : "I'll switch to another service again when one keeps failing or runs out.";
       case 'start_with_windows': await host.autostart(need()); return flag ? 'I\'ll start with Windows (quietly, in the tray).' : "I won't start with Windows.";
     }
     return `Error: I can't change "${name}".`;
@@ -651,8 +702,8 @@ async function main() {
       if (tab === 'atlas') { if (!$('#chat') && db.chat.length) render(); else if (!db.chat.length && $('#chat')) render(); else { const p = $('#page'); const atBottom = p.scrollTop + p.clientHeight >= p.scrollHeight - 260; fillChat(); if (atBottom || brain.convo.busy) p.scrollTop = p.scrollHeight; } }
       if (!brain.convo.busy) sync.syncSoon();
     }
-    if (what === 'state') { sync.syncSoon(); if (tab === 'log') render(true); }
-    if (what === 'sync') { renderFoot(); if (tab === 'me') render(true); }
+    if (what === 'state') { sync.syncSoon(); if (tab === 'log') render(true, true); }
+    if (what === 'sync') { renderFoot(); if (tab === 'me') render(true, true); }
     if (what === 'bots') {
       // the Bots page redraws (keeping what's being typed); the strip on the Atlas tab follows along
       if (tab === 'bots') { const ta = $('#botask'); const focused = ta && document.activeElement === ta; render(true); if (focused) { const t = $('#botask'); if (t) { t.focus(); t.selectionStart = t.selectionEnd = t.value.length; } } }

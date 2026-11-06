@@ -46,7 +46,9 @@ export async function speak(text, onDone) {
     if (mine !== gen) return;
     state.lastProblem = null; state.lastSpoke = `${v.label} (${eng === 'gemini' ? 'Gemini' : 'OpenAI'})`;
     audio = new Audio(clip); state.speaking = true;
-    audio.onended = audio.onerror = () => { state.speaking = false; if (mine === gen) onDone && onDone(); };
+    const free = () => { if (clip.startsWith('blob:')) URL.revokeObjectURL(clip); };
+    audio.onended = audio.onerror = () => { free(); state.speaking = false; if (mine === gen) onDone && onDone(); };
+    audio.onpause = () => { if (mine !== gen) free(); };
     await audio.play();
   } catch (e) {
     if (mine !== gen) return;
@@ -100,17 +102,22 @@ async function openAiSpeech(text, v) {
  * words heard ('' for silence). Throws with a sentence for the user when it can't.
  */
 export function listen({ onLevel = () => {}, maxMs = 30000 } = {}) {
-  let stopFn = () => {};
+  // stopped before the microphone was even ready (Cancel straight away): don't start recording at all
+  let stopped = false;
+  let stopFn = () => { stopped = true; };
   const done = (async () => {
     const gk = keyFor('gemini'), ok = keyFor('openai');
     if (!gk && !ok) throw new Error('To hear you, Atlas needs a Gemini or OpenAI key (Me → Brain).');
     let stream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
     catch { throw new Error("Atlas can't use the microphone. Check Windows Settings → Privacy → Microphone."); }
-    const ctx = new AudioContext(); const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 1024; src.connect(an);
-    const rec = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' }); const chunks = [];
+    if (stopped) { stream.getTracks().forEach((t) => t.stop()); return ''; }
+    let ctx = null, heard = false; const chunks = [];
+    try {
+    ctx = new AudioContext(); const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 1024; src.connect(an);
+    const rec = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-    const buf = new Float32Array(an.fftSize); let heard = false, quietSince = 0; const t0 = performance.now();
+    const buf = new Float32Array(an.fftSize); let quietSince = 0; const t0 = performance.now();
     await new Promise((resolve) => {
       let raf = 0;
       const finish = () => { cancelAnimationFrame(raf); if (rec.state !== 'inactive') rec.stop(); };
@@ -126,7 +133,7 @@ export function listen({ onLevel = () => {}, maxMs = 30000 } = {}) {
       };
       tick();
     });
-    stream.getTracks().forEach((t) => t.stop()); ctx.close(); onLevel(0);
+    } finally { stream.getTracks().forEach((t) => t.stop()); try { ctx && ctx.close(); } catch {} onLevel(0); }
     if (!heard) return '';
     const blob = new Blob(chunks, { type: 'audio/webm' });
     const b64 = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(blob); });

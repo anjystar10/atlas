@@ -87,8 +87,9 @@ const LABEL = { web_search: (a) => `Searching for “${String(a.query || '').sli
   remember: () => 'Saving to memory', forget: () => 'Deleting a memory', read_log: () => 'Checking your Log' };
 const label = (c) => (LABEL[c.name] || (() => 'Working'))(c.args || {});
 
-export function newJob(goal, details, now, id) {
-  return { id, goal, details: details || '', createdAt: now, state: S.QUEUED, updatedAt: now, history: [{ at: now, state: S.QUEUED }], plan: [], notes: [], steps: [], sources: [], recent: [],
+/** One job: plain JSON with no secrets, an id, updated_ms and the owning device, so it can later sync like the Log. */
+export function newJob(goal, details, now, id, device = '') {
+  return { id, goal, details: details || '', createdAt: now, device, state: S.QUEUED, updatedAt: now, updated_ms: now, history: [{ at: now, state: S.QUEUED }], plan: [], notes: [], steps: [], sources: [], recent: [],
     toolCalls: 0, workMs: 0, provider: null, pending: null, approval: null, question: null, answer: null, report: null, error: null, retryAt: 0, retries: 0, current: null, posted: false };
 }
 export function move(j, to, now) {
@@ -138,7 +139,7 @@ export function parsePlan(text) {
  *  tools: Atlas's tool declarations (bots get these minus NOT_FOR_BOTS, plus BOT_TOOLS)
  *  runTool(call, {approved}) → {out, step, image}
  *  systemPrompt(): string;  notify(title, body, tag);  post(markdown): the report into the chat
- *  plainReply(s), plainMemory(s);  now(): ms;  uid(): string;  setTimer(fn, ms), clearTimer(t)
+ *  plainReply(s), plainMemory(s);  now(): ms;  uid(): string;  deviceId(): this device's id;  setTimer(fn, ms), clearTimer(t)
  */
 export function createBots(deps) {
   const now = deps.now || Date.now;
@@ -156,6 +157,7 @@ export function createBots(deps) {
   function snapshot() {
     const old = jobs.filter((j) => FINAL.has(j.state)).sort((a, b) => b.updatedAt - a.updatedAt).slice(KEEP_FINISHED);
     for (const o of old) jobs.splice(jobs.indexOf(o), 1);
+    for (const j of jobs) j.updated_ms = j.updatedAt;
     return JSON.stringify(jobs);
   }
   /** Saves; the promise resolves once it's on disk (writes go one after another, newest last). */
@@ -178,7 +180,7 @@ export function createBots(deps) {
 
   function deploy(goal, details = '') {
     const g = (deps.plainMemory(goal) || String(goal).trim()).slice(0, 300);
-    const j = newJob(g, String(details || '').trim().slice(0, 4000), now(), deps.uid());
+    const j = newJob(g, String(details || '').trim().slice(0, 4000), now(), deps.uid(), deps.deviceId ? deps.deviceId() : '');
     jobs.push(j); persist(); changed(); pump();
     return j;
   }

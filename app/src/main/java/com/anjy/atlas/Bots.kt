@@ -115,7 +115,8 @@ object Bots {
     fun deploy(ctx: Context, goal: String, details: String): BotJob {
         init(ctx)
         val now = System.currentTimeMillis()
-        val j = BotJob(UUID.randomUUID().toString(), Plain.memory(goal).ifBlank { goal.trim() }.take(300), details.trim().take(4000), now)
+        val device = try { Store.read(ctx) { it.deviceId } } catch (_: Exception) { "" }
+        val j = BotJob(UUID.randomUUID().toString(), Plain.memory(goal).ifBlank { goal.trim() }.take(300), details.trim().take(4000), now, device)
         j.history.add(now to BotRules.QUEUED)
         jobs.add(j)
         persist(); changed(); pump()
@@ -287,6 +288,10 @@ object Bots {
                             persistNow(); notifyAlert(j, "Atlas Bot has a question", q); changed()
                             return
                         }
+                        "suggest_laptop" -> {
+                            suggestLaptop(j, c.args.optString("reason"))
+                            results.add(c to "Told the user. Keep working on the phone as well as you can.")
+                        }
                         "request_approval" -> {
                             val what = Plain.reply(c.args.optString("action")).ifBlank { "Go ahead with the next step" }
                             askApproval(j, Approval(what.take(300), null, null, null)); return
@@ -302,6 +307,7 @@ object Bots {
                     }
                 }
                 if (!stillMine()) return
+                if (j.toolCalls >= BotRules.BIG_JOB_STEPS && j.suggestPc == null) suggestLaptop(j, "It's taking many steps.")
                 session.results(results)
                 persist(); changed()
                 if (j.toolCalls >= MAX_TOOL_CALLS || j.workMs >= MAX_WORK_MS) break
@@ -339,6 +345,15 @@ object Bots {
         val out = runTool(j, Gemini.Call(a.tool, a.args, null))
         j.notes.add("Approved and done: ${a.what}. Result: ${out.lineSequence().firstOrNull()?.take(300) ?: ""}")
         persist()
+    }
+
+    /** A heavy job: tell the user (once) that the laptop would do it better. The bot carries on here meanwhile. */
+    private fun suggestLaptop(j: BotJob, reason: String) {
+        if (j.suggestPc != null) return
+        j.suggestPc = Plain.reply(reason).ifBlank { "It's a big job." }.take(200)
+        j.step(BotRules.LAPTOP_HINT)
+        notifyAlert(j, "Atlas Bot: ${j.goal}", "${BotRules.LAPTOP_HINT} (${j.suggestPc})")
+        persist(); changed()
     }
 
     private suspend fun askApproval(j: BotJob, a: Approval) {
@@ -403,6 +418,8 @@ object Bots {
                 JSONObject().put("text", str("The note, short and specific")), listOf("text")))
             put(fn("ask_user", "Ask the user one clear question when you truly can't go on without their answer (a choice only they can make, a missing detail). The job waits until they answer.",
                 JSONObject().put("question", str("The question")), listOf("question")))
+            put(fn("suggest_laptop", "Tell the user once that this job would go better on their laptop (Atlas runs there too, with bigger local models and PC tools): use it when the job is heavy, e.g. very long, many big files, needs the PC's apps or files, or would benefit from a bigger model. You keep working here meanwhile.",
+                JSONObject().put("reason", str("Why, in a few words, e.g. 'It needs dozens of pages and a long write-up'")), listOf("reason")))
             put(fn("request_approval", "Ask the user's OK before anything that sends a message, posts, buys or pays, deletes something, or changes an account or security setting. Say exactly what you'll do. The job waits for their answer.",
                 JSONObject().put("action", str("Exactly what you're about to do, e.g. 'Send \"See you at 6\" to Mum on WhatsApp'")), listOf("action")))
             put(finishTool)
@@ -441,6 +458,8 @@ Using the phone (only when the job needs it):
 - open_app, then work from the numbered elements on the screen. Every action returns the new screen; check it. Numbers change after each action, so use numbers from the latest screen only.
 - If an approach fails twice, try another; after a few tries, note what blocked you and move on or finish.
 - Phone control is $phone.
+
+Big jobs: the user also has Atlas on their laptop, with bigger local models and PC tools. If this job is heavy (very long, many big files, needs the PC's apps or files, or would be much better with a bigger model), call suggest_laptop once early, then keep doing what you can here.
 
 Budget: up to $MAX_TOOL_CALLS tool steps and ${MAX_WORK_MS / 60_000} minutes for the job. When it's nearly used up, finish with what you have.
 

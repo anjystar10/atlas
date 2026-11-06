@@ -82,13 +82,17 @@ class BotJournalTest {
         j.notes.add("Phone X costs 299"); j.sources.add("https://example.com"); j.step("Searched"); j.addRecent("result")
         j.toolCalls = 4; j.workMs = 1234; j.provider = "Gemini"; j.pending = "Tapping"
         j.approval = Approval("Tap “Send”", "tap", JSONObject().put("element", 3), "Send")
-        j.question = "Which colour?"
+        j.question = "Which colour?"; j.device = "phone-1"; j.suggestPc = "Many pages"
         val back = BotJob.parseList(BotJob.listJson(listOf(j))).single()
         assertEquals(j.json().toString(), back.json().toString())
         assertEquals("Tapping", back.pending)
         assertEquals(3, back.approval!!.args!!.getInt("element"))
         assertNull(back.answer)
         assertTrue(back.plan[0].done)
+        assertEquals("phone-1", back.device); assertEquals("Many pages", back.suggestPc)
+        // ready to sync later: plain JSON with updated_ms and the owning device, and nothing secret
+        assertEquals(j.updatedAt, j.json().getLong("updated_ms"))
+        assertFalse(j.json().toString().contains("key"))
     }
 
     @Test fun summaryForTheStrip() {

@@ -82,11 +82,7 @@ object Conversation {
                     o.optString("id").ifEmpty { "${o.optLong("at")}-${if (user) "u" else "a"}" }))
             }
             // the model picks up from the last few exchanges
-            messages.takeLast(KEEP_TURNS * 2).forEach { m ->
-                if (m.source == "error") return@forEach
-                history.add(m.fromUser to (if (m.fromUser) m.text else m.text + stepNote(m.steps)))
-            }
-            fixHistory()
+            rebuildHistory()
         } catch (e: Exception) { Log.w(TAG, "chat unreadable", e) }
     }
 
@@ -136,9 +132,7 @@ object Conversation {
             touched = true
         }
         if (!touched) return
-        history.clear()
-        messages.takeLast(KEEP_TURNS * 2).forEach { m -> if (m.source != "error") history.add(m.fromUser to (if (m.fromUser) m.text else m.text + stepNote(m.steps))) }
-        fixHistory()
+        rebuildHistory()
         save(ctx.applicationContext); changed()
     }
 
@@ -150,15 +144,27 @@ object Conversation {
         val app = ctx.applicationContext
         load(app)
         val m = Msg(false, Plain.reply(text), "Atlas Bot", System.currentTimeMillis())
-        if (busy && messages.size >= 2) messages.add(messages.size - 2, m) else {
-            messages.add(m)
-            // the model hears about it next time, keeping turns in order (user, then Atlas)
-            history.add(true to "(Atlas Bot finished a job you sent it on. Its report follows.)")
-            history.add(false to m.text.take(4000))
-            fixHistory()
-        }
+        val at = inFlight?.takeIf { busy }?.let { messages.indexOf(it.first) } ?: -1
+        if (at >= 0) messages.add(at, m) else messages.add(m)
+        // the model hears about it next time
+        rebuildHistory()
         save(app); changed()
     }
+
+    /**
+     * The model's view of earlier turns, from the saved messages. The exchange still being answered is left out:
+     * it's added when it finishes (otherwise a sync arriving mid-answer would put the question in twice).
+     */
+    private fun rebuildHistory() {
+        history.clear()
+        val open = if (busy) inFlight else null
+        messages.filter { it !== open?.first && it !== open?.second }.takeLast(KEEP_TURNS * 2).forEach { m ->
+            if (m.source != "error") history.add(m.fromUser to (if (m.fromUser) m.text else m.text + stepNote(m.steps)))
+        }
+        fixHistory()
+    }
+    /** The question and reply of the request being answered now. */
+    private var inFlight: Pair<Msg, Msg>? = null
 
     /** After a sync took things in: screens showing the Log or chat redraw. */
     fun reloadFromSync(ctx: Context) { changed() }
@@ -183,9 +189,11 @@ object Conversation {
         val q = text.trim().ifEmpty { when { media.isEmpty() -> ""; media.any { it.video } -> "What's in this video?"; media.any { it.isFile } -> "Have a look at this."; else -> "What's in this picture?" } }
         if (q.isEmpty()) return
         if (busy) stop()
-        messages.add(Msg(true, q, "You", System.currentTimeMillis(), media = media))
+        val asked = Msg(true, q, "You", System.currentTimeMillis(), media = media)
+        messages.add(asked)
         val reply = Msg(false, "", "Atlas", System.currentTimeMillis())
         messages.add(reply)
+        inFlight = asked to reply
         busy = true; status = "Thinking"; usingPhone = false
         val mine = ++gen
         changed()
@@ -219,6 +227,8 @@ object Conversation {
                 return
             } catch (f: Gemini.Failure) {
                 if (!f.offline) { reply.text = f.message ?: "${p.name} failed."; reply.source = "error"; return }
+                // Don't Switch Services: stay on the chosen service, so no answer from the offline model either
+                if (KeyRouter.dontSwitch(ctx)) { reply.text = "${f.message} Don't Switch Services is on, so I didn't answer with the offline model."; reply.source = "error"; return }
                 Log.i(TAG, "offline: ${f.message}")
                 reply.steps.add("${f.message} Answering offline.")
             }

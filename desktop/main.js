@@ -12,7 +12,9 @@ const DATA = () => app.getPath('userData');
 const file = (name) => path.join(DATA(), name);
 let win = null, orbWin = null, tray = null, quitting = false;
 
-if (!app.requestSingleInstanceLock()) { app.quit(); }
+// only one Atlas: a second start just brings the first one forward (and this copy stops before making any windows)
+const firstInstance = app.requestSingleInstanceLock();
+if (!firstInstance) app.exit(0);
 app.on('second-instance', () => showMain());
 app.setAppUserModelId('com.anjy.atlas.desktop');
 
@@ -56,9 +58,12 @@ function createMain() {
   }
   // closing hides to the tray; Quit (tray menu) really quits
   win.on('close', (e) => { if (!quitting) { e.preventDefault(); win.hide(); } });
-  win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file://')) { e.preventDefault(); shell.openExternal(url); } });
+  win.webContents.setWindowOpenHandler(({ url }) => { openSafe(url); return { action: 'deny' }; });
+  win.webContents.on('will-navigate', (e, url) => { if (url !== win.webContents.getURL()) { e.preventDefault(); openSafe(url); } });
 }
+
+// links leave the app only for the web or email (never file:, javascript: or other schemes)
+function openSafe(url) { if (/^(https?:|mailto:)/i.test(String(url))) shell.openExternal(url); }
 
 function showMain() { if (!win) return; if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
 
@@ -68,7 +73,9 @@ function createOrb() {
   if (orbWin) return;
   const wa = screen.getPrimaryDisplay().workArea;
   const size = 120;
-  const saved = readJson('orb-pos.json', null);
+  let saved = readJson('orb-pos.json', null);
+  // a saved spot on a screen that's gone (a monitor unplugged, resolution changed) would hide the orb: use the corner
+  if (saved && !onSomeScreen(saved.x, saved.y, size)) saved = null;
   orbWin = new BrowserWindow({
     width: size, height: size, x: saved ? saved.x : wa.x + wa.width - size - 16, y: saved ? saved.y : wa.y + wa.height - size - 16,
     frame: false, transparent: true, resizable: false, skipTaskbar: true, alwaysOnTop: true, hasShadow: false, focusable: false,
@@ -78,9 +85,24 @@ function createOrb() {
   orbWin.loadFile(path.join(__dirname, 'renderer', 'orb-float.html'));
   orbWin.on('closed', () => { orbWin = null; });
 }
+function onSomeScreen(x, y, size) {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  const cx = x + size / 2, cy = y + size / 2;
+  return screen.getAllDisplays().some(({ workArea: a }) => cx >= a.x && cx < a.x + a.width && cy >= a.y && cy < a.y + a.height);
+}
+function keepOrbOnScreen() {
+  if (!orbWin) return;
+  const [x, y] = orbWin.getPosition(); const [w] = orbWin.getSize();
+  if (onSomeScreen(x, y, w)) return;
+  const wa = screen.getPrimaryDisplay().workArea;
+  orbWin.setPosition(wa.x + wa.width - w - 16, wa.y + wa.height - w - 16);
+}
 function destroyOrb() { if (orbWin) { orbWin.destroy(); orbWin = null; } }
 
 // ------------------------------------------------------------------ files
+
+// only the main window may use the powerful calls (files, the network, the PC); the floating orb only moves and clicks
+const fromMain = (e) => !!win && !win.isDestroyed() && e.sender === win.webContents;
 
 function readJson(name, fallback) { try { return JSON.parse(fs.readFileSync(file(name), 'utf8')); } catch { return fallback; } }
 function writeAtomic(name, text) {
@@ -89,15 +111,18 @@ function writeAtomic(name, text) {
   fs.renameSync(tmp, f);
 }
 
-ipcMain.handle('store:read', (_e, name) => { try { return fs.readFileSync(file(name), 'utf8'); } catch { return null; } });
-ipcMain.handle('store:write', (_e, name, text) => {
-  if (!/^[\w.-]+$/.test(name)) throw new Error('bad name');
-  writeAtomic(name, text); return true;
+// Atlas's own files only: a plain file name inside its data folder (no folders, no "..")
+const okName = (name) => typeof name === 'string' && /^[\w-][\w.-]*$/.test(name) && !name.includes('..');
+ipcMain.handle('store:read', (e, name) => { if (!fromMain(e) || !okName(name)) return null; try { return fs.readFileSync(file(name), 'utf8'); } catch { return null; } });
+ipcMain.handle('store:write', (e, name, text) => {
+  if (!fromMain(e) || !okName(name)) throw new Error('bad name');
+  writeAtomic(name, String(text)); return true;
 });
 
 // ------------------------------------------------------------------ network without browser limits (CORS) for AI services
 
-ipcMain.handle('net:fetch', async (_e, url, opts = {}) => {
+ipcMain.handle('net:fetch', async (e, url, opts = {}) => {
+  if (!fromMain(e) || !/^https?:\/\//i.test(String(url))) return { status: 0, ok: false, error: 'not allowed' };
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), opts.timeout || 120000);
   try {
@@ -123,7 +148,7 @@ ipcMain.handle('net:fetch', async (_e, url, opts = {}) => {
 
 // ------------------------------------------------------------------ the window, notifications, focus
 
-ipcMain.handle('win:show', () => { showMain(); return true; });
+ipcMain.handle('win:show', (e) => { if (!fromMain(e)) return false; showMain(); return true; });
 ipcMain.handle('win:attention', (_e, on) => {
   // an alarm: come to the front, over everything, until answered
   if (!win) return;
@@ -132,47 +157,66 @@ ipcMain.handle('win:attention', (_e, on) => {
   if (on) win.flashFrame(true); else win.flashFrame(false);
 });
 ipcMain.handle('win:fullscreen', (_e, on) => { if (win) { showMain(); win.setFullScreen(!!on); } });
-ipcMain.handle('notify', (_e, title, body, tag) => {
-  if (!Notification.isSupported()) return false;
-  const n = new Notification({ title, body, icon: icon(), silent: false, urgency: 'normal' });
-  n.on('click', () => { showMain(); if (win) win.webContents.send('notification-click', tag); });
+// notifications are held on to until clicked or closed: one that gets garbage-collected loses its click on Windows
+const liveNotes = new Set();
+ipcMain.handle('notify', (e, title, body, tag) => {
+  if (!fromMain(e) || !Notification.isSupported()) return false;
+  const n = new Notification({ title: String(title || 'Atlas'), body: String(body || ''), icon: icon(), silent: false, urgency: 'normal' });
+  liveNotes.add(n);
+  const drop = () => liveNotes.delete(n);
+  n.on('click', () => { drop(); showMain(); if (win) win.webContents.send('notification-click', tag); });
+  n.on('close', drop); n.on('failed', drop);
   n.show(); return true;
 });
-ipcMain.handle('orb:show', (_e, on) => { if (on) createOrb(); else destroyOrb(); return true; });
+ipcMain.handle('orb:show', (e, on) => { if (!fromMain(e)) return false; if (on) createOrb(); else destroyOrb(); return true; });
 ipcMain.on('orb:clicked', () => { showMain(); if (win) win.webContents.send('orb-clicked'); });
+let orbSaveTimer = 0;
 ipcMain.on('orb:moveBy', (_e, dx, dy) => {
-  if (!orbWin) return;
+  if (!orbWin || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
   const [x, y] = orbWin.getPosition(); orbWin.setPosition(Math.round(x + dx), Math.round(y + dy));
-  const [nx, ny] = orbWin.getPosition(); writeAtomic('orb-pos.json', JSON.stringify({ x: nx, y: ny }));
+  // saved once the dragging settles, not on every mouse move
+  clearTimeout(orbSaveTimer);
+  orbSaveTimer = setTimeout(() => { if (!orbWin) return; const [nx, ny] = orbWin.getPosition(); try { writeAtomic('orb-pos.json', JSON.stringify({ x: nx, y: ny })); } catch {} }, 400);
 });
 // the floating orb mirrors what Atlas is doing (listening, thinking)
 ipcMain.on('orb:state', (_e, st) => { if (orbWin) orbWin.webContents.send('orb-state', st); });
-ipcMain.handle('app:autostart', (_e, on) => {
-  if (typeof on === 'boolean') app.setLoginItemSettings({ openAtLogin: on, args: ['--hidden'] });
+ipcMain.handle('app:autostart', (e, on) => {
+  if (typeof on === 'boolean' && fromMain(e)) app.setLoginItemSettings({ openAtLogin: on, args: ['--hidden'] });
   return app.getLoginItemSettings().openAtLogin;
 });
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, data: DATA() }));
-ipcMain.handle('open:external', (_e, url) => { if (/^(https?:|mailto:)/.test(url)) shell.openExternal(url); });
+ipcMain.handle('open:external', (e, url) => { if (fromMain(e)) openSafe(url); });
 
 // ------------------------------------------------------------------ files the user picks or drops (attachments)
 
-ipcMain.handle('file:pick', async () => {
+ipcMain.handle('file:pick', async (e) => {
+  if (!fromMain(e)) return [];
   const r = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'],
     filters: [{ name: 'Pictures, videos and files', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov', 'pdf', 'txt', 'md', 'csv', 'json', 'docx', 'xml', 'html', 'js', 'ts', 'py', 'kt', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 'log'] }, { name: 'All files', extensions: ['*'] }] });
   return r.canceled ? [] : r.filePaths;
 });
-ipcMain.handle('file:load', (_e, p) => pc.loadAttachment(p));
+ipcMain.handle('file:load', (e, p) => { if (!fromMain(e)) throw new Error('not allowed'); return pc.loadAttachment(String(p)); });
 
 // ------------------------------------------------------------------ controlling the PC
 
-ipcMain.handle('pc:run', async (_e, name, args) => {
-  try { return await pc.run(name, args || {}, { desktopCapturer, screen, shell }); }
+ipcMain.handle('pc:run', async (e, name, args) => {
+  if (!fromMain(e)) return { error: 'not allowed' };
+  args = args || {};
+  // opening a program, script or installer runs it: the user says yes first (a web page Atlas read can't make it run things)
+  const target = name === 'open_path' ? args.path : name === 'open_app' && /[\\/]|\.\w{2,5}$/.test(String(args.name || '')) ? args.name : null;
+  if (target && pc.runsSomething(target)) {
+    const r = await dialog.showMessageBox(win, { type: 'warning', buttons: ['Open It', 'Cancel'], defaultId: 1, cancelId: 1, title: 'Atlas',
+      message: 'Open this program?', detail: `Atlas wants to open:\n${String(target).slice(0, 300)}\n\nThis runs it. Only say yes if you asked for it.` });
+    if (r.response !== 0) return { error: 'The user said no to opening that program.' };
+  }
+  try { return await pc.run(name, args, { desktopCapturer, screen, shell }); }
   catch (err) { return { error: err.message || String(err) }; }
 });
 
 // ------------------------------------------------------------------ start
 
 app.whenReady().then(() => {
+  if (!firstInstance) return;
   // the microphone (for talking to Atlas) and the screen (to look at it) are allowed for Atlas's own pages
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(['media', 'microphone', 'audioCapture', 'clipboard-read', 'clipboard-sanitized-write', 'notifications'].includes(perm)));
   session.defaultSession.setPermissionCheckHandler((wc, perm) => ['media', 'microphone', 'audioCapture', 'clipboard-read', 'clipboard-sanitized-write', 'notifications'].includes(perm));
@@ -188,6 +232,8 @@ app.whenReady().then(() => {
   tray.on('click', showMain);
   // Ctrl+Shift+Space from anywhere: Atlas listens
   try { globalShortcut.register('CommandOrControl+Shift+Space', () => { showMain(); win.webContents.send('orb-clicked'); }); } catch {}
+  // a screen unplugged or rearranged: bring the orb back where it can be seen
+  screen.on('display-removed', keepOrbOnScreen); screen.on('display-metrics-changed', keepOrbOnScreen);
 });
 app.on('before-quit', () => { quitting = true; });
 app.on('will-quit', () => globalShortcut.unregisterAll());

@@ -344,6 +344,11 @@ class MainActivity : Activity() {
                 multi -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 else -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             }
+            if (multi) {
+                // a writing box: starts at two lines, grows to six, then scrolls inside, the text kept within its edges
+                minLines = 2; maxLines = 6; gravity = Gravity.TOP or Gravity.START
+                isVerticalScrollBarEnabled = true; setHorizontallyScrolling(false)
+            }
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                 override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
@@ -1305,7 +1310,9 @@ class MainActivity : Activity() {
                 // items that are files get attached; plain pasted text is left for the box to take as usual
                 val clip = payload.clip
                 var tookAll = true
-                for (i in 0 until clip.itemCount) { val u = clip.getItemAt(i).uri; if (u != null) addMedia(u) else tookAll = false }
+                val uris = mutableListOf<Uri>()
+                for (i in 0 until clip.itemCount) { val u = clip.getItemAt(i).uri; if (u != null) uris.add(u) else tookAll = false }
+                if (uris.isNotEmpty()) addMedia(uris)
                 if (tookAll) null else payload
             }
             addTextChangedListener(object : TextWatcher {
@@ -1360,17 +1367,23 @@ class MainActivity : Activity() {
             .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_MEDIA)
     }
 
-    /** Takes one picked or pasted picture, video or file, within the limits. */
-    private fun addMedia(uri: Uri) {
+    /**
+     * Takes picked or pasted pictures, videos and files, within the limits. One at a time, in order: copying takes a
+     * moment, and the limits are checked against what's already been taken (several at once would all pass the check).
+     */
+    private fun addMedia(uris: List<Uri>) {
         scope.launch {
-            try {
-                val isVideo = contentResolver.getType(uri)?.startsWith("video/") == true
-                if (isVideo && pending.isNotEmpty()) { showBanner("A video goes on its own. Send the others first.", MUTED); return@launch }
-                if (!isVideo && (pending.any { it.video } || pending.size >= Attach.MAX_PHOTOS)) { showBanner("Up to ${Attach.MAX_PHOTOS} per message.", MUTED); return@launch }
-                val item = withContext(Dispatchers.IO) { Attach.take(applicationContext, uri) }
-                pending.add(item); showTray(); updateSend()
-            } catch (e: Attach.TooBig) { showBanner(e.message ?: "Too big.", MUTED) }
-            catch (e: Exception) { showBanner("Couldn't add that.", MUTED) }
+            for (uri in uris) {
+                try {
+                    val isVideo = contentResolver.getType(uri)?.startsWith("video/") == true
+                    if (isVideo && pending.isNotEmpty()) { showBanner("A video goes on its own. Send the others first.", MUTED); continue }
+                    if (pending.any { it.video } || pending.size >= Attach.MAX_PHOTOS) { showBanner("Up to ${Attach.MAX_PHOTOS} per message.", MUTED); break }
+                    val item = withContext(Dispatchers.IO) { Attach.take(applicationContext, uri) }
+                    pending.add(item); showTray(); updateSend()
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e
+                } catch (e: Attach.TooBig) { showBanner(e.message ?: "Too big.", MUTED)
+                } catch (e: Exception) { showBanner("Couldn't add that.", MUTED) }
+            }
         }
     }
 
@@ -1580,13 +1593,6 @@ class MainActivity : Activity() {
             pageTitle("Log", roundIcon("plus", "New reminder") { editTask(null) }.apply { layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)) })
             body.add(text("What Atlas is keeping for you. Reminders ring like an alarm at their time.", 15f, MUTED), 6)
         }
-        if (all.isEmpty()) {
-            body.add(card().apply {
-                addView(text("Nothing logged yet", 18f, FG, HEAD))
-                add(text("Tell Atlas “remind me to pick up my sister Thursday at 4” or “remember my locker code is on the fridge”, and it lands here.", 15f, MUTED), 6)
-            }, 16)
-            return
-        }
         if (!logFull) {
             // Remember Something first: the field gets the whole width, the Save key sits under it
             body.add(eyebrow("Remember Something"), 20)
@@ -1601,8 +1607,16 @@ class MainActivity : Activity() {
             }.apply { alpha = 0.5f }
             mc.addView(save, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
             body.add(mc, 8)
+            if (all.isEmpty()) {
+                // nothing yet: the box above still works (it used to be hidden until something was logged)
+                body.add(card().apply {
+                    addView(text("Nothing logged yet", 18f, FG, HEAD))
+                    add(text("Tell Atlas “remind me to pick up my sister Thursday at 4” or “remember my locker code is on the fridge”, and it lands here.", 15f, MUTED), 6)
+                }, 22)
+                return
+            }
             body.add(eyebrow("Latest"), 22)
-        }
+        } else if (all.isEmpty()) return
         val shown = if (logFull) all else all.take(LOG_RECENT)
         val c = card().apply { setPadding(dp(18), dp(4), dp(18), dp(4)) }
         shown.forEachIndexed { i, e ->
@@ -1626,7 +1640,7 @@ class MainActivity : Activity() {
         val shown = Providers.byId(brainShown) ?: active ?: Providers.all.first()
         brainShown = shown.id
         brain.addView(text(active?.let { "${it.name} · ${Providers.model(this, it)}" } ?: "Not set up", 20f, FG, HEAD))
-        brain.add(text(if (active != null) "Atlas thinks with ${active.name}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on, then to another service."
+        brain.add(text(if (active != null) "Atlas thinks with ${active.name}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on${if (KeyRouter.dontSwitch(this)) "." else ", then to another service."}"
             else "Paste a key from any AI service below. Atlas needs one to think properly and to use your phone.", 14f, if (active != null) DONE else MUTED), 4)
         var keyDraft = ""
         val kf = field("Paste an API key (${shown.keyHint})", "") { keyDraft = it }.apply {
@@ -1698,6 +1712,9 @@ class MainActivity : Activity() {
             tr.addView(secondary("Test") { testKey(Providers.key(this, shown.id), shown.id) }, LinearLayout.LayoutParams(0, WRAP, 1f))
             brain.add(tr, 8)
         }
+        brain.add(switchRow(null, "Don't Switch Services", KeyRouter.dontSwitch(this)) { on -> KeyRouter.setDontSwitch(this, on); render(keepScroll = true) }, 14)
+        brain.add(text(if (KeyRouter.dontSwitch(this)) "Atlas stays on ${active?.name ?: "the service you chose"}, even when it runs out or there's no internet. Your other ${active?.name ?: ""} keys can still take over.".replace("  ", " ")
+            else "Off: when a service keeps failing (Atlas tries it 3 times first) or all its keys run out, Atlas moves to another service with a key and carries on.", 13f, MUTED), 6)
         brain.add(text("Keys stay on this phone (not in backups). When Atlas thinks online, what you say goes to that service; free tiers may use it to improve their products.", 13f, MUTED), 12)
         body.add(brain, 8)
 
@@ -1985,8 +2002,8 @@ class MainActivity : Activity() {
         when (requestCode) {
             REQ_MEDIA -> {
                 val clip = data.clipData
-                if (clip != null) for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let { addMedia(it) }
-                else data.data?.let { addMedia(it) }
+                if (clip != null) addMedia((0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri })
+                else data.data?.let { addMedia(listOf(it)) }
             }
             REQ_MODEL -> {
                 val uri = data.data ?: return

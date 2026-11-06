@@ -58,7 +58,7 @@ export const bots = createBots({
   notify: (title, body, tag) => host.notify(title, String(body || '').slice(0, 240), tag),
   post,
   plainReply, plainMemory,
-  now: () => Date.now(), uid,
+  now: () => Date.now(), uid, deviceId: () => db.state.deviceId || '',
   setTimer: (f, ms) => setTimeout(f, ms), clearTimer: (t) => clearTimeout(t),
 });
 bots.onChange(() => changed('bots'));

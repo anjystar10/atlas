@@ -204,6 +204,14 @@ class BotActivity : Activity() {
         add(text(now, 14f, stateColor(j.state), med), 10)
         add(text("${j.toolCalls} steps · ${j.workMs / 60_000} min${j.provider?.let { " · $it" } ?: ""}", 12f, MUTED), 2)
 
+        // a heavy job: the laptop would do it better
+        j.suggestPc?.let { why ->
+            if (!j.final) add(card().apply {
+                addView(text("This is a big one", 13f, ACCENT, semi))
+                addView(text("Open Atlas on your laptop and I can do it there. ($why)", 15f, FG), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+            }, 14)
+        }
+
         // what it needs from you
         when (j.state) {
             BotRules.AWAITING_APPROVAL -> j.approval?.let { a ->

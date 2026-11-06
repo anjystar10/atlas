@@ -94,7 +94,7 @@ function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gem
     runTool: async (c, o) => { w.ran.push([c.name, !!(o && o.approved)]); return { out: `${c.name} result`, step: `Did ${c.name}` }; },
     systemPrompt: () => 'sys', notify: (t, b, tag) => w.notes.push(['notify', t, tag]), post: (m) => w.posts.push(m),
     plainReply: (s) => String(s).trim(), plainMemory: (s) => String(s).trim(),
-    now: () => (clock += 10), uid: () => 'job1',
+    now: () => (clock += 10), uid: () => 'job1', deviceId: () => 'pc-1',
     setTimer: (f, ms) => { if (ms <= 0) { setTimeout(f, 0); return 0; } w.timers.push(ms); return w.timers.length; }, clearTimer: () => {},
   });
   return w;
@@ -121,6 +121,8 @@ test('a bot plans, researches, notes, finishes, and posts its report', async () 
   assert.ok(!w.tools[0].includes('change_setting') && !w.tools[0].includes('deploy_bot') && w.tools[0].includes('finish'), 'bots get their own tool set');
   assert.equal(j.pending, null);
   const back = JSON.parse(w.saved); assert.equal(back[0].state, 'completed', 'the journal is saved');
+  assert.equal(back[0].updated_ms, back[0].updatedAt); assert.equal(back[0].device, 'pc-1', 'ready to sync later: updated_ms and the owning device');
+  assert.ok(!/key/i.test(Object.keys(back[0]).join(',')), 'no secrets in the record');
 });
 
 test('a risky command waits for the OK, then runs once approved', async () => {
@@ -194,4 +196,87 @@ test('pause and stop', async () => {
   assert.equal(j.state, B.S.PAUSED); assert.deepEqual(w.ran, [], 'nothing runs after a pause');
   w.bots.resume(j.id); await settle(w);
   assert.equal(j.state, B.S.COMPLETED);
+});
+
+// ------------------------------------------------------------------ the key pool: retries before switching, Don't Switch
+const brain = await import('../renderer/brain.js');
+const { db } = await import('../renderer/store.js');
+const gem = brain.byId('gemini');
+function pool(keys, { other = false, stay = false } = {}) {
+  db.prefs = { keys: { gemini: keys.map((k) => ({ key: k, restUntil: 0, bad: false, fails: 0, problem: '' })), ...(other ? { groq: [{ key: 'gsk_x', restUntil: 0, bad: false, fails: 0, problem: '' }] } : {}) }, dont_switch: stay };
+}
+/** Calls through the router with a call that fails with [fails] in order, then answers 'ok'. */
+async function run(fails) {
+  const sess = { key: brain.keys('gemini')[0].key }; const used = []; const waits = []; let n = 0;
+  const out = await brain.callWithKeys(gem, sess, async () => { used.push(sess.key); if (n < fails.length) throw fails[n++]; return 'ok'; }, 0,
+    { onStatus: () => {}, cancelled: () => false, wait: async (ms) => { waits.push(ms); } });
+  return { out, used, waits };
+}
+const busy = () => new brain.Failure('Gemini is having trouble right now (503).', 503);
+const limit = () => new brain.Failure('The Gemini limit is used up for now.', 429);
+
+test('a busy service is retried 3 times on the same key', async () => {
+  pool(['k1', 'k2'], { other: true });
+  const r = await run([busy(), busy(), busy()]);
+  assert.equal(r.out, 'ok'); assert.deepEqual(r.used, ['k1', 'k1', 'k1', 'k1']); assert.deepEqual(r.waits, [2000, 5000, 10000]);
+});
+test('a fourth limit rests the key and the next key takes over', async () => {
+  pool(['k1', 'k2'], { other: true });
+  const r = await run([limit(), limit(), limit(), limit()]);
+  assert.deepEqual(r.used, ['k1', 'k1', 'k1', 'k1', 'k2']);
+  assert.ok(brain.keys('gemini')[0].restUntil > Date.now());
+});
+test('a turned-down key switches at once', async () => {
+  pool(['k1', 'k2'], { other: true });
+  const r = await run([new brain.Failure('Gemini turned the key down: no', 401)]);
+  assert.deepEqual(r.used, ['k1', 'k2']); assert.ok(brain.keys('gemini')[0].bad);
+});
+test('with no keys left it moves to another service, after the retries', async () => {
+  pool(['k1'], { other: true });
+  await assert.rejects(run(Array(10).fill(0).map(busy)), (e) => e instanceof brain.Switch && e.to.id === 'groq');
+  pool(['k1'], { other: true });
+  await assert.rejects(run(Array(10).fill(0).map(limit)), (e) => e instanceof brain.Switch && e.to.id === 'groq');
+});
+test("Don't Switch stays on the service and says so", async () => {
+  pool(['k1'], { other: true, stay: true });
+  await assert.rejects(run(Array(20).fill(0).map(limit)), (e) => e instanceof brain.Failure && !(e instanceof brain.Switch) && /Don't Switch Services is on/.test(e.message));
+  // other keys of the same service still take over
+  pool(['k1', 'k2'], { other: true, stay: true });
+  const r = await run([limit(), limit(), limit(), limit()]); assert.equal(r.used.at(-1), 'k2');
+  // the chosen service stays chosen even while its keys rest; without Don't Switch another service takes over
+  pool(['k1'], { other: true, stay: true }); db.prefs.provider = 'gemini'; db.prefs.keys.gemini[0].restUntil = Date.now() + 60000;
+  assert.equal(brain.active().id, 'gemini');
+  db.prefs.dont_switch = false; assert.equal(brain.active().id, 'groq');
+});
+test('other errors are not retried', async () => {
+  pool(['k1'], { other: true });
+  await assert.rejects(run([new brain.Failure("Gemini doesn't know that model", 404)]), (e) => e.code === 404);
+});
+
+test('links keep underscores and stay links; trailing punctuation stays outside', () => {
+  const h = renderMarkdown('See https://ex.com/_a_/b_c. and [**x**](https://a.com/x_y_z)');
+  assert.ok(h.includes('href="https://ex.com/_a_/b_c"')); assert.ok(h.includes('</a>.'));
+  assert.ok(h.includes('href="https://a.com/x_y_z"')); assert.ok(h.includes('<strong>x</strong></a>'));
+  assert.ok(!h.includes('<em>'));
+  assert.ok(!renderMarkdown('[x](javascript:alert(1))').includes('href'));
+});
+test('a reminder edited here while offline is not overwritten by an older copy', async () => {
+  const { db } = await import('../renderer/store.js');
+  db.state = { tasks: [{ id: 't1', title: 'Gym at 7', updatedAt: 2000 }], memories: [], log: [], settings: {} };
+  const older = { id: 't1', title: 'Gym', updatedAt: 1000 }, newer = { id: 't1', title: 'Gym at 8', updatedAt: 3000 };
+  // 'stale-fingerprint' stands for what the cloud had before the edit here
+  assert.equal(await sync.keepMine('task', 't1', older, 'stale-fingerprint'), true);
+  assert.equal(await sync.keepMine('task', 't1', newer, 'stale-fingerprint'), false);
+  assert.equal(await sync.keepMine('memory', 't1', older, 'x'), false);
+  assert.equal(await sync.keepMine('task', 'nope', older, 'x'), false);
+});
+test('PowerShell quoting and programs that need a yes', async () => {
+  const { createRequire } = await import('node:module');
+  const pc = createRequire(import.meta.url)('../pc.js');
+  assert.equal(pc.q("it's"), "'it''s'");
+  assert.equal(pc.q('a\u2019b'), "'a''b'");
+  assert.equal(pc.q('$(Remove-Item x)'), "'$(Remove-Item x)'");
+  for (const p of ['C:\\x\\setup.exe', '~/Downloads/run.BAT', '"C:\\a b\\s.ps1"', 'thing.lnk']) assert.equal(pc.runsSomething(p), true, p);
+  for (const p of ['~/Documents/notes.txt', 'C:\\Pictures', 'photo.jpg']) assert.equal(pc.runsSomething(p), false, p);
+  assert.equal(pc.sendKeysCombo('ctrl+shift+t'), '^+t');
 });
