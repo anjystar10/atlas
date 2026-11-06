@@ -24,11 +24,13 @@ import kotlin.math.roundToInt
 
 /**
  * The alarm: rings, and asks whether you'll do it. Opens over the lock screen.
- * I'll do it, Snooze 10 min, or Not doing it; the answer goes in the Log. It rings for two minutes at most.
+ * Doing it now (opens a focus session), I'll do it, Snooze 10 min, or Not doing it; the answer goes in the Log.
+ * It rings for two minutes at most. Opened from a lighter reminder's notification it's quiet ([EXTRA_QUIET]).
  */
 class AlarmActivity : Activity() {
     companion object {
         const val EXTRA_IDS = "ids"
+        const val EXTRA_QUIET = "quiet"
         const val NOTIF_ID = 4242
         private const val RING_MS = 2 * 60 * 1000L
     }
@@ -52,55 +54,72 @@ class AlarmActivity : Activity() {
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(bg))
         queue.addAll(intent?.getStringArrayExtra(EXTRA_IDS)?.toList() ?: emptyList())
 
-        val display = font(R.font.newsreader_medium, Typeface.create("serif", Typeface.BOLD))
+        val display = font(R.font.newsreader_regular, Typeface.create("serif", Typeface.NORMAL))
         val body = font(R.font.geist_regular, Typeface.DEFAULT)
         val med = font(R.font.geist_medium, Typeface.DEFAULT)
-        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(28), dp(40), dp(28), dp(32)) }
+        val semi = font(R.font.geist_semibold, Typeface.DEFAULT_BOLD)
+        val d = resources.displayMetrics.density
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(22), dp(32), dp(22), dp(26)) }
         col.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
-        col.addView(OrbView(this).apply { energy = 1f; still = Prefs.reduceMotion(this@AlarmActivity) }, LinearLayout.LayoutParams(dp(190), dp(190)))
-        whenView = TextView(this).apply { setTextColor(Color.parseColor("#9BA1C9")); textSize = 16f; typeface = med; gravity = Gravity.CENTER }
-        col.addView(whenView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
-        titleView = TextView(this).apply { setTextColor(Color.parseColor("#EEF0FF")); textSize = 28f; typeface = display; gravity = Gravity.CENTER; setLineSpacing(0f, 1.1f) }
-        col.addView(titleView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-        col.addView(TextView(this).apply { text = "Will you do it?"; setTextColor(Color.parseColor("#C9CDF0")); textSize = 18f; typeface = body; gravity = Gravity.CENTER },
-            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
-        moreView = TextView(this).apply { setTextColor(Color.parseColor("#9BA1C9")); textSize = 13f; typeface = body; gravity = Gravity.CENTER }
-        col.addView(moreView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+        col.addView(OrbView(this).apply { energy = 1f; still = Prefs.reduceMotion(this@AlarmActivity) }, LinearLayout.LayoutParams(dp(176), dp(176)))
+
+        // the question, on a pane of glass
+        val pane = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(dp(22), dp(20), dp(22), dp(22))
+            background = Finish(Color.parseColor("#14163A"), dp(28).toFloat(), true, d, glass = true)
+        }
+        whenView = TextView(this).apply { setTextColor(Color.parseColor("#A9AEE0")); textSize = 12f; typeface = semi; gravity = Gravity.CENTER; letterSpacing = 0.16f; isAllCaps = true }
+        pane.addView(whenView, LinearLayout.LayoutParams(-1, -2))
+        titleView = TextView(this).apply { setTextColor(Color.parseColor("#F2F3FF")); textSize = 30f; typeface = display; gravity = Gravity.CENTER; setLineSpacing(0f, 1.04f) }
+        pane.addView(titleView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        pane.addView(TextView(this).apply { text = "Will you do it?"; setTextColor(Color.parseColor("#C3C7EE")); textSize = 16f; typeface = body; gravity = Gravity.CENTER },
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+        moreView = TextView(this).apply { setTextColor(Color.parseColor("#8E93C2")); textSize = 13f; typeface = body; gravity = Gravity.CENTER }
+        pane.addView(moreView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+        col.addView(pane, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18) })
         col.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
 
         fun button(label: String, primary: Boolean, onTap: () -> Unit) = TextView(this).apply {
-            text = label; textSize = 17f; typeface = med; gravity = Gravity.CENTER
-            setTextColor(if (primary) Color.WHITE else Color.parseColor("#EEF0FF"))
-            setPadding(dp(16), dp(16), dp(16), dp(17))
-            background = GradientDrawable().apply {
-                cornerRadius = dp(999).toFloat()
-                if (primary) { orientation = GradientDrawable.Orientation.LEFT_RIGHT; colors = intArrayOf(Color.parseColor("#3D5BFF"), Color.parseColor("#7C5CFF")) }
-                else { setColor(Color.parseColor("#14163A")); setStroke(dp(1), Color.parseColor("#2A2E66")) }
-            }
-            isClickable = true; setOnClickListener { onTap() }
+            text = label; textSize = if (primary) 17f else 15f; typeface = if (primary) semi else med; gravity = Gravity.CENTER
+            setTextColor(if (primary) Color.WHITE else Color.parseColor("#E8EAFF"))
+            setPadding(dp(14), dp(if (primary) 17 else 14), dp(14), dp(if (primary) 18 else 15))
+            background = if (primary) Finish(Color.parseColor("#5B4BF0"), -1f, true, d) else Finish(Color.parseColor("#14163A"), -1f, true, d, glass = true)
+            if (primary) { elevation = dp(10).toFloat(); outlineSpotShadowColor = Color.parseColor("#6E5CFF"); outlineAmbientShadowColor = Color.parseColor("#6E5CFF") }
+            isClickable = true; setOnClickListener { onTap() }; pressFx()
         }
-        col.addView(button("I'll do it", true) { answer("done") }, LinearLayout.LayoutParams(-1, -2))
+        col.addView(button("Doing It Now", true) { answer("now") }, LinearLayout.LayoutParams(-1, -2))
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        row.addView(button("Snooze 10 min", false) { answer("snooze") }, LinearLayout.LayoutParams(0, -2, 1f))
-        row.addView(button("Not doing it", false) { answer("skip") }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(10) })
+        row.addView(button("I'll Do It", false) { answer("done") }, LinearLayout.LayoutParams(0, -2, 1f))
+        row.addView(button("Snooze 10m", false) { answer("snooze") }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(8) })
+        row.addView(button("Not Doing It", false) { answer("skip") }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(8) })
         col.addView(row, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
 
-        val root = FrameLayout(this).apply { setBackgroundColor(bg) }
+        val root = FrameLayout(this).apply {
+            // a deep night with a soft violet glow behind the orb
+            background = android.graphics.drawable.LayerDrawable(arrayOf(
+                GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.parseColor("#0A0A20"), bg, Color.parseColor("#08061A"))),
+                GradientDrawable().apply { gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(320).toFloat(); setGradientCenter(0.5f, 0.36f)
+                    colors = intArrayOf(Color.argb(70, 80, 70, 255), Color.argb(0, 80, 70, 255)) }))
+        }
         root.addView(col, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
         window.setDecorFitsSystemWindows(false)
         root.setOnApplyWindowInsetsListener { v, ins ->
             val b = ins.getInsets(WindowInsets.Type.systemBars()); v.setPadding(b.left, b.top, b.right, b.bottom); WindowInsets.CONSUMED
         }
+        quiet = intent?.getBooleanExtra(EXTRA_QUIET, false) == true
         if (!showNext()) { finish(); return }
-        startRinging()
+        if (!quiet) startRinging()
     }
+
+    private var quiet = false
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         intent.getStringArrayExtra(EXTRA_IDS)?.forEach { if (it !in queue) queue.addLast(it) }
         if (titleView.text.isNullOrEmpty()) showNext()
-        startRinging()
+        if (!intent.getBooleanExtra(EXTRA_QUIET, false)) startRinging()
     }
 
     /** Shows the next reminder still waiting; false when there's none. */
@@ -109,7 +128,7 @@ class AlarmActivity : Activity() {
             val id = queue.first()
             val t = Store.read(this) { s -> s.tasks.firstOrNull { it.id == id }?.let { Triple(it.title, it.startAt, it.status) } }
             if (t == null || t.third != "planned") { queue.removeFirst(); continue }
-            titleView.text = t.first
+            titleView.text = Plain.memory(t.first)
             whenView.text = t.second?.let { "${Brain.dayLabel(it).replaceFirstChar { c -> c.uppercase() }} · ${Reminders.fmt(it)}" } ?: ""
             moreView.text = if (queue.size > 1) "${queue.size - 1} more after this" else ""
             return true
@@ -120,6 +139,13 @@ class AlarmActivity : Activity() {
     private fun answer(kind: String) {
         val id = queue.removeFirstOrNull() ?: return finish()
         val now = System.currentTimeMillis()
+        if (kind == "now") {
+            // a focus session for it; it's marked done when the session ends
+            stopRinging()
+            Focus.start(this, titleView.text.toString(), null, id)
+            if (!showNext()) finish()
+            return
+        }
         Thread {
             try {
                 Store.edit(applicationContext) { s ->
@@ -152,6 +178,7 @@ class AlarmActivity : Activity() {
         } catch (_: Exception) {}
         handler.postDelayed({ stopRinging() }, RING_MS)
         getSystemService(NotificationManager::class.java).cancel(NOTIF_ID)
+        if (!Store.read(this) { it.settings.sound }) try { player?.setVolume(0f, 0f) } catch (_: Exception) {}
     }
 
     private fun stopRinging() {

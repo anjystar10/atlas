@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.Color
+import android.widget.LinearLayout
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
@@ -26,6 +27,7 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.TextView
 import kotlin.math.abs
+import kotlin.math.sin
 import kotlin.math.roundToInt
 
 /**
@@ -38,7 +40,7 @@ class AvatarService : Service() {
     private var orbFrame: FrameLayout? = null
     private var orb: OrbView? = null
     private var orbParams: WindowManager.LayoutParams? = null
-    private var caption: TextView? = null
+    private var caption: LinearLayout? = null
     private var pill: TextView? = null
     private var micGranted = false
     private val handler = Handler(Looper.getMainLooper())
@@ -190,8 +192,13 @@ class AvatarService : Service() {
                         // remember where the small orb sits
                         val off = (params.width - small) / 2
                         prefs.edit().putInt("x", params.x + off).putInt("y", params.y + off).apply()
-                    } else if (talking) endTalk()
-                    else wake()
+                    } else if (talking) {
+                        when {
+                            Voice.speaking -> { Conversation.hush(); listen() }      // cut in: Atlas stops and listens
+                            voice != null -> voice?.finish()                         // done talking: send it now
+                            else -> endTalk()
+                        }
+                    } else wake()
                     true
                 }
                 else -> false
@@ -271,16 +278,17 @@ class AvatarService : Service() {
         talking = true; turns = 0
         orbFrame?.visibility = View.VISIBLE
         setGrown(true)
+        handler.post(pulse)
         listen()
     }
 
     private fun listen() {
         if (!talking) return
         orb?.energy = 1f
-        say("Listening…", dim = true)
+        say("Listening…", who = "You", dim = true)
         voice?.cancel()
         voice = VoiceInput(this,
-            onPartial = { t -> say(t) },
+            onPartial = { t -> say(t, who = "You") },
             onLevel = { l -> orb?.level = l },
             onDone = { t ->
                 voice = null; orb?.level = 0f
@@ -290,7 +298,7 @@ class AvatarService : Service() {
                     return@VoiceInput
                 }
                 turns++
-                say(t)
+                say(t, who = "You")
                 Conversation.send(this, t, spoken = true, onSpoken = { if (talking) handler.postDelayed({ listen() }, 250) })
             },
             onError = { msg -> voice = null; orb?.level = 0f; say(msg, dim = true); handler.postDelayed({ endTalk() }, 2200) })
@@ -302,7 +310,7 @@ class AvatarService : Service() {
         if (!talking) return
         if (Conversation.busy && Conversation.usingPhone) { hideCaption(); return }
         val last = Conversation.messages.lastOrNull() ?: return
-        if (!last.fromUser) say(last.text.ifBlank { "${Conversation.status ?: "Thinking"}…" }, dim = last.text.isBlank())
+        if (!last.fromUser) say(last.text.ifBlank { "${Conversation.status ?: "Thinking"}…" }, who = "Atlas", dim = last.text.isBlank())
     }
 
     private fun endTalk() {
@@ -316,21 +324,47 @@ class AvatarService : Service() {
         HotwordService.hold(this, false)
     }
 
-    private fun say(text: String, dim: Boolean = false) {
-        val c = caption ?: TextView(this).apply {
-            setTextColor(Color.WHITE); textSize = 15f; maxLines = 6
-            ellipsize = android.text.TextUtils.TruncateAt.END
-            setPadding(dp(14), dp(10), dp(14), dp(11))
-            background = GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(Color.parseColor("#E6101230")); setStroke(dp(1), Color.parseColor("#3A3F8A")) }
-            maxWidth = dp(260)
-        }.also { tv ->
+    private var captionWho: TextView? = null
+    private var captionBody: TextView? = null
+
+    /**
+     * The caption beside the orb: a small pane of dark glass saying who's talking ("You" / "Atlas") and the words.
+     * A change of speaker fades the words in, so the conversation reads smoothly.
+     */
+    private fun say(text: String, who: String = "Atlas", dim: Boolean = false) {
+        // your words as heard; Atlas's without formatting symbols
+        val shown = if (who == "You" || text.trimEnd().endsWith("…")) text.trim() else Plain.spoken(text)
+        val card = caption ?: run {
+            val d = resources.displayMetrics.density
+            val box = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(14), dp(9), dp(14), dp(11))
+                background = Finish(Color.parseColor("#101230"), dp(18).toFloat(), true, d, glass = true).let { glass ->
+                    android.graphics.drawable.LayerDrawable(arrayOf(GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(Color.parseColor("#D80B0C24")) }, glass))
+                }
+                elevation = dp(6).toFloat(); alpha = 0f
+            }
+            val w = TextView(this).apply { setTextColor(Color.parseColor("#9AA0D8")); textSize = 11f; letterSpacing = 0.12f; isAllCaps = true
+                try { typeface = resources.getFont(R.font.geist_semibold) } catch (_: Throwable) {} }
+            val body = TextView(this).apply { setTextColor(Color.WHITE); textSize = 15f; maxLines = 7; ellipsize = android.text.TextUtils.TruncateAt.END
+                setLineSpacing(0f, 1.15f); maxWidth = dp(250)
+                try { typeface = resources.getFont(R.font.geist_regular) } catch (_: Throwable) {} }
+            box.addView(w); box.addView(body, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2) })
             val p = WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
                 PixelFormat.TRANSLUCENT).apply { gravity = Gravity.TOP or Gravity.START }
-            try { wm?.addView(tv, p); caption = tv } catch (e: Exception) { Log.w(TAG, "caption", e) }
+            try { wm?.addView(box, p); caption = box; captionWho = w; captionBody = body; box.animate().alpha(1f).setDuration(180).start() }
+            catch (e: Exception) { Log.w(TAG, "caption", e) }
+            box
         }
-        c.text = Voice.clean(text)
-        c.alpha = if (dim) 0.8f else 1f
+        val body = captionBody ?: return
+        val whoView = captionWho
+        val newSpeaker = whoView?.text?.toString()?.equals(who, true) == false
+        whoView?.text = who
+        body.text = shown
+        body.alpha = if (dim) 0.75f else 1f
+        if (newSpeaker) { body.alpha = 0f; body.animate().alpha(if (dim) 0.75f else 1f).setDuration(200).start() }
+        card.visibility = View.VISIBLE
         placeCaption()
     }
 
@@ -347,7 +381,26 @@ class AvatarService : Service() {
         try { wm?.updateViewLayout(c, lp) } catch (_: Exception) {}
     }
 
-    private fun hideCaption() { caption?.let { try { wm?.removeView(it) } catch (_: Exception) {} }; caption = null }
+    /** Fades the caption away, then removes it. */
+    private fun hideCaption() {
+        val c = caption ?: return
+        caption = null; captionWho = null; captionBody = null
+        c.animate().alpha(0f).setDuration(160).withEndAction { try { wm?.removeView(c) } catch (_: Exception) {} }.start()
+    }
+
+    /** While Atlas speaks, the orb pulses gently with its voice (and settles when it stops). */
+    private val pulse = object : Runnable {
+        private var t = 0f
+        override fun run() {
+            if (!talking) { orb?.level = 0f; return }
+            t += 0.05f
+            if (Voice.speaking) {
+                val beat = (0.5f + 0.5f * sin(t * 9.0f)) * (0.6f + 0.4f * sin(t * 2.3f + 1f))
+                orb?.level = 0.12f + 0.38f * beat
+            } else if (voice == null) orb?.level = (orb?.level ?: 0f) * 0.85f
+            handler.postDelayed(this, 50)
+        }
+    }
 
     // ---------------------------------------------------------------- the "working" pill
 

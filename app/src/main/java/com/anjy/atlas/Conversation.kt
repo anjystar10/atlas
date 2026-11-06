@@ -30,7 +30,8 @@ object Conversation {
     private const val KEEP_MESSAGES = 120
     private const val KEEP_TURNS = 24
 
-    class Msg(val fromUser: Boolean, var text: String, var source: String, val at: Long, val steps: MutableList<String> = mutableListOf())
+    class Msg(val fromUser: Boolean, var text: String, var source: String, val at: Long, val steps: MutableList<String> = mutableListOf(),
+              val media: List<Attach.Item> = emptyList())
 
     val messages = mutableListOf<Msg>()
     var busy = false; private set
@@ -73,7 +74,10 @@ object Conversation {
             for (i in 0 until a.length()) {
                 val o = a.getJSONObject(i)
                 val steps = o.optJSONArray("steps")?.let { s -> MutableList(s.length()) { s.getString(it) } } ?: mutableListOf()
-                messages.add(Msg(o.getBoolean("user"), o.getString("text"), o.optString("source"), o.optLong("at"), steps))
+                val user = o.getBoolean("user")
+                val media = o.optJSONArray("media")?.let { a2 -> List(a2.length()) { k -> a2.getJSONObject(k).let { Attach.Item(it.getString("path"), it.getString("mime"), it.optString("name")) } } }
+                    ?.filter { it.file.exists() } ?: emptyList()
+                messages.add(Msg(user, if (user) o.getString("text") else Plain.reply(o.getString("text")), o.optString("source"), o.optLong("at"), steps, media))
             }
             // the model picks up from the last few exchanges
             messages.takeLast(KEEP_TURNS * 2).forEach { m ->
@@ -87,8 +91,10 @@ object Conversation {
     private fun save(ctx: Context) {
         val a = JSONArray()
         messages.takeLast(KEEP_MESSAGES).forEach { m ->
-            a.put(JSONObject().put("user", m.fromUser).put("text", m.text).put("source", m.source).put("at", m.at).put("steps", JSONArray(m.steps)))
+            a.put(JSONObject().put("user", m.fromUser).put("text", m.text).put("source", m.source).put("at", m.at).put("steps", JSONArray(m.steps))
+                .put("media", JSONArray().apply { m.media.forEach { put(JSONObject().put("path", it.path).put("mime", it.mime).put("name", it.name)) } }))
         }
+        val keep = messages.takeLast(KEEP_MESSAGES).flatMap { m -> m.media.map { it.path } }.toSet()
         val bytes = a.toString().toByteArray(Charsets.UTF_8)
         scope.launch(Dispatchers.IO) {
             val f = file(ctx)
@@ -96,6 +102,7 @@ object Conversation {
                 val out = f.startWrite()
                 try { out.write(bytes); f.finishWrite(out) } catch (e: Exception) { f.failWrite(out) }
             }
+            try { Attach.prune(ctx, keep) } catch (_: Exception) {}
         }
     }
 
@@ -113,13 +120,13 @@ object Conversation {
     }
 
     /** Send [text] as the user. [spoken]: it came by voice, so the answer is read out too. */
-    fun send(ctx: Context, text: String, spoken: Boolean = false, onSpoken: (() -> Unit)? = null) {
+    fun send(ctx: Context, text: String, spoken: Boolean = false, onSpoken: (() -> Unit)? = null, media: List<Attach.Item> = emptyList()) {
         val app = ctx.applicationContext
         load(app)
-        val q = text.trim()
+        val q = text.trim().ifEmpty { when { media.isEmpty() -> ""; media.any { it.video } -> "What's in this video?"; media.any { it.isFile } -> "Have a look at this."; else -> "What's in this picture?" } }
         if (q.isEmpty()) return
         if (busy) stop()
-        messages.add(Msg(true, q, "You", System.currentTimeMillis()))
+        messages.add(Msg(true, q, "You", System.currentTimeMillis(), media = media))
         val reply = Msg(false, "", "Atlas", System.currentTimeMillis())
         messages.add(reply)
         busy = true; status = "Thinking"; usingPhone = false
@@ -127,7 +134,7 @@ object Conversation {
         changed()
         job = scope.launch {
             try {
-                answer(app, q, spoken, reply)
+                answer(app, q, spoken, reply, media)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 reply.text = reply.text.ifBlank { "Stopped." }
                 if (reply.source == "Atlas") reply.source = "Stopped"
@@ -147,11 +154,11 @@ object Conversation {
         }
     }
 
-    private suspend fun answer(ctx: Context, q: String, spoken: Boolean, reply: Msg) {
+    private suspend fun answer(ctx: Context, q: String, spoken: Boolean, reply: Msg, media: List<Attach.Item> = emptyList()) {
         val p = provider(ctx)
         if (p != null) {
             try {
-                cloud(ctx, p, q, spoken, reply)
+                cloud(ctx, p, q, spoken, reply, media)
                 return
             } catch (f: Gemini.Failure) {
                 if (!f.offline) { reply.text = f.message ?: "${p.name} failed."; reply.source = "error"; return }
@@ -159,7 +166,8 @@ object Conversation {
                 reply.steps.add("${f.message} Answering offline.")
             }
         }
-        offline(ctx, q, reply)
+        if (media.any { !it.textFile }) { reply.text = "I need an AI service to look at pictures, videos and PDFs. Add a key in Me → Brain."; reply.source = "Atlas"; return }
+        offline(ctx, q + withContext(Dispatchers.IO) { media.joinToString("") { Attach.inlineText(it) } }, reply)
     }
 
     // ---------------------------------------------------------------- online: Gemini, with tools
@@ -171,21 +179,30 @@ object Conversation {
         val now = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(Engine.zone)
         val phone = if (PhoneControl.on()) "on" else "OFF (the user must turn it on in Atlas → Me → Phone control before you can use apps)"
         return """
-You are Atlas, $name's personal AI assistant. You live on their Android phone and you can use it the way a person would: open apps, read the screen, tap, type, scroll and press keys. You also keep a Log for them: reminders (which ring like an alarm at their time) and things they want remembered.
+You are Atlas, $name's personal AI assistant. You live on their Android phone and you can use it the way a person would: open apps, read the screen, tap, type, scroll and press keys. You can search the internet and read web pages directly. You also keep a Log for them: reminders and things they want remembered.
 
 How you talk:
 - Like a sharp, warm friend. Natural and relaxed, short by default, longer when they want detail.
 - Read their meaning, not just their words. They often write casually with slang and typos ("ik", "ngl", "bro", "tryna"); understand it and match their energy. A compliment is a compliment: take it warmly.
 - Never curt, defensive or preachy. Never say "what's your issue".
 - You can help with anything: questions, advice, ideas, writing, maths, plans, explaining things.
-- Be honest. Only say you did something if a tool result shows it worked. If you don't know, say so.
-- Plain text only: no markdown, no asterisks, no headings.${if (spoken) "\n- This message came by voice and your answer will be read aloud: one to three short spoken sentences, no lists." else ""}
+- Be honest. Only say you did something if a tool result shows it worked. If you don't know, say so; if it might have changed recently, search the web.
+- Never show code, ids, function or tool names, JSON, or how you work inside, unless they asked you for code. Say what you did in plain words ("Saved", "Done, it's in your Log").
+${if (spoken) "- This message came by voice and your answer will be read aloud: one to three short spoken sentences. No lists, no formatting, no links." else """- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler, no repeating the question."""}
 
 The Log (only what's worth keeping):
-- set_reminder when they want reminding or have something to do at a time ("remind me to pick up my sister next Thursday"). At that time an alarm rings and asks if they'll do it. Work out the exact date from today's date. If they gave a day but no time, ask what time unless one is obvious from context.
+- set_reminder when they want reminding or have something to do at a time ("remind me to pick up my sister next Thursday"). Work out the exact date from today's date. If they gave a day but no time, ask what time unless one is obvious from context.
+- Choose the alert yourself: an alarm for what's important or time-critical, a notification with a sound for lighter things. If they say "make it an alarm" (or a notification), do that; to change an existing one, use update_reminder.
+- When they say they're doing something right now ("I'm doing it now", "starting it"), use start_focus: it opens a distraction-free screen with a timer.
 - remember for lasting facts or preferences they want kept. update_reminder / forget to change the Log.
 - read_log to look things up in the Log (what's coming, what they said they'd do, what they skipped, what they asked you to remember). Use it whenever they ask about something they logged.
 - Don't log ordinary questions, chat or phone actions.
+
+The internet:
+- web_search for anything current or that you're not sure of; read_page to read a result or a link. Say where facts came from when it matters.
+
+Your own settings (change_setting, when they ask, e.g. "talk to me", "use a deeper voice", "dark mode", "get off my screen"):
+${Self.describe(ctx)}
 
 Using the phone:
 - To do something in an app: open_app, then work from the numbered elements on the screen. Every action returns the new screen; check it to see what happened. Numbers change after each action, so only use numbers from the latest screen.
@@ -201,9 +218,12 @@ ${Tools.logContext(ctx)}
 """.trim()
     }
 
-    private suspend fun cloud(ctx: Context, p: Providers.Provider, q: String, spoken: Boolean, reply: Msg) {
+    private suspend fun cloud(ctx: Context, p: Providers.Provider, q: String, spoken: Boolean, reply: Msg, media: List<Attach.Item> = emptyList()) {
         reply.source = p.name
-        val session = Providers.session(ctx, p, history.toList(), q)
+        val m = withContext(Dispatchers.IO) { media.filter { !it.textFile }.map { Attach.media(it) } }
+        // text and Word files go into the message itself, so every service can read them
+        val full = q + withContext(Dispatchers.IO) { media.filter { it.textFile }.joinToString("") { Attach.inlineText(it) } }
+        val session = Providers.session(ctx, p, history.toList(), full, m)
         var final: String? = null
         var steps = 0
         while (steps < MAX_STEPS) {
@@ -212,7 +232,7 @@ ${Tools.logContext(ctx)}
             val turn = callWithRetry(p) { session.call(system) }
             currentCoroutineContext().ensureActive()
             if (turn.calls.isEmpty()) { final = turn.text; break }
-            if (turn.text.isNotBlank()) { reply.text = turn.text; changed() }
+            if (turn.text.isNotBlank()) { reply.text = Plain.reply(turn.text); changed() }
             val results = mutableListOf<Pair<Gemini.Call, String>>()
             for (c in turn.calls) {
                 status = label(c); changed()
@@ -225,9 +245,9 @@ ${Tools.logContext(ctx)}
             session.results(results)
         }
         val text = final ?: "I stopped after $MAX_STEPS steps without finishing. Tell me how you'd like me to continue."
-        reply.text = text
+        reply.text = Plain.reply(text).ifBlank { "Done." }
         // keep the exchange for next time as plain words, with a note of what was done
-        history.add(true to q)
+        history.add(true to (if (media.isEmpty()) q else "$q\n(sent: ${media.joinToString(", ") { if (it.isFile) it.name else if (it.video) "a video" else "a picture" }})"))
         history.add(false to text + stepNote(reply.steps))
         fixHistory()
     }
@@ -287,8 +307,8 @@ ${Tools.logContext(ctx)}
         }
         if (!ModelManager.ready) { status = "Loading the offline model"; changed(); ModelManager.load(ctx) }
         reply.source = "Offline model"
-        val r = Brain.ask(ctx, q) { partial -> reply.text = partial; changed() }
-        reply.text = r.text
+        val r = Brain.ask(ctx, q) { partial -> reply.text = Plain.reply(partial); changed() }
+        reply.text = Plain.reply(r.text)
     }
 
     // ---------------------------------------------------------------- speaking

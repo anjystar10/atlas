@@ -134,21 +134,34 @@ object Providers {
         abstract fun results(results: List<Pair<Gemini.Call, String>>)
     }
 
-    /** [history]: earlier exchanges as (fromUser, text). */
-    fun session(ctx: Context, p: Provider, history: List<Pair<Boolean, String>>, user: String): Session {
+    /** A picture, video or PDF sent with a message: its type, its bytes as base64, and (for files) its name. */
+    class Media(val mime: String, val base64: String, val name: String = "") {
+        val video get() = mime.startsWith("video/")
+        val pdf get() = mime == "application/pdf"
+    }
+
+    /** [history]: earlier exchanges as (fromUser, text). [media]: pictures or a video sent with this message. */
+    fun session(ctx: Context, p: Provider, history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList()): Session {
         val key = key(ctx, p.id) ?: throw Gemini.Failure("No key for ${p.name}.")
         val model = model(ctx, p)
+        if (media.any { it.video } && p.style != "gemini") throw Gemini.Failure("${p.name} can't watch videos. Gemini can: switch to it in Me → Brain, or send a picture instead.")
         return when (p.style) {
-            "gemini" -> GeminiSession(key, model, Conversation.endpoint(ctx), history, user)
-            "anthropic" -> AnthropicSession(key, model, p.baseUrl, history, user)
-            else -> OpenAiSession(key, model, baseUrl(ctx, p), p, history, user)
+            "gemini" -> GeminiSession(key, model, Conversation.endpoint(ctx), history, user, media)
+            "anthropic" -> AnthropicSession(key, model, p.baseUrl, history, user, media)
+            else -> OpenAiSession(key, model, baseUrl(ctx, p), p, history, user, media)
         }
     }
 
-    class GeminiSession(private val key: String, private val model: String, private val endpoint: String, history: List<Pair<Boolean, String>>, user: String) : Session() {
+    class GeminiSession(private val key: String, private val model: String, private val endpoint: String, history: List<Pair<Boolean, String>>, user: String,
+                        media: List<Media> = emptyList()) : Session() {
         private val contents = ArrayList<JSONObject>().apply {
             history.forEach { (u, t) -> add(if (u) Gemini.userText(t) else Gemini.modelText(t)) }
-            add(Gemini.userText(user))
+            if (media.isEmpty()) add(Gemini.userText(user)) else {
+                val parts = JSONArray()
+                media.forEach { m -> parts.put(JSONObject().put("inline_data", JSONObject().put("mime_type", m.mime).put("data", m.base64))) }
+                parts.put(JSONObject().put("text", user))
+                add(JSONObject().put("role", "user").put("parts", parts))
+            }
         }
         override fun call(system: String): Gemini.Turn {
             val req = Gemini.request(system, Gemini.trimScreens(contents), Tools.declarations, model)
@@ -160,10 +173,17 @@ object Providers {
     }
 
     class OpenAiSession(private val key: String, private val model: String, private val base: String, private val p: Provider,
-                        history: List<Pair<Boolean, String>>, user: String) : Session() {
+                        history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList()) : Session() {
         private val messages = ArrayList<JSONObject>().apply {
             history.forEach { (u, t) -> add(JSONObject().put("role", if (u) "user" else "assistant").put("content", t)) }
-            add(JSONObject().put("role", "user").put("content", user))
+            if (media.isEmpty()) add(JSONObject().put("role", "user").put("content", user)) else {
+                val parts = JSONArray().put(JSONObject().put("type", "text").put("text", user))
+                media.forEach { m ->
+                    if (m.pdf) parts.put(JSONObject().put("type", "file").put("file", JSONObject().put("filename", m.name.ifBlank { "document.pdf" }).put("file_data", "data:application/pdf;base64,${m.base64}")))
+                    else parts.put(JSONObject().put("type", "image_url").put("image_url", JSONObject().put("url", "data:${m.mime};base64,${m.base64}")))
+                }
+                add(JSONObject().put("role", "user").put("content", parts))
+            }
         }
         override fun call(system: String): Gemini.Turn {
             if (base.isEmpty()) throw Gemini.Failure("Set the address of your service in Me.")
@@ -199,10 +219,17 @@ object Providers {
     }
 
     class AnthropicSession(private val key: String, private val model: String, private val base: String,
-                           history: List<Pair<Boolean, String>>, user: String) : Session() {
+                           history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList()) : Session() {
         private val messages = ArrayList<JSONObject>().apply {
             history.forEach { (u, t) -> add(JSONObject().put("role", if (u) "user" else "assistant").put("content", t)) }
-            add(JSONObject().put("role", "user").put("content", user))
+            if (media.isEmpty()) add(JSONObject().put("role", "user").put("content", user)) else {
+                val parts = JSONArray()
+                media.forEach { m ->
+                    parts.put(JSONObject().put("type", if (m.pdf) "document" else "image").put("source", JSONObject().put("type", "base64").put("media_type", m.mime).put("data", m.base64)))
+                }
+                parts.put(JSONObject().put("type", "text").put("text", user))
+                add(JSONObject().put("role", "user").put("content", parts))
+            }
             // Claude needs turns to alternate, starting with the user
             while (isNotEmpty() && first().optString("role") != "user") removeAt(0)
         }

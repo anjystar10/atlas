@@ -35,15 +35,16 @@ object Tools {
 
     val declarations: JSONArray by lazy {
         JSONArray().apply {
-            put(fn("set_reminder", "Log a reminder. If it has a time, an alarm rings then and asks the user whether they'll do it.",
+            put(fn("set_reminder", "Log a reminder. At its time Atlas either rings an alarm (important things) or sends a notification with a sound (lighter things), and asks if they'll do it.",
                 JSONObject().put("title", str("Short title, e.g. 'Pick up my sister'"))
+                    .put("alert", str("alarm: important or time-critical (picking someone up, appointments, medicine, leaving for something, waking up). notification: lighter things (drink water, stretch, read, small chores). If the user says which, do that.", listOf("alarm", "notification")))
                     .put("when", str("Local date and time as 'YYYY-MM-DD HH:MM' (24h). Leave out only if the user gave no time at all."))
                     .put("duration_min", int("How long it takes, in minutes (default 30)"))
                     .put("repeat", str("How it repeats", listOf("none", "daily", "weekdays", "weekly")))
                     .put("notes", str("Optional details")), listOf("title")))
-            put(fn("update_reminder", "Change a logged reminder: mark it done, cancel it, delete it, rename it or move it.",
+            put(fn("update_reminder", "Change a logged reminder: mark it done, cancel it, delete it, rename it, move it, or make it ring as an alarm or a notification.",
                 JSONObject().put("id", str("The reminder's id from the list in your instructions"))
-                    .put("action", str("What to do", listOf("done", "cancel", "delete", "move", "rename")))
+                    .put("action", str("What to do", listOf("done", "cancel", "delete", "move", "rename", "make_alarm", "make_notification")))
                     .put("when", str("For move: new local date and time 'YYYY-MM-DD HH:MM'"))
                     .put("title", str("For rename: the new title")), listOf("id", "action")))
             put(fn("remember", "Save a lasting fact or preference the user wants Atlas to keep (shown in the Log).",
@@ -69,6 +70,15 @@ object Tools {
                     .put("element", int("A scrollable element's number; leave out for the main list")), listOf("direction")))
             put(fn("press_key", "Press a phone key. Returns the new screen.",
                 JSONObject().put("key", str("The key", listOf("back", "home", "recents", "notifications", "enter"))), listOf("key")))
+            put(fn("web_search", "Search the internet directly (no need to open a browser on the phone). Use it for anything current or that you're unsure of: news, prices, opening hours, facts, how-tos. Returns results with sources.",
+                JSONObject().put("query", str("What to search for")), listOf("query")))
+            put(fn("read_page", "Read a web page directly and get its text (from a search result or a link the user gave).",
+                JSONObject().put("url", str("The page's address")), listOf("url")))
+            put(fn("change_setting", "Change one of Atlas's own settings when the user asks (voice, speaking replies, theme, being on screen, Hey Atlas, motion, alarm sound, their name). The current values are in your instructions.",
+                JSONObject().put("setting", str("Which setting", Self.names)).put("value", str("The new value: on/off, a voice name, dark/light, or the name")), listOf("setting", "value")))
+            put(fn("start_focus", "Start a focus session when the user says they're doing something right now (\"I'm doing it now\", \"starting my homework\"). Opens a distraction-free screen with a timer.",
+                JSONObject().put("title", str("What they're doing")).put("minutes", int("Planned length in minutes, if they said or it's known (default: none, the timer counts up)"))
+                    .put("id", str("The reminder's id, if it's one from the Log")), listOf("title")))
             put(fn("wait", "Wait for something to load (an answer being written, a page loading). Returns the new screen.",
                 JSONObject().put("seconds", int("1 to 15")), listOf("seconds")))
         }
@@ -139,16 +149,17 @@ object Tools {
         return try {
             when (c.name) {
                 "set_reminder" -> withContext(Dispatchers.IO) {
-                    val title = a.optString("title").trim()
+                    val title = Plain.memory(a.optString("title"))
                     if (title.isEmpty()) return@withContext Result("Error: a title is needed.")
                     val whenRaw = a.optString("when").trim()
                     val at = parseWhen(whenRaw)
                     if (whenRaw.isNotEmpty() && at == null) return@withContext Result("Error: couldn't read the time '$whenRaw'. Use 'YYYY-MM-DD HH:MM'.")
                     val rep = a.optString("repeat", "none").ifBlank { "none" }
-                    val t = Store.edit(ctx) { Engine.create(it, title, now, at, a.optInt("duration_min", 30), a.optString("notes", ""), "normal", rep) }
+                    val alarm = a.optString("alert") == "alarm"
+                    val t = Store.edit(ctx) { Engine.create(it, title, now, at, a.optInt("duration_min", 30), Plain.memory(a.optString("notes", "")), if (alarm) "high" else "normal", rep) }
                     Reminders.tickAndSchedule(ctx)
                     val whenTxt = t.startAt?.let { fmtWhen(it) } ?: "with no time yet"
-                    Result("Logged reminder [${t.id}] '${t.title}' ${whenTxt}${if (t.recurrence != "none") ", repeats ${t.recurrence}" else ""}.",
+                    Result("Logged reminder [${t.id}] '${t.title}' ${whenTxt}${if (t.recurrence != "none") ", repeats ${t.recurrence}" else ""}; at its time: ${if (alarm) "an alarm" else "a notification with a sound"}.",
                         "Logged “${t.title}”, $whenTxt")
                 }
                 "update_reminder" -> withContext(Dispatchers.IO) {
@@ -163,18 +174,19 @@ object Tools {
                             Store.edit(ctx) { s -> val t = Engine.find(s, id); Engine.update(s, id, t.title, now, at, t.durationMin, t.notes, t.priority, t.recurrence) }
                         }
                         "rename" -> {
-                            val nt = a.optString("title").trim().ifEmpty { return@withContext Result("Error: give the new title.") }
+                            val nt = Plain.memory(a.optString("title")).ifEmpty { return@withContext Result("Error: give the new title.") }
                             Store.edit(ctx) { s -> val t = Engine.find(s, id); Engine.update(s, id, nt, now, t.startAt, t.durationMin, t.notes, t.priority, t.recurrence) }
                         }
+                        "make_alarm", "make_notification" -> Store.edit(ctx) { s -> Engine.find(s, id).priority = if (a.optString("action") == "make_alarm") "high" else "normal" }
                         else -> return@withContext Result("Error: unknown action.")
                     }
                     Reminders.tickAndSchedule(ctx)
                     val act = a.optString("action")
-                    Result("Done: $act on '$title'.", when (act) { "done" -> "Marked “$title” done"; "cancel" -> "Cancelled “$title”"; "delete" -> "Deleted “$title”"; "move" -> "Moved “$title”"; else -> "Renamed “$title”" })
+                    Result("Done: $act on '$title'.", when (act) { "done" -> "Marked “$title” done"; "cancel" -> "Cancelled “$title”"; "delete" -> "Deleted “$title”"; "move" -> "Moved “$title”"; "make_alarm" -> "“$title” will ring as an alarm"; "make_notification" -> "“$title” will come as a notification"; else -> "Renamed “$title”" })
                 }
                 "read_log" -> withContext(Dispatchers.IO) { Result(readLog(ctx, a.optString("query"), a.optInt("limit", 30).coerceIn(1, 200))) }
                 "remember" -> withContext(Dispatchers.IO) {
-                    val txt = a.optString("text").trim()
+                    val txt = Plain.memory(a.optString("text"))
                     if (txt.isEmpty()) Result("Error: nothing to remember.") else {
                         val m = Store.edit(ctx) { Engine.remember(it, txt, now) }; ModelManager.markStale()
                         Result("Saved memory [${m.id}].", "Remembered “$txt”")
@@ -201,6 +213,24 @@ object Tools {
                     } catch (e: Exception) { Result("Error: nothing on the phone can open that link.") }
                 }
                 // reading and touching the screen talks to the system for every element: kept off the main thread
+                "web_search" -> withContext(Dispatchers.IO) {
+                    val q = a.optString("query")
+                    Result(Web.search(ctx, q), "Searched the web for “${q.take(60)}”")
+                }
+                "read_page" -> withContext(Dispatchers.IO) {
+                    val u = a.optString("url")
+                    Result(try { Web.read(u) } catch (e: Exception) { "Error: couldn't read that page (${e.message})." }, "Read ${u.removePrefix("https://").removePrefix("http://").take(50)}")
+                }
+                "change_setting" -> withContext(Dispatchers.Main) {
+                    val out = Self.change(ctx, a.optString("setting"), a.optString("value"))
+                    Result(out, if (out.startsWith("Error")) null else out)
+                }
+                "start_focus" -> withContext(Dispatchers.Main) {
+                    val title = Plain.memory(a.optString("title")).ifEmpty { "Focus" }
+                    val mins = a.optInt("minutes", 0).takeIf { it > 0 }
+                    Focus.start(ctx, title, mins, a.optString("id").takeIf { it.isNotBlank() })
+                    Result("Focus session started for '$title'${mins?.let { " ($it min)" } ?: ""}. The focus screen is open.", "Started a focus session: $title")
+                }
                 "read_screen" -> withContext(Dispatchers.Default) { Result(PhoneControl.readScreen(), null, phone = true) }
                 "tap" -> withContext(Dispatchers.Default) { PhoneControl.tap(a.optInt("element", -1), long = false) }
                 "long_press" -> withContext(Dispatchers.Default) { PhoneControl.tap(a.optInt("element", -1), long = true) }

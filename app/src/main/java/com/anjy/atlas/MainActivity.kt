@@ -127,6 +127,7 @@ class MainActivity : Activity() {
     internal val SEMI by lazy { font(R.font.geist_semibold, Typeface.create("sans-serif-medium", Typeface.NORMAL)) }
     internal val MED by lazy { font(R.font.geist_medium, Typeface.create("sans-serif-medium", Typeface.NORMAL)) }
     internal val BODY by lazy { font(R.font.geist_regular, Typeface.DEFAULT) }
+    internal val MONO by lazy { font(R.font.geist_mono, Typeface.MONOSPACE) }
     internal val PIX get() = NUM
 
     internal lateinit var scroll: ScrollView
@@ -742,7 +743,7 @@ class MainActivity : Activity() {
     private var brainShown: String? = null
 
     companion object {
-        private const val REQ_MODEL = 11; private const val REQ_IMPORT = 13; private const val REQ_NOTIF = 14; private const val REQ_MIC = 15; private const val REQ_MIC_WAKE = 16
+        private const val REQ_MODEL = 11; private const val REQ_IMPORT = 13; private const val REQ_NOTIF = 14; private const val REQ_MIC = 15; private const val REQ_MIC_WAKE = 16; private const val REQ_MEDIA = 17
         const val AI_STUDIO_KEYS = "https://aistudio.google.com/apikey"
     }
 
@@ -1122,6 +1123,8 @@ class MainActivity : Activity() {
     /** The conversation moved on: update the Atlas tab in place (or draw it, if it just began). */
     private fun chatChanged() {
         if (!::composer.isInitialized) return
+        // Atlas may have switched the theme itself (change_setting): follow it
+        Store.getString(this, "theme2")?.let { want -> if ((want == "dark" && !dark) || (want == "light" && dark)) { relook(); return } }
         updateSend()
         if (tab != 0) return
         statusLine?.text = brainLine()
@@ -1135,85 +1138,225 @@ class MainActivity : Activity() {
         if (!Conversation.busy && Conversation.messages.lastOrNull()?.steps?.any { it.startsWith("Marked") } == true) celebrate()
     }
 
+    /** How replies are set: Geist for reading, the serif for big headings, the violet for list markers and links. */
+    private fun mdStyle() = Markdown.Style(BODY, SEMI, DISPLAY, MONO, FG, MUTED, ACCENT,
+        if (dark) Color.argb(40, 255, 255, 255) else Color.argb(26, 10, 11, 31), density, 16f)
+
+    /**
+     * One message. Yours: a compact glass bubble on the right. Atlas's: neat full-width text (no box, so long
+     * answers get the whole width), with headings, lists and code laid out properly.
+     */
     private fun bubble(m: Conversation.Msg, last: Boolean): View {
         val wrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = if (m.fromUser) Gravity.END else Gravity.START }
         val working = !m.fromUser && last && Conversation.busy
-        val shown = when {
-            m.text.isNotBlank() -> m.text
-            working -> "${Conversation.status ?: "Thinking"}…"
-            else -> "…"
+        val copy = { _: View -> getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas", m.text)); showBanner("Copied"); true }
+        if (m.fromUser) {
+            if (m.media.isNotEmpty()) wrap.addView(mediaStrip(m.media, dp(84)), LinearLayout.LayoutParams(WRAP, WRAP).apply { bottomMargin = dp(6) })
+            wrap.addView(text(m.text, 16f, FG, keepEmoji = true).apply {
+                background = Finish(SURFACE, dp(20).toFloat(), dark, density, glass = true)
+                setPadding(dp(15), dp(10), dp(15), dp(11))
+                maxWidth = (resources.displayMetrics.widthPixels * 0.78).toInt()
+                setOnLongClickListener(copy)
+            })
+            return wrap
         }
-        val tv = text(shown, 16f, if (m.fromUser) ON else if (m.source == "error") MISS else FG, keepEmoji = true).apply {
-            background = if (m.fromUser) Finish(BLUE, dp(22).toFloat(), dark, density) else StoneDrawable(SURFACE, dp(22).toFloat(), dark, density, page = BG)
-            setPadding(dp(16), dp(11), dp(16), dp(12))
-            maxWidth = (resources.displayMetrics.widthPixels * 0.82).toInt()
-            setOnLongClickListener {
-                getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas", m.text)); showBanner("Copied"); true
+        if (m.text.isBlank()) {
+            wrap.addView(text(if (working) "${Conversation.status ?: "Thinking"}…" else "…", 15f, MUTED, MED).apply { setPadding(dp(2), dp(4), 0, dp(4)) })
+        } else {
+            val st = mdStyle()
+            Markdown.parse(m.text, st).forEachIndexed { i, block ->
+                val v: View = when (block) {
+                    is Markdown.Prose -> TextView(this).apply {
+                        text = block.text; setTextColor(if (m.source == "error") MISS else FG); textSize = 16f; typeface = BODY
+                        setLineSpacing(0f, 1.32f); linksClickable = true; movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                        setOnLongClickListener(copy)
+                    }
+                    is Markdown.Code -> codeBox(block)
+                }
+                wrap.addView(v, LinearLayout.LayoutParams(MATCH, WRAP).apply { if (i > 0) topMargin = dp(10) })
             }
         }
-        wrap.addView(tv)
-        if (!m.fromUser) {
-            m.steps.forEach { s -> wrap.addView(text("· $s", 13f, MUTED, keepEmoji = true).apply { setPadding(dp(10), dp(4), dp(8), 0) }) }
-            val tag = when {
-                working && m.text.isNotBlank() -> "${Conversation.status ?: "Working"}…"
-                m.source == "error" -> ""
-                else -> m.source
-            }
-            if (tag.isNotEmpty()) wrap.addView(text(tag, 12f, MUTED, MED).apply { setPadding(dp(10), dp(4), 0, 0) })
+        // what Atlas did, in one quiet line (tap for all of it)
+        if (m.steps.isNotEmpty()) {
+            val shown = if (m.steps.size <= 3) m.steps.joinToString(" · ") else m.steps.take(2).joinToString(" · ") + " · and ${m.steps.size - 2} more"
+            wrap.addView(text(shown, 13f, MUTED, keepEmoji = true).apply { setPadding(0, dp(8), 0, 0); isClickable = true
+                setOnClickListener { sheet(null, "What Atlas Did", m.steps.joinToString("\n") { "· $it" }, primaryLabel = "Close") } })
         }
+        val tag = when {
+            working && m.text.isNotBlank() -> "${Conversation.status ?: "Working"}…"
+            m.source == "error" || m.source == "Atlas" -> ""
+            else -> m.source
+        }
+        if (tag.isNotEmpty()) wrap.addView(text(tag, 12f, MUTED, MED).apply { setPadding(0, dp(6), 0, 0); alpha = 0.8f })
         return wrap
+    }
+
+    /** A code block: its own box, monospaced, scrolling sideways, with a Copy key. */
+    private fun codeBox(c: Markdown.Code): View {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = rounded(if (dark) Color.argb(46, 255, 255, 255) else Color.argb(30, 10, 11, 31), 14, LINE)
+            setPadding(dp(14), dp(10), dp(14), dp(12))
+        }
+        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        head.addView(text(c.lang.ifBlank { "code" }, 12f, MUTED, MED), LinearLayout.LayoutParams(0, WRAP, 1f))
+        head.addView(text("Copy", 12f, ACCENT, SEMI).apply { isClickable = true; setPadding(dp(8), dp(2), 0, dp(2))
+            setOnClickListener { getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("code", c.text)); showBanner("Copied") } })
+        box.addView(head)
+        val hs = android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+        hs.addView(TextView(this).apply { text = c.text; typeface = MONO; textSize = 13.5f; setTextColor(FG); setLineSpacing(0f, 1.25f); setTextIsSelectable(true) })
+        box.addView(hs, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(6) })
+        return box
+    }
+
+    /** Pictures, videos and files as small tiles ([onRemove] adds a remove key to each, for ones waiting to be sent). */
+    private fun mediaStrip(items: List<Attach.Item>, size: Int, onRemove: ((Attach.Item) -> Unit)? = null): View {
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        items.forEachIndexed { i, it ->
+            val cell = FrameLayout(this).apply { clipToOutline = true; outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(v: View, o: android.graphics.Outline) { o.setRoundRect(0, 0, v.width, v.height, dp(14).toFloat()) } } }
+            if (it.isFile) {
+                // a file: its type and name on a glass tile
+                val f = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(dp(6), dp(6), dp(6), dp(6))
+                    background = Finish(SURFACE, dp(14).toFloat(), dark, density, glass = true) }
+                f.addView(text(if (it.pdf) "PDF" else it.name.substringAfterLast('.', "TXT").uppercase().take(4), 12f, ACCENT, SEMI).apply { gravity = Gravity.CENTER })
+                f.addView(text(it.name, 11f, FG).apply { gravity = Gravity.CENTER; maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
+                cell.addView(f, FrameLayout.LayoutParams(MATCH, MATCH))
+            } else {
+                val img = android.widget.ImageView(this).apply { scaleType = android.widget.ImageView.ScaleType.CENTER_CROP; setBackgroundColor(SURFACE2) }
+                cell.addView(img, FrameLayout.LayoutParams(MATCH, MATCH))
+                scope.launch { val b = withContext(Dispatchers.IO) { Attach.thumb(it, size) }; if (b != null) img.setImageBitmap(b) }
+                if (it.video) cell.addView(text("▶", 18f, Color.WHITE).apply { setShadowLayer(8f, 0f, 0f, Color.BLACK) }, FrameLayout.LayoutParams(WRAP, WRAP, Gravity.CENTER))
+            }
+            if (onRemove != null) cell.addView(FrameLayout(this).apply {
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.argb(170, 0, 0, 0)) }
+                addView(LineIcon(this@MainActivity, "close").apply { color = Color.WHITE }, FrameLayout.LayoutParams(dp(12), dp(12), Gravity.CENTER))
+                isClickable = true; contentDescription = "Remove"; setOnClickListener { _ -> onRemove(it) }
+            }, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.TOP or Gravity.END).apply { setMargins(0, dp(4), dp(4), 0) })
+            row.addView(cell, LinearLayout.LayoutParams(size, size).apply { if (i > 0) leftMargin = dp(6) })
+        }
+        return row
     }
 
     // ---------------------------------------------------------------- the ask bar
 
+    /** Pictures, a video or files waiting to be sent with the next message. */
+    private val pending = mutableListOf<Attach.Item>()
+    private var tray: LinearLayout? = null
+
     private fun buildComposer(): LinearLayout {
-        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; elevation = dp(8).toFloat() }
-        val mic = FrameLayout(this).apply {
-            background = quietBg(); isClickable = true; contentDescription = "Speak"
-            addView(LineIcon(this@MainActivity, "mic").apply { color = quietInk() }, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
-            setOnClickListener { voice() }
+        val outer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; elevation = dp(8).toFloat() }
+        val t = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; visibility = View.GONE; setPadding(dp(4), 0, 0, dp(8)) }
+        tray = t
+        outer.addView(t, LinearLayout.LayoutParams(MATCH, WRAP))
+        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val attach = FrameLayout(this).apply {
+            background = quietBg(); isClickable = true; contentDescription = "Add a picture, video or file"
+            addView(LineIcon(this@MainActivity, "plus").apply { color = quietInk() }, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
+            setOnClickListener { choose("Add to Your Message", listOf("Photos & Videos", "Files (PDF, Word, text)")) { i -> if (i == 0) pickMedia() else pickFiles() } }
             pressFx()
         }
         composerField = EditText(this).apply {
             hint = "Ask anything…"; setTextColor(FG); setHintTextColor(MUTED); textSize = 16f; typeface = BODY
             background = rounded(if (dark) SURFACE2 else Color.parseColor(LIGHT_FIELD), 999, LINE)
-            setPadding(dp(18), dp(13), dp(18), dp(13)); maxLines = 4
+            setPadding(dp(18), dp(13), dp(18), dp(13)); maxLines = 5
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
             imeOptions = EditorInfo.IME_ACTION_SEND
             setRawInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
             setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_SEND) { submit(); true } else false }
+            // pasted (or keyboard-inserted) pictures, videos and files are attached
+            setOnReceiveContentListener(arrayOf("image/*", "video/*", "application/pdf", "text/*")) { _, payload ->
+                val split = payload.partition { item -> item.uri != null }
+                split.first?.clip?.let { clip -> for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let { addMedia(it) } }
+                split.second
+            }
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(s: Editable?) { updateSend() }
+            })
         }
-        val icon = LineIcon(this@MainActivity, if (Conversation.busy) "stop" else "arrow").apply { color = Color.WHITE; rotation = if (Conversation.busy) 0f else -90f; tag = if (Conversation.busy) "stop" else "arrow" }
+        val icon = LineIcon(this@MainActivity, "mic").apply { color = Color.WHITE; tag = "mic" }
         sendIcon = icon
         val send = FrameLayout(this).apply {
-            // Atlas's send key: a glowing drop of blue and violet
+            // Atlas's key: a glowing drop of blue and violet. Nothing typed: talk. Something to send: send. Working: stop.
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL; gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(34).toFloat()
                 colors = intArrayOf(Color.parseColor("#6E8BFF"), Color.parseColor("#4B3BD6"))
             }
             elevation = dp(8).toFloat(); outlineSpotShadowColor = Color.parseColor("#5B6CFF"); outlineAmbientShadowColor = Color.parseColor("#5B6CFF")
-            isClickable = true; contentDescription = if (Conversation.busy) "Stop" else "Send"
+            isClickable = true; contentDescription = "Speak"
             addView(icon, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
-            setOnClickListener { if (Conversation.busy) Conversation.stop() else submit() }
+            setOnClickListener { when (sendIcon?.tag) { "stop" -> Conversation.stop(); "arrow" -> submit(); else -> voice() } }
             pressFx()
         }
-        bar.addView(mic, LinearLayout.LayoutParams(dp(48), dp(48)))
+        bar.addView(attach, LinearLayout.LayoutParams(dp(48), dp(48)))
         bar.addView(composerField, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8); rightMargin = dp(8) })
         bar.addView(send, LinearLayout.LayoutParams(dp(48), dp(48)))
-        return bar
+        outer.addView(bar, LinearLayout.LayoutParams(MATCH, WRAP))
+        showTray()
+        return outer
     }
 
-    /** The send key turns into a stop key while Atlas is working. */
+    private fun roomLeft(): Boolean {
+        if (pending.any { it.video } || pending.size >= Attach.MAX_PHOTOS) { showBanner("That's the limit for one message.", MUTED); return false }
+        return true
+    }
+
+    private fun pickMedia() {
+        if (!roomLeft()) return
+        try {
+            startActivityForResult(Intent(android.provider.MediaStore.ACTION_PICK_IMAGES)
+                .putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX, (Attach.MAX_PHOTOS - pending.size).coerceAtLeast(2)), REQ_MEDIA)
+        } catch (e: Exception) {
+            startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).setType("*/*").putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_MEDIA)
+        }
+    }
+
+    private fun pickFiles() {
+        if (!roomLeft()) return
+        startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+            .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/pdf", "text/*", "application/json", "application/xml", "application/csv",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/octet-stream"))
+            .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_MEDIA)
+    }
+
+    /** Takes one picked or pasted picture, video or file, within the limits. */
+    private fun addMedia(uri: Uri) {
+        scope.launch {
+            try {
+                val isVideo = contentResolver.getType(uri)?.startsWith("video/") == true
+                if (isVideo && pending.isNotEmpty()) { showBanner("A video goes on its own. Send the others first.", MUTED); return@launch }
+                if (!isVideo && (pending.any { it.video } || pending.size >= Attach.MAX_PHOTOS)) { showBanner("Up to ${Attach.MAX_PHOTOS} per message.", MUTED); return@launch }
+                val item = withContext(Dispatchers.IO) { Attach.take(applicationContext, uri) }
+                pending.add(item); showTray(); updateSend()
+            } catch (e: Attach.TooBig) { showBanner(e.message ?: "Too big.", MUTED) }
+            catch (e: Exception) { showBanner("Couldn't add that.", MUTED) }
+        }
+    }
+
+    private fun showTray() {
+        val t = tray ?: return
+        t.removeAllViews()
+        if (pending.isEmpty()) { t.visibility = View.GONE; return }
+        t.visibility = View.VISIBLE
+        t.addView(mediaStrip(pending.toList(), dp(64)) { item -> pending.remove(item); item.file.delete(); showTray(); updateSend() })
+        if (pending.any { it.video }) t.addView(text("Video: up to ${Attach.VIDEO_MAX_SECONDS}s · Gemini", 12f, MUTED).apply { setPadding(dp(10), 0, 0, 0); gravity = Gravity.CENTER_VERTICAL },
+            LinearLayout.LayoutParams(WRAP, dp(64)))
+    }
+
+    /** The round key: stop while Atlas works, send when there's something to send, else talk. */
     private fun updateSend() {
-        val busy = Conversation.busy
         val old = sendIcon ?: return
         val parent = old.parent as? FrameLayout ?: return
-        val want = if (busy) "stop" else "arrow"
+        val typed = ::composerField.isInitialized && composerField.text.isNotBlank()
+        val want = when { Conversation.busy -> "stop"; typed || pending.isNotEmpty() -> "arrow"; else -> "mic" }
         if (old.tag == want) return
         parent.removeView(old)
-        val icon = LineIcon(this, want).apply { color = Color.WHITE; rotation = if (busy) 0f else -90f; tag = want }
+        val icon = LineIcon(this, want).apply { color = Color.WHITE; rotation = if (want == "arrow") -90f else 0f; tag = want }
         parent.addView(icon, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
-        parent.contentDescription = if (busy) "Stop" else "Send"
+        parent.contentDescription = when (want) { "stop" -> "Stop"; "arrow" -> "Send"; else -> "Speak" }
         sendIcon = icon
     }
 
@@ -1228,14 +1371,15 @@ class MainActivity : Activity() {
 
     private fun submit() {
         val q = composerField.text.toString().trim()
-        if (q.isEmpty()) return
+        if (q.isEmpty() && pending.isEmpty()) return
+        val media = pending.toList(); pending.clear(); showTray()
         composerField.setText("")
-        sendMessage(q)
+        sendMessage(q, media = media)
     }
 
-    private fun sendMessage(q: String, spoken: Boolean = false) {
+    private fun sendMessage(q: String, spoken: Boolean = false, media: List<Attach.Item> = emptyList()) {
         if (tab != 0) { tab = 0; render() }
-        Conversation.send(this, q, spoken)
+        Conversation.send(this, q, spoken, media = media)
         scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
     }
 
@@ -1280,10 +1424,11 @@ class MainActivity : Activity() {
     }
 
     // ================================================================ LOG
-    // What Atlas keeps: reminders (they ring at their time) and things to remember. Newest first; the last 15 here,
-    // everything under Full History.
+    // What Atlas keeps: reminders and things to remember. "Remember Something" on top, then the latest
+    // [LOG_RECENT] entries; everything under Full History.
+    private val LOG_RECENT = 4
 
-    /** Showing every entry rather than the latest 15. */
+    /** Showing every entry rather than the latest few. */
     private var logFull = false
 
     private class Entry(val at: Long, val task: Task?, val memory: com.anjy.atlas.core.Memory?)
@@ -1301,15 +1446,15 @@ class MainActivity : Activity() {
         val mid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val t = e.task; val m = e.memory
         if (t != null) {
-            mid.addView(text(t.title, 16f, if (t.status in setOf("done", "skipped", "cancelled")) MUTED else FG, MED, keepEmoji = true))
+            mid.addView(text(Plain.memory(t.title), 16f, if (t.status in setOf("done", "skipped", "cancelled")) MUTED else FG, MED, keepEmoji = true))
             val meta = mutableListOf<String>()
             t.startAt?.let { meta.add("⏰ ${whenLabel(it)}") }
             if (t.recurrence != "none") meta.add(t.recurrence.replaceFirstChar { it.uppercase() })
-            if (t.notes.isNotBlank()) meta.add(t.notes)
+            if (t.notes.isNotBlank()) meta.add(Plain.memory(t.notes))
             meta.add("Logged ${logged(t.createdAt)}")
             mid.addView(text(meta.joinToString(" · "), 13f, MUTED, keepEmoji = true))
         } else if (m != null) {
-            mid.addView(text(m.text, 16f, FG, keepEmoji = true))
+            mid.addView(text(Plain.memory(m.text), 16f, FG, keepEmoji = true))
             mid.addView(text("Remembered · ${logged(m.createdAt)}", 13f, MUTED))
         }
         r.addView(mid, LinearLayout.LayoutParams(0, WRAP, 1f))
@@ -1404,31 +1549,30 @@ class MainActivity : Activity() {
             }, 16)
             return
         }
-        val shown = if (logFull) all else all.take(15)
+        if (!logFull) {
+            // Remember Something first: the field gets the whole width, the Save key sits under it
+            body.add(eyebrow("Remember Something"), 20)
+            val mc = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+            var v = ""
+            lateinit var save: TextView
+            val f = field("Something to remember", "", multi = true) { v = it; save.alpha = if (it.isBlank()) 0.5f else 1f }
+            mc.addView(f, LinearLayout.LayoutParams(MATCH, WRAP))
+            save = primary("Save to Memory") {
+                val t = Plain.memory(v)
+                if (t.isNotEmpty()) { Store.edit(this) { Engine.remember(it, t, System.currentTimeMillis()) }; ModelManager.markStale(); showBanner("Saved"); render(keepScroll = true) }
+            }.apply { alpha = 0.5f }
+            mc.addView(save, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
+            body.add(mc, 8)
+            body.add(eyebrow("Latest"), 22)
+        }
+        val shown = if (logFull) all else all.take(LOG_RECENT)
         val c = card().apply { setPadding(dp(18), dp(4), dp(18), dp(4)) }
         shown.forEachIndexed { i, e ->
             if (i > 0) c.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
             c.addView(entryRow(e))
         }
-        body.add(c, 16)
-        if (!logFull && all.size > 15) body.add(secondary("Full History (${all.size})") { logFull = true; render() }, 12)
-        else if (!logFull) body.add(secondary("Full History") { logFull = true; render() }, 12)
-
-        if (!logFull) {
-            // quick note to remember
-            body.add(eyebrow("Remember Something"), 20)
-            val mc = card().apply { setPadding(dp(18), dp(12), dp(18), dp(12)) }
-            var v = ""
-            val f = field("Something to remember", "") { v = it }
-            val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-            r.addView(f, LinearLayout.LayoutParams(0, WRAP, 1f).apply { rightMargin = dp(8) })
-            r.addView(primary("Save") {
-                val t = v.trim()
-                if (t.isNotEmpty()) { Store.edit(this) { Engine.remember(it, t, System.currentTimeMillis()) }; ModelManager.markStale(); showBanner("Saved"); render(keepScroll = true) }
-            }.apply { minHeight = dp(52); setPadding(dp(22), dp(13), dp(22), dp(13)) })
-            mc.addView(r)
-            body.add(mc, 8)
-        }
+        body.add(c, if (logFull) 16 else 8)
+        if (!logFull) body.add(secondary(if (all.size > LOG_RECENT) "Full History (${all.size})" else "Full History") { logFull = true; render() }, 12)
     }
 
     // ================================================================ ME
@@ -1569,12 +1713,27 @@ class MainActivity : Activity() {
             eng == "gemini" -> "A human-sounding voice from Gemini (uses your Gemini key)."
             eng == "openai" -> "A human-sounding voice from OpenAI (uses your OpenAI key)."
             else -> "Natural voices come from Gemini or OpenAI: add one of their keys. Until then Atlas uses the phone's best voice."
-        } + (Voice.lastProblem?.let { "\nLast time it couldn't: $it (the phone's voice stood in)." } ?: ""), 13f, MUTED), 6)
+        } + (Voice.lastSpoke?.let { "\nLast reply was spoken by $it." } ?: "")
+          + (Voice.lastProblem?.let { "\nThe natural voice failed last time ($it), so the phone's voice stood in." } ?: ""), 13f, MUTED), 6)
         if (eng != null) {
-            val names = if (eng == "gemini") Voice.geminiVoices else Voice.openAiVoices
-            vc.add(chipGroup(names.map { it to it.replaceFirstChar { c -> c.uppercase() } }, { it == Voice.voiceName(this, eng) }) { v ->
-                Store.putString(this, "voice_$eng", v); Voice.speak(this, "Hey, I'm Atlas. This is how I sound.")
-            }, 8)
+            // each voice in its own row: who it is, what it's like; tap to choose and hear it
+            val list = if (eng == "gemini") Voice.geminiChoices else Voice.openAiChoices
+            val chosen = Voice.current(this, eng).id
+            val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            list.forEachIndexed { i, c ->
+                if (i > 0) rows.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
+                val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(11), 0, dp(11)); isClickable = true }
+                val words = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                words.addView(text(c.label, 16f, FG, if (c.id == chosen) SEMI else MED))
+                words.addView(text(c.about, 13f, MUTED))
+                r.addView(words, LinearLayout.LayoutParams(0, WRAP, 1f))
+                r.addView(text(if (c.id == chosen) "Chosen · Hear It" else "Hear It", 12f, if (c.id == chosen) ACCENT else MUTED, SEMI).apply {
+                    background = Finish(SURFACE, -1f, dark, density, glass = true); setPadding(dp(12), dp(5), dp(12), dp(6))
+                })
+                r.setOnClickListener { Voice.preview(this, eng, c.id) { if (tab == 2) render(keepScroll = true) }; render(keepScroll = true) }
+                rows.addView(r)
+            }
+            vc.add(rows, 8)
         }
         body.add(vc, 8)
 
@@ -1716,6 +1875,11 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != RESULT_OK || data == null) return
         when (requestCode) {
+            REQ_MEDIA -> {
+                val clip = data.clipData
+                if (clip != null) for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let { addMedia(it) }
+                else data.data?.let { addMedia(it) }
+            }
             REQ_MODEL -> {
                 val uri = data.data ?: return
                 scope.launch {
