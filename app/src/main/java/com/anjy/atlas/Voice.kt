@@ -111,6 +111,8 @@ object Voice {
 
     private fun speakWith(app: Context, eng: String, say: String, mine: Int, onDone: (() -> Unit)?) {
         Thread {
+            // speech cut off before it finished leaves its file behind: clear out old ones
+            try { app.cacheDir.listFiles { f -> f.name.startsWith("speech-") && System.currentTimeMillis() - f.lastModified() > 10 * 60_000L }?.forEach { it.delete() } } catch (_: Exception) {}
             val file = try {
                 if (eng == "gemini") geminiSpeech(app, say) else openAiSpeech(app, say)
             } catch (e: Exception) {
@@ -178,12 +180,16 @@ object Voice {
     /** A calm British male voice from Google's voice library, looked up once and remembered. Null if none. */
     private fun britishVoice(ctx: Context, key: String): String? {
         Store.getString(ctx, "atlas_voice_id")?.let { return it.takeIf { it != "-" } }
+        // "-" (don't look again) only once the library has actually answered; a dropped connection tries again next time
+        var answered = false
         val found = try {
             val q = "language_code=en-GB&gender=male&page_size=50"
             val con = java.net.URL("https://generativelanguage.googleapis.com/v1beta/voices?$q").openConnection() as java.net.HttpURLConnection
             try {
                 con.connectTimeout = 10_000; con.readTimeout = 15_000; con.setRequestProperty("x-goog-api-key", key)
-                if (con.responseCode !in 200..299) null else {
+                val code = con.responseCode
+                answered = code in 200..499 && code != 429 && code != 408
+                if (code !in 200..299) null else {
                     val voices = JSONObject(con.inputStream.bufferedReader().readText()).optJSONArray("voices") ?: JSONArray()
                     val all = (0 until voices.length()).mapNotNull { voices.optJSONObject(it) }
                     fun score(v: JSONObject): Int {
@@ -198,7 +204,7 @@ object Voice {
                 }
             } finally { con.disconnect() }
         } catch (e: Exception) { Log.w(TAG, "voice library", e); null }
-        Store.putString(ctx, "atlas_voice_id", found ?: "-")
+        if (found != null || answered) Store.putString(ctx, "atlas_voice_id", found ?: "-")
         return found
     }
 

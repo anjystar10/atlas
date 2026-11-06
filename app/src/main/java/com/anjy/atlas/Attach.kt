@@ -145,8 +145,13 @@ object Attach {
         return if (s >= 1f) b else Bitmap.createScaledBitmap(b, (b.width * s).toInt().coerceAtLeast(1), (b.height * s).toInt().coerceAtLeast(1), true)
     }
 
-    /** Old attachments no message refers to any more are deleted. */
-    fun prune(ctx: Context, keep: Set<String>) {
-        dir(ctx).listFiles()?.forEach { if (it.absolutePath !in keep) it.delete() }
+    /**
+     * Old attachments no message refers to any more are deleted. Recent ones are kept even then: they may be waiting
+     * in the message box, not sent yet (a reply finishing meanwhile saves the chat and would delete them).
+     */
+    fun prune(ctx: Context, keep: Set<String>, now: Long = System.currentTimeMillis()) {
+        dir(ctx).listFiles()?.forEach { if (it.absolutePath !in keep && now - it.lastModified() > PENDING_KEEP_MS) it.delete() }
     }
+    /** How long an attachment not (yet) in any message is kept. */
+    const val PENDING_KEEP_MS = 6 * 60 * 60 * 1000L
 }

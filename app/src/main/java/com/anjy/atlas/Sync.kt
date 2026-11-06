@@ -126,8 +126,12 @@ object Sync {
         val result = try {
             val st = try { JSONObject(stateFile(ctx).readText()) } catch (_: Exception) { JSONObject() }
             var cursor = st.optLong("cursor", 0)
-            val sent = st.optJSONObject("sent") ?: JSONObject()     // "kind:id" -> fingerprint of what the cloud has
+            var sent = st.optJSONObject("sent") ?: JSONObject()     // "kind:id" -> fingerprint of what the cloud has
             val me = Store.read(ctx) { it.deviceId }
+            // This device's data was started afresh since the last sync (its file couldn't be read and a new one was
+            // made): what's missing here wasn't deleted, it was lost. Take everything back from the cloud rather than
+            // telling the other device to delete it all.
+            if (freshStart(st.optString("device"), me)) { Log.w(TAG, "local data was re-created: restoring from the cloud"); cursor = 0; sent = JSONObject() }
             val ownerId = owner(code)
 
             // 1. take in what the other device changed
@@ -173,7 +177,7 @@ object Sync {
                 val arr = JSONArray(); chunk.forEach { arr.put(items.get(it)) }
                 post("sync_push", JSONObject().put("p_owner", ownerId).put("p_items", arr)); put += arr.length()
             }
-            stateFile(ctx).writeText(JSONObject().put("cursor", cursor).put("sent", sent).toString())
+            stateFile(ctx).writeText(JSONObject().put("cursor", cursor).put("sent", sent).put("device", me).toString())
             lastAt = System.currentTimeMillis()
             if (got > 0) main.post { Conversation.reloadFromSync(ctx); Thread { try { Reminders.tickAndSchedule(ctx) } catch (_: Exception) {} }.start() }
             "Synced" + if (got + put > 0) " ($got in, $put out)" else ""
@@ -185,6 +189,9 @@ object Sync {
         main.post { synchronized(listeners) { listeners.toList() }.forEach { try { it() } catch (_: Exception) {} } }
         return result
     }
+
+    /** The data here has a different device id from the one the last sync saw: it was made anew since. */
+    internal fun freshStart(lastDevice: String, me: String) = lastDevice.isNotEmpty() && lastDevice != me
 
     /** A record's fingerprint, the same whatever order its fields are in (the PC writes them in its own order). */
     private fun fp(o: JSONObject) = hex(MessageDigest.getInstance("SHA-1").digest(canonical(o).toByteArray(Charsets.UTF_8)))

@@ -120,7 +120,7 @@ class CpuOrbView(context: Context) : View(context) {
         /** The orb is painted at most this many pixels across, then scaled up smoothly. */
         const val MAX_SIDE = 150
         private val worker: android.os.Handler by lazy {
-            val th = android.os.HandlerThread("atlas-orb", android.os.Process.THREAD_PRIORITY_DISPLAY); th.start()
+            val th = android.os.HandlerThread("atlas-orb", android.os.Process.THREAD_PRIORITY_DEFAULT); th.start()
             android.os.Handler(th.looper)
         }
     }

@@ -45,9 +45,20 @@ object Focus {
 
     fun state(ctx: Context): State? {
         val start = Store.getString(ctx, K + "start")?.toLongOrNull() ?: return null
-        return State(Store.getString(ctx, K + "title") ?: "Focus", Store.getString(ctx, K + "task")?.takeIf { it.isNotEmpty() }, start,
+        val s = State(Store.getString(ctx, K + "title") ?: "Focus", Store.getString(ctx, K + "task")?.takeIf { it.isNotEmpty() }, start,
             Store.getString(ctx, K + "planned")?.toIntOrNull(), Store.getString(ctx, K + "pausedAt")?.toLongOrNull() ?: 0L,
             Store.getString(ctx, K + "pausedTotal")?.toLongOrNull() ?: 0L, Store.getString(ctx, K + "breakUntil")?.toLongOrNull() ?: 0L)
+        // a break that has ended is over, even if the focus screen wasn't open to see it end: the session runs again
+        // from the break's end (not from whenever the screen is next opened)
+        val back = afterBreak(s, System.currentTimeMillis()) ?: return s
+        put(ctx, "pausedTotal", back.pausedTotal); put(ctx, "pausedAt", 0); put(ctx, "breakUntil", 0)
+        return back
+    }
+
+    /** [s] with its break over, if the break has ended by [now] (counting only the break itself as time off); else null. */
+    internal fun afterBreak(s: State, now: Long): State? {
+        if (!s.paused || s.breakUntil !in 1..now) return null
+        return State(s.title, s.taskId, s.startedAt, s.plannedMin, 0L, s.pausedTotal + (s.breakUntil - s.pausedAt).coerceAtLeast(0), 0L)
     }
     fun active(ctx: Context) = state(ctx) != null
 
@@ -110,7 +121,7 @@ object Focus {
         val now = System.currentTimeMillis()
         val b = Notification.Builder(ctx, CH_FOCUS).setSmallIcon(R.drawable.ic_stat).setOngoing(true).setContentIntent(open)
             .setContentTitle("Doing it now: ${s.title}")
-        if (s.paused) b.setContentText(if (s.breakUntil > now) "On a break" else "Paused")
+        if (s.paused) b.setContentText(if (s.breakUntil > now) "On a break until ${Reminders.fmt(s.breakUntil)}" else "Paused")
         else b.setUsesChronometer(true).setWhen(now - s.worked(now)).setShowWhen(true).setContentText("No distractions. Tap to return.")
         try { ctx.getSystemService(NotificationManager::class.java).notify(NOTIF_ID, b.build()) } catch (_: SecurityException) {}
     }
@@ -124,6 +135,8 @@ class FocusActivity : Activity() {
     private lateinit var breakBtn: TextView
     private lateinit var orb: OrbView
     private var plannedChimed = false
+    /** Whether the last update showed a break, so its end can chime. */
+    private var wasOnBreak = false
     private val tick = object : Runnable { override fun run() { update(); h.postDelayed(this, 500) } }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
@@ -197,6 +210,14 @@ class FocusActivity : Activity() {
         Focus.notifyOngoing(this)
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // "Doing it now" on another reminder while a session is open: this session carries on (one at a time),
+        // and that reminder's notification goes
+        if (intent.action == Reminders.ACTION_NOW) intent.getStringExtra("id")?.let { id -> Focus.begin(this, intent.getStringExtra("title") ?: "Focus", null, id) }
+        update()
+    }
+
     @Deprecated("Deprecated in Java") override fun onBackPressed() { hint() }
     private fun hint() { sub.text = "Press End when you're finished."; h.postDelayed({ update() }, 2500) }
 
@@ -211,8 +232,9 @@ class FocusActivity : Activity() {
     private fun update() {
         val s = Focus.state(this) ?: run { finish(); return }
         val now = System.currentTimeMillis()
-        if (s.paused && s.breakUntil in 1..now) { Focus.resume(this); chime(); return update() }
         val onBreak = s.paused && s.breakUntil > now
+        if (wasOnBreak && !onBreak && !s.paused) { chime(); Focus.notifyOngoing(this) }
+        wasOnBreak = onBreak
         timer.text = if (onBreak) fmt(s.breakUntil - now) else fmt(s.worked(now))
         timer.alpha = if (s.paused && !onBreak) 0.55f else 1f
         orb.energy = if (s.paused) 0f else 0.25f

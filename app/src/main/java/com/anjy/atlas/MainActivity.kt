@@ -344,6 +344,11 @@ class MainActivity : Activity() {
                 multi -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
                 else -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             }
+            if (multi) {
+                // a writing box: starts at two lines, grows to six, then scrolls inside, the text kept within its edges
+                minLines = 2; maxLines = 6; gravity = Gravity.TOP or Gravity.START
+                isVerticalScrollBarEnabled = true; setHorizontallyScrolling(false)
+            }
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                 override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
@@ -1272,7 +1277,9 @@ class MainActivity : Activity() {
                 // items that are files get attached; plain pasted text is left for the box to take as usual
                 val clip = payload.clip
                 var tookAll = true
-                for (i in 0 until clip.itemCount) { val u = clip.getItemAt(i).uri; if (u != null) addMedia(u) else tookAll = false }
+                val uris = mutableListOf<Uri>()
+                for (i in 0 until clip.itemCount) { val u = clip.getItemAt(i).uri; if (u != null) uris.add(u) else tookAll = false }
+                if (uris.isNotEmpty()) addMedia(uris)
                 if (tookAll) null else payload
             }
             addTextChangedListener(object : TextWatcher {
@@ -1327,17 +1334,23 @@ class MainActivity : Activity() {
             .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_MEDIA)
     }
 
-    /** Takes one picked or pasted picture, video or file, within the limits. */
-    private fun addMedia(uri: Uri) {
+    /**
+     * Takes picked or pasted pictures, videos and files, within the limits. One at a time, in order: copying takes a
+     * moment, and the limits are checked against what's already been taken (several at once would all pass the check).
+     */
+    private fun addMedia(uris: List<Uri>) {
         scope.launch {
-            try {
-                val isVideo = contentResolver.getType(uri)?.startsWith("video/") == true
-                if (isVideo && pending.isNotEmpty()) { showBanner("A video goes on its own. Send the others first.", MUTED); return@launch }
-                if (!isVideo && (pending.any { it.video } || pending.size >= Attach.MAX_PHOTOS)) { showBanner("Up to ${Attach.MAX_PHOTOS} per message.", MUTED); return@launch }
-                val item = withContext(Dispatchers.IO) { Attach.take(applicationContext, uri) }
-                pending.add(item); showTray(); updateSend()
-            } catch (e: Attach.TooBig) { showBanner(e.message ?: "Too big.", MUTED) }
-            catch (e: Exception) { showBanner("Couldn't add that.", MUTED) }
+            for (uri in uris) {
+                try {
+                    val isVideo = contentResolver.getType(uri)?.startsWith("video/") == true
+                    if (isVideo && pending.isNotEmpty()) { showBanner("A video goes on its own. Send the others first.", MUTED); continue }
+                    if (pending.any { it.video } || pending.size >= Attach.MAX_PHOTOS) { showBanner("Up to ${Attach.MAX_PHOTOS} per message.", MUTED); break }
+                    val item = withContext(Dispatchers.IO) { Attach.take(applicationContext, uri) }
+                    pending.add(item); showTray(); updateSend()
+                } catch (e: kotlinx.coroutines.CancellationException) { throw e
+                } catch (e: Attach.TooBig) { showBanner(e.message ?: "Too big.", MUTED)
+                } catch (e: Exception) { showBanner("Couldn't add that.", MUTED) }
+            }
         }
     }
 
@@ -1547,13 +1560,6 @@ class MainActivity : Activity() {
             pageTitle("Log", roundIcon("plus", "New reminder") { editTask(null) }.apply { layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)) })
             body.add(text("What Atlas is keeping for you. Reminders ring like an alarm at their time.", 15f, MUTED), 6)
         }
-        if (all.isEmpty()) {
-            body.add(card().apply {
-                addView(text("Nothing logged yet", 18f, FG, HEAD))
-                add(text("Tell Atlas “remind me to pick up my sister Thursday at 4” or “remember my locker code is on the fridge”, and it lands here.", 15f, MUTED), 6)
-            }, 16)
-            return
-        }
         if (!logFull) {
             // Remember Something first: the field gets the whole width, the Save key sits under it
             body.add(eyebrow("Remember Something"), 20)
@@ -1568,8 +1574,16 @@ class MainActivity : Activity() {
             }.apply { alpha = 0.5f }
             mc.addView(save, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
             body.add(mc, 8)
+            if (all.isEmpty()) {
+                // nothing yet: the box above still works (it used to be hidden until something was logged)
+                body.add(card().apply {
+                    addView(text("Nothing logged yet", 18f, FG, HEAD))
+                    add(text("Tell Atlas “remind me to pick up my sister Thursday at 4” or “remember my locker code is on the fridge”, and it lands here.", 15f, MUTED), 6)
+                }, 22)
+                return
+            }
             body.add(eyebrow("Latest"), 22)
-        }
+        } else if (all.isEmpty()) return
         val shown = if (logFull) all else all.take(LOG_RECENT)
         val c = card().apply { setPadding(dp(18), dp(4), dp(18), dp(4)) }
         shown.forEachIndexed { i, e ->
@@ -1955,8 +1969,8 @@ class MainActivity : Activity() {
         when (requestCode) {
             REQ_MEDIA -> {
                 val clip = data.clipData
-                if (clip != null) for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let { addMedia(it) }
-                else data.data?.let { addMedia(it) }
+                if (clip != null) addMedia((0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri })
+                else data.data?.let { addMedia(listOf(it)) }
             }
             REQ_MODEL -> {
                 val uri = data.data ?: return
