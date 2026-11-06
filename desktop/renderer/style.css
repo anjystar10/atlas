@@ -163,3 +163,17 @@ textarea.field { resize: vertical; min-height: 64px; }
 .listening .heard { font: 400 26px var(--serif); margin-top: 14px; min-height: 2.4em; color: var(--fg); }
 .toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); z-index: 60; padding: 11px 18px; border-radius: 999px; background: rgba(15, 16, 40, 0.92); color: #fff; border: 1px solid rgba(255,255,255,.14); box-shadow: var(--shadow); animation: fade .2s; font-weight: 500; }
 .keyrow .mono { font-size: 14px; }
+
+/* ---- Atlas Bot ---- */
+.warn { color: #F2C46D; }
+.botstrip { display: inline-flex; align-items: center; gap: 4px; margin: 2px 0 12px; padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; cursor: pointer;
+  background: linear-gradient(180deg, var(--glass2), var(--glass)); border: 1px solid var(--rim-low); border-top-color: var(--rim); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
+.botstrip:hover { filter: brightness(1.12); }
+.botstrip.center { margin: 18px auto 0; }
+.botstrip span { color: var(--accent); }
+.botcard { cursor: pointer; } .botcard:hover { filter: brightness(1.08); }
+.botcard .goal { font: 400 19px/1.3 var(--serif); }
+.botplan > div, .botsteps > div { display: flex; gap: 10px; padding: 5px 2px; }
+.botplan span { width: 18px; flex: none; color: var(--muted); font-weight: 600; }
+.botplan .done { color: var(--muted); } .botplan .done span { color: var(--done); }
+.botsteps > div { color: var(--muted); font-size: 14px; }

@@ -101,7 +101,7 @@ async function post(url, headers, body, service, timeout = 180000) {
 function params(f) { return f.parameters || { type: 'object', properties: {} }; }
 
 /** One conversation with a service for one request. call() → {text, calls:[{name,args,id}]}; results(list) answers the calls. */
-export function session(p, key, history, user, media) {
+export function session(p, key, history, user, media, tools = TOOLS) {
   const model = modelOf(p), base = baseOf(p);
   if (p.style === 'gemini') {
     const contents = history.map(([u, t]) => ({ role: u ? 'user' : 'model', parts: [{ text: t }] }));
@@ -109,7 +109,7 @@ export function session(p, key, history, user, media) {
     return {
       key, contents,
       async call(system) {
-        const req = { systemInstruction: { parts: [{ text: system }] }, contents: trimScreens(contents), tools: [{ functionDeclarations: TOOLS }] };
+        const req = { systemInstruction: { parts: [{ text: system }] }, contents: trimScreens(contents), tools: [{ functionDeclarations: tools }] };
         if (model.startsWith('gemini-3')) req.generationConfig = { thinkingConfig: { thinkingLevel: 'low' } };
         const r = await post(`${p.base}${model}:generateContent`, { 'x-goog-api-key': this.key }, req, 'Gemini');
         if (r.promptFeedback && r.promptFeedback.blockReason) throw new Failure(`Gemini refused that message (${r.promptFeedback.blockReason}).`);
@@ -136,7 +136,7 @@ export function session(p, key, history, user, media) {
       key, messages,
       async call(system) {
         const r = await post(`${base}/messages`, { 'x-api-key': this.key, 'anthropic-version': '2023-06-01' },
-          { model, max_tokens: 4096, system, messages: trimScreens(messages), tools: TOOLS.map((f) => ({ name: f.name, description: f.description, input_schema: params(f) })) }, 'Claude');
+          { model, max_tokens: 4096, system, messages: trimScreens(messages), tools: tools.map((f) => ({ name: f.name, description: f.description, input_schema: params(f) })) }, 'Claude');
         let text = ''; const calls = [];
         for (const b of r.content || []) { if (b.type === 'text') text += b.text; if (b.type === 'tool_use') calls.push({ name: b.name, args: b.input || {}, id: b.id }); }
         messages.push({ role: 'assistant', content: r.content || [] });
@@ -159,7 +159,7 @@ export function session(p, key, history, user, media) {
     async call(system) {
       if (!base) throw new Failure(`Set the address of ${p.name} in Me.`);
       if (!model) throw new Failure(`Choose a model for ${p.name} in Me.`);
-      const body = { model, messages: [{ role: 'system', content: system }, ...trimScreens(messages)], tools: TOOLS.map((f) => ({ type: 'function', function: { name: f.name, description: f.description, parameters: params(f) } })) };
+      const body = { model, messages: [{ role: 'system', content: system }, ...trimScreens(messages)], tools: tools.map((f) => ({ type: 'function', function: { name: f.name, description: f.description, parameters: params(f) } })) };
       if (p.id === 'openai' && model.startsWith('gpt-6')) body.reasoning_effort = 'none';
       const headers = p.local ? {} : { Authorization: `Bearer ${this.key}` };
       if (p.id === 'openrouter') { headers['HTTP-Referer'] = 'https://github.com/anjystar10/atlas-app'; headers['X-Title'] = 'Atlas'; }
@@ -234,6 +234,9 @@ export const TOOLS = [
   fn('type_text', 'Type text into whatever has focus on the PC.', { text: str('What to type') }, ['text']),
   fn('press_keys', "Press keys or a shortcut, e.g. 'enter', 'ctrl+s', 'alt+tab', 'ctrl+shift+t'.", { keys: str('The keys') }, ['keys']),
   fn('scroll', 'Scroll whatever is under the mouse.', { direction: str('Which way', ['up', 'down']), amount: int('How far, 1-20 (default 5)') }, ['direction']),
+  fn('deploy_bot', "Send Atlas Bot to do a bigger job in the background: anything that needs many steps, like deep research with sources, comparing several options, writing a long piece, checking many pages, or a long chain of PC actions. The bot plans, works on its own, and its report lands in this chat when it's done; the chat stays free meanwhile. Don't use it for quick things you can do in a step or two.", {
+    goal: str("The job in one clear sentence, e.g. 'Find the best budget laptop under $800 for coding, with sources'"),
+    details: str('Everything the bot should know: what the user wants, preferences, limits, what to include in the report') }, ['goal']),
 ];
 
 const PC = new Set(['open_app', 'list_apps', 'open_link', 'open_path', 'list_files', 'read_file', 'write_file', 'run_command', 'look_at_screen', 'click', 'type_text', 'press_keys', 'scroll']);
@@ -254,7 +257,7 @@ export function dayLabel(ms) {
   return d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
-function logContext() {
+export function logContext() {
   const s = db.state, sb = [];
   const open = s.tasks.filter((t) => OPEN.has(t.status)).sort((a, b) => (a.startAt == null) - (b.startAt == null) || (a.startAt || 0) - (b.startAt || 0));
   sb.push('Open reminders:' + (open.length ? '' : ' none'));
@@ -273,7 +276,7 @@ function readLog(query, limit) {
 }
 
 /** Hooks the screens provide: asking the user to allow something, starting a focus session, changing settings. */
-export const ui = { confirm: async () => false, startFocus: () => {}, setting: () => 'Error: settings unavailable.', settingsText: () => '' };
+export const ui = { confirm: async () => false, startFocus: () => {}, setting: () => 'Error: settings unavailable.', settingsText: () => '', deployBot: () => null };
 
 async function webSearch(q) {
   const gk = keyFor('gemini');
@@ -311,8 +314,8 @@ async function readPage(url) {
   return `Title: ${doc.title || ''}\nURL: ${u}\n\n${text || '(no readable text)'}`;
 }
 
-/** Runs one tool. Returns {out, step?, image?}. */
-async function runTool(call) {
+/** Runs one tool. Returns {out, step?, image?}. [approved]: the user already said yes (Atlas Bot asks first itself). */
+export async function runTool(call, { approved = false } = {}) {
   const a = call.args || {}; const now = Date.now();
   try {
     switch (call.name) {
@@ -341,11 +344,16 @@ async function runTool(call) {
       case 'web_search': return { out: await webSearch(String(a.query || '')), step: `Searched the web for “${String(a.query || '').slice(0, 60)}”` };
       case 'read_page': return { out: await readPage(String(a.url || '')), step: 'Read ' + String(a.url || '').replace(/^https?:\/\//, '').slice(0, 50) };
       case 'change_setting': { const out = await ui.setting(a.setting, String(a.value ?? '')); return { out, step: out.startsWith('Error') ? null : out }; }
+      case 'deploy_bot': {
+        const goal = String(a.goal || '').trim(); if (!goal) return { out: 'Error: give the bot a goal.' };
+        const j = ui.deployBot(goal, String(a.details || '')); if (!j) return { out: "Error: Atlas Bot isn't available right now." };
+        return { out: `Atlas Bot is on it: '${j.goal}'. It works in the background; its report will appear in this chat when it's done, and the user can follow it on the Bots page. Tell them briefly, in your own words.`, step: 'Sent Atlas Bot: ' + j.goal };
+      }
       case 'start_focus': { const title = plainMemory(a.title || '') || 'Focus'; ui.startFocus(title, a.minutes || null, a.id || null); return { out: `Focus session started for '${title}'.`, step: 'Started a focus session: ' + title }; }
     }
     if (PC.has(call.name)) {
-      if (call.name === 'run_command' && !(await ui.confirm('Run this on your PC?', String(a.command || ''), 'Run It'))) return { out: 'The user said no to running that command.' };
-      if (call.name === 'write_file' && !(await ui.confirm('Save this file?', `${a.path}\n\n${String(a.text || '').slice(0, 600)}${String(a.text || '').length > 600 ? '\n…' : ''}`, 'Save It'))) return { out: 'The user said no to saving that file.' };
+      if (call.name === 'run_command' && !approved && !(await ui.confirm('Run this on your PC?', String(a.command || ''), 'Run It'))) return { out: 'The user said no to running that command.' };
+      if (call.name === 'write_file' && !approved && !(await ui.confirm('Save this file?', `${a.path}\n\n${String(a.text || '').slice(0, 600)}${String(a.text || '').length > 600 ? '\n…' : ''}`, 'Save It'))) return { out: 'The user said no to saving that file.' };
       const r = await host.pc(call.name, a);
       if (r.error) return { out: 'Error: ' + r.error };
       return { out: r.out || 'Done.', step: r.step || null, image: r.image || null, pc: true };
@@ -391,6 +399,10 @@ Using the PC:
 - run_command and write_file ask the user first; explain briefly why you need them. Prefer simple, safe commands. Never delete files or change system settings unless they clearly asked.
 - Before anything that sends a message, posts, buys, deletes, or changes an account, say exactly what you're about to do and wait for their go-ahead, unless they already asked for that exact action.
 - Never type passwords or payment details unless they give them to you in this chat for that purpose.
+
+Atlas Bot (deploy_bot):
+- For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of PC actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
+- Quick things (one search, one reminder, a short answer) you do yourself.
 
 Your own settings (change_setting, when they ask):
 ${ui.settingsText()}
