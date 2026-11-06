@@ -1,0 +1,44 @@
+# Builds Atlas for Windows, checks it on a real Windows machine, and publishes the installer.
+name: Build Atlas for Windows
+on:
+  push:
+    branches: [main]
+    paths: ['desktop/**', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults: { run: { working-directory: desktop } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+      - run: npm test
+      - name: Build the installer
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Run Atlas, take screenshots, try the PC tools
+        shell: pwsh
+        env:
+          ATLAS_SHOT: ${{ github.workspace }}\desktop\shots\shot.png
+          ATLAS_WAIT: '4000'
+          ATLAS_PCTEST: '1'
+          ATLAS_STEPS: '["document.querySelector(\"[data-tab=log]\").click()","document.querySelector(\"[data-tab=me]\").click()"]'
+        run: |
+          New-Item -ItemType Directory -Force shots | Out-Null
+          $p = Start-Process -FilePath "dist\win-unpacked\Atlas.exe" -PassThru -RedirectStandardOutput shots\out.txt -RedirectStandardError shots\err.txt
+          if (-not $p.WaitForExit(120000)) { Stop-Process -Id $p.Id -Force }
+          Get-Content shots\out.txt
+          Get-ChildItem shots
+      - uses: actions/upload-artifact@v4
+        with: { name: windows-check, path: desktop/shots/ }
+      - name: Publish the installer
+        env: { GH_TOKEN: '${{ github.token }}' }
+        shell: pwsh
+        run: |
+          $notes = "Atlas for Windows, built from ${{ github.sha }}."
+          gh release view desktop 2>$null; if ($LASTEXITCODE -ne 0) { gh release create desktop --title "Atlas for Windows" --notes $notes --latest=false }
+          gh release upload desktop dist\Atlas-Setup.exe --clobber
+          gh release edit desktop --notes $notes

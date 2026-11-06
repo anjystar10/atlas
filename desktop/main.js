@@ -28,6 +28,32 @@ function createMain() {
   });
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   win.once('ready-to-show', () => { if (!process.argv.includes('--hidden')) win.show(); });
+  // test hook (only when ATLAS_SHOT is set): print page errors, take screenshots, then quit
+  if (process.env.ATLAS_SHOT) {
+    win.webContents.on('console-message', (_e, level, msg, line, src) => {
+      if (level < 2) return;
+      const t = `[page] ${msg} ${src ? `(${path.basename(src)}:${line})` : ''}`; console.log(t);
+      try { fs.appendFileSync(path.join(path.dirname(process.env.ATLAS_SHOT), 'page.txt'), t + '\n'); } catch {}
+    });
+    win.webContents.on('did-finish-load', async () => {
+      const steps = JSON.parse(process.env.ATLAS_STEPS || '[]');
+      for (const [i, js] of [[0, ''], ...steps.map((s, k) => [k + 1, s])]) {
+        if (js) { try { await win.webContents.executeJavaScript(js); } catch (err) { console.log('[step]', err.message); } }
+        await new Promise((r) => setTimeout(r, Number(process.env.ATLAS_WAIT || 2500)));
+        const img = await win.webContents.capturePage();
+        fs.writeFileSync(process.env.ATLAS_SHOT.replace('.png', `-${i}.png`), img.toPNG());
+      }
+      if (process.env.ATLAS_PCTEST) {
+        // on a real Windows machine: do the PC tools work?
+        for (const [name, args] of [['list_apps', {}], ['run_command', { command: 'Get-Date -Format yyyy-MM-dd; $PSVersionTable.PSVersion.ToString()' }], ['list_files', { path: '~' }], ['look_at_screen', {}], ['press_keys', { keys: 'ctrl+shift+t' }]]) {
+          const r = await pc.run(name, args, { desktopCapturer, screen, shell }).catch((err) => ({ error: err.message }));
+          const line = `[pc] ${name}: ${r.error ? 'ERROR ' + r.error : String(r.out).slice(0, 160).replace(/\n/g, ' | ')}${r.image ? ` (+ screenshot ${r.image.base64.length} chars)` : ''}`;
+          console.log(line); fs.appendFileSync(path.join(path.dirname(process.env.ATLAS_SHOT), 'pctest.txt'), line + '\n');
+        }
+      }
+      quitting = true; app.quit();
+    });
+  }
   // closing hides to the tray; Quit (tray menu) really quits
   win.on('close', (e) => { if (!quitting) { e.preventDefault(); win.hide(); } });
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });

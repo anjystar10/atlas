@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'">
+  <title>Atlas</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <nav id="side">
+      <div class="brand"><img src="icon.png" alt=""><span>Atlas</span></div>
+      <div class="nav" data-tab="atlas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M12 2.5l2.2 6.6 6.8.4-5.4 4.2 1.9 6.8L12 16.6l-5.5 3.9 1.9-6.8L3 9.5l6.8-.4z"/></svg>Atlas</div>
+      <div class="nav" data-tab="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 5.5C4 4.7 4.7 4 5.5 4H11v16H5.5c-.8 0-1.5-.7-1.5-1.5zM20 5.5c0-.8-.7-1.5-1.5-1.5H13v16h5.5c.8 0 1.5-.7 1.5-1.5z"/></svg>Log</div>
+      <div class="nav" data-tab="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Me</div>
+      <div class="side-foot" id="sidefoot"></div>
+    </nav>
+    <main id="main">
+      <div id="titlebar"></div>
+      <div id="page"></div>
+      <div id="composer"></div>
+      <div class="drop" id="drop">Drop to add to your message</div>
+    </main>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

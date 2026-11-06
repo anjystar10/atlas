@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <style>
+    html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; }
+    #o { position: absolute; inset: 6px; cursor: pointer; }
+    .orb { width: 100% !important; height: 100% !important; }
+    .orb canvas, .orb img { width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body>
+  <div id="o"></div>
+  <script type="module">
+    // Atlas in the corner of the screen: drag it anywhere; click to talk. It stirs while Atlas listens or works.
+    import { Orb } from './orb.js';
+    const host = window.atlasHost;
+    const orb = new Orb(document.getElementById('o'), { size: 108 });
+    let down = null, moved = false;
+    window.addEventListener('mousedown', (e) => { down = { x: e.screenX, y: e.screenY }; moved = false; });
+    window.addEventListener('mousemove', (e) => {
+      if (!down) return;
+      const dx = e.screenX - down.x, dy = e.screenY - down.y;
+      if (!moved && Math.hypot(dx, dy) < 4) return;
+      moved = true; host.orbMoveBy(dx, dy); down = { x: e.screenX, y: e.screenY };
+    });
+    window.addEventListener('mouseup', () => { if (down && !moved) host.orbClicked(); down = null; });
+    host.on('orb-state', (st) => { orb.energy = st.energy || 0; orb.level = st.level || 0; });
+  </script>
+</body>
+</html>

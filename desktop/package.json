@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --test test/",
+    "test": "node --no-warnings --test test/logic.test.mjs",
     "dist": "electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
