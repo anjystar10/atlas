@@ -286,9 +286,7 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
             if (!EGL14.eglSwapBuffers(display, surface)) {
                 val err = EGL14.eglGetError()
                 if (err == EGL14.EGL_BAD_SURFACE || err == EGL14.EGL_BAD_NATIVE_WINDOW) return false
-                // a software chip or one too slow won't change: remember it (for this version of Atlas) and don't try again
-        if (reason.startsWith("software graphics") || reason.startsWith("too slow")) rememberCpu(context)
-        Log.w("AtlasOrb", "swap failed: $err")
+                Log.w("AtlasOrb", "swap failed: $err")
             }
             return true
         }
@@ -318,9 +316,7 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
             // the first two frames may include the driver preparing the shader: only an extreme time counts
             val slow = if (n < 2) ms > 800f else ms > 120f || avg > 18f
             if (!slow) return true
-            // a software chip or one too slow won't change: remember it (for this version of Atlas) and don't try again
-        if (reason.startsWith("software graphics") || reason.startsWith("too slow")) rememberCpu(context)
-        Log.w("AtlasOrb", "frame took ${"%.1f".format(ms)} ms (average ${"%.1f".format(avg)}) at ${(scale * 100).toInt()}% sharpness")
+            Log.w("AtlasOrb", "frame took ${"%.1f".format(ms)} ms (average ${"%.1f".format(avg)}) at ${(scale * 100).toInt()}% sharpness")
             frames = 0; recent.fill(0f)
             scale = when (scale) { 1f -> 0.6f; 0.6f -> 0.4f; else -> 0f }
             if (scale == 0f) { running = false; main.post { onFailed("too slow to draw (${"%.0f".format(ms)} ms a frame)") }; return false }
