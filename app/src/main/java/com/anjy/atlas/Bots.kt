@@ -1,0 +1,520 @@
+package com.anjy.atlas
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.util.AtomicFile
+import android.util.Log
+import com.anjy.atlas.core.Engine
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import java.util.UUID
+
+/**
+ * Atlas Bot: an agent Atlas sends off to do a bigger job (research with sources, comparing options, a long piece of
+ * writing, a chain of phone actions) while the chat stays free. It plans, works step by step with tools, keeps notes,
+ * checks its work and writes a report, which lands in the chat when it's done.
+ *
+ * It runs on whichever AI service the key pool gives it (through [KeyRouter], like the chat), in the background (with
+ * [BotService] keeping Atlas alive), and every job is saved in a journal ([BotJob], bots.json) so it survives Atlas
+ * being closed. Anything consequential waits for the user's OK. All state is read and changed on the main thread.
+ */
+object Bots {
+    private const val TAG = "AtlasBot"
+    /** The most tool steps one job may take, and the most working time. */
+    const val MAX_TOOL_CALLS = 80
+    const val MAX_WORK_MS = 30 * 60_000L
+    /** After this many rounds the conversation with the model starts afresh from the journal (keeps it small). */
+    private const val ROUNDS_PER_PART = 10
+    /** Finished jobs kept in the journal. */
+    private const val KEEP_FINISHED = 30
+
+    const val CH_BOT = "atlas_bot"
+    const val CH_BOT_ALERT = "atlas_bot_alert"
+
+    val jobs = mutableListOf<BotJob>()
+    private var loaded = false
+    private lateinit var app: Context
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val workers = mutableMapOf<String, Job>()
+    private val main = Handler(Looper.getMainLooper())
+
+    private val listeners = mutableListOf<() -> Unit>()
+    fun listen(l: () -> Unit) { if (l !in listeners) listeners.add(l) }
+    fun unlisten(l: () -> Unit) { listeners.remove(l) }
+    private fun changed() {
+        listeners.toList().forEach { try { it() } catch (e: Exception) { Log.w(TAG, "listener", e) } }
+        if (::app.isInitialized) BotService.sync(app)
+    }
+
+    fun job(id: String?) = jobs.firstOrNull { it.id == id }
+    /** True while any job is working or about to (the background service stays up for these). */
+    fun active() = jobs.any { it.state == BotRules.RUNNING || it.state == BotRules.QUEUED || it.state == BotRules.WAITING_RETRY }
+    fun visible() = jobs.filter { !it.final || System.currentTimeMillis() - it.updatedAt < 7 * 24 * 3_600_000L }.sortedByDescending { it.createdAt }
+
+    // ---------------------------------------------------------------- the journal
+
+    private fun file() = AtomicFile(File(app.filesDir, "bots.json"))
+
+    /** Loads the journal once and picks up where things were left. Main thread. */
+    fun init(ctx: Context) {
+        if (loaded) return
+        app = ctx.applicationContext
+        loaded = true
+        try {
+            val f = file()
+            if (f.baseFile.exists()) jobs.addAll(BotJob.parseList(String(f.readFully(), Charsets.UTF_8)))
+        } catch (e: Exception) { Log.w(TAG, "journal unreadable", e) }
+        val now = System.currentTimeMillis()
+        jobs.forEach { j ->
+            val to = BotRules.recover(j.state, j.pending != null)
+            if (to != j.state) {
+                // straight from running: not a normal move, so set it directly and note it
+                j.state = to; j.updatedAt = now; j.history.add(now to to)
+                if (to == BotRules.NEEDS_REVIEW) { j.current = null; notifyAlert(j, "Needs a check", "Atlas was closed while the bot was doing: ${j.pending}. It may or may not have happened.") }
+            }
+        }
+        persist()
+        pump()
+    }
+
+    private fun snapshot(): ByteArray {
+        val finished = jobs.filter { it.final }.sortedByDescending { it.updatedAt }.drop(KEEP_FINISHED).toSet()
+        if (finished.isNotEmpty()) jobs.removeAll(finished)
+        return BotJob.listJson(jobs).toByteArray(Charsets.UTF_8)
+    }
+
+    private fun write(bytes: ByteArray) = synchronized(this) {
+        val f = file(); val out = f.startWrite()
+        try { out.write(bytes); f.finishWrite(out) } catch (e: Exception) { f.failWrite(out); Log.w(TAG, "save failed", e) }
+    }
+
+    /** Saves in the background. */
+    private fun persist() { val b = snapshot(); scope.launch(Dispatchers.IO) { write(b) } }
+    /** Saves and waits until it's on disk (before an action runs, so a crash can't lose the "doing it now" mark). */
+    private suspend fun persistNow() { val b = snapshot(); withContext(Dispatchers.IO) { write(b) } }
+
+    // ---------------------------------------------------------------- what the user (or Atlas) does
+
+    /** Sends a bot to do [goal]. Returns the job. */
+    fun deploy(ctx: Context, goal: String, details: String): BotJob {
+        init(ctx)
+        val now = System.currentTimeMillis()
+        val j = BotJob(UUID.randomUUID().toString(), Plain.memory(goal).ifBlank { goal.trim() }.take(300), details.trim().take(4000), now)
+        j.history.add(now to BotRules.QUEUED)
+        jobs.add(j)
+        persist(); changed(); pump()
+        return j
+    }
+
+    fun pause(id: String) {
+        val j = job(id) ?: return
+        if (j.move(BotRules.PAUSED, System.currentTimeMillis())) { j.current = null; persist(); changed() }
+    }
+
+    fun resume(id: String) {
+        val j = job(id) ?: return
+        if (j.state == BotRules.PAUSED && j.move(BotRules.QUEUED, System.currentTimeMillis())) { persist(); changed(); pump() }
+    }
+
+    fun stop(id: String) {
+        val j = job(id) ?: return
+        if (j.final) return
+        workers.remove(id)?.cancel()
+        j.move(BotRules.CANCELLED, System.currentTimeMillis()); j.current = null
+        cancelAlert(j)
+        persist(); changed(); pump()
+    }
+
+    fun approve(id: String, yes: Boolean) {
+        val j = job(id) ?: return
+        val a = j.approval ?: return
+        if (j.state != BotRules.AWAITING_APPROVAL) return
+        a.decision = if (yes) "approved" else "denied"
+        j.move(BotRules.QUEUED, System.currentTimeMillis()); cancelAlert(j)
+        persist(); changed(); pump()
+    }
+
+    fun answer(id: String, text: String) {
+        val j = job(id) ?: return
+        if (j.state != BotRules.AWAITING_ANSWER || text.isBlank()) return
+        j.answer = text.trim().take(2000)
+        j.move(BotRules.QUEUED, System.currentTimeMillis()); cancelAlert(j)
+        persist(); changed(); pump()
+    }
+
+    /** After "needs a check": carry on (the bot is told the last action may or may not have happened). */
+    fun carryOn(id: String) {
+        val j = job(id) ?: return
+        if (j.state != BotRules.NEEDS_REVIEW) return
+        j.pending?.let { j.notes.add("Atlas was interrupted while you were doing: $it. It may or may not have happened: check before doing it again.") }
+        j.pending = null
+        j.move(BotRules.QUEUED, System.currentTimeMillis()); cancelAlert(j)
+        persist(); changed(); pump()
+    }
+
+    fun remove(id: String) {
+        val j = job(id) ?: return
+        if (!j.final) return
+        jobs.remove(j); cancelAlert(j); persist(); changed()
+    }
+
+    // ---------------------------------------------------------------- running
+
+    private val retryTick = Runnable { pump() }
+
+    /** Starts what can start (at most [BotRules.MAX_RUNNING] at once) and wakes up for the next retry. */
+    fun pump() {
+        if (!loaded) return
+        val now = System.currentTimeMillis()
+        BotRules.toStart(jobs.filter { it.id !in workers && it.state != BotRules.RUNNING }, now, BotRules.MAX_RUNNING - workers.size)
+            .forEach { j ->
+                if (workers.size >= BotRules.MAX_RUNNING) return@forEach
+                if (j.state == BotRules.WAITING_RETRY) j.move(BotRules.QUEUED, now)
+                if (!j.move(BotRules.RUNNING, now)) return@forEach
+                workers[j.id] = scope.launch {
+                    try { work(j) }
+                    catch (e: kotlinx.coroutines.CancellationException) { throw e }
+                    catch (e: Exception) { Log.e(TAG, "bot failed", e); fail(j, "Something went wrong: ${e.message ?: e.javaClass.simpleName}") }
+                    finally {
+                        if (workers[j.id] === kotlinx.coroutines.currentCoroutineContext()[Job]) workers.remove(j.id)
+                        if (j.state == BotRules.RUNNING) { j.move(BotRules.QUEUED, System.currentTimeMillis()) }
+                        j.current = null
+                        persist(); changed()
+                        main.post { pump() }
+                    }
+                }
+            }
+        main.removeCallbacks(retryTick)
+        jobs.filter { it.state == BotRules.WAITING_RETRY }.minOfOrNull { it.retryAt }?.let { main.postDelayed(retryTick, (it - now).coerceIn(1_000, 3_600_000)) }
+        changed()
+    }
+
+    private fun fail(j: BotJob, why: String) {
+        j.error = why; j.current = null
+        if (j.move(BotRules.FAILED, System.currentTimeMillis())) notifyAlert(j, "Couldn't finish", why)
+        persist()
+    }
+
+    /** One job, from where the journal says it is, until it finishes or has to wait. */
+    private suspend fun work(j: BotJob) {
+        var p = Providers.active(app) ?: return fail(j, "Atlas Bot needs an AI service: add a key in Atlas → Me → Brain.")
+        j.provider = p.name
+        var last = System.currentTimeMillis()
+        fun tick() { val n = System.currentTimeMillis(); j.workMs += n - last; last = n }
+        fun stillMine() = j.state == BotRules.RUNNING
+
+        takeDecisions(j)
+        if (!stillMine()) return
+        val tried = mutableSetOf(p.id)
+        var nudges = 0
+        var extra = ""
+        while (stillMine()) {
+            tick()
+            val wrapping = j.toolCalls >= MAX_TOOL_CALLS || j.workMs >= MAX_WORK_MS
+            val brief = brief(j) + extra + if (wrapping) "\n\nYour budget for this job is used up. Call finish now with the best report you can from your plan and notes, and say plainly what's left undone." else ""
+            extra = ""
+            val session = try { withContext(Dispatchers.IO) { Providers.session(app, p, emptyList(), brief, tools = if (wrapping) finishOnly else declarations) } }
+                catch (f: Gemini.Failure) { return fail(j, f.message ?: "Couldn't start ${p.name}.") }
+            var rounds = 0
+            while (stillMine() && rounds < ROUNDS_PER_PART) {
+                rounds++
+                j.current = "Thinking"; changed()
+                val system = withContext(Dispatchers.IO) { systemPrompt(app) }
+                val turn = try {
+                    KeyRouter.call(app, p, session, onStatus = { st -> if (stillMine()) { j.current = st ?: "Thinking"; changed() } }) { session.call(system) }
+                } catch (sw: KeyRouter.SwitchService) {
+                    if (!tried.add(sw.to.id)) { waitAndRetry(j, sw.message ?: "All your keys are used up for now."); return }
+                    p = sw.to; j.provider = p.name; j.step("Switched to ${p.name}"); persist()
+                    break // a fresh start on the new service, from the journal
+                } catch (f: Gemini.Failure) {
+                    if (f.offline || f.code == 429 || f.code == 500 || f.code == 502 || f.code == 503 || f.code == 504) { waitAndRetry(j, f.message ?: "The AI service is busy."); return }
+                    return fail(j, f.message ?: "${p.name} failed.")
+                }
+                j.retries = 0
+                if (!stillMine()) return
+                tick()
+                if (turn.calls.isEmpty()) {
+                    // it answered in words instead of calling finish: take that as the report once it has done some work
+                    if (turn.text.isNotBlank() && (j.toolCalls > 0 || nudges >= 2 || wrapping)) { complete(j, turn.text); return }
+                    nudges++
+                    extra = "\n\n(You replied without using a tool. Keep working with your tools, and call finish with the report when the job is done.)"
+                    break
+                }
+                if (wrapping && turn.calls.none { it.name == "finish" }) { complete(j, compiled(j)); return }
+                val results = mutableListOf<Pair<Gemini.Call, String>>()
+                for (c in turn.calls) {
+                    if (!stillMine()) break
+                    when (c.name) {
+                        "finish" -> { complete(j, c.args.optString("report").ifBlank { turn.text.ifBlank { compiled(j) } }); return }
+                        "update_plan" -> {
+                            val lines = c.args.optString("plan").lines().map { it.trim() }.filter { it.isNotEmpty() }
+                            if (lines.isNotEmpty()) {
+                                val first = j.plan.isEmpty()
+                                j.plan.clear()
+                                lines.take(12).forEach { l ->
+                                    val done = Regex("^(\\d+[.)]\\s*)?\\[(x|X|✓)]").containsMatchIn(l)
+                                    j.plan.add(PlanItem(Plain.memory(l.replace(Regex("^(\\d+[.)]\\s*)?(\\[[ xX✓]?]\\s*)?(\\d+[.)]\\s*)?"), "")).take(160), done))
+                                }
+                                j.step(if (first) "Made a plan" else "Updated the plan")
+                            }
+                            results.add(c to "Plan saved.")
+                        }
+                        "note" -> {
+                            val n = c.args.optString("text").trim()
+                            if (n.isNotEmpty()) { j.notes.add(n.take(1500)); while (j.notes.size > 60) j.notes.removeAt(0) }
+                            results.add(c to "Noted.")
+                        }
+                        "ask_user" -> {
+                            val q = Plain.reply(c.args.optString("question")).ifBlank { "Could you tell me more about what you want?" }
+                            j.question = q.take(600); j.current = null
+                            j.move(BotRules.AWAITING_ANSWER, System.currentTimeMillis()); j.step("Asked you: ${q.take(120)}")
+                            persistNow(); notifyAlert(j, "Atlas Bot has a question", q); changed()
+                            return
+                        }
+                        "request_approval" -> {
+                            val what = Plain.reply(c.args.optString("action")).ifBlank { "Go ahead with the next step" }
+                            askApproval(j, Approval(what.take(300), null, null, null)); return
+                        }
+                        else -> {
+                            if (c.name !in toolNames) { results.add(c to "Error: there's no tool called ${c.name}."); continue }
+                            val label = if (c.name == "tap" || c.name == "long_press") withContext(Dispatchers.Default) { PhoneControl.labelOf(c.args.optInt("element", -1)) } else null
+                            BotRules.phoneApproval(c.name, c.args, label)?.let { what ->
+                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label)); return
+                            }
+                            results.add(c to runTool(j, c))
+                        }
+                    }
+                }
+                if (!stillMine()) return
+                session.results(results)
+                persist(); changed()
+                if (j.toolCalls >= MAX_TOOL_CALLS || j.workMs >= MAX_WORK_MS) break
+            }
+        }
+    }
+
+    /** Runs one of Atlas's own tools for the bot, with the "doing it now" mark saved around it. */
+    private suspend fun runTool(j: BotJob, c: Gemini.Call): String {
+        val what = label(c)
+        j.current = what; j.pending = what; persistNow(); changed()
+        val r = Tools.run(app, c)
+        j.pending = null; j.toolCalls++
+        j.step(r.step ?: what)
+        if (c.name == "read_page") c.args.optString("url").trim().takeIf { it.startsWith("http") && it !in j.sources }?.let { j.sources.add(it); if (j.sources.size > 40) j.sources.removeAt(0) }
+        j.addRecent("$what:\n${r.out.take(if (c.name == "read_page" || c.name == "web_search") 2500 else 1200)}")
+        persist()
+        return r.out
+    }
+
+    /** The user decided on an approval, or answered a question: act on it before the bot carries on. */
+    private suspend fun takeDecisions(j: BotJob) {
+        j.question?.let { q -> j.answer?.let { a -> j.notes.add("You asked the user: $q. They answered: $a"); j.step("You answered: ${a.take(120)}") } }
+        if (j.answer != null) { j.question = null; j.answer = null }
+        val a = j.approval ?: return
+        val d = a.decision ?: return
+        j.approval = null
+        if (d == "denied") { j.notes.add("The user said NO to: ${a.what}. Don't do it; find another way or finish without it."); j.step("You said no to: ${a.what}"); persist(); return }
+        j.step("You approved: ${a.what}")
+        if (a.tool == null || a.args == null) { j.notes.add("The user approved: ${a.what}. Go ahead with exactly that."); persist(); return }
+        if (a.elementLabel != null) {
+            val now = withContext(Dispatchers.Default) { PhoneControl.labelOf(a.args.optInt("element", -1)) }
+            if (now != a.elementLabel) { j.notes.add("The user approved: ${a.what}, but the screen changed before it could be done, so it was NOT done. Read the screen again; ask again if it's still needed."); persist(); return }
+        }
+        val out = runTool(j, Gemini.Call(a.tool, a.args, null))
+        j.notes.add("Approved and done: ${a.what}. Result: ${out.lineSequence().firstOrNull()?.take(300) ?: ""}")
+        persist()
+    }
+
+    private suspend fun askApproval(j: BotJob, a: Approval) {
+        j.approval = a; j.current = null
+        j.move(BotRules.AWAITING_APPROVAL, System.currentTimeMillis()); j.step("Waiting for your OK: ${a.what}")
+        persistNow(); notifyAlert(j, "Atlas Bot needs your OK", a.what, approval = true); changed()
+    }
+
+    private fun waitAndRetry(j: BotJob, why: String) {
+        j.retries++
+        if (j.retries > BotRules.MAX_RETRIES) return fail(j, "$why I tried ${BotRules.MAX_RETRIES} times; it still didn't work.")
+        val wait = BotRules.retryDelay(j.retries)
+        j.retryAt = System.currentTimeMillis() + wait; j.error = why; j.current = null
+        j.move(BotRules.WAITING_RETRY, System.currentTimeMillis()); j.step("Waiting ${wait / 60_000} min to try again: ${why.take(100)}")
+        persist(); changed()
+    }
+
+    private fun complete(j: BotJob, report: String) {
+        val now = System.currentTimeMillis()
+        j.report = Plain.reply(report).ifBlank { compiled(j) }
+        j.plan.forEach { it.done = true }
+        j.current = null; j.error = null
+        j.move(BotRules.COMPLETED, now)
+        if (!j.posted) { j.posted = true; Conversation.postFromBot(app, "**Atlas Bot finished:** ${j.goal}\n\n${j.report}") }
+        notifyAlert(j, "Atlas Bot is done", j.goal)
+        persist(); changed()
+    }
+
+    /** A report built from the notes, when the bot ran out of budget without writing one. */
+    private fun compiled(j: BotJob): String = buildString {
+        append("## ").append(j.goal).append("\n\nI ran out of time before writing a full report. Here is what I found:\n\n")
+        if (j.notes.isEmpty()) append("- I didn't get far enough to find anything useful.\n") else j.notes.forEach { append("- ").append(it.replace("\n", " ")).append("\n") }
+        if (j.sources.isNotEmpty()) { append("\n## Sources\n"); j.sources.forEach { append("- ").append(it).append("\n") } }
+    }
+
+    // ---------------------------------------------------------------- what the model sees
+
+    private fun fn(name: String, desc: String, props: JSONObject = JSONObject(), required: List<String> = emptyList()): JSONObject =
+        JSONObject().put("name", name).put("description", desc).apply {
+            if (props.length() > 0) put("parameters", JSONObject().put("type", "object").put("properties", props).apply { if (required.isNotEmpty()) put("required", JSONArray(required)) })
+        }
+    private fun str(desc: String) = JSONObject().put("type", "string").put("description", desc)
+
+    private val finishTool by lazy {
+        fn("finish", "Finish the job and hand over the report. The report is shown to the user and posted in their chat.",
+            JSONObject().put("report", str("The full report in neat Markdown, ending with a Sources section when you used the web.")), listOf("report"))
+    }
+    private val finishOnly by lazy { JSONArray().put(finishTool) }
+
+    /** Atlas's own tools that bots don't get: settings, focus sessions, and sending more bots. */
+    private val notForBots = setOf("change_setting", "start_focus", "deploy_bot")
+
+    private val declarations: JSONArray by lazy {
+        JSONArray().apply {
+            for (i in 0 until Tools.declarations.length()) {
+                val d = Tools.declarations.getJSONObject(i)
+                if (d.optString("name") !in notForBots) put(d)
+            }
+            put(fn("update_plan", "Write or update your plan for this job: 3 to 8 short steps, one per line, in order. Start a line with [x] when that step is done.",
+                JSONObject().put("plan", str("The steps, one per line, e.g. \"[x] Search for reviews\\n[ ] Compare prices\"")), listOf("plan")))
+            put(fn("note", "Save something you'll need later: a fact, figure, name or link you found, with where it came from. Older tool results are dropped as you go, but notes are kept for the whole job.",
+                JSONObject().put("text", str("The note, short and specific")), listOf("text")))
+            put(fn("ask_user", "Ask the user one clear question when you truly can't go on without their answer (a choice only they can make, a missing detail). The job waits until they answer.",
+                JSONObject().put("question", str("The question")), listOf("question")))
+            put(fn("request_approval", "Ask the user's OK before anything that sends a message, posts, buys or pays, deletes something, or changes an account or security setting. Say exactly what you'll do. The job waits for their answer.",
+                JSONObject().put("action", str("Exactly what you're about to do, e.g. 'Send \"See you at 6\" to Mum on WhatsApp'")), listOf("action")))
+            put(finishTool)
+        }
+    }
+    private val toolNames: Set<String> by lazy { (0 until Tools.declarations.length()).map { Tools.declarations.getJSONObject(it).optString("name") }.filter { it !in notForBots }.toSet() }
+
+    private val stampFmt = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH)
+
+    private fun systemPrompt(ctx: Context): String {
+        val name = Store.read(ctx) { it.settings.name }.ifBlank { "the user" }
+        val now = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(Engine.zone)
+        val phone = if (PhoneControl.on()) "on" else "OFF (you can't use apps; do what you can without them, or ask the user to turn it on in Atlas → Me → Phone control)"
+        return """
+You are Atlas Bot, an agent that Atlas ($name's personal AI assistant) sends to do a job in the background on their Android phone. You're not chatting: nobody reads what you write until you finish. Work through the job with your tools, then call finish with the report.
+
+How you work:
+1. Plan first: call update_plan with a short plan (3 to 8 steps). Keep it current: tick steps off with [x] as you finish them, and change the plan when you learn something.
+2. Work step by step with tools. For research, run several focused web searches and read the best pages instead of guessing; cross-check important facts in two sources when you can. Prefer recent, primary sources.
+3. Older tool results are dropped as you go to keep things small, so save what you'll need later (facts, figures, names, links, with the source) with note as soon as you find it. Your plan and notes are kept for the whole job.
+4. Before you finish, check your work: does the report do the whole job? Is every number and claim backed by something you read or did?
+5. If you truly can't go on without the user (a choice only they can make, a missing detail), call ask_user with one clear question. Decide sensible things yourself.
+6. Call finish with the report.
+
+The report:
+- Neat Markdown: a title line (## heading), a short summary first, then sections with headings, bullet lists, **bold** key words, and a table when comparing options. No filler.
+- Honest: say what you couldn't find, couldn't verify or didn't do. Never say you did something a tool result didn't show.
+- Never show code, ids, tool or function names, or JSON, unless the job asked for code.
+- If you used the web, end with a "Sources" section: each page you relied on as [Title or site](link).
+
+Safety:
+- Anything that sends a message, posts, buys or pays, deletes something, or changes an account or security setting needs the user's OK first: call request_approval saying exactly what you'll do, and wait. Some actions are also checked automatically and will wait for the OK.
+- Never type passwords, payment details or verification codes.
+
+Using the phone (only when the job needs it):
+- open_app, then work from the numbered elements on the screen. Every action returns the new screen; check it. Numbers change after each action, so use numbers from the latest screen only.
+- If an approach fails twice, try another; after a few tries, note what blocked you and move on or finish.
+- Phone control is $phone.
+
+Budget: up to $MAX_TOOL_CALLS tool steps and ${MAX_WORK_MS / 60_000} minutes for the job. When it's nearly used up, finish with what you have.
+
+Now: ${now.format(stampFmt)} (${Engine.zone.id}).
+${Tools.logContext(ctx)}
+""".trim()
+    }
+
+    /** Where the job stands, as the opening message of each fresh round with the model. */
+    private fun brief(j: BotJob): String = buildString {
+        append("Your job: ").append(j.goal)
+        if (j.details.isNotBlank()) append("\nDetails: ").append(j.details)
+        val left = ((MAX_WORK_MS - j.workMs) / 60_000).coerceAtLeast(0)
+        append("\n(Tool steps used: ${j.toolCalls} of $MAX_TOOL_CALLS. Time left: about $left min.)")
+        if (j.plan.isEmpty()) append("\n\nNo plan yet: start by making one with update_plan.")
+        else { append("\n\nYour plan:"); j.plan.forEachIndexed { i, it -> append("\n${i + 1}. ${if (it.done) "[x]" else "[ ]"} ${it.text}") } }
+        if (j.notes.isNotEmpty()) { append("\n\nYour notes so far:"); j.notes.forEach { append("\n- ").append(it) } }
+        if (j.sources.isNotEmpty()) { append("\n\nPages you've read:"); j.sources.forEach { append("\n- ").append(it) } }
+        val done = j.steps.takeLast(20)
+        if (done.isNotEmpty()) { append("\n\nWhat you've done so far (latest last):"); done.forEach { append("\n- ").append(it) } }
+        if (j.recent.isNotEmpty()) { append("\n\nLatest results:"); j.recent.forEach { append("\n---\n").append(it) }; append("\n---") }
+        append(if (j.toolCalls == 0 && j.plan.isEmpty()) "\n\nBegin." else "\n\nCarry on from here.")
+    }
+
+    private fun label(c: Gemini.Call): String = when (c.name) {
+        "web_search" -> "Searching for “${c.args.optString("query").take(60)}”"
+        "read_page" -> "Reading ${c.args.optString("url").removePrefix("https://").removePrefix("http://").take(50)}"
+        "open_app" -> "Opening ${c.args.optString("name")}"
+        "read_screen" -> "Looking at the screen"
+        "tap" -> "Tapping"
+        "long_press" -> "Pressing"
+        "type_text" -> "Typing"
+        "scroll" -> "Scrolling"
+        "press_key" -> "Pressing ${c.args.optString("key")}"
+        "wait" -> "Waiting"
+        "set_reminder" -> "Logging a reminder"
+        "update_reminder" -> "Changing a reminder"
+        "remember" -> "Saving to memory"
+        "forget" -> "Deleting a memory"
+        "read_log" -> "Checking your Log"
+        "open_link" -> "Opening a link"
+        else -> "Working"
+    }
+
+    // ---------------------------------------------------------------- notifications
+
+    fun channels(ctx: Context) {
+        val nm = ctx.getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(NotificationChannel(CH_BOT, "Atlas Bot working", NotificationManager.IMPORTANCE_LOW).apply { description = "Shown while Atlas Bot works on a job" })
+        nm.createNotificationChannel(NotificationChannel(CH_BOT_ALERT, "Atlas Bot", NotificationManager.IMPORTANCE_HIGH).apply { description = "When a bot finishes, has a question or needs your OK" })
+    }
+
+    fun notifId(j: BotJob) = 5100 + (j.id.hashCode() and 0xFFF)
+
+    fun openIntent(ctx: Context, j: BotJob?, code: Int): PendingIntent =
+        PendingIntent.getActivity(ctx, code, Intent(ctx, BotActivity::class.java).putExtra(BotActivity.EXTRA_ID, j?.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+    fun actionIntent(ctx: Context, j: BotJob, action: String): PendingIntent =
+        PendingIntent.getBroadcast(ctx, notifId(j) * 8 + action.hashCode() % 7, Intent(ctx, BotReceiver::class.java).setAction(action).putExtra(BotActivity.EXTRA_ID, j.id),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+    private fun notifyAlert(j: BotJob, title: String, text: String, approval: Boolean = false) {
+        if (!::app.isInitialized) return
+        channels(app)
+        val b = Notification.Builder(app, CH_BOT_ALERT).setSmallIcon(R.drawable.ic_stat).setContentTitle(title)
+            .setContentText(Plain.reply(text).take(200)).setStyle(Notification.BigTextStyle().bigText(Plain.reply(text).take(600)))
+            .setContentIntent(openIntent(app, j, notifId(j))).setAutoCancel(true)
+        if (approval) {
+            b.addAction(Notification.Action.Builder(null, "Approve", actionIntent(app, j, BotReceiver.ACTION_APPROVE)).build())
+            b.addAction(Notification.Action.Builder(null, "Deny", actionIntent(app, j, BotReceiver.ACTION_DENY)).build())
+        }
+        try { app.getSystemService(NotificationManager::class.java).notify(notifId(j), b.build()) } catch (e: SecurityException) { Log.w(TAG, "notify", e) }
+    }
+
+    private fun cancelAlert(j: BotJob) { if (::app.isInitialized) app.getSystemService(NotificationManager::class.java).cancel(notifId(j)) }
+}

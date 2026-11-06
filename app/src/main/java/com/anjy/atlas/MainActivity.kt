@@ -773,6 +773,7 @@ class MainActivity : Activity() {
         Engine.zone = ZoneId.systemDefault()
         Reminders.channels(this)
         Conversation.load(applicationContext)
+        Bots.init(applicationContext)
         if (Build.VERSION.SDK_INT >= 33) onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT) { handleBack() }
         applyPalette()
         L.init(this)
@@ -875,6 +876,7 @@ class MainActivity : Activity() {
         super.onResume()
         AvatarService.setAppInFront(this, true)
         Conversation.listen(onChat)
+        Bots.listen(onBots)
         Sync.listen(onSync); Sync.syncSoon(this, 500)
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
         if (::aurora.isInitialized) aurora.resume()
@@ -886,7 +888,7 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
-        Conversation.unlisten(onChat); Sync.unlisten(onSync)
+        Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync)
         stopVoice()
         AvatarService.setAppInFront(this, false)
         Tilt.stop(); if (::aurora.isInitialized) aurora.pause()
@@ -1080,6 +1082,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(dp(38), dp(38)).apply { rightMargin = dp(8) })
         bar.addView(ThemeSwitch(this, dark, MED).apply { onChange = { d -> swapTheme(d, this) }; k = 0.78f })
         body.add(bar)
+        botStrip()
 
 
         if (msgs.isEmpty()) {
@@ -1113,6 +1116,36 @@ class MainActivity : Activity() {
         chatList = list
         body.add(list, 4)
         fillChat(list)
+    }
+
+    // ---------------------------------------------------------------- Atlas Bot
+
+    private var botChip: TextView? = null
+    private fun botLine(): String = BotRules.summary(Bots.jobs, System.currentTimeMillis())
+
+    /** A small glass strip under the top bar while bots are working (or recently done): tap to see them. */
+    private fun botStrip() {
+        botChip = null
+        val line = botLine()
+        if (line.isEmpty()) return
+        val chip = text("Atlas Bot  ·  $line  ›", 13f, FG, MED, keepEmoji = true).apply {
+            background = finished(SURFACE, -1f, glass = true); setPadding(dp(14), dp(8), dp(14), dp(9)); maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END; isClickable = true; contentDescription = "Atlas Bot: $line"
+            setOnClickListener { startActivity(Intent(this@MainActivity, BotActivity::class.java)) }
+            pressFx()
+        }
+        botChip = chip
+        body.add(chip, 10, WRAP)
+    }
+
+    /** A bot moved on: update the strip in place, or redraw the Atlas tab when it appears or goes. */
+    private val onBots: () -> Unit = {
+        if (tab == 0 && ::composer.isInitialized) {
+            val line = botLine()
+            val chip = botChip
+            if ((chip == null) != line.isEmpty()) render(keepScroll = true)
+            else chip?.let { it.text = "Atlas Bot  ·  $line  ›"; it.contentDescription = "Atlas Bot: $line" }
+        }
     }
 
     /** Draws the conversation into [list]. */

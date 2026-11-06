@@ -142,6 +142,24 @@ object Conversation {
         save(ctx.applicationContext); changed()
     }
 
+    /**
+     * Atlas Bot finished a job: its report joins the chat as an Atlas message (and so reaches the other device too).
+     * While Atlas is answering, it goes in just before the exchange in progress. Main thread.
+     */
+    fun postFromBot(ctx: Context, text: String) {
+        val app = ctx.applicationContext
+        load(app)
+        val m = Msg(false, Plain.reply(text), "Atlas Bot", System.currentTimeMillis())
+        if (busy && messages.size >= 2) messages.add(messages.size - 2, m) else {
+            messages.add(m)
+            // the model hears about it next time, keeping turns in order (user, then Atlas)
+            history.add(true to "(Atlas Bot finished a job you sent it on. Its report follows.)")
+            history.add(false to m.text.take(4000))
+            fixHistory()
+        }
+        save(app); changed()
+    }
+
     /** After a sync took things in: screens showing the Log or chat redraw. */
     fun reloadFromSync(ctx: Context) { changed() }
 
@@ -239,6 +257,10 @@ The Log (only what's worth keeping):
 
 The internet:
 - web_search for anything current or that you're not sure of; read_page to read a result or a link. Say where facts came from when it matters.
+
+Atlas Bot (deploy_bot):
+- For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of phone actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
+- Quick things (one search, one reminder, a short answer) you do yourself.
 
 Your own settings (change_setting, when they ask, e.g. "talk to me", "use a deeper voice", "dark mode", "get off my screen"):
 ${Self.describe(ctx)}

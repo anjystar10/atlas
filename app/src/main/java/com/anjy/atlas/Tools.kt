@@ -79,6 +79,9 @@ object Tools {
             put(fn("start_focus", "Start a focus session when the user says they're doing something right now (\"I'm doing it now\", \"starting my homework\"). Opens a distraction-free screen with a timer.",
                 JSONObject().put("title", str("What they're doing")).put("minutes", int("Planned length in minutes, if they said or it's known (default: none, the timer counts up)"))
                     .put("id", str("The reminder's id, if it's one from the Log")), listOf("title")))
+            put(fn("deploy_bot", "Send Atlas Bot to do a bigger job in the background: anything that needs many steps, like deep research with sources, comparing several options, writing a long piece, checking many pages, or a long chain of phone actions. The bot plans, works on its own, and its report lands in this chat when it's done; the chat stays free meanwhile. Don't use it for quick things you can do in a step or two.",
+                JSONObject().put("goal", str("The job in one clear sentence, e.g. 'Find the best budget phone under $300 for photos, with sources'"))
+                    .put("details", str("Everything the bot should know: what the user wants, preferences, limits, what to include in the report")), listOf("goal")))
             put(fn("wait", "Wait for something to load (an answer being written, a page loading). Returns the new screen.",
                 JSONObject().put("seconds", int("1 to 15")), listOf("seconds")))
         }
@@ -241,6 +244,13 @@ object Tools {
                     val s = a.optInt("seconds", 2).coerceIn(1, 15)
                     delay(s * 1000L)
                     withContext(Dispatchers.Default) { Result(PhoneControl.readScreen(), null, phone = true) }
+                }
+                "deploy_bot" -> withContext(Dispatchers.Main) {
+                    val goal = a.optString("goal").trim()
+                    if (goal.isEmpty()) return@withContext Result("Error: give the bot a goal.")
+                    val j = Bots.deploy(ctx, goal, a.optString("details"))
+                    Result("Atlas Bot is on it: '${j.goal}'. It works in the background; its report will appear in this chat when it's done, and the user can follow it from the Atlas Bot strip at the top of the chat. Tell them briefly, in your own words.",
+                        "Sent Atlas Bot: ${j.goal}")
                 }
                 else -> Result("Error: there's no tool called ${c.name}.")
             }

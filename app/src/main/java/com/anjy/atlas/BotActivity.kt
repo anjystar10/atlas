@@ -1,0 +1,273 @@
+package com.anjy.atlas
+
+import android.app.Activity
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.Typeface
+import android.os.Bundle
+import android.text.InputType
+import android.view.Gravity
+import android.view.View
+import android.view.WindowInsets
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
+import android.window.OnBackInvokedDispatcher
+import kotlin.math.roundToInt
+
+/**
+ * Atlas Bot's page. Without a job: every job, newest first, and a box to send a new one. With a job ([EXTRA_ID]):
+ * its goal, where it stands, its plan with ticks, what it did, and the report when it's done, with the keys the
+ * moment calls for (Pause, Resume, Stop, Approve, Deny, an answer box).
+ */
+class BotActivity : Activity() {
+    companion object { const val EXTRA_ID = "bot_id" }
+
+    private val BG = Color.parseColor("#05050F")
+    private val FG = Color.parseColor("#F0F1FF")
+    private val MUTED = Color.parseColor("#9BA1C9")
+    private val ACCENT = Color.parseColor("#A99BFF")
+    private val GOOD = Color.parseColor("#7FD8A6")
+    private val WARN = Color.parseColor("#F2C46D")
+    private val BAD = Color.parseColor("#F08A8A")
+    private val SURFACE = Color.parseColor("#14163A")
+
+    private lateinit var col: LinearLayout
+    private lateinit var scroll: ScrollView
+    private var jobId: String? = null
+    private var lastSig = ""
+    /** What's typed in the answer or new-job box, kept when the page redraws. */
+    private var draft = ""
+
+    private val serif by lazy { font(R.font.newsreader_regular, Typeface.SERIF) }
+    private val med by lazy { font(R.font.geist_medium, Typeface.DEFAULT) }
+    private val semi by lazy { font(R.font.geist_semibold, Typeface.DEFAULT_BOLD) }
+    private val body by lazy { font(R.font.geist_regular, Typeface.DEFAULT) }
+    private val mono by lazy { font(R.font.geist_mono, Typeface.MONOSPACE) }
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
+    private fun font(id: Int, fb: Typeface) = try { resources.getFont(id) } catch (_: Throwable) { fb }
+
+    private val onBots: () -> Unit = { refresh() }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        Bots.init(applicationContext)
+        jobId = intent?.getStringExtra(EXTRA_ID)
+        window.statusBarColor = BG; window.navigationBarColor = BG
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(BG))
+        onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { finish() }
+        col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(12), dp(20), dp(32)) }
+        scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(col) }
+        val root = FrameLayout(this).apply {
+            background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(Color.parseColor("#0B0B22"), BG, Color.parseColor("#0A0820")))
+            addView(scroll, FrameLayout.LayoutParams(-1, -1))
+        }
+        setContentView(root)
+        window.setDecorFitsSystemWindows(false)
+        root.setOnApplyWindowInsetsListener { v, ins ->
+            val b = ins.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.ime())
+            v.setPadding(b.left, b.top, b.right, b.bottom); WindowInsets.CONSUMED
+        }
+        render()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent); setIntent(intent)
+        jobId = intent.getStringExtra(EXTRA_ID); draft = ""; render()
+    }
+
+    override fun onResume() { super.onResume(); Bots.listen(onBots); refresh() }
+    override fun onPause() { Bots.unlisten(onBots); super.onPause() }
+
+    // ---------------------------------------------------------------- drawing
+
+    private fun sig(): String = Bots.jobs.joinToString("|") { "${it.id}:${it.state}:${it.current}:${it.steps.size}:${it.plan.count { p -> p.done }}/${it.plan.size}:${it.report?.length}" }
+
+    private fun refresh() { val s = sig(); if (s != lastSig) render() }
+
+    private fun render() {
+        lastSig = sig()
+        // keep what's being typed
+        (col.findViewWithTag<EditText>("draft"))?.let { draft = it.text.toString() }
+        val hadFocus = currentFocus is EditText
+        col.removeAllViews()
+        val j = Bots.job(jobId)
+        if (jobId != null && j == null) { jobId = null }
+        if (j == null) list() else detail(j)
+        if (hadFocus) col.findViewWithTag<EditText>("draft")?.let { it.requestFocus(); it.setSelection(it.text.length) }
+    }
+
+    private fun text(s: CharSequence, size: Float, color: Int = FG, face: Typeface = body) = TextView(this).apply {
+        text = s; textSize = size; setTextColor(color); typeface = face; setLineSpacing(0f, 1.25f)
+    }
+
+    private fun add(v: View, top: Int = 0) = col.addView(v, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top) })
+
+    private fun card(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(14), dp(16), dp(16))
+        background = Finish(SURFACE, dp(20).toFloat(), true, resources.displayMetrics.density, glass = true)
+    }
+
+    private fun button(label: String, primary: Boolean = false, onTap: () -> Unit) = TextView(this).apply {
+        text = label; textSize = 15f; typeface = if (primary) semi else med; gravity = Gravity.CENTER
+        setTextColor(if (primary) Color.WHITE else FG); setPadding(dp(14), dp(13), dp(14), dp(14))
+        background = Finish(if (primary) Color.parseColor("#5B4BF0") else SURFACE, -1f, true, resources.displayMetrics.density, glass = !primary)
+        isClickable = true; setOnClickListener { onTap() }; pressFx()
+    }
+
+    private fun row(vararg views: View): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        views.forEachIndexed { i, v -> addView(v, LinearLayout.LayoutParams(0, -2, 1f).apply { if (i > 0) leftMargin = dp(10) }) }
+    }
+
+    private fun header(title: String) {
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        top.addView(text("‹", 30f, FG, serif).apply { setPadding(dp(4), 0, dp(14), dp(4)); contentDescription = "Back"; isClickable = true; setOnClickListener { finish() } })
+        top.addView(text(title, 26f, FG, serif), LinearLayout.LayoutParams(0, -2, 1f))
+        add(top)
+    }
+
+    private fun stateColor(s: String) = when (s) {
+        BotRules.COMPLETED -> GOOD
+        BotRules.FAILED -> BAD
+        in BotRules.WAITING_ON_USER -> WARN
+        BotRules.CANCELLED, BotRules.PAUSED -> MUTED
+        else -> ACCENT
+    }
+
+    private fun input(hint: String, onSend: (String) -> Unit): View {
+        val field = EditText(this).apply {
+            tag = "draft"; setText(draft); this.hint = hint; setHintTextColor(MUTED); setTextColor(FG); textSize = 15f; typeface = body
+            background = null; setPadding(0, dp(4), 0, dp(4)); minLines = 2; maxLines = 6
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            imeOptions = EditorInfo.IME_ACTION_SEND
+        }
+        val c = card()
+        c.addView(field, LinearLayout.LayoutParams(-1, -2))
+        c.addView(button("Send", primary = true) {
+            val t = field.text.toString().trim()
+            if (t.isNotEmpty()) { draft = ""; field.setText(""); onSend(t) }
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+        return c
+    }
+
+    // ---------------------------------------------------------------- every job
+
+    private fun list() {
+        header("Atlas Bot")
+        add(text("Jobs Atlas sent a bot to do. They keep working when you leave, and each report lands in your chat.", 15f, MUTED), 4)
+        add(input("Send a bot to… (e.g. find the three best budget laptops for coding, with sources)") { goal ->
+            Bots.deploy(applicationContext, goal, "")
+            render()
+        }, 16)
+        val all = Bots.visible()
+        if (all.isEmpty()) {
+            add(card().apply {
+                addView(text("No bots yet", 18f, FG, serif))
+                addView(text("Ask Atlas for something bigger, like “research the best phone under $300 for photos and send me a report”, or say “send a bot to…”.", 14f, MUTED),
+                    LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+            }, 16)
+            return
+        }
+        all.forEach { j ->
+            val c = card().apply { isClickable = true; setOnClickListener { open(j) }; pressFx() }
+            c.addView(text(j.goal, 17f, FG, serif).apply { maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END })
+            val line = listOfNotNull(BotRules.label(j.state), if (j.state == BotRules.RUNNING) j.current else null,
+                if (j.plan.isNotEmpty()) "plan ${j.plan.count { it.done }}/${j.plan.size}" else null).joinToString(" · ")
+            c.addView(text(line, 13f, stateColor(j.state), med).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END },
+                LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+            add(c, 12)
+        }
+    }
+
+    private fun open(j: BotJob) {
+        startActivity(Intent(this, BotActivity::class.java).putExtra(EXTRA_ID, j.id))
+    }
+
+    // ---------------------------------------------------------------- one job
+
+    private fun detail(j: BotJob) {
+        header("Atlas Bot")
+        add(text(j.goal, 24f, FG, serif), 8)
+        if (j.details.isNotBlank()) add(text(j.details, 14f, MUTED).apply { maxLines = 6; ellipsize = android.text.TextUtils.TruncateAt.END }, 6)
+        val now = when (j.state) {
+            BotRules.RUNNING -> "${BotRules.label(j.state)}: ${j.current ?: "Thinking"}"
+            BotRules.WAITING_RETRY -> "${BotRules.label(j.state)} at ${Reminders.fmt(j.retryAt)}${j.error?.let { " ($it)" } ?: ""}"
+            BotRules.FAILED -> "${BotRules.label(j.state)}: ${j.error ?: ""}"
+            else -> BotRules.label(j.state)
+        }
+        add(text(now, 14f, stateColor(j.state), med), 10)
+        add(text("${j.toolCalls} steps · ${j.workMs / 60_000} min${j.provider?.let { " · $it" } ?: ""}", 12f, MUTED), 2)
+
+        // what it needs from you
+        when (j.state) {
+            BotRules.AWAITING_APPROVAL -> j.approval?.let { a ->
+                add(card().apply {
+                    addView(text("It wants to:", 13f, WARN, semi))
+                    addView(text(a.what, 17f, FG, serif), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+                    addView(row(button("Deny") { Bots.approve(j.id, false) }, button("Approve", primary = true) { Bots.approve(j.id, true) }),
+                        LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+                }, 14)
+            }
+            BotRules.AWAITING_ANSWER -> {
+                add(card().apply {
+                    addView(text("It asks:", 13f, WARN, semi))
+                    addView(text(j.question ?: "", 17f, FG, serif), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+                }, 14)
+                add(input("Your answer") { Bots.answer(j.id, it) }, 10)
+            }
+            BotRules.NEEDS_REVIEW -> add(card().apply {
+                addView(text("Atlas was closed while the bot was doing: ${j.pending ?: "a step"}. It may or may not have happened. Check, then carry on or stop.", 15f, FG))
+                addView(row(button("Stop") { Bots.stop(j.id) }, button("Carry On", primary = true) { Bots.carryOn(j.id) }),
+                    LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+            }, 14)
+        }
+
+        // the keys for where it is
+        when {
+            j.state == BotRules.PAUSED -> add(row(button("Stop") { Bots.stop(j.id) }, button("Resume", primary = true) { Bots.resume(j.id) }), 14)
+            !j.final && j.state !in BotRules.WAITING_ON_USER -> add(row(button("Pause") { Bots.pause(j.id) }, button("Stop") { Bots.stop(j.id) }), 14)
+            j.state == BotRules.AWAITING_APPROVAL || j.state == BotRules.AWAITING_ANSWER -> add(row(button("Pause") { Bots.pause(j.id) }, button("Stop") { Bots.stop(j.id) }), 10)
+        }
+
+        // the report
+        j.report?.let { r ->
+            add(text("REPORT", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
+            val st = Markdown.Style(body, semi, serif, mono, FG, MUTED, ACCENT, Color.argb(40, 255, 255, 255), resources.displayMetrics.density, 16f)
+            Markdown.parse(r, st).forEach { b ->
+                when (b) {
+                    is Markdown.Prose -> add(text(b.text, 16f).apply { setLineSpacing(0f, 1.32f); setTextIsSelectable(true)
+                        movementMethod = android.text.method.LinkMovementMethod.getInstance() }, 8)
+                    is Markdown.Code -> add(text(b.text, 13.5f, FG, mono).apply { setPadding(dp(12), dp(10), dp(12), dp(10))
+                        background = Finish(SURFACE, dp(12).toFloat(), true, resources.displayMetrics.density, glass = true); setTextIsSelectable(true) }, 8)
+                }
+            }
+        }
+
+        // the plan
+        if (j.plan.isNotEmpty()) {
+            add(text("PLAN", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
+            j.plan.forEach { p ->
+                val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                r.addView(text(if (p.done) "✓" else "○", 15f, if (p.done) GOOD else MUTED, semi), LinearLayout.LayoutParams(dp(26), -2))
+                r.addView(text(p.text, 15f, if (p.done) MUTED else FG), LinearLayout.LayoutParams(0, -2, 1f))
+                add(r, 8)
+            }
+        }
+
+        // what it did
+        if (j.steps.isNotEmpty()) {
+            add(text("WHAT IT DID", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
+            val shown = j.steps.takeLast(15)
+            if (j.steps.size > shown.size) add(text("and ${j.steps.size - shown.size} earlier steps", 13f, MUTED), 6)
+            shown.forEach { add(text("· $it", 14f, MUTED), 6) }
+        }
+
+        if (j.final) add(button("Remove From List") { Bots.remove(j.id); finish() }, 24)
+    }
+}

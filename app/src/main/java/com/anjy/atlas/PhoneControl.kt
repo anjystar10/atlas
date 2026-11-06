@@ -146,6 +146,9 @@ object PhoneControl {
 
     private fun node(i: Int): AccessibilityNodeInfo? = nodes.getOrNull(i)?.takeIf { it.refresh() }
 
+    /** What element [i] of the latest reading says, to check an action before it's taken (Atlas Bot); null if it's gone. */
+    fun labelOf(i: Int): String? = try { node(i)?.let { n -> label(n).ifEmpty { innerText(n) } } } catch (_: Exception) { null }
+
     private suspend fun settle(ms: Long = 900): String { delay(ms); return readScreen() }
 
     suspend fun tap(i: Int, long: Boolean): Tools.Result {

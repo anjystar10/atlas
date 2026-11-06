@@ -215,20 +215,24 @@ object Providers {
         val pdf get() = mime == "application/pdf"
     }
 
-    /** [history]: earlier exchanges as (fromUser, text). [media]: pictures or a video sent with this message. */
-    fun session(ctx: Context, p: Provider, history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList()): Session {
+    /**
+     * [history]: earlier exchanges as (fromUser, text). [media]: pictures or a video sent with this message.
+     * [tools]: the functions the model may call (Atlas Bot passes its own set).
+     */
+    fun session(ctx: Context, p: Provider, history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList(),
+                tools: JSONArray = Tools.declarations): Session {
         val key = key(ctx, p.id) ?: throw Gemini.Failure("No key for ${p.name}.")
         val model = model(ctx, p)
         if (media.any { it.video } && p.style != "gemini") throw Gemini.Failure("${p.name} can't watch videos. Gemini can: switch to it in Me → Brain, or send a picture instead.")
         return when (p.style) {
-            "gemini" -> GeminiSession(key, model, Conversation.endpoint(ctx), history, user, media)
-            "anthropic" -> AnthropicSession(key, model, p.baseUrl, history, user, media)
-            else -> OpenAiSession(key, model, baseUrl(ctx, p), p, history, user, media)
+            "gemini" -> GeminiSession(key, model, Conversation.endpoint(ctx), history, user, media, tools)
+            "anthropic" -> AnthropicSession(key, model, p.baseUrl, history, user, media, tools)
+            else -> OpenAiSession(key, model, baseUrl(ctx, p), p, history, user, media, tools)
         }
     }
 
     class GeminiSession(override var key: String, private val model: String, private val endpoint: String, history: List<Pair<Boolean, String>>, user: String,
-                        media: List<Media> = emptyList()) : Session() {
+                        media: List<Media> = emptyList(), private val tools: JSONArray = Tools.declarations) : Session() {
         private val contents = ArrayList<JSONObject>().apply {
             history.forEach { (u, t) -> add(if (u) Gemini.userText(t) else Gemini.modelText(t)) }
             if (media.isEmpty()) add(Gemini.userText(user)) else {
@@ -239,7 +243,7 @@ object Providers {
             }
         }
         override fun call(system: String): Gemini.Turn {
-            val req = Gemini.request(system, Gemini.trimScreens(contents), Tools.declarations, model)
+            val req = Gemini.request(system, Gemini.trimScreens(contents), tools, model)
             val t = Gemini.call(key, model, req, endpoint)
             contents.add(t.content)
             return t
@@ -248,7 +252,8 @@ object Providers {
     }
 
     class OpenAiSession(override var key: String, private val model: String, private val base: String, private val p: Provider,
-                        history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList()) : Session() {
+                        history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList(),
+                        private val tools: JSONArray = Tools.declarations) : Session() {
         private val messages = ArrayList<JSONObject>().apply {
             history.forEach { (u, t) -> add(JSONObject().put("role", if (u) "user" else "assistant").put("content", t)) }
             if (media.isEmpty()) add(JSONObject().put("role", "user").put("content", user)) else {
@@ -264,7 +269,7 @@ object Providers {
             if (base.isEmpty()) throw Gemini.Failure("Set the address of your service in Me.")
             val msgs = JSONArray().put(JSONObject().put("role", "system").put("content", system))
             trimToolScreens(messages).forEach { msgs.put(it) }
-            val body = JSONObject().put("model", model).put("messages", msgs).put("tools", openAiTools(Tools.declarations))
+            val body = JSONObject().put("model", model).put("messages", msgs).put("tools", openAiTools(tools))
             // OpenAI's GPT-6 models only call functions in this API with reasoning off (their docs)
             if (p.id == "openai" && model.startsWith("gpt-6")) body.put("reasoning_effort", "none")
             val headers = mutableMapOf("Authorization" to "Bearer $key")
@@ -294,7 +299,8 @@ object Providers {
     }
 
     class AnthropicSession(override var key: String, private val model: String, private val base: String,
-                           history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList()) : Session() {
+                           history: List<Pair<Boolean, String>>, user: String, media: List<Media> = emptyList(),
+                           private val tools: JSONArray = Tools.declarations) : Session() {
         private val messages = ArrayList<JSONObject>().apply {
             history.forEach { (u, t) -> add(JSONObject().put("role", if (u) "user" else "assistant").put("content", t)) }
             if (media.isEmpty()) add(JSONObject().put("role", "user").put("content", user)) else {
@@ -311,7 +317,7 @@ object Providers {
         override fun call(system: String): Gemini.Turn {
             val msgs = JSONArray(); trimToolScreens(messages).forEach { msgs.put(it) }
             val body = JSONObject().put("model", model).put("max_tokens", 2048).put("system", system)
-                .put("messages", msgs).put("tools", anthropicTools(Tools.declarations))
+                .put("messages", msgs).put("tools", anthropicTools(tools))
             val r = post("$base/messages", mapOf("x-api-key" to key, "anthropic-version" to "2023-06-01"), body, "Claude")
             val content = r.optJSONArray("content") ?: JSONArray()
             val text = StringBuilder(); val calls = mutableListOf<Gemini.Call>()

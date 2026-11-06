@@ -101,6 +101,23 @@
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
 
+        <!-- Atlas Bot: its page, the service that keeps Atlas running while a bot works, and its notification keys. -->
+        <activity
+            android:name=".BotActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
+        <service
+            android:name=".BotService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Atlas Bot: finishes a multi-step job the user asked the assistant to do (research, writing, phone actions) while they use other apps" />
+        </service>
+        <receiver android:name=".BotReceiver" android:exported="false" />
+
         <!-- "Hey Atlas" listens in its own process, so a crash in the speech engine can't close Atlas. -->
         <service
             android:name=".HotwordService"
