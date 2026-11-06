@@ -1266,9 +1266,11 @@ class MainActivity : Activity() {
             setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_SEND) { submit(); true } else false }
             // pasted (or keyboard-inserted) pictures, videos and files are attached
             setOnReceiveContentListener(arrayOf("image/*", "video/*", "application/pdf", "text/*")) { _, payload ->
-                val split = payload.partition { item -> item.uri != null }
-                split.first?.clip?.let { clip -> for (i in 0 until clip.itemCount) clip.getItemAt(i).uri?.let { addMedia(it) } }
-                split.second
+                // items that are files get attached; plain pasted text is left for the box to take as usual
+                val clip = payload.clip
+                var tookAll = true
+                for (i in 0 until clip.itemCount) { val u = clip.getItemAt(i).uri; if (u != null) addMedia(u) else tookAll = false }
+                if (tookAll) null else payload
             }
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
