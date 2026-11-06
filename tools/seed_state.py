@@ -23,7 +23,8 @@ tasks = [
 ]
 if alarm_now:
     # one reminder that is due right now, for the alarm test
-    tasks.append(task("Pick up my sister", now - 20 * 1000, 15, "planned"))
+    tasks.append(task("Pick up my sister", now - 20 * 1000, 15, "planned", priority="high"))   # important: rings the alarm
+    tasks.append(task("Drink water", now - 15 * 1000, 5, "planned"))                           # lighter: a notification
 state = dict(schema=1, deviceId="seed",
              settings=dict(name="Anjy", tone="firm", quietStart="23:59", quietEnd="00:00", graceMin=15, followUps=1,
                            sound=True, avatarOn=True, speakReplies=False, theme=theme, wakeWord=True),

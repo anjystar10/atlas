@@ -165,7 +165,12 @@ adb shell am broadcast -n $PKG/.AlarmReceiver -a com.anjy.atlas.TICK >> "$OUT/st
 shot alarm-popup
 adb shell dumpsys notification --noredact > "$OUT/notifications.txt"
 adb shell dumpsys audio | grep -iE "usage=USAGE_ALARM|player.*state:started" | head -5 > "$OUT/alarm-sound.txt"
-if tap_desc "I'll do it"; then log "answered the alarm: I'll do it"; else log "alarm pop-up NOT found"; cp /tmp/ui.xml "$OUT/ui-alarm.xml"; fi
+grep -q "Drink water" "$OUT/notifications.txt" && log "lighter reminder came as a notification" || log "lighter reminder notification NOT found"
+# "Doing It Now": the focus screen opens with its timer; End finishes it (and marks the reminder done)
+if tap_desc "Doing It Now"; then log "alarm answered: doing it now"; else log "alarm pop-up NOT found"; cp /tmp/ui.xml "$OUT/ui-alarm.xml"; fi
+sleep 4; shot focus-session
+adb shell input keyevent 4; sleep 1; shot focus-after-back
+if tap_desc "End the session"; then log "focus session ended"; else log "focus End NOT found"; cp /tmp/ui.xml "$OUT/ui-focus.xml"; fi
 sleep 3
 adb shell "cat /data/data/$PKG/files/atlas-state.json" | python3 -c "
 import json,sys; s=json.load(sys.stdin); t=[x for x in s['tasks'] if x['title']=='Pick up my sister']
