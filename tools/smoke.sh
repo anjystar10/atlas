@@ -221,6 +221,16 @@ fi
 if adb shell pidof $PKG >/dev/null; then log "main app still running after the wake word engine: yes"; else log "main app still running after the wake word engine: NO"; fi
 adb shell ps -A | grep "$PKG" > "$OUT/processes.txt"
 
+# Sync with the real cloud: link a new device, let it sync, keep the link code so the records can be checked
+log "sync"
+launch me
+for i in 1 2 3 4 5 6 7 8 9 10; do if tap_desc "Link a New Device"; then log "linked"; break; fi; up; done
+sleep 20; shot sync-linked
+adb shell "cat /data/data/$PKG/shared_prefs/atlas_ui.xml" | grep -o 'ATLS-[A-Z0-9-]*' | head -1 > "$OUT/sync-code.txt"
+adb shell "cat /data/data/$PKG/files/sync-state.json" | head -c 300 > "$OUT/sync-state.txt" 2>&1
+adb logcat -d -s AtlasSync:V > "$OUT/sync-log.txt" 2>&1
+log "sync code: $(cat "$OUT/sync-code.txt")"
+
 # any "not responding" reports, with what each thread was doing
 adb shell "ls -la /data/anr/" > "$OUT/anr-list.txt" 2>&1
 mkdir -p "$OUT/anr" && adb pull /data/anr/ "$OUT/anr/" >/dev/null 2>&1
