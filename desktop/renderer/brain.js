@@ -94,7 +94,7 @@ function explain(service, code, body) {
 async function post(url, headers, body, service, timeout = 180000) {
   const r = await host.fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body), timeout });
   if (r.status === 0) throw new Failure(r.error === 'timed out' ? `${service} took too long to answer.` : `Couldn't reach ${service}${r.error ? ' (' + r.error + ')' : ''}.`, 0, true);
-  if (!r.ok) throw new Failure(explain(service, r.status, r.text || ''), r.status);
+  if (!r.ok) { const f = new Failure(explain(service, r.status, r.text || ''), r.status); f.retryAfterMs = retryHint(r.text, r.retryAfter); throw f; }
   try { return JSON.parse(r.text); } catch { throw new Failure(`${service} sent back something unreadable.`); }
 }
 
@@ -464,8 +464,10 @@ export function stop() { convo.stopFlag++; convo.busy = false; convo.status = nu
 export class Switch extends Error { constructor(to, msg) { super(msg); this.to = to; } }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // The key pool's rules (the same as the phone's KeyRouter):
-// - A failure that can pass (429 limit, busy server 500/502/503/504, timeout or dropped connection) is retried on the
-//   SAME key up to RETRIES times (2, 5, 10 s) before anything switches.
+// - Persistent first: a failure that can pass (429 limit, busy server 500/502/503/504, timeout or dropped connection)
+//   is retried on the SAME key up to RETRIES times before anything switches. A limit waits as long as the service
+//   asked (Gemini's retryDelay, "try again in 20s", a Retry-After header) when that's a minute or less; with no hint,
+//   5, 15 and 40 s, which covers a per-minute window. Busy servers and the network: 2, 5, 10 s.
 // - A failure retrying can't fix switches at once: the key was turned down (401/403, or a 400 about the key) or the
 //   account has no credit (402). Waiting won't change those answers.
 // - Then the key is rested (limit, credit) or set aside (turned down) and the next ready key of the service takes over;
@@ -474,6 +476,33 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // - No internet after the retries: the local model takes over if there is one (not with Don't Switch on).
 export const RETRIES = 3;
 export const RETRY_WAITS = [2000, 5000, 10000];
+// a used-up limit (429) with no hint from the service: together they cover a per-minute window
+export const LIMIT_WAITS = [5000, 15000, 40000];
+// the longest wait a service may ask for that Atlas honours; a longer one moves on to the next key
+export const MAX_HINT_MS = 60000;
+const HINT = /(?:try again|retry)(?: after| in)?\s+(?:(\d+)\s*m(?!s)(?:in(?:ute)?s?)?\s*)?([0-9]+(?:\.[0-9]+)?)?\s*(ms|milliseconds?|s|secs?|seconds?)?\b/gi;
+/**
+ * How long the service asked us to wait, in ms (0 if it didn't say): a Retry-After header in seconds, Gemini's
+ * google.rpc.RetryInfo "retryDelay": "37s", or words like "try again in 20s", "retry after 20 seconds", "in 500ms".
+ */
+export function retryHint(body, header) {
+  const hs = Number(String(header ?? '').trim()); if (header != null && String(header).trim() && hs > 0) return Math.round(hs * 1000);
+  const b = String(body || ''); if (!b) return 0;
+  const d = /"retryDelay"\s*:\s*"([0-9.]+)s"/.exec(b); if (d && Number(d[1]) > 0) return Math.round(Number(d[1]) * 1000);
+  for (const m of b.matchAll(HINT)) {
+    const mins = Number(m[1] || 0), n = m[2] != null ? Number(m[2]) : null, unit = (m[3] || '').toLowerCase();
+    let part;
+    if (n == null) part = 0; else if (unit.startsWith('ms') || unit.startsWith('milli')) part = n; else if (unit || mins > 0) part = n * 1000; else continue;
+    const ms = mins * 60000 + Math.round(part); if (ms > 0) return ms;
+  }
+  return 0;
+}
+/** How long to wait before retry number [n] (1-based), and whether that's the service's own ask. */
+export function waitFor(f, n) {
+  const hint = f.retryAfterMs || 0;
+  if (hint > 0 && hint <= MAX_HINT_MS && (f.code === 429 || f.code === 503)) return [Math.max(hint, 500), true];
+  return [(f.code === 429 ? LIMIT_WAITS : RETRY_WAITS)[n - 1], false];
+}
 export const WAIT_OUT = [30000, 60000];
 export const dontSwitch = () => !!pref('dont_switch', false);
 export function cause(f) {
@@ -497,10 +526,13 @@ export async function callWithKeys(p, sess, call, mine, { onStatus = (st) => { c
     if (cancelled()) throw f;
     const c = cause(f);
     if (c === 'other') throw f;
-    if (c === 'passing' && retries < RETRIES) {
+    // asked to wait more than a minute: not worth sitting through, move on to the next key
+    const tooLong = (f.retryAfterMs || 0) > MAX_HINT_MS;
+    if (c === 'passing' && retries < RETRIES && !tooLong) {
       retries++;
-      onStatus(f.code === 429 ? `Waiting for ${p.name}'s limit (${retries} of ${RETRIES})` : f.offline ? `Can't reach ${p.name}, trying again (${retries} of ${RETRIES})` : `${p.name} is busy, trying again (${retries} of ${RETRIES})`);
-      await nap(RETRY_WAITS[retries - 1]); onStatus(null);
+      const [ms, asked] = waitFor(f, retries); const secs = Math.ceil(ms / 1000);
+      onStatus(asked ? `${p.name} asked me to wait ${secs} s (${retries} of ${RETRIES})` : f.code === 429 ? `Waiting for ${p.name}'s limit, ${secs} s (${retries} of ${RETRIES})` : f.offline ? `Can't reach ${p.name}, trying again (${retries} of ${RETRIES})` : `${p.name} is busy, trying again (${retries} of ${RETRIES})`);
+      await nap(ms); onStatus(null);
       continue;
     }
     const stay = dontSwitch();

@@ -9,8 +9,10 @@ import kotlinx.coroutines.withContext
  * One model call with the key pool behind it, shared by the chat (Conversation) and anything else that talks to a
  * model (Atlas Bot).
  *
- * - A failure that can pass (a 429 limit, a busy server 500/502/503/504, a timeout or dropped connection) is retried
- *   on the SAME key up to [RETRIES] times (2, 5, 10 s) before anything switches.
+ * - Persistent first: a failure that can pass (a 429 limit, a busy server 500/502/503/504, a timeout or dropped
+ *   connection) is retried on the SAME key up to [RETRIES] times before anything switches. A limit waits as long as
+ *   the service asked (Gemini's retryDelay, a "try again in 20s", a Retry-After header) when that's a minute or
+ *   less; with no hint, 5, 15 and 40 s, which covers a per-minute window. Busy servers and the network: 2, 5, 10 s.
  * - A failure that retrying can't fix switches at once: the key was turned down (401/403, or a 400 about the key) or
  *   the account has no credit (402). Waiting won't change those answers.
  * - After that, the key is rested (a limit, no credit) or set aside (turned down) and the next ready key of the same
@@ -27,6 +29,43 @@ object KeyRouter {
 
     const val RETRIES = 3
     val RETRY_WAITS = longArrayOf(2_000, 5_000, 10_000)
+    /** A used-up limit (429) with no hint from the service: together they cover a per-minute window. */
+    val LIMIT_WAITS = longArrayOf(5_000, 15_000, 40_000)
+    /** The longest wait a service may ask for that Atlas honours; a longer one moves on to the next key. */
+    const val MAX_HINT_MS = 60_000L
+
+    /**
+     * How long the service asked us to wait, in ms (0 if it didn't say): a Retry-After header in seconds, Gemini's
+     * google.rpc.RetryInfo "retryDelay": "37s", or words like "try again in 20s", "Please retry in 1.5 seconds",
+     * "retry after 20 seconds", "try again in 1m30s" or "in 500ms".
+     */
+    fun retryHint(body: String?, header: String?): Long {
+        header?.trim()?.toDoubleOrNull()?.let { if (it > 0) return (it * 1000).toLong() }
+        val b = body ?: return 0
+        Regex("\"retryDelay\"\\s*:\\s*\"([0-9.]+)s\"").find(b)?.let { m -> m.groupValues[1].toDoubleOrNull()?.let { return (it * 1000).toLong() } }
+        for (m in HINT.findAll(b)) {
+            val mins = m.groupValues[1].toLongOrNull() ?: 0
+            val n = m.groupValues[2].toDoubleOrNull()
+            val unit = m.groupValues[3].lowercase()
+            val partMs = when {
+                n == null -> 0.0
+                unit.startsWith("ms") || unit.startsWith("milli") -> n
+                unit.isNotEmpty() || mins > 0 -> n * 1000   // "20s", or "1m30" -> 30 s
+                else -> continue                            // a bare number: not sure it's a time
+            }
+            val ms = mins * 60_000 + partMs.toLong()
+            if (ms > 0) return ms
+        }
+        return 0
+    }
+    private val HINT = Regex("(?:try again|retry)(?: after| in)?\\s+(?:(\\d+)\\s*m(?!s)(?:in(?:ute)?s?)?\\s*)?([0-9]+(?:\\.[0-9]+)?)?\\s*(ms|milliseconds?|s|secs?|seconds?)?\\b", RegexOption.IGNORE_CASE)
+
+    /** How long to wait before retry number [n] (1-based), and whether that's the service's own ask. */
+    fun waitFor(f: Gemini.Failure, n: Int): Pair<Long, Boolean> {
+        val hint = f.retryAfterMs
+        if (hint in 1..MAX_HINT_MS && (f.code == 429 || f.code == 503)) return maxOf(hint, 500L) to true
+        return (if (f.code == 429) LIMIT_WAITS else RETRY_WAITS)[n - 1] to false
+    }
     /** A used-up limit with nowhere else to go (no other key, and no other service or Don't Switch is on). */
     val WAIT_OUT = longArrayOf(30_000, 60_000)
     const val DONT_SWITCH = "dont_switch"
@@ -78,14 +117,19 @@ object KeyRouter {
                 val msg = f.message ?: ""
                 val c = cause(f.code, f.offline, msg)
                 if (c == Cause.OTHER) throw f
-                if (c == Cause.PASSING && retries < RETRIES) {
+                // a hint longer than a minute: not worth sitting through, move on to the next key
+                val tooLong = f.retryAfterMs > MAX_HINT_MS
+                if (c == Cause.PASSING && retries < RETRIES && !tooLong) {
                     retries++
+                    val (ms, asked) = waitFor(f, retries)
+                    val secs = (ms + 999) / 1000
                     onStatus(when {
-                        f.code == 429 -> "Waiting for ${p.name}'s limit ($retries of $RETRIES)"
+                        asked -> "${p.name} asked me to wait $secs s ($retries of $RETRIES)"
+                        f.code == 429 -> "Waiting for ${p.name}'s limit, $secs s ($retries of $RETRIES)"
                         f.offline -> "Can't reach ${p.name}, trying again ($retries of $RETRIES)"
                         else -> "${p.name} is busy, trying again ($retries of $RETRIES)"
                     })
-                    sleep(RETRY_WAITS[retries - 1])
+                    sleep(ms)
                     onStatus(null)
                     continue
                 }

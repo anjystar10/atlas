@@ -61,6 +61,32 @@ async function run(fails) {
 const busy = () => new brain.Failure('Gemini is having trouble right now (503).', 503);
 const limit = () => new brain.Failure('The Gemini limit is used up for now.', 429);
 
+test("the service's own wait is read from its answer", () => {
+  const gem = '{"error":{"code":429,"details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"37s"}]}}';
+  assert.equal(brain.retryHint(gem, null), 37000);
+  assert.equal(brain.retryHint('Rate limit reached. Please try again in 20s.', null), 20000);
+  assert.equal(brain.retryHint('Please retry in 1.5 seconds', null), 1500);
+  assert.equal(brain.retryHint('Please retry after 20 seconds.', null), 20000);
+  assert.equal(brain.retryHint('try again in 1m30s', null), 90000);
+  assert.equal(brain.retryHint('Please try again in 500ms.', null), 500);
+  assert.equal(brain.retryHint('Try again in 2 minutes.', null), 120000);
+  assert.equal(brain.retryHint('Please retry later. Or try again in 12s', null), 12000);
+  assert.equal(brain.retryHint('{}', '8'), 8000);
+  assert.equal(brain.retryHint('Please retry later.', null), 0);
+  assert.equal(brain.retryHint('retry after 20', 'Wed, 21 Oct 2026 07:28:00 GMT'), 0);
+  assert.equal(brain.retryHint(null, null), 0);
+});
+test("a limit waits as long as the service asked, unless that's over a minute", async () => {
+  pool(['k1', 'k2'], { other: true });
+  const asked = () => Object.assign(limit(), { retryAfterMs: 37000 });
+  let r = await run([asked(), asked(), asked()]);
+  assert.deepEqual(r.waits, [37000, 37000, 37000]); assert.deepEqual(r.used, ['k1', 'k1', 'k1', 'k1']);
+  pool(['k1', 'k2'], { other: true });
+  r = await run([Object.assign(limit(), { retryAfterMs: 3600000 })]);
+  assert.deepEqual(r.used, ['k1', 'k2']);
+  pool(['k1', 'k2'], { other: true });
+  r = await run([limit(), limit(), limit()]); assert.deepEqual(r.waits, [5000, 15000, 40000]);
+});
 test('a busy service is retried 3 times on the same key', async () => {
   pool(['k1', 'k2'], { other: true });
   const r = await run([busy(), busy(), busy()]);

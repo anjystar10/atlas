@@ -173,7 +173,7 @@ object Providers {
             con.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
             val code = con.responseCode
             val text = (if (code in 200..299) con.inputStream else con.errorStream)?.use { String(it.readBytes(), Charsets.UTF_8) } ?: ""
-            if (code !in 200..299) throw Gemini.Failure(explain(service, code, text), code = code)
+            if (code !in 200..299) throw Gemini.Failure(explain(service, code, text), code = code, retryAfterMs = KeyRouter.retryHint(text, con.getHeaderField("retry-after")))
             return try { JSONObject(text) } catch (e: Exception) { throw Gemini.Failure("$service sent back something unreadable.") }
         } catch (e: Gemini.Failure) { throw e
         } catch (e: UnknownHostException) { throw Gemini.Failure("No internet connection.", offline = true)
