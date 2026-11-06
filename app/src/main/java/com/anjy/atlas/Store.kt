@@ -88,7 +88,8 @@ object Store {
                 "task" -> upsert("tasks", id, rec)
                 "memory" -> upsert("memories", id, rec)
                 "log" -> upsert("log", id, rec)
-                "profile" -> rec?.optString("name")?.let { n -> o.optJSONObject("settings")?.put("name", n) }
+                // a device that has no name set doesn't wipe the one this device has
+                "profile" -> rec?.optString("name")?.takeIf { it.isNotBlank() }?.let { n -> o.optJSONObject("settings")?.put("name", n) }
             }
         }
         // the log stays in time order

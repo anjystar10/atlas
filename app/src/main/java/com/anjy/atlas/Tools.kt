@@ -154,6 +154,8 @@ object Tools {
                     val whenRaw = a.optString("when").trim()
                     val at = parseWhen(whenRaw)
                     if (whenRaw.isNotEmpty() && at == null) return@withContext Result("Error: couldn't read the time '$whenRaw'. Use 'YYYY-MM-DD HH:MM'.")
+                    // a time already gone would ring at once: the model should recheck the date or ask the user
+                    if (at != null && at < now - Engine.MIN) return@withContext Result("Error: $whenRaw has already passed (it's ${Instant.ofEpochMilli(now).atZone(Engine.zone).toLocalDateTime().format(whenFmts[0])} now). Use the next time it comes round, or ask the user.")
                     val rep = a.optString("repeat", "none").ifBlank { "none" }
                     val alarm = a.optString("alert") == "alarm"
                     val t = Store.edit(ctx) { Engine.create(it, title, now, at, a.optInt("duration_min", 30), Plain.memory(a.optString("notes", "")), if (alarm) "high" else "normal", rep) }
@@ -200,7 +202,9 @@ object Tools {
                 }
                 "open_app" -> {
                     val name = a.optString("name").trim()
-                    val hit = Brain.findApp(ctx, name) ?: return Result("No app called '$name' is installed. Installed apps include: ${appNames(ctx)}")
+                    // the app list reads every app's name from the system: slow on a full phone, so off the main thread
+                    val hit = withContext(Dispatchers.IO) { Brain.findApp(ctx, name) }
+                        ?: return Result("No app called '$name' is installed. Installed apps include: ${withContext(Dispatchers.IO) { appNames(ctx) }}")
                     val said = Brain.launchApp(ctx, hit)
                     if (!said.startsWith("Opening")) return Result(said)
                     Result(afterAction(ctx, 1800, "Opened ${hit.first}."), "Opened ${hit.first}", phone = true)
