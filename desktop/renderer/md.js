@@ -2,14 +2,22 @@
 // Everything is escaped first, so nothing in a reply can inject markup.
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+function emph(t) {
+  t = t.replace(/\*\*(.+?)\*\*|__(.+?)__/g, (_m, a, b) => `<strong>${a || b}</strong>`);
+  return t.replace(/(^|[^\w*])\*(?!\s)(.+?)(?<!\s)\*(?!\w)/g, '$1<em>$2</em>').replace(/(^|[^\w_])_(?!\s)(.+?)(?<!\s)_(?!\w)/g, '$1<em>$2</em>');
+}
+
 function inline(s) {
   let t = esc(s);
   const codes = [];
   t = t.replace(/`([^`]+)`/g, (_m, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
-  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_m, txt, url) => `<a href="${url}" target="_blank" rel="noreferrer">${txt}</a>`);
-  t = t.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_m, pre, url) => `${pre}<a href="${url}" target="_blank" rel="noreferrer">${url}</a>`);
-  t = t.replace(/\*\*(.+?)\*\*|__(.+?)__/g, (_m, a, b) => `<strong>${a || b}</strong>`);
-  t = t.replace(/(^|[^\w*])\*(?!\s)(.+?)(?<!\s)\*(?!\w)/g, '$1<em>$2</em>').replace(/(^|[^\w_])_(?!\s)(.+?)(?<!\s)_(?!\w)/g, '$1<em>$2</em>');
+  // links are set aside while bold and italics are worked out, so a "_" or "*" in an address can't break it
+  const links = [];
+  const keep = (url, txt) => { links.push(`<a href="${url}" target="_blank" rel="noreferrer">${txt}</a>`); return `\u0001${links.length - 1}\u0001`; };
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_m, txt, url) => keep(url, emph(txt)));
+  t = t.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_m, pre, url) => { const tail = url.match(/[.,;:!?]+$/)?.[0] || ''; const u = tail ? url.slice(0, -tail.length) : url; return pre + keep(u, u) + tail; });
+  t = emph(t);
+  t = t.replace(/\u0001(\d+)\u0001/g, (_m, i) => links[+i]);
   return t.replace(/\u0000(\d+)\u0000/g, (_m, i) => `<code>${codes[+i]}</code>`);
 }
 

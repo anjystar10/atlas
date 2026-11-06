@@ -26,7 +26,10 @@ function ps(script, timeoutMs = 60000) {
     p.on('error', (e) => { clearTimeout(t); resolve({ code: -1, out: '', err: e.message }); });
   });
 }
-const q = (s) => "'" + String(s).replace(/'/g, "''") + "'";   // a PowerShell single-quoted string
+// a PowerShell single-quoted string (nothing inside it runs); PowerShell also ends these at the curly quotes ‘ ’ ‚ ‛
+const q = (s) => "'" + String(s).replace(/['\u2018\u2019\u201A\u201B]/g, "''") + "'";
+/** A whole number from what the model sent, or [d] when it isn't one. */
+const num = (v, d) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? n : d; };
 /** PowerShell's error stream in plain lines: its XML wrapping ("#< CLIXML") becomes just the error messages. */
 function cleanErr(e) {
   const t = String(e || '').trim();
@@ -143,7 +146,7 @@ async function run(name, a, e) {
       if (!n) return { error: 'Say which app.' };
       const r = await ps(`$a = Get-StartApps | Where-Object { $_.Name -like ${q('*' + n + '*')} } | Sort-Object { $_.Name.Length } | Select-Object -First 1
 if ($a) { Start-Process ("shell:AppsFolder\\" + $a.AppID); "Opened " + $a.Name }
-else { try { Start-Process ${q(n)} -ErrorAction Stop; "Opened ${n.replace(/"/g, '')}" } catch { "NOTFOUND" } }`, 20000);
+else { try { Start-Process ${q(n)} -ErrorAction Stop; "Opened " + ${q(n)} } catch { "NOTFOUND" } }`, 20000);
       if (r.code === -1) return { error: r.err };
       if (r.out.includes('NOTFOUND') || !r.out) return { error: `No app called “${n}” was found on this PC.` };
       return { out: r.out, step: r.out };
@@ -175,7 +178,7 @@ else { try { Start-Process ${q(n)} -ErrorAction Stop; "Opened ${n.replace(/"/g, 
       return { out: 'Saved ' + p, step: 'Saved ' + path.basename(p) };
     }
     case 'run_command': {
-      const r = await ps(String(a.command || ''), Math.min(180, Math.max(5, a.timeout_s || 60)) * 1000);
+      const r = await ps(String(a.command || ''), Math.min(180, Math.max(5, num(a.timeout_s, 60))) * 1000);
       let out = (r.out || '') + (r.err ? '\n[errors]\n' + r.err : '');
       if (out.length > 8000) out = out.slice(0, 8000) + '\n…(cut)';
       return { out: `Exit code ${r.code}.\n${out || '(no output)'}`, step: 'Ran a command' };
@@ -194,7 +197,9 @@ else { try { Start-Process ${q(n)} -ErrorAction Stop; "Opened ${n.replace(/"/g, 
     }
     case 'click': {
       if (!lastShot) return { error: 'Look at the screen first (look_at_screen).' };
-      const x = Math.round(Number(a.x) * lastShot.realW / lastShot.w), y = Math.round(Number(a.y) * lastShot.realH / lastShot.h);
+      const ax = num(a.x, NaN), ay = num(a.y, NaN);
+      if (!Number.isFinite(ax) || !Number.isFinite(ay) || ax < 0 || ay < 0 || ax > lastShot.w || ay > lastShot.h) return { error: `Give x and y inside the screenshot (0-${lastShot.w}, 0-${lastShot.h}).` };
+      const x = Math.round(ax * lastShot.realW / lastShot.w), y = Math.round(ay * lastShot.realH / lastShot.h);
       const [down, up] = a.button === 'right' ? [8, 16] : [2, 4];
       const times = a.double ? 2 : 1;
       const r = await ps(INPUT + `[void][AtlasInput]::SetCursorPos(${x}, ${y}); Start-Sleep -Milliseconds 60
@@ -212,7 +217,7 @@ for ($i = 0; $i -lt ${times}; $i++) { [AtlasInput]::mouse_event(${down}, 0, 0, 0
       return r.code === -1 ? { error: r.err } : { out: 'Pressed ' + a.keys + '.', step: 'Pressed ' + a.keys };
     }
     case 'scroll': {
-      const amount = (a.direction === 'up' ? 1 : -1) * 120 * Math.min(20, Math.max(1, a.amount || 5));
+      const amount = (a.direction === 'up' ? 1 : -1) * 120 * Math.min(20, Math.max(1, num(a.amount, 5)));
       const r = await ps(INPUT + `[AtlasInput]::mouse_event(0x0800, 0, 0, ${amount}, [UIntPtr]::Zero); "scrolled"`, 15000);
       return r.code === -1 ? { error: r.err } : { out: 'Scrolled ' + (a.direction || 'down') + '.', step: 'Scrolled' };
     }
@@ -220,4 +225,8 @@ for ($i = 0; $i -lt ${times}; $i++) { [AtlasInput]::mouse_event(${down}, 0, 0, 0
   }
 }
 
-module.exports = { run, loadAttachment, docxText, sendKeysText, sendKeysCombo, expand };
+/** Files that run something when opened (programs, scripts, installers, shortcuts): Atlas asks before opening these. */
+const RUNS = new Set(['exe', 'com', 'bat', 'cmd', 'ps1', 'psm1', 'vbs', 'vbe', 'js', 'jse', 'wsf', 'wsh', 'msi', 'msp', 'scr', 'hta', 'lnk', 'reg', 'cpl', 'jar', 'pif', 'appref-ms', 'url']);
+function runsSomething(p) { return RUNS.has(path.extname(String(p || '').trim().replace(/["']/g, '')).slice(1).toLowerCase()); }
+
+module.exports = { run, loadAttachment, docxText, sendKeysText, sendKeysCombo, expand, q, runsSomething };
