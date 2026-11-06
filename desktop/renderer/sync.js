@@ -90,6 +90,17 @@ function applyRecord(kind, id, rec) {
   return 'state';
 }
 
+/**
+ * A reminder changed here since the last sync (say, while offline) and changed on the phone too: the newer edit wins,
+ * instead of whichever arrives last. True = keep this PC's copy (it's then sent up as usual).
+ */
+export async function keepMine(kind, id, rec, sentFp) {
+  if (kind !== 'task' || !rec) return false;
+  const mine = db.state.tasks.find((t) => t.id === id);
+  if (!mine || (sentFp && (await fp(mine)) === sentFp)) return false;   // nothing changed here: take theirs
+  return (mine.updatedAt || 0) > (rec.updatedAt || 0);
+}
+
 let timer = 0;
 export function syncSoon(ms = 4000) { if (!code()) return; clearTimeout(timer); timer = setTimeout(() => runOnce(), ms); }
 
@@ -109,6 +120,7 @@ export async function runOnce() {
         const k = r.kind + ':' + r.id;
         if (r.deleted) { if (r.device !== me) { const w = applyRecord(r.kind, r.id, null); if (w) touched.add(w); got++; } delete sent[k]; continue; }
         let rec; try { rec = JSON.parse(await decrypt(c, r.payload)); } catch { continue; }
+        if (r.device !== me && await keepMine(r.kind, r.id, rec, sent[k])) { sent[k] = await fp(rec); continue; }
         sent[k] = await fp(rec);
         if (r.device !== me) { const w = applyRecord(r.kind, r.id, rec); if (w) touched.add(w); got++; }
       }
@@ -123,7 +135,9 @@ export async function runOnce() {
       if (sent[k] !== f) { items.push({ kind: r.kind, id: r.id, updated_ms: now, payload: await encrypt(c, JSON.stringify(r.json)), device: me }); sent[k] = f; }
     }
     for (const k of Object.keys(sent)) {
-      if (present.has(k) || k.startsWith('chat:') || k.startsWith('log:')) continue;
+      if (present.has(k)) continue;
+      // chat and Log entries that scrolled out of the synced window: forgotten here, never deleted for the other device
+      if (k.startsWith('chat:') || k.startsWith('log:')) { delete sent[k]; continue; }
       const [kind, ...rest] = k.split(':');
       items.push({ kind, id: rest.join(':'), updated_ms: now, deleted: true, payload: '', device: me }); delete sent[k];
     }

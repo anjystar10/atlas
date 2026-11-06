@@ -43,3 +43,30 @@ test('encryption round trip, and the same owner as the phone', async () => {
 test('canonical form ignores field order', () => {
   assert.equal(sync.canonical({ b: 1, a: [1, { d: 2, c: null }] }), sync.canonical({ a: [1, { c: null, d: 2 }], b: 1 }));
 });
+test('links keep underscores and stay links; trailing punctuation stays outside', () => {
+  const h = renderMarkdown('See https://ex.com/_a_/b_c. and [**x**](https://a.com/x_y_z)');
+  assert.ok(h.includes('href="https://ex.com/_a_/b_c"')); assert.ok(h.includes('</a>.'));
+  assert.ok(h.includes('href="https://a.com/x_y_z"')); assert.ok(h.includes('<strong>x</strong></a>'));
+  assert.ok(!h.includes('<em>'));
+  assert.ok(!renderMarkdown('[x](javascript:alert(1))').includes('href'));
+});
+test('a reminder edited here while offline is not overwritten by an older copy', async () => {
+  const { db } = await import('../renderer/store.js');
+  db.state = { tasks: [{ id: 't1', title: 'Gym at 7', updatedAt: 2000 }], memories: [], log: [], settings: {} };
+  const older = { id: 't1', title: 'Gym', updatedAt: 1000 }, newer = { id: 't1', title: 'Gym at 8', updatedAt: 3000 };
+  // 'stale-fingerprint' stands for what the cloud had before the edit here
+  assert.equal(await sync.keepMine('task', 't1', older, 'stale-fingerprint'), true);
+  assert.equal(await sync.keepMine('task', 't1', newer, 'stale-fingerprint'), false);
+  assert.equal(await sync.keepMine('memory', 't1', older, 'x'), false);
+  assert.equal(await sync.keepMine('task', 'nope', older, 'x'), false);
+});
+test('PowerShell quoting and programs that need a yes', async () => {
+  const { createRequire } = await import('node:module');
+  const pc = createRequire(import.meta.url)('../pc.js');
+  assert.equal(pc.q("it's"), "'it''s'");
+  assert.equal(pc.q('a\u2019b'), "'a''b'");
+  assert.equal(pc.q('$(Remove-Item x)'), "'$(Remove-Item x)'");
+  for (const p of ['C:\\x\\setup.exe', '~/Downloads/run.BAT', '"C:\\a b\\s.ps1"', 'thing.lnk']) assert.equal(pc.runsSomething(p), true, p);
+  for (const p of ['~/Documents/notes.txt', 'C:\\Pictures', 'photo.jpg']) assert.equal(pc.runsSomething(p), false, p);
+  assert.equal(pc.sendKeysCombo('ctrl+shift+t'), '^+t');
+});

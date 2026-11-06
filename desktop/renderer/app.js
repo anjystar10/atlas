@@ -47,12 +47,23 @@ const ICON = {
 
 // ------------------------------------------------------------------ the screens
 
-function render(keepScroll) {
+/**
+ * Draws the current tab. [keepInputs]: a redraw that comes from the background (a sync, a reminder changing) keeps
+ * what you were typing (a link code, a key, something to remember) and where the cursor was.
+ */
+function render(keepScroll, keepInputs) {
   const page = $('#page'); const y = page.scrollTop;
+  const kept = keepInputs ? [...page.querySelectorAll('input[id]:not([type=checkbox]),textarea[id]')]
+    .map((el) => ({ id: el.id, v: el.value, f: el === document.activeElement, s: el.selectionStart, e: el.selectionEnd })).filter((x) => x.v || x.f) : [];
   document.querySelectorAll('.nav').forEach((n) => n.classList.toggle('on', n.dataset.tab === tab));
   page.innerHTML = '';
   if (tab === 'atlas') renderAtlas(page); else if (tab === 'log') renderLog(page); else renderMe(page);
   $('#composer').style.display = tab === 'atlas' ? '' : 'none';
+  for (const k of kept) {
+    const el = page.querySelector('#' + CSS.escape(k.id)); if (!el) continue;
+    if (k.v && !el.value) el.value = k.v;
+    if (k.f) { el.focus(); try { el.setSelectionRange(k.s, k.e); } catch {} }
+  }
   if (keepScroll) page.scrollTop = y;
   renderFoot();
 }
@@ -147,12 +158,47 @@ function updateSend() {
   if (go.dataset.k === k) return;
   go.dataset.k = k; go.innerHTML = k === 'stop' ? ICON.stop : k === 'send' ? ICON.up : ICON.mic; go.title = k === 'stop' ? 'Stop' : k === 'send' ? 'Send' : 'Speak';
 }
-async function addFileObject(file) { const p = host.pathOf(file); if (p) return addPath(p); toast("Couldn't add that."); }
+async function addFileObject(file) {
+  const p = host.pathOf(file); if (p) return addPath(p);
+  // a pasted screenshot (or a picture dragged from a browser) has no file on disk: it's read here instead
+  if (file && /^image\//.test(file.type)) {
+    if (attachments.some((a) => a.kind === 'video') || attachments.length >= 4) return toast('Up to 4 per message (a video goes on its own).');
+    try { const a = await pictureFrom(file); attachments.push(a); showTray(); updateSend(); } catch { toast("Couldn't add that picture."); }
+    return;
+  }
+  toast("Couldn't add that.");
+}
+/** A picture as an attachment: at most 1600 px on its longest side, as JPEG (the same as files picked from disk). */
+function pictureFrom(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file); const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      const data = c.toDataURL('image/jpeg', 0.85);
+      resolve({ kind: 'image', mime: 'image/jpeg', name: file.name || 'Pasted picture.jpg', base64: data.split(',')[1], thumb: data });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+    img.src = url;
+  });
+}
+/** How long a video is, in seconds (NaN if it can't tell). */
+function videoSeconds(a) {
+  return new Promise((resolve) => {
+    const v = document.createElement('video'); let done = false;
+    const end = (x) => { if (done) return; done = true; v.removeAttribute('src'); try { v.load(); } catch {} resolve(x); };
+    v.preload = 'metadata'; v.onloadedmetadata = () => end(v.duration); v.onerror = () => end(NaN); setTimeout(() => end(NaN), 6000);
+    v.src = `data:${a.mime};base64,${a.base64}`;
+  });
+}
 async function addPath(p) {
   if (attachments.some((a) => a.kind === 'video') || attachments.length >= 4) return toast('Up to 4 per message (a video goes on its own).');
   try {
     const a = await host.loadFile(p);
     if (a.kind === 'video' && attachments.length) return toast('A video goes on its own. Send the others first.');
+    if (a.kind === 'video') { const secs = await videoSeconds(a); if (secs > 61) return toast(`That video is ${Math.round(secs)} seconds; videos can be up to a minute.`); }
     if (a.kind === 'image') a.thumb = 'data:image/jpeg;base64,' + a.base64;
     attachments.push(a); showTray(); updateSend();
   } catch (e) { toast(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); }
@@ -174,7 +220,7 @@ async function submit(spoken = false, textOverride) {
   host.orbState({ energy: 1 });
   const reply = await brain.send(text, { spoken, attachments: att });
   host.orbState({ energy: 0 });
-  if (reply && reply.source !== 'error' && (spoken || pref('speakReplies', false))) voice.speak(reply.text, () => { if (spoken && pref('keepTalking', true) && document.hasFocus()) startListening(true); });
+  if (reply && reply.source !== 'error' && reply.source !== 'Stopped' && (spoken || pref('speakReplies', false))) voice.speak(reply.text, () => { if (spoken && pref('keepTalking', true) && document.hasFocus()) startListening(true); });
 }
 
 // ---- listening ----
@@ -557,8 +603,8 @@ async function main() {
       if (tab === 'atlas') { if (!$('#chat') && db.chat.length) render(); else if (!db.chat.length && $('#chat')) render(); else { const p = $('#page'); const atBottom = p.scrollTop + p.clientHeight >= p.scrollHeight - 260; fillChat(); if (atBottom || brain.convo.busy) p.scrollTop = p.scrollHeight; } }
       if (!brain.convo.busy) sync.syncSoon();
     }
-    if (what === 'state') { sync.syncSoon(); if (tab === 'log') render(true); }
-    if (what === 'sync') { renderFoot(); if (tab === 'me') render(true); }
+    if (what === 'state') { sync.syncSoon(); if (tab === 'log') render(true, true); }
+    if (what === 'sync') { renderFoot(); if (tab === 'me') render(true, true); }
     if (what === 'prefs' && tab === 'atlas') { const bl = $('#brainline'); if (bl && !brain.convo.busy) bl.textContent = brainLine(); }
   });
   document.addEventListener('click', (e) => { const c = e.target.closest('.copy'); if (c) { navigator.clipboard.writeText(c.dataset.copy); toast('Copied'); } });
