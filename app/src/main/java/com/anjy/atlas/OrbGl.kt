@@ -214,6 +214,11 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
             check(surface != EGL14.EGL_NO_SURFACE) { "eglCreateWindowSurface ${EGL14.eglGetError()}" }
             check(EGL14.eglMakeCurrent(display, surface, surface, ctx)) { "eglMakeCurrent" }
             EGL14.eglSwapInterval(display, 1)
+            // a chip simulated in software (emulators, some broken drivers) would take seconds per frame and stall
+            // the whole screen: never draw on one, hand over to the processor straight away
+            val renderer = (GLES30.glGetString(GLES30.GL_RENDERER) ?: "") + " " + (GLES30.glGetString(GLES30.GL_VENDOR) ?: "")
+            Log.i("AtlasOrb", "graphics chip: $renderer")
+            if (SOFTWARE.any { renderer.contains(it, ignoreCase = true) }) throw IllegalStateException("software graphics ($renderer)")
 
             val frag = context.assets.open("orb.frag").bufferedReader().use { it.readText() }
             val vs = compile(GLES30.GL_VERTEX_SHADER, VERTEX)
@@ -346,6 +351,7 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
     }
 
     companion object {
+        private val SOFTWARE = listOf("swiftshader", "llvmpipe", "softpipe", "software", "lavapipe")
         private const val VERTEX = "#version 300 es\nlayout(location = 0) in vec2 v;\nvoid main() { gl_Position = vec4(v, 0.0, 1.0); }\n"
     }
 }
