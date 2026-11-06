@@ -1,6 +1,7 @@
 package com.anjy.atlas
 
 import android.content.Context
+import android.os.Looper
 import android.util.AtomicFile
 import android.util.Log
 import com.anjy.atlas.core.Engine
@@ -31,7 +32,7 @@ object Conversation {
     private const val KEEP_TURNS = 24
 
     class Msg(val fromUser: Boolean, var text: String, var source: String, val at: Long, val steps: MutableList<String> = mutableListOf(),
-              val media: List<Attach.Item> = emptyList())
+              val media: List<Attach.Item> = emptyList(), val id: String = java.util.UUID.randomUUID().toString())
 
     val messages = mutableListOf<Msg>()
     var busy = false; private set
@@ -77,7 +78,8 @@ object Conversation {
                 val user = o.getBoolean("user")
                 val media = o.optJSONArray("media")?.let { a2 -> List(a2.length()) { k -> a2.getJSONObject(k).let { Attach.Item(it.getString("path"), it.getString("mime"), it.optString("name")) } } }
                     ?.filter { it.file.exists() } ?: emptyList()
-                messages.add(Msg(user, if (user) o.getString("text") else Plain.reply(o.getString("text")), o.optString("source"), o.optLong("at"), steps, media))
+                messages.add(Msg(user, if (user) o.getString("text") else Plain.reply(o.getString("text")), o.optString("source"), o.optLong("at"), steps, media,
+                    o.optString("id").ifEmpty { "${o.optLong("at")}-${if (user) "u" else "a"}" }))
             }
             // the model picks up from the last few exchanges
             messages.takeLast(KEEP_TURNS * 2).forEach { m ->
@@ -91,7 +93,7 @@ object Conversation {
     private fun save(ctx: Context) {
         val a = JSONArray()
         messages.takeLast(KEEP_MESSAGES).forEach { m ->
-            a.put(JSONObject().put("user", m.fromUser).put("text", m.text).put("source", m.source).put("at", m.at).put("steps", JSONArray(m.steps))
+            a.put(JSONObject().put("id", m.id).put("user", m.fromUser).put("text", m.text).put("source", m.source).put("at", m.at).put("steps", JSONArray(m.steps))
                 .put("media", JSONArray().apply { m.media.forEach { put(JSONObject().put("path", it.path).put("mime", it.mime).put("name", it.name)) } }))
         }
         val keep = messages.takeLast(KEEP_MESSAGES).flatMap { m -> m.media.map { it.path } }.toSet()
@@ -103,8 +105,45 @@ object Conversation {
                 try { out.write(bytes); f.finishWrite(out) } catch (e: Exception) { f.failWrite(out) }
             }
             try { Attach.prune(ctx, keep) } catch (_: Exception) {}
+            if (!busy) try { Sync.syncSoon(ctx) } catch (_: Exception) {}
         }
     }
+
+    // ---------------------------------------------------------------- the same conversation on the PC (see Sync)
+
+    /** The finished messages, as records for the other device (pictures stay on this one). */
+    fun exportForSync(ctx: Context): List<JSONObject> {
+        val list = java.util.concurrent.FutureTask { messages.filterIndexed { i, m -> !(busy && i == messages.size - 1) && m.source != "error" }.map { m ->
+            JSONObject().put("id", m.id).put("user", m.fromUser).put("text", m.text).put("source", m.source).put("at", m.at).put("steps", JSONArray(m.steps))
+                .put("files", m.media.size)
+        } }
+        if (Looper.myLooper() == Looper.getMainLooper()) list.run() else { mainHandler.post(list) }
+        return try { list.get(5, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
+    }
+    private val mainHandler = android.os.Handler(Looper.getMainLooper())
+
+    /** Messages from the other device: added in time order, changed, or removed (null). Main thread. */
+    fun mergeFromSync(ctx: Context, changes: List<Pair<String, JSONObject?>>) {
+        load(ctx.applicationContext)
+        var touched = false
+        changes.forEach { (id, o) ->
+            val i = messages.indexOfFirst { it.id == id }
+            if (o == null) { if (i >= 0) { messages.removeAt(i); touched = true }; return@forEach }
+            val steps = o.optJSONArray("steps")?.let { s -> MutableList(s.length()) { s.getString(it) } } ?: mutableListOf()
+            val m = Msg(o.optBoolean("user"), o.optString("text"), o.optString("source"), o.optLong("at"), steps, emptyList(), id)
+            if (i >= 0) { messages[i].text = m.text; messages[i].source = m.source; messages[i].steps.clear(); messages[i].steps.addAll(steps) }
+            else { val at = messages.indexOfFirst { it.at > m.at }; if (at < 0) messages.add(m) else messages.add(at, m) }
+            touched = true
+        }
+        if (!touched) return
+        history.clear()
+        messages.takeLast(KEEP_TURNS * 2).forEach { m -> if (m.source != "error") history.add(m.fromUser to (if (m.fromUser) m.text else m.text + stepNote(m.steps))) }
+        fixHistory()
+        save(ctx.applicationContext); changed()
+    }
+
+    /** After a sync took things in: screens showing the Log or chat redraw. */
+    fun reloadFromSync(ctx: Context) { changed() }
 
     fun clear(ctx: Context) {
         stop()

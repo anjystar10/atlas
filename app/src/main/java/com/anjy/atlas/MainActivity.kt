@@ -765,6 +765,8 @@ class MainActivity : Activity() {
     override fun onBackPressed() = handleBack()
 
     private val onChat: () -> Unit = { chatChanged() }
+    /** A sync finished: the Log and Me show what came in. */
+    private val onSync: () -> Unit = { if (tab != 0) render(keepScroll = true) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -873,6 +875,7 @@ class MainActivity : Activity() {
         super.onResume()
         AvatarService.setAppInFront(this, true)
         Conversation.listen(onChat)
+        Sync.listen(onSync); Sync.syncSoon(this, 500)
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
         if (::aurora.isInitialized) aurora.resume()
         if (returnedFromSystem && tab != 0) render(keepScroll = true)
@@ -883,7 +886,7 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
-        Conversation.unlisten(onChat)
+        Conversation.unlisten(onChat); Sync.unlisten(onSync)
         stopVoice()
         AvatarService.setAppInFront(this, false)
         Tilt.stop(); if (::aurora.isInitialized) aurora.pause()
@@ -1738,6 +1741,46 @@ class MainActivity : Activity() {
             vc.add(rows, 8)
         }
         body.add(vc, 8)
+
+        // Phone and PC: one Atlas
+        body.add(eyebrow("Your Devices"), 16)
+        val dv = card()
+        val code = Sync.code(this)
+        if (code == null) {
+            dv.addView(text("Not linked", 18f, FG, HEAD))
+            dv.add(text("Link Atlas on your PC and they share everything: reminders, memories, the Log and your conversation. It's encrypted with a private code before it leaves either device.", 14f, MUTED), 6)
+            dv.add(primary("Link a New Device") {
+                val c = Sync.newCode(); Sync.link(this, c)
+                showBanner("Linked. Enter this code on your PC.", DONE); render(keepScroll = true)
+            }, 14)
+            dv.add(secondary("I Have a Code") {
+                var typed = ""
+                val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                col.addView(field("ATLS-XXXX-XXXX-XXXX-XXXX-XXXX", "") { typed = it })
+                sheet(null, "Enter Your Link Code", "From Atlas on your other device: Me → Your Devices.", content = col, primaryLabel = "Link", onPrimary = {
+                    if (Sync.link(this, typed)) { showBanner("Linked. Syncing…", DONE); render(keepScroll = true) }
+                    else { keepSheet = true; showBanner("That code doesn't look right. Check it and try again.", MISS) }
+                }, secondaryLabel = "Cancel")
+            }, 8)
+        } else {
+            dv.addView(text("Linked", 18f, FG, HEAD))
+            dv.add(text(Sync.lastResult?.let { r -> "$r" + if (Sync.lastAt > 0) " · ${logged(Sync.lastAt)}" else "" } ?: "Syncing…", 14f, MUTED), 4)
+            dv.add(text("Your link code (keep it private; type it into Atlas on your PC):", 13f, MUTED), 12)
+            dv.add(text(code, 17f, FG, MONO).apply {
+                background = rounded(if (dark) SURFACE2 else Color.parseColor(LIGHT_FIELD), 14, LINE); setPadding(dp(14), dp(12), dp(14), dp(12)); gravity = Gravity.CENTER
+                setTextIsSelectable(true)
+            }, 6)
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            row.addView(secondary("Copy Code") { getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas link code", code)); showBanner("Copied") }, LinearLayout.LayoutParams(0, WRAP, 1f))
+            row.addView(secondary("Sync Now") { scope.launch(Dispatchers.IO) { Sync.runOnce(applicationContext) } ; showBanner("Syncing…") }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
+            dv.add(row, 12)
+            dv.add(secondary("Unlink This Phone") {
+                sheet(null, "Unlink This Phone?", "It stops syncing. Everything stays on this phone; the PC keeps its copy.", primaryLabel = "Unlink", primaryColor = MISS, onPrimary = {
+                    Sync.unlink(this); render(keepScroll = true)
+                }, secondaryLabel = "Cancel")
+            }, 8)
+        }
+        body.add(dv, 8)
 
         // Atlas on screen
         body.add(eyebrow("Atlas On Screen"), 16)

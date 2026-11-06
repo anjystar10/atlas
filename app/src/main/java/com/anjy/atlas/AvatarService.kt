@@ -71,6 +71,7 @@ class AvatarService : Service() {
         Conversation.load(applicationContext)
         Conversation.listen(onChat)
         apply(fromUser = false)
+        handler.postDelayed(syncTick, 60_000)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -317,6 +318,7 @@ class AvatarService : Service() {
         if (!talking) return
         talking = false
         handler.removeCallbacksAndMessages(null)
+        handler.postDelayed(syncTick, 10 * 60_000L)   // (the line above also cleared the sync timer)
         voice?.cancel(); voice = null
         orb?.level = 0f; orb?.energy = 0f
         hideCaption()
@@ -386,6 +388,11 @@ class AvatarService : Service() {
         val c = caption ?: return
         caption = null; captionWho = null; captionBody = null
         c.animate().alpha(0f).setDuration(160).withEndAction { try { wm?.removeView(c) } catch (_: Exception) {} }.start()
+    }
+
+    /** While Atlas is on screen it keeps the phone and the PC in step every ten minutes. */
+    private val syncTick: Runnable = object : Runnable {
+        override fun run() { Sync.syncSoon(this@AvatarService, 0); handler.postDelayed(this, 10 * 60_000L) }
     }
 
     /** While Atlas speaks, the orb pulses gently with its voice (and settles when it stops). */

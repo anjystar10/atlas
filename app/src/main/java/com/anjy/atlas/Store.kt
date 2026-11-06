@@ -26,6 +26,7 @@ object Store {
         val s = load(ctx)
         val r = block(s)
         save(ctx, s)
+        try { Sync.syncSoon(ctx) } catch (_: Exception) {}   // the other device hears about it shortly
         r
     }
 
@@ -65,6 +66,40 @@ object Store {
     fun setFlag(ctx: Context, key: String, value: Boolean = true) { prefs(ctx).edit().putBoolean(key, value).apply() }
 
     fun exportJson(ctx: Context): String = read(ctx) { toJson(it).toString(2) }
+
+    /**
+     * Takes in records from Atlas on another device (see [Sync]): each is (kind, id, record), or a null record to
+     * delete it. Kinds: task, memory, log, profile.
+     */
+    fun merge(ctx: Context, changes: List<Triple<String, String, JSONObject?>>) = synchronized(lock) {
+        val o = toJson(load(ctx))
+        fun upsert(arrayName: String, id: String, rec: JSONObject?) {
+            val a = o.optJSONArray(arrayName) ?: JSONArray().also { o.put(arrayName, it) }
+            val out = JSONArray(); var found = false
+            for (i in 0 until a.length()) {
+                val j = a.getJSONObject(i)
+                if (j.optString("id") == id) { found = true; if (rec != null) out.put(rec) } else out.put(j)
+            }
+            if (!found && rec != null) out.put(rec)
+            o.put(arrayName, out)
+        }
+        changes.forEach { (kind, id, rec) ->
+            when (kind) {
+                "task" -> upsert("tasks", id, rec)
+                "memory" -> upsert("memories", id, rec)
+                "log" -> upsert("log", id, rec)
+                "profile" -> rec?.optString("name")?.let { n -> o.optJSONObject("settings")?.put("name", n) }
+            }
+        }
+        // the log stays in time order
+        o.optJSONArray("log")?.let { a ->
+            val sorted = (0 until a.length()).map { a.getJSONObject(it) }.sortedBy { it.optLong("at") }
+            o.put("log", JSONArray(sorted))
+        }
+        val s = fromJson(o)
+        cached = s
+        save(ctx, s)
+    }
 
     fun importJson(ctx: Context, text: String): Int = synchronized(lock) {
         val s = fromJson(JSONObject(text))
