@@ -140,7 +140,7 @@ ipcMain.handle('net:fetch', async (e, url, opts = {}) => {
     const buf = Buffer.from(await r.arrayBuffer());
     const type = r.headers.get('content-type') || '';
     const binary = opts.binary || /^(audio|image|video)\//.test(type) || type.includes('octet-stream');
-    return { status: r.status, ok: r.ok, type, text: binary ? null : buf.toString('utf8'), base64: binary ? buf.toString('base64') : null };
+    return { status: r.status, ok: r.ok, type, retryAfter: r.headers.get('retry-after'), text: binary ? null : buf.toString('utf8'), base64: binary ? buf.toString('base64') : null };
   } catch (err) {
     return { status: 0, ok: false, error: err.name === 'AbortError' ? 'timed out' : (err.cause && err.cause.code) || err.message };
   } finally { clearTimeout(timer); }

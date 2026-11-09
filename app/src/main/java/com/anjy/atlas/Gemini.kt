@@ -21,7 +21,8 @@ object Gemini {
     class Call(val name: String, val args: JSONObject, val id: String?)
 
     /** Something went wrong talking to Gemini. [offline] means the phone couldn't reach it at all. */
-    class Failure(message: String, val offline: Boolean = false, val code: Int = 0) : Exception(message)
+    /** [retryAfterMs]: how long the service asked us to wait before trying again (0 if it didn't say). */
+    class Failure(message: String, val offline: Boolean = false, val code: Int = 0, val retryAfterMs: Long = 0) : Exception(message)
 
     fun request(system: String, contents: List<JSONObject>, tools: JSONArray, model: String): JSONObject = JSONObject().apply {
         put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
@@ -138,7 +139,7 @@ object Gemini {
             val code = con.responseCode
             val stream = if (code in 200..299) con.inputStream else con.errorStream
             val body = stream?.use { String(it.readBytes(), Charsets.UTF_8) } ?: ""
-            if (code !in 200..299) throw Failure(explain(code, body), code = code)
+            if (code !in 200..299) throw Failure(explain(code, body), code = code, retryAfterMs = KeyRouter.retryHint(body, con.getHeaderField("retry-after")))
             return parse(JSONObject(body))
         } catch (e: Failure) { throw e
         } catch (e: UnknownHostException) { throw Failure("No internet connection.", offline = true)
