@@ -136,9 +136,18 @@ class CpuOrbView(context: Context) : View(context) {
     }
 }
 
+/** Something that listens for one thing said. */
+interface Hearing {
+    fun start()
+    /** Stop listening and use what was heard so far. */
+    fun finish()
+    fun cancel()
+}
+
 /**
  * Listens for one thing said, using the phone's speech recognition, without Google's pop-up: Atlas shows its
- * own listening screen and gets the words as they come.
+ * own listening screen and gets the words as they come. It never leaves the screen stuck on "Listening": a
+ * recogniser that doesn't start, hiccups, or never answers is tried again once and then reported.
  */
 class VoiceInput(
     private val ctx: Context,
@@ -146,52 +155,92 @@ class VoiceInput(
     private val onLevel: (Float) -> Unit,
     private val onDone: (String?) -> Unit,
     private val onError: (String) -> Unit
-) {
+) : Hearing {
     private var sr: SpeechRecognizer? = null
     private var finished = false
     private val main = android.os.Handler(android.os.Looper.getMainLooper())
-    /** Once an answer is in, the recogniser is let go (after the callback returns). */
-    private fun release() { main.post { cancel() } }
     private var lastPartial = ""
+    private var tries = 0
+    private var startedAt = 0L
+    private var ready = false
 
     companion object {
         fun allowed(ctx: Context) = ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
     }
 
-    fun start() {
+    // the recogniser didn't start, or took the sound and never answered
+    private val notReady = Runnable { if (!finished && !ready) again("The microphone didn't start. Try again.") }
+    private val noAnswer = Runnable { if (!finished) deliver(lastPartial.ifBlank { null }) }
+    private val tooLong = Runnable { if (!finished) finish() }
+
+    private fun clearTimers() { main.removeCallbacks(notReady); main.removeCallbacks(noAnswer); main.removeCallbacks(tooLong) }
+    private fun drop() {
+        try { sr?.cancel() } catch (_: Exception) {}
+        try { sr?.destroy() } catch (_: Exception) {}
+        sr = null
+    }
+    private fun deliver(text: String?) {
+        if (finished) return
+        finished = true; clearTimers(); onLevel(0f)
+        onDone(Speech.fixHeard(text).ifBlank { null })
+        main.post { drop() }
+    }
+    private fun fail(msg: String) {
+        if (finished) return
+        finished = true; clearTimers(); onLevel(0f)
+        onError(msg)
+        main.post { drop() }
+    }
+    /** One more go with a fresh recogniser (they sometimes fail the first time after another app used the microphone). */
+    private fun again(msg: String) {
+        if (finished) return
+        if (tries >= 2 || lastPartial.isNotBlank()) { if (lastPartial.isNotBlank()) deliver(lastPartial) else fail(msg); return }
+        clearTimers(); drop()
+        main.postDelayed({ if (!finished) begin() }, 350)
+    }
+
+    override fun start() {
         if (!allowed(ctx)) { onError("Atlas needs the microphone. Allow it and try again."); return }
         if (!SpeechRecognizer.isRecognitionAvailable(ctx)) { onError("This phone has no speech recognition installed."); return }
-        val r = try { SpeechRecognizer.createSpeechRecognizer(ctx) } catch (e: Exception) { onError("Speech recognition isn't available: ${e.message}"); return }
+        begin()
+    }
+
+    private fun begin() {
+        tries++
+        ready = false
+        startedAt = android.os.SystemClock.elapsedRealtime()
+        val r = try { SpeechRecognizer.createSpeechRecognizer(ctx) } catch (e: Exception) { fail("Speech recognition isn't available: ${e.message}"); return }
         sr = r
         r.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(rmsdB: Float) { onLevel(((rmsdB + 2f) / 12f).coerceIn(0f, 1f)) }
+            private fun mine() = sr === r && !finished
+            override fun onReadyForSpeech(params: Bundle?) { if (mine()) { ready = true; main.removeCallbacks(notReady) } }
+            override fun onBeginningOfSpeech() { if (mine()) { ready = true; main.removeCallbacks(notReady) } }
+            override fun onRmsChanged(rmsdB: Float) { if (mine()) onLevel(((rmsdB + 2f) / 12f).coerceIn(0f, 1f)) }
             override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() { onLevel(0f) }
+            override fun onEndOfSpeech() { if (mine()) { onLevel(0f); main.removeCallbacks(noAnswer); main.postDelayed(noAnswer, 8000) } }
             override fun onError(error: Int) {
-                if (finished) return
-                finished = true
-                onLevel(0f)
+                if (!mine()) return
+                val quick = android.os.SystemClock.elapsedRealtime() - startedAt < 1500
                 when (error) {
                     SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
-                        if (lastPartial.isNotBlank()) onDone(lastPartial) else onDone(null)
-                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> onError("Atlas needs the microphone. Allow it in Me.")
-                    SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> onError("Speech recognition needs the internet on this phone.")
-                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> onError("The microphone is busy. Try again in a moment.")
-                    SpeechRecognizer.ERROR_AUDIO -> onError("The microphone isn't working right now.")
-                    else -> onError("Speech recognition failed (error $error).")
+                        // some phones answer "nothing heard" the instant listening starts: that's a hiccup, not silence
+                        if (quick && lastPartial.isBlank() && tries < 2) again("I didn't catch that.") else deliver(lastPartial.ifBlank { null })
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> fail("Atlas needs the microphone. Allow it in Me.")
+                    SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT, SpeechRecognizer.ERROR_SERVER ->
+                        if (lastPartial.isNotBlank()) deliver(lastPartial) else fail("Speech recognition needs the internet on this phone.")
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> again("The microphone is busy. Try again in a moment.")
+                    SpeechRecognizer.ERROR_CLIENT, 11 /* server disconnected */ -> again("Speech recognition stopped. Try again.")
+                    SpeechRecognizer.ERROR_AUDIO -> again("The microphone isn't working right now.")
+                    12, 13 /* language not supported / unavailable */ -> fail("The phone's speech recognition doesn't have this language ready.")
+                    else -> again("Speech recognition failed (error $error).")
                 }
-                release()
             }
             override fun onResults(results: Bundle?) {
-                if (finished) return
-                finished = true
-                val said = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() } ?: lastPartial
-                onDone(said.ifBlank { null })
-                release()
+                if (!mine()) return
+                deliver(results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() } ?: lastPartial)
             }
             override fun onPartialResults(partial: Bundle?) {
+                if (!mine()) return
                 partial?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() }?.let { lastPartial = it; onPartial(it) }
             }
             override fun onEvent(eventType: Int, params: Bundle?) {}
@@ -201,16 +250,27 @@ class VoiceInput(
             .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, ctx.packageName)
-        try { r.startListening(i) } catch (e: Exception) { finished = true; onError("Couldn't start listening: ${e.message}") }
+            // a pause for breath shouldn't end the sentence (phones that honour these wait a little longer)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+        Hear.language(ctx)?.let { i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, it) }
+        try {
+            r.startListening(i)
+            main.postDelayed(notReady, 5000)
+            main.removeCallbacks(tooLong); main.postDelayed(tooLong, 60_000)
+        } catch (e: Exception) { fail("Couldn't start listening: ${e.message}") }
     }
 
     /** Stop listening and use what was heard so far. */
-    fun finish() { try { sr?.stopListening() } catch (_: Exception) {} }
+    override fun finish() {
+        if (finished) return
+        try { sr?.stopListening() } catch (_: Exception) {}
+        main.removeCallbacks(noAnswer); main.postDelayed(noAnswer, 6000)
+    }
 
-    fun cancel() {
+    override fun cancel() {
         finished = true
-        try { sr?.cancel() } catch (_: Exception) {}
-        try { sr?.destroy() } catch (_: Exception) {}
-        sr = null
+        clearTimers()
+        drop()
     }
 }

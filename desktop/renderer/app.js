@@ -4,6 +4,7 @@ import { db, pref, setPref, onChange } from './store.js';
 import * as brain from './brain.js';
 import * as sync from './sync.js';
 import * as voice from './voice.js';
+import { endsTalk } from './speech.js';
 import { Orb } from './orb.js';
 import { renderMarkdown } from './md.js';
 import { plainMemory } from './plain.js';
@@ -327,7 +328,7 @@ async function startListening(followUp = false) {
   const orb = new Orb(o.querySelector('#lorb'), { size: 220 }); orb.energy = 1;
   host.orbState({ energy: 1, listening: true });
   let cancelled = false;
-  listenCtl = voice.listen({ onLevel: (l) => { orb.level = l; host.orbState({ energy: 1, level: l, listening: true }); } });
+  listenCtl = voice.listen({ onLevel: (l) => { orb.level = l; host.orbState({ energy: 1, level: l, listening: true }); }, onState: () => { const el = o.querySelector('.heard'); if (el) el.textContent = 'One moment…'; } });
   o.querySelector('[data-k=done]').onclick = () => listenCtl && listenCtl.stop();
   o.querySelector('[data-k=cancel]').onclick = () => { cancelled = true; listenCtl && listenCtl.stop(); };
   try {
@@ -335,6 +336,8 @@ async function startListening(followUp = false) {
     const p = listenCtl.done;
     const words = await p.then((w) => w, (e) => { throw e; });
     o.querySelector('.heard').textContent = words ? words : '';
+    // "that's all", "never mind", "goodbye" after a reply: the conversation is over, nothing is sent
+    if (!cancelled && words && followUp && endsTalk(words)) { o.remove(); listenCtl = null; host.orbState({ energy: 0 }); return; }
     if (!cancelled && words) { o.remove(); listenCtl = null; host.orbState({ energy: 0 }); await submit(true, words); return; }
     if (!cancelled && !followUp) { o.querySelector('.heard').textContent = "I didn't catch that."; await new Promise((r) => setTimeout(r, 1200)); }
   } catch (e) { toast(e.message || String(e), 4000); }
@@ -666,7 +669,7 @@ brain.ui.settingsText = () => {
   return [`- speak_replies (on/off) — now ${on(pref('speakReplies', false))}`,
     `- voice: now ${eng ? voice.current(eng).label : "Windows' voice"}; choices: ${voice.voices(eng).map((v) => v.label).join(', ')}`,
     `- theme (dark/light) — now ${pref('theme', 'dark')}`, `- on_screen (on/off): the orb in the corner of the PC — now ${on(pref('onScreen', true))}`,
-    `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)', `- dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${on(brain.dontSwitch())}`].join('\n');
+    `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)', `- speaking_speed (slow/normal/fast): how fast Atlas talks — now ${voice.speed()}`, `- dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${on(brain.dontSwitch())}`].join('\n');
 };
 brain.ui.setting = async (name, value) => {
   const flag = { on: true, true: true, yes: true, off: false, false: false, no: false }[String(value).toLowerCase().trim()];
@@ -679,6 +682,7 @@ brain.ui.setting = async (name, value) => {
       case 'on_screen': setPref('onScreen', need()); host.showOrb(flag); return flag ? "I'm in the corner of your screen now." : "I'm off your screen.";
       case 'your_name': if (!value.trim()) return 'Error: give the name.'; db.state.settings.name = value.trim().slice(0, 40); store.saveState(); return `I'll call you ${value.trim()}.`;
       case 'alarm_sound': db.state.settings.sound = need(); store.saveState(); return `Alarm sound ${flag ? 'on' : 'off'}.`;
+      case 'speaking_speed': return `I'll speak at ${voice.setSpeed(value)} speed.`;
       case 'dont_switch': setPref('dont_switch', need()); return flag ? "I'll stay on the service you chose and won't switch to another one (your other keys for it can still take over)." : "I'll switch to another service again when one keeps failing or runs out.";
       case 'start_with_windows': await host.autostart(need()); return flag ? 'I\'ll start with Windows (quietly, in the tray).' : "I won't start with Windows.";
     }

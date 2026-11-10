@@ -306,3 +306,40 @@ test('PowerShell quoting and programs that need a yes', async () => {
   for (const p of ['~/Documents/notes.txt', 'C:\\Pictures', 'photo.jpg']) assert.equal(pc.runsSomething(p), false, p);
   assert.equal(pc.sendKeysCombo('ctrl+shift+t'), '^+t');
 });
+
+// ------------------------------------------------------------------ hearing and speaking: the plain rules (same as Speech.kt)
+const sp = await import('../renderer/speech.js');
+const feedAll = (ep, levels) => { let last = 'going'; for (const [level, ms] of levels) for (let i = 0; i < ms / sp.FRAME_MS; i++) if (last === 'going') last = ep.feed(level); return last; };
+test('knows when you have finished talking', () => {
+  assert.equal(feedAll(new sp.Endpointer(), [[0.003, 400], [0.08, 1200], [0.003, 1500]]), 'done');
+  const ep = new sp.Endpointer();
+  assert.equal(feedAll(ep, [[0.003, 300], [0.08, 800], [0.003, 900], [0.08, 600]]), 'going');   // a pause for breath
+  assert.equal(feedAll(ep, [[0.003, 1400]]), 'done');
+  assert.equal(feedAll(new sp.Endpointer(), [[0.002, 7200]]), 'nothing');
+  assert.equal(feedAll(new sp.Endpointer(), [[0.003, 500], [0.2, 60], [0.003, 7000]]), 'nothing');   // a click
+  assert.equal(feedAll(new sp.Endpointer(), [[0.02, 600], [0.15, 1000], [0.02, 1600]]), 'done');      // a noisy room
+});
+test('replies are cut into pieces to speak without losing a word', () => {
+  assert.deepEqual(sp.sentences('Dr. Ade is at 3.5 km. Is that fine? Good!'), ['Dr. Ade is at 3.5 km.', 'Is that fine?', 'Good!']);
+  const text = Array.from({ length: 30 }, (_, i) => `Sentence number ${i + 1} is here.`).join(' ');
+  const c = sp.chunks(text);
+  assert.ok(c.length > 2 && c[0].length <= 140 && c.every((x) => x.length <= 320));
+  assert.equal(c.join(' '), text);
+  const long = 'word '.repeat(200).trim();
+  assert.equal(sp.chunks(long).join(' '), long);
+});
+test('what was heard is tidied; the end of a talk is recognised', () => {
+  assert.equal(sp.fixHeard('Thank you.', 300), '');
+  assert.equal(sp.fixHeard('Thank you.', 1500), 'Thank you.');
+  assert.equal(sp.fixHeard('Atlas, Anjy', 5000, 'Atlas, Anjy'), '');
+  assert.equal(sp.fixHeard("hey at last what's the time"), "Hey Atlas, what's the time");
+  assert.equal(sp.fixHeard('Ask Atlus to wait'), 'Ask Atlas to wait');
+  for (const t of ["That's all", "that's all, thanks", 'Never mind.', "No, that's all for now", 'Goodbye']) assert.ok(sp.endsTalk(t), t);
+  for (const t of ["That's all I know about it, what else?", 'Remind me to say goodbye to mum', 'thanks']) assert.ok(!sp.endsTalk(t), t);
+  assert.deepEqual(sp.names('Call Tunde about the Lagos trip. Then rest'), ['Tunde', 'Lagos']);
+});
+test('spoken text reads cleanly: no addresses, table bars or doubled marks', () => {
+  const s = plainSpoken("Here's the plan:\n\n| Day | Task |\n|---|---|\n| Mon | Gym |\n\nSee [the guide](https://ex.com/a_b) or https://ex.com/x. Done?");
+  assert.ok(!/http|\||\?\.|---/.test(s), s);
+  assert.ok(s.includes('the guide') && s.includes('Mon, Gym') && s.endsWith('Done?'), s);
+});

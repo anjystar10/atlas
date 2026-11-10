@@ -52,9 +52,17 @@ object Plain {
 
     /** For speaking aloud: no symbols, no code blocks, list markers turned into pauses. */
     fun spoken(s: String): String {
-        var t = reply(s).replace(FENCE, " ")
-        t = t.lines().joinToString(". ") { it.trim().removePrefix("#").trimStart('#', ' ').replace(Regex("""^([-*•]|\d+[.)])\s+"""), "") }
-        t = t.replace(Regex("""[*_#`>|]"""), "").replace(Regex("""\.\s*\.+"""), ".").replace(Regex("""\s+"""), " ")
-        return t.trim().trim('.').let { if (it.isEmpty()) it else "$it." }
+        var t = reply(s).replace(FENCE, " There's some code on screen. ")
+        // links: say the words, not the address; a bare address becomes "a link"
+        t = t.replace(Regex("""!?\[([^\]]*)]\((?:[^()\s]|\([^()\s]*\))*\)"""), "$1")
+        t = t.replace(Regex("""(https?://|www\.)\S+"""), "a link")
+        // tables: the divider row goes; cells are read with pauses
+        t = t.lines().filterNot { it.trim().matches(Regex("""\|?[\s:|-]*-{2,}[\s:|-]*\|?""")) }.joinToString("\n")
+        val lines = t.lines().map { it.trim().trimStart('#', '>', ' ').trim('|', ' ').replace(Regex("""\s*\|\s*"""), ", ").replace(Regex("""^([-*•]|\d+[.)])\s+"""), "") }.filter { it.isNotBlank() }
+        // each line is its own sentence: add a full stop only where there's no ending already
+        t = lines.joinToString(" ") { l -> if (l.last() in ".!?…:;,") (if (l.last() == ':') l.dropLast(1) + "." else l) else "$l." }
+        t = t.replace(Regex("""[*_#`~^\\]"""), "").replace(Regex("""\s*[–—]\s*"""), ", ").replace("&", " and ").replace(Regex("""(\d)\s*%"""), "$1 percent")
+            .replace(Regex("""\(\s*\)"""), "").replace(Regex("""\.\s*\.+"""), ".").replace(Regex(""",\s*([.,!?])"""), "$1").replace(Regex("""\s+"""), " ")
+        return t.trim()
     }
 }
