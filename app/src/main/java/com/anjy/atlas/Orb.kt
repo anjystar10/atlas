@@ -45,6 +45,9 @@ class CpuOrbView(context: Context) : View(context) {
     private var lastFrame = 0L
     private var flow = 0.0
     private var paintedStill = false
+    /** Slow drawing found (or a software graphics chip): repaint a few times a second instead of 15 to 30. */
+    private var calm = OrbView.gpuProblem?.startsWith("software") == true
+    private var lateFrames = 0
     private var placeholder: android.graphics.Bitmap? = null
     private val dst = android.graphics.RectF()
     private val tick = Runnable { invalidate() }
@@ -69,10 +72,17 @@ class CpuOrbView(context: Context) : View(context) {
         if (busy || !isAttachedToWindow || !isShown) return
         if (still && paintedStill && front != null && front!!.width == renderW() && front!!.height == renderH()) return
         val now = SystemClock.uptimeMillis()
-        val gap = if (still) 0L else if (energy > 0.05f || shownEnergy > 0.05f || level > 0.02f) 33L else 66L
+        val lively = energy > 0.05f || shownEnergy > 0.05f || level > 0.02f
+        val gap = if (still) 0L else if (calm) (if (lively) 100L else 500L) else if (lively) 33L else 66L
         val wait = lastFrame + gap - now
         if (wait > 0) { removeCallbacks(tick); postDelayed(tick, wait); return }
-        val dt = if (lastFrame == 0L) 0f else ((now - lastFrame) / 1000f).coerceAtMost(0.2f)
+        val dt = if (lastFrame == 0L) 0f else ((now - lastFrame) / 1000f).coerceAtMost(if (calm) 0.6f else 0.2f)
+        // A phone that can't keep up (every repaint of the orb makes the whole screen redraw, which is slow
+        // without a real graphics chip) gets a calmer orb, so the app itself stays quick to respond.
+        if (!calm && !still && lastFrame != 0L) {
+            if (now - lastFrame > gap * 3 + 40) { if (++lateFrames >= 8) { calm = true; android.util.Log.w("AtlasOrb", "screen can't keep up: calmer orb") } }
+            else if (lateFrames > 0) lateFrames--
+        }
         lastFrame = now
         flow += dt * OrbView.flowRate(shownEnergy, shownLevel)
         shownLevel += (level - shownLevel) * 0.35f
