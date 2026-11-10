@@ -433,7 +433,7 @@ class MainActivity : Activity() {
     /** A short message in the app's own pill (not the phone's grey toast). */
     internal fun toast(s: String) = showBanner(s, BLUE)
     /** Tabs in the order they appear (and swipe): Atlas, Log, Me. */
-    internal val order: List<Int> get() = listOf(0, 1, 2)
+    internal val order: List<Int> get() = listOf(0, 1, 3, 2)   // Atlas, Log, Bots, Me (ids stay: 2 is Me)
     internal fun pos(id: Int) = order.indexOf(id)
 
     /** The nav: a floating pill of five icons; the current page sits in a light circle. */
@@ -761,7 +761,7 @@ class MainActivity : Activity() {
 
     private val density get() = resources.displayMetrics.density
     private fun tabFor(name: String?) = when (name) {
-        "atlas", "chat", "today", "home" -> 0; "log", "memory" -> 1; "settings", "me" -> 2; else -> null
+        "atlas", "chat", "today", "home" -> 0; "log", "memory" -> 1; "settings", "me" -> 2; "bots", "bot" -> 3; else -> null
     }
 
     /** Back closes the topmost overlay first, then returns to Atlas, then leaves the app. */
@@ -969,6 +969,7 @@ class MainActivity : Activity() {
         when (tab) {
             0 -> renderAtlas()
             1 -> renderLog()
+            3 -> renderBots()
             else -> renderMe()
         }
         lastLogSig = logSignature()
@@ -1158,6 +1159,8 @@ class MainActivity : Activity() {
             if ((chip == null) != line.isEmpty()) render(keepScroll = true)
             else chip?.let { it.text = "Atlas Bot  ·  $line  ›"; it.contentDescription = "Atlas Bot: $line" }
         }
+        // the Bots tab follows along, unless you're in the middle of typing a job
+        if (tab == 3 && botDraft.isBlank()) render(keepScroll = true)
     }
 
     /** Draws the conversation into [list]. */
@@ -1633,6 +1636,45 @@ class MainActivity : Activity() {
         }
         body.add(c, if (logFull) 16 else 8)
         if (!logFull) body.add(secondary(if (all.size > LOG_RECENT) "Full History (${all.size})" else "Full History") { logFull = true; render() }, 12)
+    }
+
+    // ================================================================ BOTS
+
+    private var botDraft = ""
+    /** The Bots tab: send a bot, and every job with where it stands. A job opens on its own page. */
+    private fun renderBots() {
+        pageTitle("Bots")
+        body.add(text("Jobs Atlas sent a bot to do. They keep working when you leave, and each report lands in your chat.", 15f, MUTED), 6)
+        val sc = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        lateinit var send: TextView
+        val f = field("Send a bot to… (e.g. find the three best budget laptops for coding, with sources)", botDraft, multi = true) { botDraft = it; send.alpha = if (it.isBlank()) 0.5f else 1f }
+        sc.addView(f, LinearLayout.LayoutParams(MATCH, WRAP))
+        send = primary("Send a Bot") {
+            val goal = botDraft.trim()
+            if (goal.isNotEmpty()) { botDraft = ""; Bots.deploy(applicationContext, goal, ""); showBanner("Bot sent"); render(keepScroll = true) }
+        }.apply { alpha = if (botDraft.isBlank()) 0.5f else 1f }
+        sc.addView(send, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
+        body.add(sc, 20)
+        val all = Bots.visible()
+        if (all.isEmpty()) {
+            body.add(card().apply {
+                addView(text("No bots yet", 18f, FG, HEAD))
+                add(text("Ask Atlas for something bigger, like “research the best phone under $300 for photos and send me a report”, or say “send a bot to…”.", 15f, MUTED), 6)
+            }, 22)
+            return
+        }
+        body.add(eyebrow("Jobs"), 22)
+        all.forEach { j ->
+            val c = card().apply {
+                isClickable = true; pressFx()
+                setOnClickListener { startActivity(Intent(this@MainActivity, BotActivity::class.java).putExtra(BotActivity.EXTRA_ID, j.id)) }
+            }
+            c.addView(text(j.goal, 17f, FG, HEAD).apply { maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END })
+            val line = listOfNotNull(BotRules.label(j.state), if (j.state == BotRules.RUNNING) j.current else null,
+                if (j.plan.isNotEmpty()) "plan ${j.plan.count { it.done }}/${j.plan.size}" else null).joinToString(" · ")
+            c.add(text(line, 13f, MUTED, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, 6)
+            body.add(c, 10)
+        }
     }
 
     // ================================================================ ME

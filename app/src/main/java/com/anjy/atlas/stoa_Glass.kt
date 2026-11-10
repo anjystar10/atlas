@@ -233,7 +233,7 @@ internal fun MainActivity.finishThemeSwap() {
  * name doesn't fit, and the bar never runs past the edges.
  */
 internal fun MainActivity.renderNavBar() {
-    val names = listOf("Atlas", "Log", "Me")
+    val names = listOf("Atlas", "Log", "Me", "Bots")
     val n = order.size
     val dm = resources.displayMetrics
     val wDp = dm.widthPixels / dm.density
@@ -381,7 +381,7 @@ internal fun MainActivity.renderNavBar() {
 
 /** Each tab's light, in Atlas's blues and purples: Atlas violet, Log blue, Me purple. */
 // the three pages glow in three neighbours on the colour wheel (blue-violet, blue, violet), anchored on the logo's indigo
-internal val NAV_COLORS = intArrayOf(0xFF7C6CFF.toInt(), 0xFF4F86FF.toInt(), 0xFF9A6BFF.toInt())
+internal val NAV_COLORS = intArrayOf(0xFF7C6CFF.toInt(), 0xFF4F86FF.toInt(), 0xFF9A6BFF.toInt(), 0xFF6C7CFF.toInt())
 
 /**
  * The drop of light behind the current tab. Moving, it stretches: the end heading for the new tab races ahead

@@ -111,6 +111,8 @@ export function session(p, key, history, user, media, tools = TOOLS) {
       async call(system) {
         const req = { systemInstruction: { parts: [{ text: system }] }, contents: trimScreens(contents), tools: [{ functionDeclarations: tools }] };
         if (model.startsWith('gemini-3')) req.generationConfig = { thinkingConfig: { thinkingLevel: 'low' } };
+        // Google's adjustable content filters at their most open setting (the user's choice); the model's own limits still apply
+        req.safetySettings = ['HARM_CATEGORY_HARASSMENT', 'HARM_CATEGORY_HATE_SPEECH', 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'HARM_CATEGORY_DANGEROUS_CONTENT'].map((category) => ({ category, threshold: 'BLOCK_NONE' }));
         const r = await post(`${p.base}${model}:generateContent`, { 'x-goog-api-key': this.key }, req, 'Gemini');
         if (r.promptFeedback && r.promptFeedback.blockReason) throw new Failure(`Gemini refused that message (${r.promptFeedback.blockReason}).`);
         const cand = (r.candidates || [])[0]; if (!cand) throw new Failure('Gemini sent back an empty answer.');
@@ -383,6 +385,7 @@ export function systemPrompt(spoken) {
 
 How you talk:
 - Like a sharp, warm friend. Natural and relaxed, short by default, longer when they want detail. Understand casual writing and slang; match their energy.
+- Be straight with them: they're an adult. Answer what was asked, fully and plainly. Don't lecture, moralise, pile on warnings or disclaimers, or back away from a topic because it's blunt, dark or uncomfortable; give your real opinion when asked. If something is truly dangerous, say so once, in a sentence, and carry on.
 - Be honest. Only say you did something if a tool result shows it worked. If you don't know, say so; if it might have changed recently, search the web.
 - Never show code, ids, function or tool names, JSON, or how you work inside, unless they asked you for code. Say what you did in plain words.
 ${spoken ? '- This came by voice and your answer will be read aloud: one to three short spoken sentences. No lists, no formatting, no links.' : '- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler.'}
