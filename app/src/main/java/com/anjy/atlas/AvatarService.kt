@@ -346,7 +346,7 @@ class AvatarService : Service() {
                 }
                 elevation = dp(6).toFloat(); alpha = 0f
             }
-            val w = TextView(this).apply { setTextColor(Color.parseColor("#9AA0D8")); textSize = 11f; letterSpacing = 0.12f; isAllCaps = true
+            val w = TextView(this).apply { setTextColor(Palette.NIGHT.muted); textSize = 11f; letterSpacing = 0.12f; isAllCaps = true
                 try { typeface = resources.getFont(R.font.geist_semibold) } catch (_: Throwable) {} }
             val body = TextView(this).apply { setTextColor(Color.WHITE); textSize = 15f; maxLines = 7; ellipsize = android.text.TextUtils.TruncateAt.END
                 setLineSpacing(0f, 1.15f); maxWidth = dp(250)

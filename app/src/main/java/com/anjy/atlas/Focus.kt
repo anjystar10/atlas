@@ -150,7 +150,7 @@ class FocusActivity : Activity() {
         }
         val s = Focus.state(this) ?: run { finish(); return }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        val bg = Color.parseColor("#05050F")
+        val bg = Palette.NIGHT.bg
         window.statusBarColor = bg; window.navigationBarColor = bg
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(bg))
         // Back does nothing here: the session ends with End
@@ -164,24 +164,24 @@ class FocusActivity : Activity() {
         val d = resources.displayMetrics.density
 
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(dp(24), dp(28), dp(24), dp(28)) }
-        col.addView(TextView(this).apply { text = "DOING IT NOW"; setTextColor(Color.parseColor("#8B8FC4")); textSize = 12f; typeface = semi; letterSpacing = 0.18f; gravity = Gravity.CENTER })
-        col.addView(TextView(this).apply { text = s.title; setTextColor(Color.parseColor("#F0F1FF")); textSize = 30f; typeface = serif; gravity = Gravity.CENTER; setLineSpacing(0f, 1.05f) },
+        col.addView(TextView(this).apply { text = "DOING IT NOW"; setTextColor(Palette.NIGHT.faint); textSize = 12f; typeface = semi; letterSpacing = 0.18f; gravity = Gravity.CENTER })
+        col.addView(TextView(this).apply { text = s.title; setTextColor(Palette.NIGHT.fg); textSize = 30f; typeface = serif; gravity = Gravity.CENTER; setLineSpacing(0f, 1.05f) },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-        col.addView(TextView(this).apply { text = "No distractions. Just this."; setTextColor(Color.parseColor("#9BA1C9")); textSize = 15f; typeface = body; gravity = Gravity.CENTER },
+        col.addView(TextView(this).apply { text = "No distractions. Just this."; setTextColor(Palette.NIGHT.muted); textSize = Type.READ; typeface = serif; gravity = Gravity.CENTER },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         col.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
         orb = OrbView(this).apply { energy = 0.25f; still = Prefs.reduceMotion(this@FocusActivity) }
         col.addView(orb, LinearLayout.LayoutParams(dp(150), dp(150)))
-        timer = TextView(this).apply { setTextColor(Color.parseColor("#F4F5FF")); textSize = 64f; typeface = light; gravity = Gravity.CENTER; letterSpacing = -0.01f
+        timer = TextView(this).apply { setTextColor(Palette.NIGHT.fg); textSize = 64f; typeface = light; gravity = Gravity.CENTER; letterSpacing = -0.01f; fontFeatureSettings = "tnum"  /* digits of equal width: the time doesn't jiggle as it counts */
             fontFeatureSettings = "tnum" }
         col.addView(timer, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
-        sub = TextView(this).apply { setTextColor(Color.parseColor("#9BA1C9")); textSize = 14f; typeface = med; gravity = Gravity.CENTER }
+        sub = TextView(this).apply { setTextColor(Palette.NIGHT.muted); textSize = 14f; typeface = med; gravity = Gravity.CENTER }
         col.addView(sub, LinearLayout.LayoutParams(-1, -2))
         col.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
 
         fun glass(label: String, onTap: () -> Unit) = TextView(this).apply {
-            text = label; textSize = 16f; typeface = med; gravity = Gravity.CENTER; setTextColor(Color.parseColor("#EEF0FF"))
-            setPadding(dp(14), dp(15), dp(14), dp(16)); background = Finish(Color.parseColor("#14163A"), -1f, true, d, glass = true)
+            text = label; textSize = 16f; typeface = med; gravity = Gravity.CENTER; setTextColor(Palette.NIGHT.fg)
+            setPadding(dp(14), dp(15), dp(14), dp(16)); background = Finish(Palette.NIGHT.surface2, -1f, true, d, glass = true)
             isClickable = true; setOnClickListener { onTap() }; pressFx()
         }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -192,7 +192,7 @@ class FocusActivity : Activity() {
         col.addView(row, LinearLayout.LayoutParams(-1, -2))
         val end = TextView(this).apply {
             text = "End"; textSize = 22f; typeface = semi; gravity = Gravity.CENTER; setTextColor(Color.WHITE)
-            setPadding(dp(16), dp(22), dp(16), dp(23)); background = Finish(Color.parseColor("#5B4BF0"), -1f, true, d)
+            setPadding(dp(16), dp(22), dp(16), dp(23)); background = Finish(Palette.NIGHT.primaryBottom, -1f, true, d)
             elevation = dp(10).toFloat(); outlineSpotShadowColor = Color.parseColor("#6E5CFF"); outlineAmbientShadowColor = Color.parseColor("#6E5CFF")
             isClickable = true; setOnClickListener { finishSession() }; pressFx()
             contentDescription = "End the session"

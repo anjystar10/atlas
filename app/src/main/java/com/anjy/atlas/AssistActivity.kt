@@ -44,9 +44,9 @@ class AssistActivity : Activity() {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
     private fun font(id: Int, fb: Typeface) = try { resources.getFont(id) } catch (_: Throwable) { fb }
 
-    private val BG = Color.parseColor("#04040C")
-    private val FG = Color.parseColor("#EEF0FF")
-    private val MUTED = Color.parseColor("#9BA1C9")
+    private val BG = Palette.NIGHT.bg
+    private val FG = Palette.NIGHT.fg
+    private val MUTED = Palette.NIGHT.muted
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

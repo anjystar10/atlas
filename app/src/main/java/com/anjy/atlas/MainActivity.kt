@@ -71,6 +71,12 @@ class MainActivity : Activity() {
     internal var BLUE = Color.parseColor("#EEF0FF")      // ink: actions, links, selection
     internal var ACCENT = Color.parseColor("#8B6CFF")    // Atlas's violet: highlights, check-ins, warnings
     internal var GOLD = Color.parseColor("#6FA8FF")      // the second light: sky blue
+    /** The one warm colour (amber): only for what needs your eye. */
+    internal var WARM = Color.parseColor("#F2B866")
+    /** The accent for small text and links (a lighter tint at night, so it reads on dark glass). */
+    internal var ACCENT_INK = Color.parseColor("#A594FF")
+    /** Quieter than MUTED: the smallest notes. */
+    internal var FAINT = Color.parseColor("#7C81AD")
     internal var STEEL = Color.parseColor("#17193A")     // neutral tag fill
     internal var NAVBG = Color.parseColor("#15162E")
     /** By day, the fill of the quieter buttons: dark glass, like the main ones. (At night they're clear glass.) */
@@ -83,22 +89,18 @@ class MainActivity : Activity() {
         dark = mode == "dark" || (mode == "system" && systemDark)
         // both looks are set in full every time: switching back from light to dark (without restarting the
         // screen) must put every dark colour back, not just the ones a fresh start happens to begin with
+        // every colour comes from the one palette (Design.kt); both looks are set in full every time, so switching
+        // back from light to dark (without restarting the screen) puts every colour back
+        val p = if (dark) Palette.DARK else Palette.LIGHT
+        BG = p.bg; SURFACE = p.surface; SURFACE2 = p.surface2; LINE = p.line; FG = p.fg; MUTED = p.muted; FAINT = p.faint
+        DONE = p.done; MISS = p.danger; ACCENT = p.accent; ACCENT_INK = p.accentInk; GOLD = p.blue; WARM = p.warm
         if (!dark) {
-            // frosted glass on a lavender-blue page. SURFACE is what a pane of frosted glass (white at about 45%) looks
-            // like over it, so flat fills, sheets and blends match the glass panels; SURFACE2 is thinner glass, LINE its rim.
-            BG = Color.parseColor("#C5C8EC"); SURFACE = Color.parseColor(LIGHT_GLASS); SURFACE2 = Color.parseColor("#D3D5F2")
-            LINE = Color.parseColor("#F3F3FD"); FG = Color.parseColor("#0A0B1F"); MUTED = Color.parseColor("#3E4170")
-            ON = Color.parseColor("#FFFFFF")
-            DONE = Color.parseColor("#0A6646"); MISS = Color.parseColor("#A11B35")
-            BLUE = Color.parseColor("#0A0B1F"); ACCENT = Color.parseColor("#5A3FD6"); GOLD = Color.parseColor("#2448B8")
-            STEEL = Color.parseColor("#E6E7F8"); NAVBG = Color.parseColor("#0A0B1F"); BTN2 = Color.parseColor("#0A0B1F")
+            // by day: frosted glass panels on a lavender-blue page, navy-black ink, dark glass buttons
+            ON = Color.WHITE; BLUE = p.fg
+            STEEL = Color.parseColor("#E6E7F8"); NAVBG = p.fg; BTN2 = p.fg
         } else {
-            BG = Color.parseColor("#05050F"); SURFACE = Color.parseColor("#0E0F22"); SURFACE2 = Color.parseColor("#17193A")
-            LINE = Color.parseColor("#262A52"); FG = Color.parseColor("#EEF0FF"); MUTED = Color.parseColor("#9BA1C9")
-            ON = Color.parseColor("#06061A")
-            DONE = Color.parseColor("#5BD6A6"); MISS = Color.parseColor("#FF6B81")
-            BLUE = Color.parseColor("#EEF0FF"); ACCENT = Color.parseColor("#8B6CFF"); GOLD = Color.parseColor("#6FA8FF")
-            STEEL = Color.parseColor("#17193A"); NAVBG = Color.parseColor("#15162E"); BTN2 = Color.parseColor("#0E0F22")
+            ON = Color.parseColor("#06061A"); BLUE = p.fg
+            STEEL = p.surface2; NAVBG = Color.parseColor("#15162E"); BTN2 = p.surface
         }
     }
 
@@ -117,17 +119,22 @@ class MainActivity : Activity() {
     internal val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
 
     private fun font(id: Int, fallback: Typeface) = try { resources.getFont(id) } catch (e: Throwable) { fallback }
-    // Newsreader, an elegant serif, for titles, the greeting and numbers; Geist for everything you read.
-    internal val THIN by lazy { font(R.font.newsreader_light, Typeface.create("serif", Typeface.NORMAL)) }
-    internal val NUM by lazy { font(R.font.newsreader_light, Typeface.create("serif", Typeface.NORMAL)) }
-    internal val DISPLAY by lazy { font(R.font.newsreader_regular, Typeface.create("serif", Typeface.NORMAL)) }
-    internal val WORDMARK by lazy { font(R.font.newsreader_medium, Typeface.create("serif", Typeface.BOLD)) }
+    // Type (see Design.kt): Newsreader, a serif made for reading, for titles, the greeting, numbers, Atlas's
+    // replies and what you write; Geist for the small working parts (buttons, labels, tags).
+    internal val THIN by lazy { Type.serifLight(this) }
+    internal val NUM by lazy { Type.serifLight(this) }
+    internal val DISPLAY by lazy { Type.serif(this) }
+    internal val WORDMARK by lazy { Type.serifMedium(this) }
+    /** Reading text: Atlas's replies, your messages, what you type. */
+    internal val READ by lazy { Type.serif(this) }
+    internal val READ_BOLD by lazy { Type.serifSemi(this) }
+    internal val READ_ITALIC by lazy { Type.serifItalic(this) }
     /** Titles. Small "headings" (under 18sp) are set in Geist SemiBold (see text()). */
     internal val HEAD get() = DISPLAY
-    internal val SEMI by lazy { font(R.font.geist_semibold, Typeface.create("sans-serif-medium", Typeface.NORMAL)) }
-    internal val MED by lazy { font(R.font.geist_medium, Typeface.create("sans-serif-medium", Typeface.NORMAL)) }
-    internal val BODY by lazy { font(R.font.geist_regular, Typeface.DEFAULT) }
-    internal val MONO by lazy { font(R.font.geist_mono, Typeface.MONOSPACE) }
+    internal val SEMI by lazy { Type.sansSemi(this) }
+    internal val MED by lazy { Type.sansMedium(this) }
+    internal val BODY by lazy { Type.sans(this) }
+    internal val MONO by lazy { Type.mono(this) }
     internal val PIX get() = NUM
 
     internal lateinit var scroll: ScrollView
@@ -1180,8 +1187,8 @@ class MainActivity : Activity() {
     }
 
     /** How replies are set: Geist for reading, the serif for big headings, the violet for list markers and links. */
-    private fun mdStyle() = Markdown.Style(BODY, SEMI, DISPLAY, MONO, FG, MUTED, ACCENT,
-        if (dark) Color.argb(40, 255, 255, 255) else Color.argb(26, 10, 11, 31), density, 16f)
+    private fun mdStyle() = Markdown.Style(READ, READ_BOLD, WORDMARK, MONO, FG, MUTED, ACCENT_INK,
+        if (dark) Color.argb(40, 255, 255, 255) else Color.argb(26, 10, 11, 31), density, Type.READ, italic = READ_ITALIC)
 
     /**
      * One message. Yours: a compact glass bubble on the right. Atlas's: neat full-width text (no box, so long
@@ -1193,7 +1200,8 @@ class MainActivity : Activity() {
         val copy = { _: View -> getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas", m.text)); showBanner("Copied"); true }
         if (m.fromUser) {
             if (m.media.isNotEmpty()) wrap.addView(mediaStrip(m.media, dp(84)), LinearLayout.LayoutParams(WRAP, WRAP).apply { bottomMargin = dp(6) })
-            wrap.addView(text(m.text, 16f, FG, keepEmoji = true).apply {
+            wrap.addView(text(m.text, Type.READ, FG, READ, keepEmoji = true).apply {
+                setLineSpacing(0f, 1.3f)
                 background = Finish(SURFACE, dp(20).toFloat(), dark, density, glass = true)
                 setPadding(dp(15), dp(10), dp(15), dp(11))
                 maxWidth = (resources.displayMetrics.widthPixels * 0.78).toInt()
@@ -1208,8 +1216,8 @@ class MainActivity : Activity() {
             Markdown.parse(m.text, st).forEachIndexed { i, block ->
                 val v: View = when (block) {
                     is Markdown.Prose -> TextView(this).apply {
-                        text = block.text; setTextColor(if (m.source == "error") MISS else FG); textSize = 16f; typeface = BODY
-                        setLineSpacing(0f, 1.32f); linksClickable = true; movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                        text = block.text; setTextColor(if (m.source == "error") MISS else FG); textSize = Type.READ; typeface = READ
+                        setLineSpacing(0f, Type.LEAD_READ); linksClickable = true; movementMethod = android.text.method.LinkMovementMethod.getInstance()
                         setOnLongClickListener(copy)
                     }
                     is Markdown.Code -> codeBox(block)
@@ -1298,7 +1306,7 @@ class MainActivity : Activity() {
             pressFx()
         }
         composerField = EditText(this).apply {
-            hint = "Ask anything…"; setTextColor(FG); setHintTextColor(MUTED); textSize = 16f; typeface = BODY
+            hint = "Ask anything…"; setTextColor(FG); setHintTextColor(MUTED); textSize = Type.READ; typeface = READ
             background = rounded(if (dark) SURFACE2 else Color.parseColor(LIGHT_FIELD), 999, LINE)
             setPadding(dp(18), dp(13), dp(18), dp(13)); maxLines = 5
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
@@ -1327,7 +1335,7 @@ class MainActivity : Activity() {
             // Atlas's key: a glowing drop of blue and violet. Nothing typed: talk. Something to send: send. Working: stop.
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL; gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(34).toFloat()
-                colors = intArrayOf(Color.parseColor("#6E8BFF"), Color.parseColor("#4B3BD6"))
+                colors = intArrayOf(Palette.DARK.primaryTop, Palette.DARK.primaryBottom)
             }
             elevation = dp(8).toFloat(); outlineSpotShadowColor = Color.parseColor("#5B6CFF"); outlineAmbientShadowColor = Color.parseColor("#5B6CFF")
             isClickable = true; contentDescription = "Speak"
