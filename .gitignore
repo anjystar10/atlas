@@ -5,3 +5,5 @@ local.properties
 .idea/
 llama.cpp/
 app/src/main/assets/vosk-model/
+# the Windows app's icons live here (electron-builder buildResources), unlike other build/ folders
+!desktop/build/
