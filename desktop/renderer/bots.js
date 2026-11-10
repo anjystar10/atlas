@@ -85,7 +85,7 @@ const LABEL = { web_search: (a) => `Searching for “${String(a.query || '').sli
   read_file: () => 'Reading a file', write_file: () => 'Writing a file', run_command: () => 'Running a command', look_at_screen: () => 'Looking at the screen', click: () => 'Clicking',
   type_text: () => 'Typing', press_keys: (a) => 'Pressing ' + (a.keys || ''), scroll: () => 'Scrolling', set_reminder: () => 'Logging a reminder', update_reminder: () => 'Changing a reminder',
   remember: () => 'Saving to memory', forget: () => 'Deleting a memory', read_log: () => 'Checking your Log' };
-const label = (c) => (LABEL[c.name] || (() => 'Working'))(c.args || {});
+const label = (c) => (LABEL[c.name] || (() => (c.name.startsWith('mcp__') ? 'Using ' + c.name.slice(5).replace(/__/, ': ').replace(/_+/g, ' ') : c.name === 'call_api' ? 'Calling ' + ((c.args || {}).connection || 'an API') : 'Working')))(c.args || {});
 
 /** One job: plain JSON with no secrets, an id, updated_ms and the owning device, so it can later sync like the Log. */
 export function newJob(goal, details, now, id, device = '') {
@@ -147,8 +147,10 @@ export function createBots(deps) {
   const workers = new Map();   // job id → token of the loop running it
   const listeners = new Set();
   let loaded = false, timer = null, saving = Promise.resolve();
-  const myTools = [...deps.tools.filter((t) => !NOT_FOR_BOTS.has(t.name)), ...BOT_TOOLS];
-  const toolNames = new Set(deps.tools.map((t) => t.name).filter((n) => !NOT_FOR_BOTS.has(n)));
+  // deps.tools may be a function: connections (MCP servers) come and go while the app runs
+  const baseTools = () => (typeof deps.tools === 'function' ? deps.tools() : deps.tools).filter((t) => !NOT_FOR_BOTS.has(t.name));
+  const myTools = () => [...baseTools(), ...BOT_TOOLS];
+  const toolNames = { has: (n) => baseTools().some((t) => t.name === n) };
 
   const changed = () => { for (const f of [...listeners]) { try { f(); } catch (e) { console.error(e); } } };
   const job = (id) => jobs.find((j) => j.id === id);
@@ -292,7 +294,7 @@ export function createBots(deps) {
       const text = brief(j) + extra + (wrapping ? "\n\nYour budget for this job is used up. Call finish now with the best report you can from your plan and notes, and say plainly what's left undone." : '');
       extra = '';
       let sess;
-      try { sess = deps.session(p, text, wrapping ? [FINISH] : myTools); } catch (e) { return fail(j, e.message || String(e)); }
+      try { sess = deps.session(p, text, wrapping ? [FINISH] : myTools()); } catch (e) { return fail(j, e.message || String(e)); }
       let rounds = 0, fresh = false;
       while (mine() && rounds < ROUNDS_PER_PART && !fresh) {
         rounds++;
@@ -339,7 +341,7 @@ export function createBots(deps) {
           }
           if (c.name === 'request_approval') { await askApproval(j, { what: (deps.plainReply(String(a.action || '')) || 'Go ahead with the next step').slice(0, 300), tool: null, args: null, decision: null }); return; }
           if (!toolNames.has(c.name)) { results.push({ call: c, out: `Error: there's no tool called ${c.name}.` }); continue; }
-          const need = approvalFor(c.name, a);
+          const need = approvalFor(c.name, a) || (deps.extraApproval ? deps.extraApproval(c.name, a) : null);
           if (need) { await askApproval(j, { what: need, tool: c.name, args: JSON.parse(JSON.stringify(a)), decision: null }); return; }
           const r = await runTool(j, c);
           results.push({ call: c, out: r.out, image: r.image || null });

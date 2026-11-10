@@ -4,6 +4,7 @@ import { db, saveChat, changed, uid } from './store.js';
 import * as brain from './brain.js';
 import { plainReply, plainMemory } from './plain.js';
 import { createBots, MAX_TOOL_CALLS, MAX_WORK_MS } from './bots.js';
+import * as conn from './connect.js';
 const host = window.atlasHost;
 
 function systemPrompt() {
@@ -33,6 +34,7 @@ Using the PC (only when the job needs it): open_app, open_path, list_files and r
 Budget: up to ${MAX_TOOL_CALLS} tool steps and ${MAX_WORK_MS / 60000} minutes for the job. When it's nearly used up, finish with what you have.
 
 Now: ${new Date().toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
+${conn.promptLine()}
 ${brain.logContext()}`;
 }
 
@@ -52,7 +54,8 @@ export const bots = createBots({
   callWithKeys: (p, sess, call, opts) => brain.callWithKeys(p, sess, call, null, opts),
   isSwitch: (e) => e instanceof brain.Switch,
   isRetryable: (e) => e instanceof brain.Failure && (e.offline || [429, 500, 502, 503, 504].includes(e.code)),
-  tools: brain.TOOLS,
+  tools: () => [...brain.TOOLS, ...conn.declarations('bots')],
+  extraApproval: (name, args) => conn.approvalFor(name, args),
   runTool: (call, opts) => brain.runTool(call, opts),
   systemPrompt,
   notify: (title, body, tag) => host.notify(title, String(body || '').slice(0, 240), tag),

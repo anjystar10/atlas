@@ -21,8 +21,9 @@ contextBridge.exposeInMainWorld('atlasHost', {
   loadFile: (p) => ipcRenderer.invoke('file:load', p),
   pathOf: (file) => { try { return webUtils.getPathForFile(file); } catch { return null; } },
   pc: (name, args) => ipcRenderer.invoke('pc:run', name, args),
+  conn: (op, ...args) => ipcRenderer.invoke('conn', op, ...args),
   on: (channel, fn) => {
-    const ok = ['notification-click', 'orb-clicked', 'orb-state'];
+    const ok = ['notification-click', 'orb-clicked', 'orb-state', 'connections-changed'];
     if (!ok.includes(channel)) return;
     ipcRenderer.on(channel, (_e, ...args) => fn(...args));
   }

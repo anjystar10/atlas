@@ -2,6 +2,7 @@
 // one runs out, and the tools: the Log, the web, its own settings, and the PC itself.
 import { db, pref, setPref, saveChat, changed, OPEN, findTask, createTask, updateTask, respond, cancelTask, deleteTask, remember, forget } from './store.js';
 import { plainReply, plainMemory } from './plain.js';
+import * as conn from './connect.js';   // connections: MCP servers and web APIs
 const host = window.atlasHost;
 
 export const PROVIDERS = [
@@ -358,6 +359,7 @@ export async function runTool(call, { approved = false } = {}) {
       if (r.error) return { out: 'Error: ' + r.error };
       return { out: r.out || 'Done.', step: r.step || null, image: r.image || null, pc: true };
     }
+    if (conn.owns(call.name)) return await conn.run(call, { approved, confirm: ui.confirm });   // connections
     return { out: `Error: there's no tool called ${call.name}.` };
   } catch (e) { return { out: 'Error: ' + (e.message || e) }; }
 }
@@ -404,7 +406,7 @@ Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of PC actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
 
-Your own settings (change_setting, when they ask):
+${conn.promptLine() ? conn.promptLine() + '\n\n' : ''}Your own settings (change_setting, when they ask):
 ${ui.settingsText()}
 
 Now: ${now.toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
@@ -432,7 +434,8 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
     }
     const full = q + attachments.filter((x) => x.kind === 'text').map((x) => `\n\n[File: ${x.name}]\n${x.text}\n[End of ${x.name}]`).join('');
     reply.source = p.name;
-    let sess = session(p, keyFor(p.id), hist, full, media);
+    const tools = [...TOOLS, ...conn.declarations('chat')];   // connections
+    let sess = session(p, keyFor(p.id), hist, full, media, tools);
     const tried = new Set([p.id]);
     let final = null, steps = 0;
     while (steps < MAX_STEPS) {
@@ -445,14 +448,14 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
         if (tried.has(e.to.id)) throw new Failure(e.message);
         tried.add(e.to.id); p = e.to; reply.source = p.name; convo.status = 'Switching to ' + p.name; changed('chat');
         const done = reply.steps.length ? `\n\n(Note for you, Atlas: you already did these steps for this request before the service changed, don't repeat them: ${reply.steps.join('; ')}. Continue from there.)` : '';
-        sess = session(p, keyFor(p.id), hist, full + done, media); steps--; continue;
+        sess = session(p, keyFor(p.id), hist, full + done, media, tools); steps--; continue;
       }
       if (mine !== convo.stopFlag) throw new Failure('Stopped.');
       if (!turn.calls.length) { final = turn.text; break; }
       if (turn.text) { reply.text = plainReply(turn.text); changed('chat'); }
       const results = [];
       for (const c of turn.calls) {
-        convo.status = (LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
+        convo.status = conn.label(c.name, c.args || {}) || (LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
         const r = await runTool(c);
         if (r.step) reply.steps.push(r.step);
         results.push({ call: c, out: r.out, image: r.image });
