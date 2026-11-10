@@ -743,7 +743,7 @@ class MainActivity : Activity() {
     private var homeOrb: OrbView? = null
     private var statusLine: TextView? = null
     private var shownCount = -1
-    private var voiceInput: VoiceInput? = null
+    private var voiceInput: Hearing? = null
     /** Which service the Brain card in Me is showing. */
     private var brainShown: String? = null
 
@@ -1451,7 +1451,7 @@ class MainActivity : Activity() {
         val heard = text("Listening…", 18f, MUTED, MED, keepEmoji = true).apply { gravity = Gravity.CENTER; minLines = 2 }
         col.add(heard, 8)
         var got: String? = null
-        val vi = VoiceInput(this,
+        val vi = Hear.open(this,
             onPartial = { t -> heard.text = t; heard.setTextColor(FG); got = t },
             onLevel = { l -> orb.level = l },
             onDone = { t ->
