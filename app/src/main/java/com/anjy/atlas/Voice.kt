@@ -297,6 +297,8 @@ object Voice {
     }
 
     // ---- OpenAI's speech endpoint, returns MP3 ----
+    // (OpenAI has marked gpt-4o-mini-tts for shutdown on 6 January 2027, pointing to its Realtime API instead; until then this
+    // endpoint works. If it starts failing, the phone's voice takes over by itself and Me says why.)
     private fun openAiSpeech(ctx: Context, text: String): File {
         val key = Providers.key(ctx, "openai")!!
         val c = current(ctx, "openai")

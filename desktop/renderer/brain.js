@@ -206,7 +206,7 @@ const str = (description, e) => ({ type: 'string', description, ...(e ? { enum: 
 const int = (description) => ({ type: 'integer', description });
 const bool = (description) => ({ type: 'boolean', description });
 const fn = (name, description, props, required = []) => ({ name, description, ...(props ? { parameters: { type: 'object', properties: props, ...(required.length ? { required } : {}) } } : {}) });
-export const SETTINGS = ['speak_replies', 'voice', 'theme', 'on_screen', 'your_name', 'alarm_sound', 'start_with_windows', 'dont_switch', 'speaking_speed'];
+export const SETTINGS = ['speak_replies', 'voice', 'theme', 'on_screen', 'your_name', 'alarm_sound', 'start_with_windows', 'dont_switch', 'speaking_speed', 'keep_listening', 'listen_language'];
 
 export const TOOLS = [
   fn('set_reminder', 'Log a reminder. At its time Atlas rings an alarm (important things) or sends a notification (lighter things), on this PC and on the phone.', {

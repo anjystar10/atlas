@@ -216,11 +216,18 @@ async function transcribeGemini(key, b64, h) {
   return ((c && c.content && c.content.parts) || []).map((p) => (p.thought ? '' : p.text || '')).join('').trim();
 }
 /** The OpenAI-style transcription endpoint (Groq's Whisper, OpenAI). */
+/** The language you speak ("en", "en-GB", "fr"…), or '' to let the speech model work it out. */
+export const language = () => { const l = String(pref('hearLang', '') || '').trim(); return /^auto$/i.test(l) ? '' : l; };
+export const setLanguage = (v) => setPref('hearLang', String(v || '').trim());
+export const LANGUAGES = [['auto', 'Any'], ['en', 'English'], ['en-GB', 'English (UK)'], ['en-NG', 'English (Nigeria)'], ['fr', 'French'], ['es', 'Spanish'], ['pt', 'Portuguese'], ['ar', 'Arabic'], ['ha', 'Hausa'], ['yo', 'Yoruba'], ['ig', 'Igbo']];
+/** Speech models take the two-letter code only. */
+const whisperLang = () => { const l = language().slice(0, 2).toLowerCase(); return /^[a-z]{2}$/.test(l) ? l : ''; };
+
 async function transcribeWhisper(id, key, b64, h) {
   const groq = id === 'groq';
   const url = groq ? 'https://api.groq.com/openai/v1/audio/transcriptions' : 'https://api.openai.com/v1/audio/transcriptions';
   const call = (model) => host.fetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + key }, timeout: 30000,
-    form: { model, response_format: 'json', temperature: '0', ...(h ? { prompt: h } : {}), file: { base64: b64, type: 'audio/wav', name: 'speech.wav' } } });
+    form: { model, response_format: 'json', temperature: '0', ...(h ? { prompt: h } : {}), ...(whisperLang() ? { language: whisperLang() } : {}), file: { base64: b64, type: 'audio/wav', name: 'speech.wav' } } });
   let r = await call(groq ? 'whisper-large-v3-turbo' : 'gpt-4o-mini-transcribe');
   if (!r.ok && !groq && (r.status === 404 || r.status === 400)) r = await call('whisper-1');
   if (!r.ok) throw new Error(`Couldn't make out the words (${groq ? 'Groq' : 'OpenAI'} ${r.status || r.error}).`);
