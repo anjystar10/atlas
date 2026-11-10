@@ -133,7 +133,7 @@ object Hear {
             .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray()
                 .put(JSONObject().put("text", ask))
                 .put(JSONObject().put("inline_data", JSONObject().put("mime_type", "audio/wav").put("data", Base64.encodeToString(wav, Base64.NO_WRAP)))))))
-            .put("generationConfig", JSONObject().put("temperature", 0))
+            .put("generationConfig", JSONObject().put("temperature", 0).apply { if (model.startsWith("gemini-3")) put("thinkingConfig", JSONObject().put("thinkingLevel", "low")) })
         val r = Providers.post(Gemini.ENDPOINT + model + ":generateContent", mapOf("x-goog-api-key" to key), body, "Gemini hearing")
         val parts = r.optJSONArray("candidates")?.optJSONObject(0)?.optJSONObject("content")?.optJSONArray("parts") ?: return ""
         return (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }.filter { !it.optBoolean("thought") }.joinToString("") { it.optString("text") }.trim()
