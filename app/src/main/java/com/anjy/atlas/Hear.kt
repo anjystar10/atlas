@@ -29,6 +29,14 @@ object Hear {
     fun language(ctx: Context): String? = Store.getString(ctx, "hear_lang")?.trim()?.takeIf { it.isNotEmpty() && !it.equals("auto", true) }
     fun setLanguage(ctx: Context, v: String) = Store.putString(ctx, "hear_lang", v.trim())
 
+    /** The languages offered in Me (any other code can be set by asking Atlas). */
+    val LANGUAGES = listOf("auto" to "Any", "en" to "English", "en-GB" to "English (UK)", "en-NG" to "English (Nigeria)", "fr" to "French", "es" to "Spanish",
+        "pt" to "Portuguese", "ar" to "Arabic", "ha" to "Hausa", "yo" to "Yoruba", "ig" to "Igbo")
+
+    /** Keep Listening: after a spoken answer, Atlas listens again without a tap. On unless switched off. */
+    fun handsFree(ctx: Context) = !Store.getFlag(ctx, "no_hands_free")
+    fun setHandsFree(ctx: Context, on: Boolean) = Store.setFlag(ctx, "no_hands_free", !on)
+
     /** "auto": a speech model when there's a key for one; "phone": always the phone's own recognition. */
     fun mode(ctx: Context) = if (Store.getString(ctx, "hearing") == "phone") "phone" else "auto"
     fun setMode(ctx: Context, v: String) = Store.putString(ctx, "hearing", if (v.contains("phone", true)) "phone" else "auto")

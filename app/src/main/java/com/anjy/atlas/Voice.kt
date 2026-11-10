@@ -364,9 +364,12 @@ object Voice {
         try {
             // the phone's best English voice, preferring a British one for Atlas
             val voices = t.voices?.filter { it.locale.language == "en" && !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) } ?: return
-            val best = voices.maxWithOrNull(compareBy({ it.quality }, { it.locale.country == "GB" }, { if (it.isNetworkConnectionRequired) 1 else 0 }, { -it.latency }))
+            // British first (as long as it isn't a rough-quality voice), then a man's voice where the phone's voice
+            // engine names them (Google's British male voices), then quality; needing the network counts against
+            val best = voices.maxWithOrNull(compareBy({ it.locale.country == "GB" && it.quality >= android.speech.tts.Voice.QUALITY_NORMAL },
+                { Speech.britishMale(it.name) }, { it.quality }, { if (it.isNetworkConnectionRequired) 0 else 1 }, { -it.latency }))
             if (best != null) { t.voice = best; lastSpoke = "the phone's voice (${best.locale.displayCountry})" }
-            t.setPitch(1.0f)
+            t.setPitch(0.94f)   // a touch lower and calmer
         } catch (e: Exception) { Log.w(TAG, "voice choice", e) }
     }
 }

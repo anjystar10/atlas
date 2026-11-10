@@ -157,6 +157,9 @@ object Speech {
 
     private val END = Regex("""^(no[, ]+)?(thanks?( you)?[, ]+)?(that'?s all|that is all|that will be all|that'll be all|never ?mind|stop listening|good ?bye|bye( bye)?|nothing else|that'?s it|i'?m done|we'?re done)( for now)?([, ]+(thanks?( you)?|atlas))*$""", RegexOption.IGNORE_CASE)
 
+    /** Google's British male voices on Android are named like "en-gb-x-rjs-local" (rjs, gbb, gbd are men's voices). */
+    fun britishMale(name: String?): Boolean = name != null && Regex("en-gb-x-(rjs|gbb|gbd)(-|$)", RegexOption.IGNORE_CASE).containsMatchIn(name)
+
     /** "That's all", "never mind", "goodbye": the conversation is over. */
     fun endsTalk(text: String): Boolean = END.matches(text.trim().trim('.', '!', ' '))
 

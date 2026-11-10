@@ -81,4 +81,18 @@ class SpeechTest {
     @Test fun namesForTheHint() {
         assertEquals(listOf("Tunde", "Lagos"), Hear.names("Call Tunde about the Lagos trip. Then rest"))
     }
+
+    @Test fun britishMalePhoneVoices() {
+        assertTrue(Speech.britishMale("en-gb-x-rjs-local"))
+        assertTrue(Speech.britishMale("en-GB-x-gbd-network"))
+        assertFalse(Speech.britishMale("en-gb-x-fis-local"))
+        assertFalse(Speech.britishMale("en-us-x-iom-local"))
+        assertFalse(Speech.britishMale(null))
+    }
+
+    @Test fun endingATalk() {
+        assertTrue(Speech.endsTalk("That's all, thanks."))
+        assertTrue(Speech.endsTalk("never mind"))
+        assertFalse(Speech.endsTalk("that's all I know about the trip, what else is there"))
+    }
 }

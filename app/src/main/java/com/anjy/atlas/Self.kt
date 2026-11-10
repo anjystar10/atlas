@@ -7,7 +7,7 @@ import android.content.Context
  * "switch to light mode", "stop floating on my screen"). Each returns a sentence saying what changed, or why not.
  */
 object Self {
-    val names = listOf("speak_replies", "natural_voice", "voice", "theme", "on_screen", "hey_atlas", "reduce_motion", "alarm_sound", "your_name", "speaking_speed", "hearing", "dont_switch")
+    val names = listOf("speak_replies", "natural_voice", "voice", "theme", "on_screen", "hey_atlas", "reduce_motion", "alarm_sound", "your_name", "speaking_speed", "hearing", "keep_listening", "listen_language", "dont_switch")
 
     /** For the model: what each setting is and its current value. */
     fun describe(ctx: Context): String {
@@ -25,6 +25,8 @@ object Self {
             "your_name (text): what Atlas calls the user — now ${s.name.ifBlank { "not set" }}",
             "speaking_speed (slow/normal/fast): how fast Atlas talks — now ${Voice.speed(ctx)}",
             "hearing (auto/phone): auto = a speech model writes down what's said when there's a key for one (most accurate); phone = always the phone's own recognition — now ${Hear.mode(ctx)}, using ${Hear.describe(ctx)}",
+            "keep_listening (on/off): after a spoken answer, listen again without a tap — now ${onOff(Hear.handsFree(ctx))}",
+            "listen_language (a language code like en, en-GB, fr, yo, or auto): the language the user speaks — now ${Hear.language(ctx) ?: "auto"}",
             "dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${onOff(KeyRouter.dontSwitch(ctx))}"
         ).joinToString("\n- ", prefix = "- ")
     }
@@ -69,6 +71,11 @@ object Self {
                 "dont_switch" -> { val b = needFlag(); KeyRouter.setDontSwitch(ctx, b); if (b) "I'll stay on the service you chose and won't switch to another one (your other keys for it can still take over)." else "I'll switch to another service again when one keeps failing or runs out." }
                 "speaking_speed" -> "I'll speak at ${Voice.setSpeed(ctx, v)} speed."
                 "hearing" -> { Hear.setMode(ctx, v); "Hearing: ${Hear.describe(ctx)}." }
+                "keep_listening" -> { val b = needFlag(); Hear.setHandsFree(ctx, b); if (b) "I'll keep listening after I answer." else "I'll listen only when you tap or say Hey Atlas." }
+                "listen_language" -> {
+                    if (!v.equals("auto", true) && !Regex("[A-Za-z]{2,3}(-[A-Za-z]{2})?").matches(v)) throw AtlasError("Give a language code like en, en-GB, fr or yo (or auto).")
+                    Hear.setLanguage(ctx, v); if (v.equals("auto", true)) "I'll work out the language myself." else "I'll listen for $v."
+                }
                 else -> "Error: I can't change \"$name\". Settings I can change: ${names.joinToString(", ")}."
             }
         } catch (e: AtlasError) { "Error: ${e.message}" }

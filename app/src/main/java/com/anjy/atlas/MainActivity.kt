@@ -890,6 +890,7 @@ class MainActivity : Activity() {
         Conversation.listen(onChat)
         Bots.listen(onBots)
         Sync.listen(onSync); Sync.syncSoon(this, 500)
+        resumedNow = true
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
         if (::aurora.isInitialized) aurora.resume()
         if (returnedFromSystem && tab != 0) render(keepScroll = true)
@@ -900,6 +901,7 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
+        resumedNow = false
         Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync)
         stopVoice()
         AvatarService.setAppInFront(this, false)
@@ -1441,7 +1443,12 @@ class MainActivity : Activity() {
 
     private fun sendMessage(q: String, spoken: Boolean = false, media: List<Attach.Item> = emptyList()) {
         if (tab != 0) { tab = 0; render() }
-        Conversation.send(this, q, spoken, media = media)
+        // a spoken question keeps the conversation going: once Atlas has finished answering aloud, it listens again
+        // (not if you cut the answer off, left the app, or switched Keep Listening off)
+        val again: (() -> Unit)? = if (spoken && Hear.handsFree(this)) ({
+            body.postDelayed({ if (resumedNow && tab == 0 && voiceInput == null && !Conversation.busy && !Voice.busy && talkTurns < 30) voice(followUp = true) }, 450)
+        }) else null
+        Conversation.send(this, q, spoken, onSpoken = again, media = media)
         scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
     }
 
@@ -1449,17 +1456,22 @@ class MainActivity : Activity() {
 
     private var closeVoiceSheet: (() -> Unit)? = null
 
-    private fun voice() {
+    private var talkTurns = 0
+    private var resumedNow = false
+
+    /** Listens. [followUp]: Atlas has just answered aloud and is listening for more; silence then simply ends the talk. */
+    private fun voice(followUp: Boolean = false) {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC); return
         }
         if (voiceInput != null) { voiceInput?.finish(); return }
+        if (!followUp) talkTurns = 0
         Conversation.hush()
         AvatarService.holdMic(this, true)
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         val orb = OrbView(this).apply { energy = 1f; still = Prefs.reduceMotion(this@MainActivity) }
         col.addView(orb, LinearLayout.LayoutParams(dp(170), dp(170)))
-        val heard = text("Listening…", 18f, MUTED, MED, keepEmoji = true).apply { gravity = Gravity.CENTER; minLines = 2 }
+        val heard = text(if (followUp) "Listening… say “that's all” when you're done" else "Listening…", 18f, MUTED, MED, keepEmoji = true).apply { gravity = Gravity.CENTER; minLines = 2 }
         col.add(heard, 8)
         var got: String? = null
         val vi = Hear.open(this,
@@ -1467,7 +1479,11 @@ class MainActivity : Activity() {
             onLevel = { l -> orb.level = l },
             onDone = { t ->
                 stopVoice()
-                if (t.isNullOrBlank()) showBanner("I didn't catch that.", MUTED) else sendMessage(t, spoken = true)
+                when {
+                    t.isNullOrBlank() -> if (!followUp) showBanner("I didn't catch that.", MUTED)   // quiet after an answer: the talk is over
+                    followUp && Speech.endsTalk(t) -> Unit                                          // "that's all": nothing is sent
+                    else -> { talkTurns++; sendMessage(t, spoken = true) }
+                }
             },
             onError = { msg -> stopVoice(); showBanner(msg, MUTED) })
         voiceInput = vi
@@ -1863,6 +1879,18 @@ class MainActivity : Activity() {
             }
             vc.add(rows, 8)
         }
+        // how fast Atlas talks, how it hears, and whether a spoken chat keeps going
+        vc.add(hairline(), 10, MATCH, dp(1))
+        vc.add(text("Speaking Speed", 16f, FG, MED), 12)
+        vc.add(chipGroup(listOf("slow" to "Slow", "normal" to "Normal", "fast" to "Fast"), { it == Voice.speed(this) }) { Voice.setSpeed(this, it); render(keepScroll = true) }, 8)
+        vc.add(switchRow(null, "Keep Listening", Hear.handsFree(this)) { on -> Hear.setHandsFree(this, on) }, 14)
+        vc.add(text("After Atlas answers a spoken question it listens again, so you can just keep talking. Say “that's all”, stay quiet, or tap Cancel to stop.", 13f, MUTED), 6)
+        vc.add(text("Hearing", 16f, FG, MED), 14)
+        vc.add(chipGroup(listOf("auto" to "Sharpest", "phone" to "Phone Only"), { it == Hear.mode(this) }) { Hear.setMode(this, it); render(keepScroll = true) }, 8)
+        vc.add(text("Now: ${Hear.describe(this)}.", 13f, MUTED), 6)
+        vc.add(text("Language You Speak", 16f, FG, MED), 14)
+        vc.add(chipGroup(Hear.LANGUAGES, { it == (Hear.language(this) ?: "auto") }) { Hear.setLanguage(this, it); render(keepScroll = true) }, 8)
+        vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.", 13f, MUTED), 6)
         body.add(vc, 8)
 
         // Phone and PC: one Atlas
