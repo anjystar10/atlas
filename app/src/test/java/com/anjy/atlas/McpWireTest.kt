@@ -115,9 +115,10 @@ class McpWireTest {
 
     @Test fun pastedSetups() {
         val c = McpWire.parseConfig("""{"mcpServers":{"my files":{"command":"npx","args":["-y","x"]},"web":{"url":"https://example.com/mcp","headers":{"Authorization":"Bearer t"}}}}""")
-        assertEquals(listOf("my_files", "web"), c.map { it.name })
-        assertNull("a program on a computer: no address", c[0].url); assertEquals("npx", c[0].command)
-        assertEquals("Bearer t", c[1].headers["Authorization"])
+        assertEquals(setOf("my_files", "web"), c.map { it.name }.toSet())   // org.json keeps no key order
+        val prog = c.first { it.name == "my_files" }; val web = c.first { it.name == "web" }
+        assertNull("a program on a computer: no address", prog.url); assertEquals("npx", prog.command)
+        assertEquals("Bearer t", web.headers["Authorization"])
         assertEquals("server", McpWire.parseConfig("""{"url":"https://example.com/mcp"}""").single().name)
         try { McpWire.parseConfig("nope"); fail() } catch (e: IllegalArgumentException) { assertTrue(e.message!!.contains("valid JSON")) }
         try { McpWire.parseConfig("""{"mcpServers":{"x":{}}}"""); fail() } catch (e: IllegalArgumentException) { assertTrue(e.message!!.contains("No servers")) }
