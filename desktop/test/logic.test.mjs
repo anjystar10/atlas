@@ -627,3 +627,24 @@ test('voice: only Gemini refusing the designed voice forgets it (not the network
   assert.equal(vo.refusedVoice(408), false);
   assert.equal(vo.refusedVoice(503), false);
 });
+
+test('bot browser (PC): Enter in a message box outside any form needs the OK; a site search does not', async () => {
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url);
+  // botbrowser.js needs Electron only for its windows; riskOf is plain logic
+  req.cache[req.resolve('electron')] = { id: 'electron', filename: 'electron', loaded: true, exports: { app: { on() {}, getPath: () => '/tmp' }, session: {}, BrowserWindow: class {} } };
+  const { riskOf } = req('../botbrowser.js');
+  const composer = { found: true, kind: 'text box', label: 'Message', inForm: false, host: 'chat.example.com' };
+  assert.match(riskOf('browser_press', { key: 'Enter' }, composer), /Press Enter in “Message”, which may send it on chat\.example\.com/);
+  assert.match(riskOf('browser_type', { target: '3', text: 'hi', submit: true }, composer), /may send it/);
+  assert.equal(riskOf('browser_type', { target: '3', text: 'hi', submit: false }, composer), null);
+  assert.equal(riskOf('browser_press', { key: 'Enter' }, { found: true, kind: 'search field', label: 'Search', inForm: false }), null);
+  assert.equal(riskOf('browser_press', { key: 'Enter' }, { found: true, kind: 'field', label: 'Search', inForm: true, formAction: '/search', formSubmit: 'Go' }), null);
+  assert.match(riskOf('browser_press', { key: 'Return' }, { found: true, kind: 'field', label: 'Qty', inForm: true, formAction: '/checkout', formSubmit: 'Place order' }), /Submit the form/);
+});
+
+test('this PC: a mixture-of-experts name (8x7b) counts all its experts, so it is not judged a small model', () => {
+  const moe = fitR.sizeFromName('mixtral-8x7b-instruct-v0.1-q4_k_m');
+  assert.ok(moe > 30000 && moe < 34000, String(moe));   // ≈ 56 billion × 4.8 bits
+  assert.ok(Math.abs(fitR.sizeFromName('qwen2.5-7b-instruct-q4_k_m') - 4005) < 50);
+});
