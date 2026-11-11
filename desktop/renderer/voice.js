@@ -2,11 +2,13 @@
 // Listening: records until you stop talking, then a Gemini (or OpenAI) key turns it into words.
 // Speaking: the same natural voices as on the phone (Gemini's or OpenAI's), else the best English voice Windows has.
 import { keyFor, readyKey, byId, modelOf } from './brain.js';
-import { pref, setPref } from './store.js';
+import { pref, setPref, db } from './store.js';
+import { Endpointer, chunks, fixHeard, names, rate, pace, speed as speedOf } from './speech.js';
 import { plainSpoken } from './plain.js';
 const host = window.atlasHost;
 
-const ATLAS_STYLE = 'calm, composed and refined; crisp and articulate with a British accent; quietly warm with a touch of dry wit; unhurried, like a trusted AI butler';
+// An original voice with a butler's manner (not a copy of any actor or character's voice).
+const ATLAS_STYLE = 'a composed, impeccably polite British assistant: Received Pronunciation, crisp consonants, low and even pitch, unhurried and precise, quietly warm with understated dry wit; never theatrical, never sing-song';
 export const GEMINI_VOICES = [
   { id: 'atlas', label: 'Atlas', about: 'British, calm, refined', voice: 'Charon', style: ATLAS_STYLE },
   { id: 'charon', label: 'Charon', about: 'deep, informative', voice: 'Charon', style: 'clear and steady, informative, relaxed' },
@@ -19,7 +21,7 @@ export const GEMINI_VOICES = [
   { id: 'zephyr', label: 'Zephyr', about: 'bright (female)', voice: 'Zephyr', style: 'bright and cheerful' },
 ];
 export const OPENAI_VOICES = [
-  { id: 'atlas', label: 'Atlas', about: 'British, calm, refined', voice: 'fable', style: 'Speak with a refined British accent. ' + ATLAS_STYLE + '.' },
+  { id: 'atlas', label: 'Atlas', about: 'British, calm, refined', voice: 'fable', style: 'Accent: British Received Pronunciation throughout. Manner: ' + ATLAS_STYLE + '. Pacing: measured, with brief natural pauses at commas and full stops.' },
   { id: 'onyx', label: 'Onyx', about: 'deep', voice: 'onyx', style: 'Deep, calm and confident.' },
   { id: 'ash', label: 'Ash', about: 'clear, direct', voice: 'ash', style: 'Clear and direct, friendly.' },
   { id: 'echo', label: 'Echo', about: 'smooth', voice: 'echo', style: 'Smooth and relaxed.' },
@@ -30,48 +32,77 @@ export const OPENAI_VOICES = [
 export const engine = () => (!pref('voiceNatural', true) ? null : readyKey('gemini') || keyFor('gemini') ? 'gemini' : keyFor('openai') ? 'openai' : null);
 export const voices = (eng = engine()) => (eng === 'openai' ? OPENAI_VOICES : GEMINI_VOICES);
 export const current = (eng = engine()) => voices(eng).find((v) => v.id === pref('voice_' + (eng || 'gemini'), 'atlas')) || voices(eng)[0];
-export const state = { speaking: false, lastSpoke: null, lastProblem: null };
+// busy: from the moment Atlas is asked to speak until it has finished or been hushed (so also while the voice is fetched)
+export const state = { speaking: false, busy: false, lastSpoke: null, lastProblem: null };
+export const speed = () => speedOf(pref('voiceSpeed', 'normal'));
+export const setSpeed = (v) => { const sp = speedOf(v); setPref('voiceSpeed', sp); return sp; };
 
 let audio = null, gen = 0;
-export function hush() { gen++; state.speaking = false; if (audio) { try { audio.pause(); } catch {} audio = null; } try { speechSynthesis.cancel(); } catch {} }
+export function hush() { gen++; state.speaking = false; state.busy = false; if (audio) { try { audio.pause(); } catch {} audio = null; } try { speechSynthesis.cancel(); } catch {} }
 
+/**
+ * Says [text]. A long reply is spoken in pieces (a short first one, so the voice starts quickly; the next is fetched
+ * while it plays). If the natural voice fails part-way, Windows' own voice says the rest: a reply is never dropped.
+ */
 export async function speak(text, onDone) {
   hush(); const mine = gen;
   const say = plainSpoken(text); if (!say) { onDone && onDone(); return; }
+  state.busy = true;
+  const finish = () => { if (mine !== gen) return; state.busy = false; state.speaking = false; onDone && onDone(); };
   const eng = engine();
-  try {
-    if (!eng) throw new Error('no natural voice');
-    const v = current(eng);
-    const clip = eng === 'gemini' ? await geminiSpeech(say, v) : await openAiSpeech(say, v);
-    if (mine !== gen) return;
-    state.lastProblem = null; state.lastSpoke = `${v.label} (${eng === 'gemini' ? 'Gemini' : 'OpenAI'})`;
-    audio = new Audio(clip); state.speaking = true;
-    const free = () => { if (clip.startsWith('blob:')) URL.revokeObjectURL(clip); };
-    audio.onended = audio.onerror = () => { free(); state.speaking = false; if (mine === gen) onDone && onDone(); };
-    audio.onpause = () => { if (mine !== gen) free(); };
-    await audio.play();
-  } catch (e) {
-    if (mine !== gen) return;
-    if (eng) state.lastProblem = e.message || String(e);
-    systemSpeak(say, onDone, mine);
+  const parts = chunks(say);
+  if (!eng) return systemSpeak(parts, finish, mine);
+  const v = current(eng);
+  const fetchPart = (i) => (eng === 'gemini' ? geminiSpeech(parts[i], v) : openAiSpeech(parts[i], v)).then((clip) => ({ clip }), (e) => ({ error: e }));
+  let next = fetchPart(0);
+  for (let i = 0; i < parts.length; i++) {
+    const got = await next;
+    if (mine !== gen) { free(got.clip); return; }
+    if (got.error) { state.lastProblem = got.error.message || String(got.error); return systemSpeak(parts.slice(i), finish, mine); }
+    if (i === 0) { state.lastProblem = null; state.lastSpoke = `${v.label} (${eng === 'gemini' ? 'Gemini' : 'OpenAI'})`; }
+    next = i + 1 < parts.length ? fetchPart(i + 1) : null;
+    const ok = await play(got.clip, mine);
+    if (mine !== gen) { if (next) next.then((n) => free(n.clip)); return; }
+    if (!ok) { if (next) next.then((n) => free(n.clip)); return systemSpeak(parts.slice(i), finish, mine); }
   }
+  finish();
+}
+const free = (clip) => { if (clip && clip.startsWith('blob:')) URL.revokeObjectURL(clip); };
+/** Plays one clip to its end. Resolves true when it played, false when it couldn't. */
+function play(clip, mine) {
+  return new Promise((resolve) => {
+    const a = new Audio(clip); audio = a;
+    try { a.playbackRate = rate(speed()); a.preservesPitch = true; } catch {}
+    const end = (ok) => { free(clip); if (audio === a) audio = null; state.speaking = false; resolve(ok); };
+    a.onended = () => end(true); a.onerror = () => end(false);
+    a.onpause = () => { if (mine !== gen) end(true); };
+    a.play().then(() => { if (mine === gen) state.speaking = true; }, () => end(false));
+  });
 }
 
-function systemSpeak(say, onDone, mine) {
-  const u = new SpeechSynthesisUtterance(say);
+function systemSpeak(parts, finish, mine) {
   const vs = speechSynthesis.getVoices().filter((v) => v.lang.startsWith('en'));
   // a British voice for Atlas, the "natural" ones first (Windows names them that way)
+  const score = (v) => (v.lang === 'en-GB' ? 4 : 0) + (/natural|neural|online/i.test(v.name) ? 3 : 0) + (/ryan|george|thomas|male/i.test(v.name) ? 1 : 0);
   const best = vs.sort((a, b) => score(b) - score(a))[0];
-  function score(v) { return (v.lang === 'en-GB' ? 4 : 0) + (/natural|neural|online/i.test(v.name) ? 3 : 0) + (/ryan|george|thomas|male/i.test(v.name) ? 1 : 0); }
-  if (best) { u.voice = best; state.lastSpoke = `Windows voice (${best.name})`; }
-  u.rate = 1; u.onstart = () => { state.speaking = true; };
-  u.onend = u.onerror = () => { state.speaking = false; if (mine === gen) onDone && onDone(); };
-  speechSynthesis.speak(u);
+  if (best) state.lastSpoke = `Windows voice (${best.name})`;
+  // piece by piece: one very long utterance can be cut short by the system voice
+  let i = 0;
+  const one = () => {
+    if (mine !== gen) return;
+    if (i >= parts.length) return finish();
+    const u = new SpeechSynthesisUtterance(parts[i++]);
+    if (best) u.voice = best;
+    u.rate = rate(speed()); u.onstart = () => { if (mine === gen) state.speaking = true; };
+    u.onend = one; u.onerror = () => { state.speaking = false; if (mine === gen) finish(); };
+    try { speechSynthesis.speak(u); } catch { finish(); }
+  };
+  one();
 }
 
 async function geminiSpeech(text, v) {
   const key = keyFor('gemini');
-  const body = { model: 'gemini-3.8-flash-tts', input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style: v.style }] }] }],
+  const body = { model: 'gemini-3.8-flash-tts', input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style: v.style + (pace(speed()) ? '; ' + pace(speed()) : '') }] }] }],
     response_format: { type: 'audio' }, generation_config: { speech_config: [{ voice: v.voice }] } };
   const r = await host.fetch('https://generativelanguage.googleapis.com/v1beta/interactions', { method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body), timeout: 60000 });
   if (!r.ok) throw new Error(`Gemini voice: ${r.status || r.error}`);
@@ -90,73 +121,111 @@ function wav(pcm, rate) {
 }
 async function openAiSpeech(text, v) {
   const r = await host.fetch('https://api.openai.com/v1/audio/speech', { method: 'POST', binary: true, headers: { Authorization: 'Bearer ' + keyFor('openai'), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'gpt-4o-mini-tts', input: text, voice: v.voice, instructions: v.style + ' Natural, never robotic.', response_format: 'mp3' }), timeout: 60000 });
+    body: JSON.stringify({ model: 'gpt-4o-mini-tts', input: text, voice: v.voice, instructions: v.style + ' Natural, never robotic.' + (pace(speed()) ? ' Pace: ' + pace(speed()) + '.' : ''), response_format: 'mp3' }), timeout: 60000 });
   if (!r.ok) throw new Error(`OpenAI voice: ${r.status || r.error}`);
   return 'data:audio/mpeg;base64,' + r.base64;
 }
 
 // ------------------------------------------------------------------ listening
 
+const RATE = 16000, FRAME = RATE * 20 / 1000;
+/** The speech models that can write down what's said, fastest first: [id, key]. */
+const ears = () => ['groq', 'openai', 'gemini'].map((id) => [id, readyKey(id)]).filter(([, k]) => k && k !== 'local');
+/** Names and words Atlas should expect to hear, so they're spelled right. */
+export function hint() {
+  const words = new Set(['Atlas']);
+  try {
+    const name = (db.state.settings.name || '').trim(); if (name) words.add(name);
+    [...db.state.memories.slice(-40).map((m) => m.text), ...db.state.tasks.slice(-40).map((t) => t.title)].forEach((t) => names(t).forEach((w) => words.add(w)));
+  } catch {}
+  return [...words].slice(0, 40).join(', ');
+}
+
 /**
- * Listens until you stop talking (or [stop]() is called). Calls onLevel(0..1) as you speak, then resolves to the
- * words heard ('' for silence). Throws with a sentence for the user when it can't.
+ * Listens until you stop talking (or [stop]() is called). Calls onLevel(0..1) as you speak and onState('writing')
+ * while a speech model writes it down, then resolves to the words heard ('' for silence). Throws with a sentence
+ * for the user when it can't.
  */
-export function listen({ onLevel = () => {}, maxMs = 30000 } = {}) {
+export function listen({ onLevel = () => {}, onState = () => {}, maxMs = 60000 } = {}) {
   // stopped before the microphone was even ready (Cancel straight away): don't start recording at all
   let stopped = false;
   let stopFn = () => { stopped = true; };
   const done = (async () => {
-    const gk = keyFor('gemini'), ok = keyFor('openai');
-    if (!gk && !ok) throw new Error('To hear you, Atlas needs a Gemini or OpenAI key (Me → Brain).');
+    if (!ears().length) throw new Error('To hear you, Atlas needs a Groq, Gemini or OpenAI key (Me → Brain).');
     let stream;
-    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
+    try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); }
     catch { throw new Error("Atlas can't use the microphone. Check Windows Settings → Privacy → Microphone."); }
     if (stopped) { stream.getTracks().forEach((t) => t.stop()); return ''; }
-    let ctx = null, heard = false; const chunks = [];
+    let ctx = null; const ep = new Endpointer({ maxMs }); const pcm = []; let verdict = 'going';
     try {
-    ctx = new AudioContext(); const src = ctx.createMediaStreamSource(stream); const an = ctx.createAnalyser(); an.fftSize = 1024; src.connect(an);
-    const rec = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-    const buf = new Float32Array(an.fftSize); let quietSince = 0; const t0 = performance.now();
-    await new Promise((resolve) => {
-      let raf = 0;
-      const finish = () => { cancelAnimationFrame(raf); if (rec.state !== 'inactive') rec.stop(); };
-      stopFn = finish; rec.onstop = resolve; rec.start(200);
-      const tick = () => {
-        an.getFloatTimeDomainData(buf); let sum = 0; for (const v of buf) sum += v * v; const rms = Math.sqrt(sum / buf.length);
-        const level = Math.min(1, rms * 9); onLevel(level);
-        const now = performance.now();
-        if (level > 0.12) { heard = true; quietSince = now; }
-        // stop after 1.4 s of quiet once you've spoken, 6 s if you never did, or at the limit
-        if ((heard && now - quietSince > 1400) || (!heard && now - t0 > 6000) || now - t0 > maxMs) return finish();
-        raf = requestAnimationFrame(tick);
-      };
-      tick();
-    });
+      ctx = new AudioContext({ sampleRate: RATE });
+      const src = ctx.createMediaStreamSource(stream);
+      const tap = ctx.createScriptProcessor(1024, 1, 1); const mute = ctx.createGain(); mute.gain.value = 0;
+      src.connect(tap); tap.connect(mute); mute.connect(ctx.destination);
+      let carry = new Float32Array(0), shown = 0;
+      await new Promise((resolve) => {
+        stopFn = () => { stopped = true; resolve(); };
+        tap.onaudioprocess = (e) => {
+          if (stopped || verdict !== 'going') return;
+          const inp = e.inputBuffer.getChannelData(0);
+          const all = new Float32Array(carry.length + inp.length); all.set(carry); all.set(inp, carry.length);
+          let o = 0;
+          for (; o + FRAME <= all.length && verdict === 'going'; o += FRAME) {
+            const f = all.subarray(o, o + FRAME); let sum = 0; for (const v of f) sum += v * v; const rms = Math.sqrt(sum / FRAME);
+            pcm.push(f.slice()); verdict = ep.feed(rms);
+            shown += (Math.min(1, rms * 9) - shown) * 0.5;
+          }
+          carry = all.slice(o); onLevel(shown);
+          if (verdict !== 'going') resolve();
+        };
+      });
     } finally { stream.getTracks().forEach((t) => t.stop()); try { ctx && ctx.close(); } catch {} onLevel(0); }
-    if (!heard) return '';
-    const blob = new Blob(chunks, { type: 'audio/webm' });
-    const b64 = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]); fr.readAsDataURL(blob); });
-    return gk ? transcribeGemini(gk, b64) : transcribeOpenAi(ok, b64);
+    if (verdict === 'nothing' || ep.speechMs < 150) return '';
+    // only the part with the voice in it (and a little either side) is sent
+    const from = Math.max(0, ep.startFrame - 15);
+    const b64 = wavBase64(pcm.slice(from));
+    onState('writing');
+    const h = hint(); let last = null;
+    for (const [id, key] of ears()) {
+      try {
+        const t = id === 'gemini' ? await transcribeGemini(key, b64, h) : await transcribeWhisper(id, key, b64, h);
+        return fixHeard(t, ep.speechMs, h);
+      } catch (e) { last = e; }
+    }
+    throw last || new Error("Couldn't make out the words.");
   })();
   return { done, stop: () => stopFn() };
 }
 
-async function transcribeGemini(key, b64) {
+function wavBase64(frames) {
+  const n = frames.length * FRAME; const bytes = new Uint8Array(n * 2); const dv = new DataView(bytes.buffer); let o = 0;
+  for (const f of frames) for (const v of f) { dv.setInt16(o, Math.max(-1, Math.min(1, v)) * 32767, true); o += 2; }
+  const w = wav(bytes, RATE); let bin = '';
+  for (let i = 0; i < w.length; i += 0x8000) bin += String.fromCharCode.apply(null, w.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+async function transcribeGemini(key, b64, h) {
   const model = modelOf(byId('gemini'));
-  const r = await host.fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, timeout: 60000,
-    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ inline_data: { mime_type: 'audio/webm', data: b64 } }, { text: 'Write down exactly what is said in this recording, in the language spoken. Output only the words, nothing else. If nothing is said, output nothing.' }] }],
-      generationConfig: model.startsWith('gemini-3') ? { thinkingConfig: { thinkingLevel: 'low' } } : undefined }) });
+  const ask = 'Write down exactly what is said in this recording, in the language spoken. Output only the words: no quotes, no notes, no timestamps. If nobody speaks, output nothing at all.' + (h ? ` Names that may come up: ${h}.` : '');
+  const r = await host.fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, timeout: 45000,
+    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: ask }, { inline_data: { mime_type: 'audio/wav', data: b64 } }] }],
+      generationConfig: { temperature: 0, ...(model.startsWith('gemini-3') ? { thinkingConfig: { thinkingLevel: 'low' } } : {}) } }) });
   if (!r.ok) throw new Error(`Couldn't make out the words (Gemini ${r.status || r.error}).`);
   const c = (JSON.parse(r.text).candidates || [])[0];
   return ((c && c.content && c.content.parts) || []).map((p) => (p.thought ? '' : p.text || '')).join('').trim();
 }
-async function transcribeOpenAi(key, b64) {
-  const r = await host.fetch('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, timeout: 60000,
-    form: { model: 'gpt-4o-mini-transcribe', file: { base64: b64, type: 'audio/webm', name: 'speech.webm' } } });
-  if (!r.ok) throw new Error(`Couldn't make out the words (OpenAI ${r.status || r.error}).`);
+/** The OpenAI-style transcription endpoint (Groq's Whisper, OpenAI). */
+async function transcribeWhisper(id, key, b64, h) {
+  const groq = id === 'groq';
+  const url = groq ? 'https://api.groq.com/openai/v1/audio/transcriptions' : 'https://api.openai.com/v1/audio/transcriptions';
+  const call = (model) => host.fetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + key }, timeout: 30000,
+    form: { model, response_format: 'json', temperature: '0', ...(h ? { prompt: h } : {}), file: { base64: b64, type: 'audio/wav', name: 'speech.wav' } } });
+  let r = await call(groq ? 'whisper-large-v3-turbo' : 'gpt-4o-mini-transcribe');
+  if (!r.ok && !groq && (r.status === 404 || r.status === 400)) r = await call('whisper-1');
+  if (!r.ok) throw new Error(`Couldn't make out the words (${groq ? 'Groq' : 'OpenAI'} ${r.status || r.error}).`);
   return (JSON.parse(r.text).text || '').trim();
 }
 
 /** Plays a voice right away (Me → Voice → Hear It). */
-export function preview(eng, id) { setPref('voice_' + eng, id); speak("Hello, I'm Atlas. Here's how I sound. What can I help you with today?"); }
+export function preview(eng, id) { setPref('voice_' + eng, id); speak("Good day. I'm Atlas. This is how I sound. What can I do for you?"); }

@@ -49,7 +49,7 @@ class AlarmActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setShowWhenLocked(true); setTurnScreenOn(true)
-        val bg = Color.parseColor("#04040C")
+        val bg = Palette.NIGHT.bg
         window.statusBarColor = bg; window.navigationBarColor = bg
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(bg))
         queue.addAll(intent?.getStringArrayExtra(EXTRA_IDS)?.toList() ?: emptyList())
@@ -67,24 +67,24 @@ class AlarmActivity : Activity() {
         val pane = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
             setPadding(dp(22), dp(20), dp(22), dp(22))
-            background = Finish(Color.parseColor("#14163A"), dp(28).toFloat(), true, d, glass = true)
+            background = Finish(Palette.NIGHT.surface2, dp(28).toFloat(), true, d, glass = true)
         }
-        whenView = TextView(this).apply { setTextColor(Color.parseColor("#A9AEE0")); textSize = 12f; typeface = semi; gravity = Gravity.CENTER; letterSpacing = 0.16f; isAllCaps = true }
+        whenView = TextView(this).apply { setTextColor(Palette.NIGHT.muted); textSize = 12f; typeface = semi; gravity = Gravity.CENTER; letterSpacing = 0.16f; isAllCaps = true }
         pane.addView(whenView, LinearLayout.LayoutParams(-1, -2))
-        titleView = TextView(this).apply { setTextColor(Color.parseColor("#F2F3FF")); textSize = 30f; typeface = display; gravity = Gravity.CENTER; setLineSpacing(0f, 1.04f) }
+        titleView = TextView(this).apply { setTextColor(Palette.NIGHT.fg); textSize = 30f; typeface = display; gravity = Gravity.CENTER; setLineSpacing(0f, 1.04f) }
         pane.addView(titleView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-        pane.addView(TextView(this).apply { text = "Will you do it?"; setTextColor(Color.parseColor("#C3C7EE")); textSize = 16f; typeface = body; gravity = Gravity.CENTER },
+        pane.addView(TextView(this).apply { text = "Will you do it?"; setTextColor(Palette.NIGHT.muted); textSize = Type.READ; typeface = display; gravity = Gravity.CENTER },
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
-        moreView = TextView(this).apply { setTextColor(Color.parseColor("#8E93C2")); textSize = 13f; typeface = body; gravity = Gravity.CENTER }
+        moreView = TextView(this).apply { setTextColor(Palette.NIGHT.faint); textSize = 13f; typeface = body; gravity = Gravity.CENTER }
         pane.addView(moreView, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
         col.addView(pane, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18) })
         col.addView(View(this), LinearLayout.LayoutParams(1, 0, 1f))
 
         fun button(label: String, primary: Boolean, onTap: () -> Unit) = TextView(this).apply {
             text = label; textSize = if (primary) 17f else 15f; typeface = if (primary) semi else med; gravity = Gravity.CENTER
-            setTextColor(if (primary) Color.WHITE else Color.parseColor("#E8EAFF"))
+            setTextColor(if (primary) Color.WHITE else Palette.NIGHT.fg)
             setPadding(dp(14), dp(if (primary) 17 else 14), dp(14), dp(if (primary) 18 else 15))
-            background = if (primary) Finish(Color.parseColor("#5B4BF0"), -1f, true, d) else Finish(Color.parseColor("#14163A"), -1f, true, d, glass = true)
+            background = if (primary) Finish(Palette.NIGHT.primaryBottom, -1f, true, d) else Finish(Palette.NIGHT.surface2, -1f, true, d, glass = true)
             if (primary) { elevation = dp(10).toFloat(); outlineSpotShadowColor = Color.parseColor("#6E5CFF"); outlineAmbientShadowColor = Color.parseColor("#6E5CFF") }
             isClickable = true; setOnClickListener { onTap() }; pressFx()
         }

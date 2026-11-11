@@ -48,7 +48,7 @@ class AvatarService : Service() {
 
     // the spoken conversation in place
     private var talking = false
-    private var voice: VoiceInput? = null
+    private var voice: Hearing? = null
     private var turns = 0
     private var grow: ValueAnimator? = null
     /** Where the small orb sat before growing, so it returns to the same spot. */
@@ -195,7 +195,7 @@ class AvatarService : Service() {
                         prefs.edit().putInt("x", params.x + off).putInt("y", params.y + off).apply()
                     } else if (talking) {
                         when {
-                            Voice.speaking -> { Conversation.hush(); listen() }      // cut in: Atlas stops and listens
+                            Voice.busy -> { Conversation.hush(); listen() }          // cut in: Atlas stops (even before its voice has started) and listens
                             voice != null -> voice?.finish()                         // done talking: send it now
                             else -> endTalk()
                         }
@@ -276,19 +276,22 @@ class AvatarService : Service() {
         }
         HotwordService.hold(this, true)
         Conversation.hush()
-        talking = true; turns = 0
+        talking = true; turns = 0; hearFails = 0
         orbFrame?.visibility = View.VISIBLE
         setGrown(true)
         handler.post(pulse)
         listen()
     }
 
+    private var hearFails = 0
+
     private fun listen() {
         if (!talking) return
+        Conversation.hush()
         orb?.energy = 1f
         say("Listening…", who = "You", dim = true)
         voice?.cancel()
-        voice = VoiceInput(this,
+        voice = Hear.open(this,
             onPartial = { t -> say(t, who = "You") },
             onLevel = { l -> orb?.level = l },
             onDone = { t ->
@@ -296,13 +299,20 @@ class AvatarService : Service() {
                 if (t.isNullOrBlank()) {
                     // silence: after a question it just means the conversation is over
                     if (turns == 0) { say("I didn't catch that.", dim = true); handler.postDelayed({ endTalk() }, 1400) } else endTalk()
-                    return@VoiceInput
+                    return@open
                 }
-                turns++
+                // "that's all", "never mind", "goodbye": the conversation is over, nothing is sent
+                if (turns > 0 && Speech.endsTalk(t)) { say(t, who = "You"); handler.postDelayed({ endTalk() }, 700); return@open }
+                turns++; hearFails = 0
                 say(t, who = "You")
-                Conversation.send(this, t, spoken = true, onSpoken = { if (talking) handler.postDelayed({ listen() }, 250) })
+                // listen again once Atlas has finished speaking (a short gap, so the tail of its own voice isn't heard)
+                Conversation.send(this, t, spoken = true, onSpoken = { if (talking) handler.postDelayed({ listen() }, 400) })
             },
-            onError = { msg -> voice = null; orb?.level = 0f; say(msg, dim = true); handler.postDelayed({ endTalk() }, 2200) })
+            onError = { msg ->
+                voice = null; orb?.level = 0f; say(msg, dim = true)
+                // one hiccup doesn't end the conversation: listen once more, then give up
+                if (++hearFails <= 1) handler.postDelayed({ listen() }, 1800) else handler.postDelayed({ endTalk() }, 2200)
+            })
         voice?.start()
     }
 
@@ -346,7 +356,7 @@ class AvatarService : Service() {
                 }
                 elevation = dp(6).toFloat(); alpha = 0f
             }
-            val w = TextView(this).apply { setTextColor(Color.parseColor("#9AA0D8")); textSize = 11f; letterSpacing = 0.12f; isAllCaps = true
+            val w = TextView(this).apply { setTextColor(Palette.NIGHT.muted); textSize = 11f; letterSpacing = 0.12f; isAllCaps = true
                 try { typeface = resources.getFont(R.font.geist_semibold) } catch (_: Throwable) {} }
             val body = TextView(this).apply { setTextColor(Color.WHITE); textSize = 15f; maxLines = 7; ellipsize = android.text.TextUtils.TruncateAt.END
                 setLineSpacing(0f, 1.15f); maxWidth = dp(250)

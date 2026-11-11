@@ -25,7 +25,7 @@ object Voice {
     private var player: MediaPlayer? = null
     private var tts: TextToSpeech? = null
     private var ttsReady = false
-    private var pending: Pair<String, (() -> Unit)?>? = null
+    private var pending: Triple<String, Int, (() -> Unit)?>? = null
     /** Why the natural voice last failed (shown in Me), or null. */
     @Volatile var lastProblem: String? = null; private set
     /** Who actually spoke last, for Me → Voice ("Atlas (Gemini)", "the phone's voice"). */
@@ -36,7 +36,8 @@ object Voice {
     /** A voice to choose: who it is, which engine's voice it uses, and how it delivers lines. */
     class Choice(val id: String, val label: String, val about: String, val voice: String, val style: String)
 
-    private const val ATLAS_STYLE = "calm, composed and refined; crisp and articulate with a British accent; quietly warm with a touch of dry wit; unhurried, like a trusted AI butler"
+    // An original voice with a butler's manner (not a copy of any actor or character's voice).
+    private const val ATLAS_STYLE = "a composed, impeccably polite British assistant: Received Pronunciation, crisp consonants, low and even pitch, unhurried and precise, quietly warm with understated dry wit; never theatrical, never sing-song"
     val geminiChoices = listOf(
         Choice("atlas", "Atlas", "British, calm, refined", "Charon", ATLAS_STYLE),
         Choice("charon", "Charon", "deep, informative", "Charon", "clear and steady, informative, relaxed"),
@@ -49,7 +50,7 @@ object Voice {
         Choice("zephyr", "Zephyr", "bright (female)", "Zephyr", "bright and cheerful"),
     )
     val openAiChoices = listOf(
-        Choice("atlas", "Atlas", "British, calm, refined", "fable", "Speak with a refined British accent. " + ATLAS_STYLE + "."),
+        Choice("atlas", "Atlas", "British, calm, refined", "fable", "Accent: British Received Pronunciation throughout. Manner: " + ATLAS_STYLE + ". Pacing: measured, with brief natural pauses at commas and full stops."),
         Choice("onyx", "Onyx", "deep", "onyx", "Deep, calm and confident."),
         Choice("ash", "Ash", "clear, direct", "ash", "Clear and direct, friendly."),
         Choice("echo", "Echo", "smooth", "echo", "Smooth and relaxed."),
@@ -88,67 +89,125 @@ object Voice {
 
     fun clean(s: String) = Plain.spoken(s)
 
-    /** Says [text]; [onDone] runs on the main thread once it has finished (or failed). */
+    /** True from the moment Atlas is asked to speak until it has finished or been hushed (so also while the voice is being fetched). */
+    @Volatile var busy = false; private set
+
+    /** "slow", "normal" or "fast". */
+    fun speed(ctx: Context) = Speech.speed(Store.getString(ctx, "voice_speed"))
+    fun setSpeed(ctx: Context, v: String): String { val sp = Speech.speed(v); Store.putString(ctx, "voice_speed", sp); return sp }
+
+    /**
+     * Says [text]; [onDone] runs on the main thread once it has finished (or failed). A long reply is spoken in
+     * pieces (a short first one, so the voice starts quickly, the next fetched while it plays); if the natural
+     * voice fails part-way, the phone's own voice carries on, so a reply is never silently dropped.
+     */
     fun speak(ctx: Context, text: String, onDone: (() -> Unit)? = null) {
         val app = ctx.applicationContext
         val say = clean(text)
         hush()
         val mine = ++gen
         if (say.isEmpty()) { onDone?.let { main.post(it) }; return }
+        begin(app)
+        val finish = { ended(app, mine); onDone?.invoke(); Unit }
         val eng = engine(app)
-        if (eng == null) { system(app, say, mine, onDone); return }
-        speakWith(app, eng, say, mine, onDone)
+        if (eng == null) { main.post { if (mine == gen) system(app, say, mine, finish) }; return }
+        speakParts(app, eng, Speech.chunks(say), mine, finish)
     }
 
-    /** Plays [text] in the chosen voice right away: the "Hear It" key in Me. */
+    /** Plays a line in the chosen voice right away: the "Hear It" key in Me. */
     fun preview(ctx: Context, engine: String, id: String, onDone: (() -> Unit)? = null) {
         val app = ctx.applicationContext
         hush()
         val mine = ++gen
         setChoice(app, engine, id)   // tapping a voice to hear it also chooses it
-        speakWith(app, engine, "Hello, I'm Atlas. Here's how I sound. What can I help you with today?", mine, onDone)
+        begin(app)
+        speakParts(app, engine, listOf("Good day. I'm Atlas. This is how I sound. What can I do for you?"), mine) { ended(app, mine); onDone?.invoke() }
     }
 
-    private fun speakWith(app: Context, eng: String, say: String, mine: Int, onDone: (() -> Unit)?) {
-        Thread {
-            // speech cut off before it finished leaves its file behind: clear out old ones
-            try { app.cacheDir.listFiles { f -> f.name.startsWith("speech-") && System.currentTimeMillis() - f.lastModified() > 10 * 60_000L }?.forEach { it.delete() } } catch (_: Exception) {}
-            val file = try {
-                if (eng == "gemini") geminiSpeech(app, say) else openAiSpeech(app, say)
-            } catch (e: Exception) {
-                Log.w(TAG, "natural voice failed", e)
-                lastProblem = e.message ?: e.javaClass.simpleName
-                null
-            }
-            main.post {
-                if (mine != gen) return@post
-                if (file == null) { system(app, say, mine, onDone); return@post }
-                lastProblem = null
-                lastSpoke = "${current(app, eng).label} (${if (eng == "gemini") "Gemini" else "OpenAI"})"
-                play(file, mine, onDone) { system(app, say, mine, onDone) }
-            }
-        }.start()
+    private fun begin(app: Context) { busy = true; focus(app, true) }
+    private fun ended(app: Context, mine: Int) { if (mine == gen) { busy = false; speaking = false; focus(app, false) } }
+
+    private val FAILED = Any()
+
+    private fun speakParts(app: Context, eng: String, parts: List<String>, mine: Int, finish: () -> Unit) {
+        if (parts.isEmpty()) { main.post { if (mine == gen) finish() }; return }
+        val got = arrayOfNulls<Any>(parts.size)      // a File, or FAILED
+        var next = 0
+        var playing = false
+        lateinit var pump: () -> Unit
+        fun fetch(i: Int) {
+            Thread {
+                if (i == 0) try { app.cacheDir.listFiles { f -> f.name.startsWith("speech-") && System.currentTimeMillis() - f.lastModified() > 10 * 60_000L }?.forEach { it.delete() } } catch (_: Exception) {}
+                val file = if (mine != gen) null else try {
+                    if (eng == "gemini") geminiSpeech(app, parts[i]) else openAiSpeech(app, parts[i])
+                } catch (e: Exception) {
+                    Log.w(TAG, "natural voice failed", e)
+                    lastProblem = e.message ?: e.javaClass.simpleName
+                    null
+                }
+                main.post {
+                    if (mine != gen) { file?.delete(); return@post }
+                    got[i] = file ?: FAILED
+                    if (file != null) {
+                        if (i == 0) { lastProblem = null; lastSpoke = "${current(app, eng).label} (${if (eng == "gemini") "Gemini" else "OpenAI"})" }
+                        if (i + 1 < parts.size) fetch(i + 1)   // the next piece is fetched while this one plays
+                    }
+                    pump()
+                }
+            }.start()
+        }
+        pump = pump@{
+            if (playing || mine != gen || next >= parts.size) return@pump
+            val r = got[next] ?: return@pump                    // not here yet
+            // the natural voice failed: the phone's own voice says the rest
+            val rest = { got.forEach { (it as? File)?.delete() }; system(app, parts.drop(next).joinToString(" "), mine, finish) }
+            if (r !is File) { rest(); return@pump }
+            playing = true
+            play(app, r, mine, onEnd = { playing = false; got[next] = null; next++; if (next >= parts.size) finish() else pump() }, fallback = { playing = false; rest() })
+        }
+        fetch(0)
     }
 
     fun hush() {
         gen++
+        busy = false
         speaking = false
         try { player?.stop() } catch (_: Exception) {}
         try { player?.release() } catch (_: Exception) {}
         player = null
         try { tts?.stop() } catch (_: Exception) {}
+        main.post { doneFor.keys.removeAll { !it.startsWith("atlas-$gen-") } }
+        focusCtx?.let { focus(it, false) }
     }
 
-    private fun play(file: File, mine: Int, onDone: (() -> Unit)?, fallback: () -> Unit) {
+    // other sound (music, a video) is turned down while Atlas speaks, and comes back after
+    private var focusReq: android.media.AudioFocusRequest? = null
+    private var focusCtx: Context? = null
+    private val speechAttrs get() = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
+    @Synchronized private fun focus(app: Context, on: Boolean) {
+        try {
+            val am = app.getSystemService(android.media.AudioManager::class.java) ?: return
+            if (on) {
+                if (focusReq != null) return
+                val r = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).setAudioAttributes(speechAttrs).build()
+                am.requestAudioFocus(r); focusReq = r; focusCtx = app
+            } else focusReq?.let { am.abandonAudioFocusRequest(it); focusReq = null }
+        } catch (e: Exception) { Log.w(TAG, "audio focus", e) }
+    }
+
+    private fun play(app: Context, file: File, mine: Int, onEnd: () -> Unit, fallback: () -> Unit) {
         try {
             val mp = MediaPlayer()
-            mp.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+            mp.setAudioAttributes(speechAttrs)
             mp.setDataSource(file.absolutePath)
-            mp.setOnCompletionListener { it.release(); if (player === it) player = null; file.delete(); speaking = false; if (mine == gen) onDone?.invoke() }
-            mp.setOnErrorListener { m, _, _ -> m.release(); if (player === m) player = null; speaking = false; if (mine == gen) fallback(); true }
-            mp.prepare(); mp.start(); speaking = true
+            mp.setOnCompletionListener { it.release(); if (player === it) player = null; file.delete(); speaking = false; if (mine == gen) onEnd() }
+            mp.setOnErrorListener { m, _, _ -> m.release(); if (player === m) player = null; file.delete(); speaking = false; if (mine == gen) fallback(); true }
+            mp.prepare()
+            val rate = Speech.rate(speed(app))
+            if (rate != 1f) try { mp.playbackParams = mp.playbackParams.setSpeed(rate) } catch (e: Exception) { Log.w(TAG, "speed", e) }
+            mp.start(); speaking = true
             player = mp
-        } catch (e: Exception) { Log.w(TAG, "playback", e); fallback() }
+        } catch (e: Exception) { Log.w(TAG, "playback", e); file.delete(); speaking = false; fallback() }
     }
 
     // ---- Gemini's speech model (Interactions API), returns 24 kHz WAV ----
@@ -157,10 +216,11 @@ object Voice {
         val c = current(ctx, "gemini")
         // "Atlas" uses a real British voice from Google's voice library when one can be found; otherwise Charon
         val voice = if (c.id == "atlas") britishVoice(ctx, key) ?: c.voice else c.voice
-        val r = try { geminiCall(key, text, voice, c.style) } catch (e: Exception) {
+        val style = c.style + Speech.pace(speed(ctx)).let { if (it.isEmpty()) "" else "; $it" }
+        val r = try { geminiCall(key, text, voice, style) } catch (e: Exception) {
             if (voice == c.voice) throw e
             Store.putString(ctx, "atlas_voice_id", "-")   // that library voice didn't work: don't try it again
-            geminiCall(key, text, c.voice, c.style)
+            geminiCall(key, text, c.voice, style)
         }
         val b64 = findAudio(r) ?: throw IllegalStateException("Gemini sent no audio")
         return wavFile(ctx, b64)
@@ -258,15 +318,15 @@ object Voice {
     private fun system(ctx: Context, text: String, mine: Int, onDone: (() -> Unit)?) {
         val t = tts
         if (t == null || !ttsReady) {
-            pending = text to onDone
+            pending = Triple(text, mine, onDone)
             if (t == null) tts = TextToSpeech(ctx) { st ->
                 ttsReady = st == TextToSpeech.SUCCESS
-                if (ttsReady) { pickVoice(ctx); listen() }
-                pending?.let { (p, d) -> pending = null; if (ttsReady) say(p, gen, d) else d?.let { main.post(it) } }
+                if (ttsReady) { pickVoice(ctx); listen() } else { lastProblem = "the phone has no working voice installed"; tts = null }
+                main.post { pending?.let { (p, m, d) -> pending = null; if (m == gen) { if (ttsReady) say(ctx, p, m, d) else d?.invoke() } } }
             }
             return
         }
-        say(text, mine, onDone)
+        say(ctx, text, mine, onDone)
     }
 
     private val doneFor = mutableMapOf<String, () -> Unit>()
@@ -274,15 +334,29 @@ object Voice {
     private fun listen() {
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(id: String?) { speaking = true }
-            override fun onDone(id: String?) { speaking = false; id?.let { k -> main.post { doneFor.remove(k)?.invoke() } } }
+            override fun onDone(id: String?) { main.post { doneFor.remove(id)?.let { speaking = false; it() } } }
             @Deprecated("Deprecated in Java") override fun onError(id: String?) { onDone(id) }
+            override fun onError(id: String?, errorCode: Int) { onDone(id) }
+            override fun onStop(id: String?, interrupted: Boolean) { speaking = false }
         })
     }
 
-    private fun say(text: String, mine: Int, onDone: (() -> Unit)?) {
-        val id = "atlas-$mine"
-        onDone?.let { doneFor[id] = it }
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
+    /** The phone's voice takes a limited length at a time, so a long reply is queued in pieces; [onDone] follows the last. */
+    private fun say(ctx: Context, text: String, mine: Int, onDone: (() -> Unit)?) {
+        val t = tts
+        val fail = { speaking = false; onDone?.let { main.post { if (mine == gen) it() } }; Unit }
+        if (t == null) { fail(); return }
+        try {
+            t.setSpeechRate(Speech.rate(speed(ctx)))
+            val max = (TextToSpeech.getMaxSpeechInputLength() - 200).coerceIn(400, 1500)
+            val parts = Speech.chunks(text, first = max, rest = max)
+            parts.forEachIndexed { i, p ->
+                val id = "atlas-$mine-$i"
+                if (i == parts.lastIndex && onDone != null) doneFor[id] = { if (mine == gen) onDone() }
+                if (t.speak(p, if (i == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, id) != TextToSpeech.SUCCESS) { doneFor.remove(id); fail(); return }
+            }
+            if (lastSpoke == null || engine(ctx) != null) lastSpoke = "the phone's voice"
+        } catch (e: Exception) { Log.w(TAG, "phone voice", e); fail() }
     }
 
     private fun pickVoice(ctx: Context) {
@@ -292,7 +366,7 @@ object Voice {
             val voices = t.voices?.filter { it.locale.language == "en" && !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) } ?: return
             val best = voices.maxWithOrNull(compareBy({ it.quality }, { it.locale.country == "GB" }, { if (it.isNetworkConnectionRequired) 1 else 0 }, { -it.latency }))
             if (best != null) { t.voice = best; lastSpoke = "the phone's voice (${best.locale.displayCountry})" }
-            t.setSpeechRate(1.0f); t.setPitch(1.0f)
+            t.setPitch(1.0f)
         } catch (e: Exception) { Log.w(TAG, "voice choice", e) }
     }
 }
