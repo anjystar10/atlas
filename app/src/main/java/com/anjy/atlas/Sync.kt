@@ -206,6 +206,8 @@ object Sync {
     @Synchronized
     fun runOnce(ctx: Context): String {
         val code = code(ctx) ?: return "Not linked."
+        // skills, routines, the bot team and approval rules sync too: their kinds must be known before anything is pulled
+        try { BotExtras.init(ctx) } catch (e: Exception) { Log.w(TAG, "bot extras", e) }
         if (running) return "Already syncing."
         running = true
         lastTry = System.currentTimeMillis()

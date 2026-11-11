@@ -81,7 +81,16 @@ object Tools {
                     .put("id", str("The reminder's id, if it's one from the Log")), listOf("title")))
             put(fn("deploy_bot", "Send Atlas Bot to do a bigger job in the background: anything that needs many steps, like deep research with sources, comparing several options, writing a long piece, checking many pages, or a long chain of phone actions. The bot plans, works on its own, and its report lands in this chat when it's done; the chat stays free meanwhile. Don't use it for quick things you can do in a step or two.",
                 JSONObject().put("goal", str("The job in one clear sentence, e.g. 'Find the best budget phone under $300 for photos, with sources'"))
-                    .put("details", str("Everything the bot should know: what the user wants, preferences, limits, what to include in the report")), listOf("goal")))
+                    .put("details", str("Everything the bot should know: what the user wants, preferences, limits, what to include in the report"))
+                    .put("specialist", str("Optional: one of the user's specialist bots to send (by name), when the job fits its speciality")), listOf("goal")))
+            // ---- Atlas Bot extras (BotExtras): skills taught by telling, and routines (bots on a schedule)
+            put(fn("save_skill", "Save a skill: a reusable way of doing a kind of job that the user teaches you (\"when I ask for X, do it like this…\"). Bots load it when they do that kind of job. Saving with an existing name updates it.",
+                JSONObject().put("name", str("A short name, e.g. \"Weekly money check\"")).put("when", str("When to use it")).put("steps", str("The steps, one per line"))
+                    .put("inputs", str("What is needed first (optional)")).put("checks", str("What to check before finishing (optional)"))
+                    .put("output", str("What the result should look like (optional)")).put("permissions", str("Actions in it that need the user's OK (optional)")), listOf("name", "when", "steps")))
+            put(fn("set_routine", "Set up a routine: a bot sent on a schedule, like \"every weekday at 8am, summarise the news on AI\". Runs every 5 minutes at most.",
+                JSONObject().put("goal", str("What the bot should do each time")).put("schedule", str("When, in plain words: \"every weekday at 8am\", \"every 2 hours\", \"every Sunday evening\", \"every month on the 1st at 9am\""))
+                    .put("name", str("A short name (optional)")).put("specialist", str("A specialist bot to send (optional)")), listOf("goal", "schedule")))
             put(fn("wait", "Wait for something to load (an answer being written, a page loading). Returns the new screen.",
                 JSONObject().put("seconds", int("1 to 15")), listOf("seconds")))
         }
@@ -252,9 +261,27 @@ object Tools {
                 "deploy_bot" -> withContext(Dispatchers.Main) {
                     val goal = a.optString("goal").trim()
                     if (goal.isEmpty()) return@withContext Result("Error: give the bot a goal.")
-                    val j = Bots.deploy(ctx, goal, a.optString("details"))
+                    val sp = a.optString("specialist").takeIf { it.isNotBlank() }?.let { BotExtras.specialist(it)?.optString("id") }
+                    val j = Bots.deploy(ctx, goal, a.optString("details"), specialist = sp)
                     Result("Atlas Bot is on it: '${j.goal}'. It works in the background; its report will appear in this chat when it's done, and the user can follow it from the Atlas Bot strip at the top of the chat. Tell them briefly, in your own words.",
                         "Sent Atlas Bot: ${j.goal}")
+                }
+                "save_skill" -> {
+                    BotExtras.init(ctx)
+                    val name = Plain.memory(a.optString("name"))
+                    if (name.isEmpty() || a.optString("steps").isBlank()) Result("Error: a skill needs a name and steps.")
+                    else {
+                        val sk = BotExtras.saveSkill(JSONObject().put("name", name).put("when", a.optString("when")).put("steps", a.optString("steps")).put("inputs", a.optString("inputs"))
+                            .put("checks", a.optString("checks")).put("output", a.optString("output")).put("permissions", a.optString("permissions")))
+                        Result("Saved the skill \"${sk.optString("name")}\". Bots will use it for that kind of job; the user can edit it on the Bots tab.", "Saved a skill: ${sk.optString("name")}")
+                    }
+                }
+                "set_routine" -> withContext(Dispatchers.Main) {
+                    BotExtras.init(ctx)
+                    val sp = a.optString("specialist").takeIf { it.isNotBlank() }?.let { BotExtras.specialist(it)?.optString("id") }
+                    val (r, err) = BotExtras.saveRoutine(null, a.optString("goal"), a.optString("schedule"), a.optString("name").takeIf { it.isNotBlank() }, sp)
+                    if (r == null) Result("Error: $err")
+                    else Result("Routine set: \"${r.optString("name")}\", next run ${android.text.format.DateUtils.formatDateTime(ctx, r.optLong("nextAt"), android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY or android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_TIME)}. The user can pause, test or delete it on the Bots tab.", "Set a routine: ${r.optString("name")}")
                 }
                 else -> Result("Error: there's no tool called ${c.name}.")
             }
