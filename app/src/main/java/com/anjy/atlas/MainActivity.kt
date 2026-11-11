@@ -1821,6 +1821,31 @@ class MainActivity : Activity() {
 
     // ================================================================ ME
 
+    /** Every other service, each with its one-line note, plus adding one of your own. */
+    private fun moreServices(shownAlready: Set<String>) {
+        val rest = Providers.all.filter { it.id !in shownAlready }
+        choose("More Services", rest.map { if (it.note.isNotBlank()) "${it.name} — ${it.note}" else it.name } + "Add Your Own Service…") { pick ->
+            if (pick < rest.size) { brainShown = rest[pick].id; render(keepScroll = true) } else customServiceSheet(null)
+        }
+    }
+
+    /** Add (or edit) a service of your own: any address that speaks the OpenAI chat format. */
+    private fun customServiceSheet(editing: Providers.Provider?) {
+        var name = editing?.name ?: ""; var base = editing?.let { Providers.baseUrl(this, it) } ?: ""; var model = editing?.let { Providers.model(this, it) } ?: ""
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        box.addView(field("Name (e.g. My Server)", name) { name = it })
+        box.add(field("Address ending in /v1", base) { base = it }, 8)
+        box.add(field("Model name", model) { model = it }, 8)
+        sheet(null, if (editing == null) "Add a Service" else editing.name, "Any service that speaks the OpenAI chat format, with tool calling. Its keys work like the others: Atlas switches between them when one runs out.",
+            content = box, primaryLabel = "Save", onPrimary = {
+                val b = base.trim()
+                if (name.isBlank() || !(b.startsWith("https://") || b.startsWith("http://"))) { showBanner("It needs a name and an address starting with https://", MUTED); return@sheet }
+                if (editing == null) { val p = Providers.addCustom(this, name, b, model); brainShown = p.id }
+                else Providers.updateCustom(this, editing.id, name, b, model)
+                render(keepScroll = true)
+            }, secondaryLabel = "Cancel")
+    }
+
     private fun renderMe() {
         val st = Store.read(this) { it.settings }
         pageTitle("Me", ThemeSwitch(this, dark, MED).apply { onChange = { d -> swapTheme(d, this) } })
@@ -1840,15 +1865,18 @@ class MainActivity : Activity() {
         }
         brain.add(kf, 14)
         brain.add(eyebrow("Service"), 12)
-        brain.add(chipGroup(Providers.all.map { it.id to it.name }, { it == shown.id }) { id ->
-            brainShown = id; render(keepScroll = true)
+        // the services you use (with keys) stay in view; the rest are one tap away under More Services
+        val mine = Providers.all.filter { it.id == shown.id || it.id == active?.id || Providers.hasKeys(this, it.id) }
+        brain.add(chipGroup(mine.map { it.id to it.name } + ("_more" to "More Services…"), { it == shown.id }) { id ->
+            if (id == "_more") moreServices(mine.map { it.id }.toSet()) else { brainShown = id; render(keepScroll = true) }
         }, 8)
+        if (shown.note.isNotBlank()) brain.add(text(shown.note, 13f, MUTED), 6)
         val kr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         kr.addView(primary("Add Key") {
             val k = keyDraft.trim()
             if (k.length < 16) { showBanner("That doesn't look like a whole key.", MUTED); return@primary }
             // a recognisable key picks its own service; DeepSeek and custom keys look like OpenAI's, so the chip decides
-            val id = Providers.guess(k)?.takeIf { g -> !(g == "openai" && shown.id in setOf("deepseek", "custom", "openrouter", "groq", "xai")) } ?: shown.id
+            val id = Providers.keyTarget(k, shown.id)
             Providers.setKey(this, id, k); Providers.choose(this, id); brainShown = id
             showBanner("Key added to ${Providers.byId(id)?.name}. Testing it…"); testKey(k, id)
             render(keepScroll = true)
@@ -1863,6 +1891,14 @@ class MainActivity : Activity() {
                 Store.putString(this, "base_custom", v.trim()); render(keepScroll = true)
             }, secondaryLabel = "Cancel")
         }, 10)
+        if (shown.custom && shown.id != "custom") {
+            brain.add(settingRow("Address", Providers.baseUrl(this, shown).ifEmpty { "Not set" }) { customServiceSheet(shown) }, 10)
+            brain.add(secondary("Remove ${shown.name}") {
+                sheet(null, "Remove ${shown.name}?", "Its keys go too.", primaryLabel = "Remove", primaryColor = MISS, onPrimary = {
+                    Providers.removeCustom(this, shown.id); brainShown = null; render(keepScroll = true)
+                }, secondaryLabel = "Keep")
+            }, 10)
+        }
         brain.add(settingRow("Model", Providers.model(this, shown).ifEmpty { "Not set" }) {
             var m = Providers.model(this, shown)
             sheet(null, "${shown.name} Model", if (shown.defaultModel.isNotEmpty()) "Leave it as ${shown.defaultModel} unless you want another of ${shown.name}'s models." else "The model's name, as your service writes it.",

@@ -14,23 +14,94 @@ import java.net.UnknownHostException
  * "chat with tools"; a [Session] hides that, so the conversation loop is the same for all of them.
  */
 object Providers {
-    /** [style]: "gemini", "openai" (Chat Completions, used by many services) or "anthropic". */
-    class Provider(val id: String, val name: String, val style: String, val baseUrl: String, val defaultModel: String, val keyUrl: String, val keyHint: String)
+    /**
+     * [style]: "gemini", "openai" (Chat Completions, used by many services) or "anthropic".
+     * [note]: one line for the Brain page (what it's good for, what's free). [custom]: one the user added by hand.
+     */
+    class Provider(val id: String, val name: String, val style: String, val baseUrl: String, val defaultModel: String,
+                   val keyUrl: String, val keyHint: String, val note: String = "", val custom: Boolean = false)
 
-    val all = listOf(
-        Provider("gemini", "Gemini", "gemini", Gemini.ENDPOINT, Gemini.DEFAULT_MODEL, "https://aistudio.google.com/apikey", "AIza…"),
-        Provider("openai", "OpenAI", "openai", "https://api.openai.com/v1", "gpt-6-sol", "https://platform.openai.com/api-keys", "sk-…"),
-        Provider("anthropic", "Claude", "anthropic", "https://api.anthropic.com/v1", "claude-sonnet-5-5", "https://console.anthropic.com/settings/keys", "sk-ant-…"),
-        Provider("openrouter", "OpenRouter", "openai", "https://openrouter.ai/api/v1", "openrouter/auto", "https://openrouter.ai/keys", "sk-or-…"),
-        Provider("groq", "Groq", "openai", "https://api.groq.com/openai/v1", "openai/gpt-oss-120b", "https://console.groq.com/keys", "gsk_…"),
-        Provider("deepseek", "DeepSeek", "openai", "https://api.deepseek.com/v1", "deepseek-chat", "https://platform.deepseek.com/api_keys", "sk-…"),
-        Provider("xai", "xAI Grok", "openai", "https://api.x.ai/v1", "grok-4.7", "https://console.x.ai", "xai-…"),
-        Provider("custom", "Other (OpenAI-compatible)", "openai", "", "", "", "your key"),
+    /**
+     * The built-in services. Every base address and default model below was checked against the service's own docs
+     * (November 2026), and each default model supports tool calling, which Atlas needs. The order is the order Atlas
+     * falls back in when a service runs out (free and fast first after the big three).
+     */
+    val builtIn = listOf(
+        Provider("gemini", "Gemini", "gemini", Gemini.ENDPOINT, Gemini.DEFAULT_MODEL, "https://aistudio.google.com/apikey", "AIza…", "Google. Free tier with limits; the best all-rounder for Atlas"),
+        Provider("openai", "OpenAI", "openai", "https://api.openai.com/v1", "gpt-6-sol", "https://platform.openai.com/api-keys", "sk-…", "Paid"),
+        Provider("anthropic", "Claude", "anthropic", "https://api.anthropic.com/v1", "claude-sonnet-5-5", "https://console.anthropic.com/settings/keys", "sk-ant-…", "Paid"),
+        Provider("openrouter", "OpenRouter", "openai", "https://openrouter.ai/api/v1", "openrouter/auto", "https://openrouter.ai/keys", "sk-or-…", "Many models behind one key; some free"),
+        Provider("groq", "Groq", "openai", "https://api.groq.com/openai/v1", "openai/gpt-oss-120b", "https://console.groq.com/keys", "gsk_…", "Very fast; free tier with limits"),
+        Provider("cerebras", "Cerebras", "openai", "https://api.cerebras.ai/v1", "gpt-oss-120b", "https://cloud.cerebras.ai", "your key", "Very fast; $5 trial credit for 30 days, then paid"),
+        Provider("sambanova", "SambaNova", "openai", "https://api.sambanova.ai/v1", "gpt-oss-120b", "https://cloud.sambanova.ai", "your key", "Fast; free tier of 20 requests a day"),
+        Provider("cohere", "Cohere", "openai", "https://api.cohere.ai/compatibility/v1", "command-a-plus-05-2026", "https://dashboard.cohere.com/api-keys", "your key", "Free trial key: 1,000 calls a month"),
+        Provider("mistral", "Mistral", "openai", "https://api.mistral.ai/v1", "mistral-large-latest", "https://console.mistral.ai", "your key", "Paid (the API needs billing turned on)"),
+        Provider("zai", "Z.AI (GLM)", "openai", "https://api.z.ai/api/paas/v4", "glm-5.3", "https://z.ai/model-api", "your key", "GLM models; paid"),
+        Provider("fireworks", "Fireworks", "openai", "https://api.fireworks.ai/inference/v1", "accounts/fireworks/models/kimi-k2-instruct-0905", "https://fireworks.ai", "your key", "Open models; paid"),
+        Provider("ovh", "OVHcloud AI", "openai", "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1", "Qwen3.5-397B-A17B", "https://endpoints.ai.cloud.ovh.net", "your key", "European hosting; paid"),
+        Provider("deepseek", "DeepSeek", "openai", "https://api.deepseek.com/v1", "deepseek-chat", "https://platform.deepseek.com/api_keys", "sk-…", "Cheap; paid"),
+        Provider("xai", "xAI Grok", "openai", "https://api.x.ai/v1", "grok-4.7", "https://console.x.ai", "xai-…", "Paid"),
+        Provider("custom", "Other (OpenAI-compatible)", "openai", "", "", "", "your key", "Any service that speaks the OpenAI chat format", custom = true),
     )
+
+    /** Services the user added by hand (as many as they like), loaded from settings. */
+    @Volatile private var customs: List<Provider> = emptyList()
+    @Volatile private var customsLoaded = false
+
+    /** Every service: built in, then the user's own. Call [load] first in a fresh process (the functions taking a Context do). */
+    val all: List<Provider> get() = builtIn + customs
 
     fun byId(id: String?) = all.firstOrNull { it.id == id }
 
-    /** Which service a pasted key belongs to, from its shape. DeepSeek keys look like OpenAI's: those need choosing by hand. */
+    fun load(ctx: Context) {
+        if (customsLoaded) return
+        customs = readCustoms(ctx); customsLoaded = true
+    }
+
+    private fun readCustoms(ctx: Context): List<Provider> = try {
+        val a = JSONArray(Store.getString(ctx, "custom_services") ?: "[]")
+        (0 until a.length()).mapNotNull { i ->
+            val o = a.getJSONObject(i)
+            val id = o.optString("id"); val name = o.optString("name").trim()
+            if (!id.startsWith("c_") || name.isEmpty()) null
+            else Provider(id, name, "openai", o.optString("base").trim().trimEnd('/'), o.optString("model").trim(), "", "your key", "Added by you", custom = true)
+        }
+    } catch (_: Exception) { emptyList() }
+
+    private fun writeCustoms(ctx: Context, list: List<Provider>) {
+        Store.putString(ctx, "custom_services", JSONArray().apply {
+            list.forEach { put(JSONObject().put("id", it.id).put("name", it.name).put("base", it.baseUrl).put("model", it.defaultModel)) }
+        }.toString())
+        customs = list; customsLoaded = true
+    }
+
+    /** Adds a service of the user's own (an OpenAI-compatible address); returns it. */
+    fun addCustom(ctx: Context, name: String, base: String, model: String): Provider {
+        load(ctx)
+        val p = Provider("c_" + java.lang.Long.toString(System.currentTimeMillis(), 36), name.trim().take(40), "openai",
+            base.trim().trimEnd('/'), model.trim(), "", "your key", "Added by you", custom = true)
+        writeCustoms(ctx, customs + p)
+        return p
+    }
+
+    fun updateCustom(ctx: Context, id: String, name: String, base: String, model: String) {
+        load(ctx)
+        writeCustoms(ctx, customs.map { if (it.id == id) Provider(id, name.trim().take(40).ifEmpty { it.name }, "openai", base.trim().trimEnd('/'), model.trim(), "", "your key", "Added by you", custom = true) else it })
+    }
+
+    /** Removes a service the user added, with its keys. */
+    fun removeCustom(ctx: Context, id: String) {
+        load(ctx)
+        if (!id.startsWith("c_")) return
+        writeCustoms(ctx, customs.filter { it.id != id })
+        Store.putString(ctx, "keys_$id", "[]")
+        if (Store.getString(ctx, "provider") == id) Store.putString(ctx, "provider", "")
+    }
+
+    /**
+     * Which service a pasted key belongs to, from its shape. Only prefixes that belong to one service are used;
+     * many services' keys have no telling shape (or look like OpenAI's), so those need choosing by hand.
+     */
     fun guess(key: String): String? {
         val k = key.trim()
         return when {
@@ -42,6 +113,16 @@ object Providers {
             k.startsWith("sk-") -> "openai"
             else -> null
         }
+    }
+
+    /**
+     * Where a pasted key goes: the service its shape names, unless it only looks like an OpenAI key (many services
+     * use "sk-…") while the user is on another OpenAI-style service's page, or has no telling shape at all.
+     */
+    fun keyTarget(key: String, shownId: String): String {
+        val g = guess(key) ?: return shownId
+        val shown = byId(shownId)
+        return if (g == "openai" && shown != null && shown.id != "openai" && shown.style == "openai") shownId else g
     }
 
     // ---- keys: as many per service as you like (they stay on the phone, outside the backup) ----
@@ -119,7 +200,9 @@ object Providers {
         (f.code == 400 && (f.message ?: "").contains("key", ignoreCase = true))
 
     /** The services that can take over, in list order: those with a key ready now. */
-    fun fallbacks(ctx: Context, except: String): List<Provider> = all.filter { it.id != except && readyKey(ctx, it.id) != null && (it.id != "custom" || baseUrl(ctx, it).isNotEmpty()) }
+    /** A service Atlas can call: built in, or one of the user's with its address filled in. */
+    fun reachable(ctx: Context, p: Provider) = !p.custom || baseUrl(ctx, p).isNotEmpty()
+    fun fallbacks(ctx: Context, except: String): List<Provider> { load(ctx); return all.filter { it.id != except && reachable(ctx, it) && readyKey(ctx, it.id) != null } }
     fun model(ctx: Context, p: Provider): String =
         (Store.getString(ctx, "model_${p.id}") ?: if (p.id == "gemini") Store.getString(ctx, "gemini_model") else null)?.trim()?.takeIf { it.isNotEmpty() } ?: p.defaultModel
     fun setModel(ctx: Context, id: String, model: String) = Store.putString(ctx, "model_$id", model.trim())
@@ -128,15 +211,16 @@ object Providers {
 
     /** The service Atlas thinks with: the chosen one if it has a key, else the first that does. Null: none set up. */
     fun active(ctx: Context): Provider? {
+        load(ctx)
         val chosen = byId(Store.getString(ctx, "provider"))
-        if (chosen != null && hasKeys(ctx, chosen.id) && (chosen.id != "custom" || baseUrl(ctx, chosen).isNotEmpty())) {
+        if (chosen != null && hasKeys(ctx, chosen.id) && reachable(ctx, chosen)) {
             // the chosen service, unless all its keys are resting and another service has one ready
             // (with Don't Switch Services on, always the chosen service)
             if (readyKey(ctx, chosen.id) != null || KeyRouter.dontSwitch(ctx)) return chosen
             return fallbacks(ctx, chosen.id).firstOrNull() ?: chosen
         }
-        return all.firstOrNull { readyKey(ctx, it.id) != null && (it.id != "custom" || baseUrl(ctx, it).isNotEmpty()) }
-            ?: all.firstOrNull { hasKeys(ctx, it.id) && (it.id != "custom" || baseUrl(ctx, it).isNotEmpty()) }
+        return all.firstOrNull { readyKey(ctx, it.id) != null && reachable(ctx, it) }
+            ?: all.firstOrNull { hasKeys(ctx, it.id) && reachable(ctx, it) }
     }
     fun choose(ctx: Context, id: String) = Store.putString(ctx, "provider", id)
 
