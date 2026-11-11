@@ -890,6 +890,7 @@ class MainActivity : Activity() {
         Conversation.listen(onChat)
         Bots.listen(onBots)
         Sync.listen(onSync); Sync.syncSoon(this, 500); Sync.setForeground(this, true)
+        resumedNow = true
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
         if (::aurora.isInitialized) aurora.resume()
         if (returnedFromSystem && tab != 0) render(keepScroll = true)
@@ -900,6 +901,7 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
+        resumedNow = false
         Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
         stopVoice()
         AvatarService.setAppInFront(this, false)
@@ -1441,7 +1443,12 @@ class MainActivity : Activity() {
 
     private fun sendMessage(q: String, spoken: Boolean = false, media: List<Attach.Item> = emptyList()) {
         if (tab != 0) { tab = 0; render() }
-        Conversation.send(this, q, spoken, media = media)
+        // a spoken question keeps the conversation going: once Atlas has finished answering aloud, it listens again
+        // (not if you cut the answer off, left the app, or switched Keep Listening off)
+        val again: (() -> Unit)? = if (spoken && Hear.handsFree(this)) ({
+            body.postDelayed({ if (resumedNow && tab == 0 && voiceInput == null && !Conversation.busy && !Voice.busy && talkTurns < 30) voice(followUp = true) }, 450)
+        }) else null
+        Conversation.send(this, q, spoken, onSpoken = again, media = media)
         scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
     }
 
@@ -1449,17 +1456,22 @@ class MainActivity : Activity() {
 
     private var closeVoiceSheet: (() -> Unit)? = null
 
-    private fun voice() {
+    private var talkTurns = 0
+    private var resumedNow = false
+
+    /** Listens. [followUp]: Atlas has just answered aloud and is listening for more; silence then simply ends the talk. */
+    private fun voice(followUp: Boolean = false) {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC); return
         }
         if (voiceInput != null) { voiceInput?.finish(); return }
+        if (!followUp) talkTurns = 0
         Conversation.hush()
         AvatarService.holdMic(this, true)
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         val orb = OrbView(this).apply { energy = 1f; still = Prefs.reduceMotion(this@MainActivity) }
         col.addView(orb, LinearLayout.LayoutParams(dp(170), dp(170)))
-        val heard = text("Listening…", 18f, MUTED, MED, keepEmoji = true).apply { gravity = Gravity.CENTER; minLines = 2 }
+        val heard = text(if (followUp) "Listening… say “that's all” when you're done" else "Listening…", 18f, MUTED, MED, keepEmoji = true).apply { gravity = Gravity.CENTER; minLines = 2 }
         col.add(heard, 8)
         var got: String? = null
         val vi = Hear.open(this,
@@ -1467,7 +1479,11 @@ class MainActivity : Activity() {
             onLevel = { l -> orb.level = l },
             onDone = { t ->
                 stopVoice()
-                if (t.isNullOrBlank()) showBanner("I didn't catch that.", MUTED) else sendMessage(t, spoken = true)
+                when {
+                    t.isNullOrBlank() -> if (!followUp) showBanner("I didn't catch that.", MUTED)   // quiet after an answer: the talk is over
+                    followUp && Speech.endsTalk(t) -> Unit                                          // "that's all": nothing is sent
+                    else -> { talkTurns++; sendMessage(t, spoken = true) }
+                }
             },
             onError = { msg -> stopVoice(); showBanner(msg, MUTED) })
         voiceInput = vi
@@ -1638,6 +1654,54 @@ class MainActivity : Activity() {
         if (!logFull) body.add(secondary(if (all.size > LOG_RECENT) "Full History (${all.size})" else "Full History") { logFull = true; render() }, 12)
     }
 
+    // ================================================================ THIS DEVICE
+
+    /** What this phone has right now, and what Atlas will (and won't) run on it because of that. */
+    private fun deviceCard() {
+        val d = try { DeviceProfiler.read(this) } catch (e: Exception) { return }
+        fun gb(mb: Long) = if (mb < 0) "?" else "%.1f GB".format(mb / 1024.0)
+        body.add(eyebrow("This Device"), 16)
+        val c = card()
+        c.addView(text(d.model.ifBlank { "This phone" }, 18f, FG, HEAD, keepEmoji = true))
+        val chip = listOfNotNull(d.chip.ifBlank { null }, if (d.cores > 0) "${d.cores} cores" + (if (d.bigCores in 1 until d.cores) " (${d.bigCores} fast)" else "") else null).joinToString(" · ")
+        val lines = listOfNotNull(
+            "Memory: ${gb(d.availRamMb)} free of ${gb(d.totalRamMb)}",
+            if (chip.isNotEmpty()) "Chip: $chip" else null,
+            if (d.graphics.isNotBlank()) "Graphics: ${d.graphics}" else null,
+            "Heat: ${ModelDirector.thermalWord(d.thermal)}",
+            "Battery: " + (if (d.batteryPct < 0) "unknown" else "${d.batteryPct}%") + (if (d.charging) ", charging" else "") + (if (d.powerSave) ", Battery Saver on" else ""),
+            if (d.freeStorageMb >= 0) "Storage: ${gb(d.freeStorageMb)} free" else null)
+        c.add(text(lines.joinToString("\n"), 14f, MUTED), 6)
+        ModelDirector.holdingBack(d)?.let { c.add(text(it, 14f, WARM, MED), 10) }
+
+        val name = ModelManager.modelName(this)
+        if (name == null) c.add(text("No offline model yet. When you add one, Atlas checks it fits this phone's free memory before every load.", 14f, MUTED), 10)
+        else {
+            val f = ModelManager.modelFile(this)
+            val spec = DeviceGuard.cachedSpec(this, f, name)
+            if (spec == null) {
+                // first time for this file: read what it needs in the background, then show it
+                c.add(text("Offline model: checking what $name needs…", 14f, MUTED, keepEmoji = true), 10)
+                scope.launch(Dispatchers.IO) { DeviceGuard.spec(applicationContext, f, name); withContext(Dispatchers.Main) { if (tab == 2) render(keepScroll = true) } }
+            } else {
+                val rec = DeviceGuard.record(this, spec)
+                val v = ModelDirector.decide(d, spec, rec, DeviceGuard.force(this))
+                c.add(text("Offline model", 15f, FG, MED), 12)
+                c.add(text((if (v.allowed) "Will run here. " else "Held back. ") + v.reason, 14f, if (v.allowed) MUTED else WARM, keepEmoji = true), 4)
+                c.add(text("Needs about ${gb(v.peakMb)} at its peak (the file, plus memory for an 8,192-token conversation, plus working space)." +
+                    (if (!spec.known) " The file didn't state its layout, so this is an estimate." else ""), 13f, MUTED), 4)
+                if (rec != null && rec.tokensPerSec > 0) c.add(text("Last ran here at about ${"%.0f".format(rec.tokensPerSec)} tokens a second" +
+                    (if (rec.firstTokenMs > 0) ", first word after ${"%.1f".format(rec.firstTokenMs / 1000.0)} s" else "") +
+                    (if (rec.loadMs > 0) ", loaded in ${"%.0f".format(rec.loadMs / 1000.0)} s" else "") + ".", 13f, MUTED), 4)
+                if (rec != null && rec.died > 0) c.add(text("It has stopped ${rec.died} time${if (rec.died == 1) "" else "s"} on this phone.", 13f, MUTED), 4)
+                c.add(switchRow(null, "Run It Anyway", DeviceGuard.force(this)) { on -> DeviceGuard.setForce(this, on); render(keepScroll = true) }, 12)
+                c.add(text("On: Atlas loads the model even when memory is tight or Battery Saver is on. It still won't when the phone is hot or the model can't fit at all. The model runs apart from Atlas, so the worst case is the model stopping, not Atlas.", 13f, MUTED), 6)
+            }
+        }
+        c.add(text("The offline model is put away after 10 minutes unused, or when Android says memory is short, and loads again when needed. These checks stay on this phone.", 13f, MUTED), 10)
+        body.add(c, 8)
+    }
+
     // ================================================================ BOTS
 
     private var botDraft = ""
@@ -1793,6 +1857,7 @@ class MainActivity : Activity() {
             off.add(br, 8)
         }
         body.add(off, 8)
+        deviceCard()
 
         // Phone control
         body.add(eyebrow("Phone Control"), 16)
@@ -1863,6 +1928,18 @@ class MainActivity : Activity() {
             }
             vc.add(rows, 8)
         }
+        // how fast Atlas talks, how it hears, and whether a spoken chat keeps going
+        vc.add(hairline(), 10, MATCH, dp(1))
+        vc.add(text("Speaking Speed", 16f, FG, MED), 12)
+        vc.add(chipGroup(listOf("slow" to "Slow", "normal" to "Normal", "fast" to "Fast"), { it == Voice.speed(this) }) { Voice.setSpeed(this, it); render(keepScroll = true) }, 8)
+        vc.add(switchRow(null, "Keep Listening", Hear.handsFree(this)) { on -> Hear.setHandsFree(this, on) }, 14)
+        vc.add(text("After Atlas answers a spoken question it listens again, so you can just keep talking. Say “that's all”, stay quiet, or tap Cancel to stop.", 13f, MUTED), 6)
+        vc.add(text("Hearing", 16f, FG, MED), 14)
+        vc.add(chipGroup(listOf("auto" to "Sharpest", "phone" to "Phone Only"), { it == Hear.mode(this) }) { Hear.setMode(this, it); render(keepScroll = true) }, 8)
+        vc.add(text("Now: ${Hear.describe(this)}.", 13f, MUTED), 6)
+        vc.add(text("Language You Speak", 16f, FG, MED), 14)
+        vc.add(chipGroup(Hear.LANGUAGES, { it == (Hear.language(this) ?: "auto") }) { Hear.setLanguage(this, it); render(keepScroll = true) }, 8)
+        vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.", 13f, MUTED), 6)
         body.add(vc, 8)
 
         // Phone and PC: one Atlas
@@ -2080,7 +2157,8 @@ class MainActivity : Activity() {
                 scope.launch {
                     try {
                         val n = withContext(Dispatchers.IO) {
-                            val txt = contentResolver.openInputStream(uri)?.use { String(it.readBytes(), Charsets.UTF_8) } ?: throw IllegalStateException("Couldn't open that file.")
+                            // a backup is small; a wrong pick (a video, say) must not be read whole into memory
+                            val txt = contentResolver.openInputStream(uri)?.use { String(Attach.readCapped(it, 50L * 1024 * 1024) { "That file is too big to be an Atlas backup." }, Charsets.UTF_8) } ?: throw IllegalStateException("Couldn't open that file.")
                             Store.importJson(applicationContext, txt)
                         }
                         withContext(Dispatchers.IO) { Reminders.tickAndSchedule(applicationContext) }

@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('atlasHost', {
   orbState: (st) => ipcRenderer.send('orb:state', st),
   autostart: (on) => ipcRenderer.invoke('app:autostart', on),
   info: () => ipcRenderer.invoke('app:info'),
+  device: () => ipcRenderer.invoke('device:profile'),
   openExternal: (url) => ipcRenderer.invoke('open:external', url),
   pickFiles: () => ipcRenderer.invoke('file:pick'),
   loadFile: (p) => ipcRenderer.invoke('file:load', p),

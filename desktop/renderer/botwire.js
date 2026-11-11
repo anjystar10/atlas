@@ -1,6 +1,7 @@
 // Connects Atlas Bot (bots.js) to the app: the key pool and services (brain.js), the chat (store.js), saving and
 // Windows notifications (the host).
 import { db, saveChat, changed, uid } from './store.js';
+import * as fitRules from './fit.js';
 import * as brain from './brain.js';
 import { plainReply, plainMemory } from './plain.js';
 import { createBots, MAX_TOOL_CALLS, MAX_WORK_MS } from './bots.js';
@@ -60,6 +61,8 @@ export const bots = createBots({
   plainReply, plainMemory,
   now: () => Date.now(), uid, deviceId: () => db.state.deviceId || '',
   setTimer: (f, ms) => setTimeout(f, ms), clearTimer: (t) => clearTimeout(t),
+  // one bot at a time when this PC is short of memory (fit.js); the profile is refreshed in the background
+  slots: () => { brain.device.get().catch(() => {}); return fitRules.botSlots(brain.device.now()); },
 });
 bots.onChange(() => changed('bots'));
 brain.ui.deployBot = (goal, details) => bots.deploy(goal, details);

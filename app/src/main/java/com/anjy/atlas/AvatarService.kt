@@ -408,9 +408,16 @@ class AvatarService : Service() {
     /** While Atlas speaks, the orb pulses gently with its voice (and settles when it stops). */
     private val pulse = object : Runnable {
         private var t = 0f
+        private var idle = 0
         override fun run() {
             if (!talking) { orb?.level = 0f; return }
             t += 0.05f
+            // A talk can't move on by itself if its answer was stopped or cut off by other speech (the "listen again"
+            // never comes): when nothing is listening, thinking or speaking for a while, the talk ends.
+            if (voice == null && !Conversation.busy && !Voice.busy) {
+                idle += 50
+                if (idle >= 6000) { endTalk(); return }
+            } else idle = 0
             if (Voice.speaking) {
                 val beat = (0.5f + 0.5f * sin(t * 9.0f)) * (0.6f + 0.4f * sin(t * 2.3f + 1f))
                 orb?.level = 0.12f + 0.38f * beat

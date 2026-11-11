@@ -9,8 +9,13 @@ const host = window.atlasHost;
 
 // An original voice with a butler's manner (not a copy of any actor or character's voice).
 const ATLAS_STYLE = 'a composed, impeccably polite British assistant: Received Pronunciation, crisp consonants, low and even pitch, unhurried and precise, quietly warm with understated dry wit; never theatrical, never sing-song';
+// With Gemini, how a line is delivered (Google asks for delivery only here: accent and timbre belong to the voice itself)
+const ATLAS_DELIVERY = 'composed and unhurried, crisp and precise, quietly warm with understated dry wit; never theatrical, never sing-song';
+// The voice itself, designed once from a description (Gemini's voice design): Atlas's own, made up fresh, naming no real person or character.
+export const ATLAS_DESIGN = 'A composed, impeccably polite British assistant in his forties with a crisp Received Pronunciation accent and a low, ' +
+  'smooth, even baritone; unhurried and precise, quietly warm, with an understated dry wit.';
 export const GEMINI_VOICES = [
-  { id: 'atlas', label: 'Atlas', about: 'British, calm, refined', voice: 'Charon', style: ATLAS_STYLE },
+  { id: 'atlas', label: 'Atlas', about: 'British, calm, refined', voice: 'Charon', style: ATLAS_DELIVERY },
   { id: 'charon', label: 'Charon', about: 'deep, informative', voice: 'Charon', style: 'clear and steady, informative, relaxed' },
   { id: 'algenib', label: 'Algenib', about: 'gravelly, low', voice: 'Algenib', style: 'low and gravelly, unhurried, quietly confident' },
   { id: 'gacrux', label: 'Gacrux', about: 'mature, assured', voice: 'Gacrux', style: 'mature and assured, measured pace' },
@@ -100,11 +105,44 @@ function systemSpeak(parts, finish, mine) {
   one();
 }
 
+/** The `voice_…` id in a voice-design answer (it may come as "id" or as a resource name ending in it). */
+export function voiceId(o) {
+  let found = null;
+  (function walk(x) {
+    if (found || !x || typeof x !== 'object') return;
+    if (Array.isArray(x)) { x.forEach(walk); return; }
+    for (const k of ['id', 'name', 'voice']) { const v = x[k]; if (typeof v === 'string' && v.split('/').pop().startsWith('voice_')) { found = v.split('/').pop(); return; } }
+    for (const [k, v] of Object.entries(x)) if (k !== 'sample_audio') walk(v);
+  })(o);
+  return found;
+}
+/**
+ * Atlas's own voice, designed once on this Gemini key and remembered (Google keeps it a year after last use).
+ * A refusal is remembered so it isn't asked again; a dropped connection or a busy server tries again next time.
+ */
+async function designedVoice(key) {
+  const tag = key.slice(-6); const saved = pref('atlasVoiceDesigned', '');
+  if (saved === '-') return null;
+  if (saved) { const [t, id] = saved.split('|'); if (t === tag && id) return id; }
+  const body = { store: true, voice: { model: 'gemini-3.8-flash-tts', type: 'prompted', display_name: 'Atlas', gender: 'male', language_code: 'en-GB', prompted: { input: ATLAS_DESIGN } } };
+  const r = await host.fetch('https://generativelanguage.googleapis.com/v1beta/voices', { method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body), timeout: 60000 });
+  if (!r.ok) { if (r.status >= 400 && r.status < 500 && r.status !== 429 && r.status !== 408) setPref('atlasVoiceDesigned', '-'); return null; }
+  let id = null; try { id = voiceId(JSON.parse(r.text)); } catch {}
+  setPref('atlasVoiceDesigned', id ? `${tag}|${id}` : '-');
+  return id;
+}
+async function geminiCall(key, text, voice, style) {
+  const body = { model: 'gemini-3.8-flash-tts', input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style }] }] }],
+    response_format: { type: 'audio' }, generation_config: { speech_config: [{ voice }] } };
+  return host.fetch('https://generativelanguage.googleapis.com/v1beta/interactions', { method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body), timeout: 60000 });
+}
 async function geminiSpeech(text, v) {
   const key = keyFor('gemini');
-  const body = { model: 'gemini-3.8-flash-tts', input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style: v.style + (pace(speed()) ? '; ' + pace(speed()) : '') }] }] }],
-    response_format: { type: 'audio' }, generation_config: { speech_config: [{ voice: v.voice }] } };
-  const r = await host.fetch('https://generativelanguage.googleapis.com/v1beta/interactions', { method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body), timeout: 60000 });
+  const style = v.style + (pace(speed()) ? '; ' + pace(speed()) : '');
+  // "Atlas": its own designed voice when it can be made, else Charon
+  const designed = v.id === 'atlas' ? await designedVoice(key).catch(() => null) : null;
+  let r = await geminiCall(key, text, designed || v.voice, style);
+  if (!r.ok && designed) { setPref('atlasVoiceDesigned', '-'); r = await geminiCall(key, text, v.voice, style); }
   if (!r.ok) throw new Error(`Gemini voice: ${r.status || r.error}`);
   let best = null;
   (function walk(x) { if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object') for (const [k, val] of Object.entries(x)) { if (k === 'data' && typeof val === 'string' && val.length > (best ? best.length : 200)) best = val; else walk(val); } })(JSON.parse(r.text));
@@ -216,13 +254,43 @@ async function transcribeGemini(key, b64, h) {
   return ((c && c.content && c.content.parts) || []).map((p) => (p.thought ? '' : p.text || '')).join('').trim();
 }
 /** The OpenAI-style transcription endpoint (Groq's Whisper, OpenAI). */
+/** The language you speak ("en", "en-GB", "fr"…), or '' to let the speech model work it out. */
+export const language = () => { const l = String(pref('hearLang', '') || '').trim(); return /^auto$/i.test(l) ? '' : l; };
+export const setLanguage = (v) => setPref('hearLang', String(v || '').trim());
+export const LANGUAGES = [['auto', 'Any'], ['en', 'English'], ['en-GB', 'English (UK)'], ['en-NG', 'English (Nigeria)'], ['fr', 'French'], ['es', 'Spanish'], ['pt', 'Portuguese'], ['ar', 'Arabic'], ['ha', 'Hausa'], ['yo', 'Yoruba'], ['ig', 'Igbo']];
+/** Speech models take the two-letter code only. */
+const whisperLang = () => { const l = language().slice(0, 2).toLowerCase(); return /^[a-z]{2}$/.test(l) ? l : ''; };
+
+// OpenAI's newest speech model takes the expected names as keywords and the language as a list; older ones follow.
+// A model OpenAI turns down is skipped from then on (until Atlas restarts).
+const OPENAI_EARS = ['gpt-transcribe', 'gpt-4o-mini-transcribe', 'whisper-1'];
+let openAiSkip = 0;
+/** The form for one transcription request (exported for the tests). */
+export function transcribeForm(model, h, lang, file) {
+  const newer = model === 'gpt-transcribe';
+  const f = { model, response_format: 'json', ...(newer ? {} : { temperature: '0' }), ...(h ? { prompt: h } : {}) };
+  if (newer) {
+    const kw = h ? h.split(', ').map((w) => w.trim()).filter(Boolean).slice(0, 30) : [];
+    if (kw.length) f['keywords[]'] = kw;
+    if (lang) f['languages[]'] = [lang];
+  } else if (lang) f.language = lang;
+  f.file = file;
+  return f;
+}
 async function transcribeWhisper(id, key, b64, h) {
   const groq = id === 'groq';
   const url = groq ? 'https://api.groq.com/openai/v1/audio/transcriptions' : 'https://api.openai.com/v1/audio/transcriptions';
   const call = (model) => host.fetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + key }, timeout: 30000,
-    form: { model, response_format: 'json', temperature: '0', ...(h ? { prompt: h } : {}), file: { base64: b64, type: 'audio/wav', name: 'speech.wav' } } });
-  let r = await call(groq ? 'whisper-large-v3-turbo' : 'gpt-4o-mini-transcribe');
-  if (!r.ok && !groq && (r.status === 404 || r.status === 400)) r = await call('whisper-1');
+    form: transcribeForm(model, h, whisperLang(), { base64: b64, type: 'audio/wav', name: 'speech.wav' }) });
+  let r;
+  if (groq) r = await call('whisper-large-v3-turbo');
+  else {
+    for (let i = Math.min(openAiSkip, OPENAI_EARS.length - 1); ; i++) {
+      r = await call(OPENAI_EARS[i]);
+      if (r.ok || !(r.status === 404 || r.status === 400) || i >= OPENAI_EARS.length - 1) break;
+      openAiSkip = i + 1;
+    }
+  }
   if (!r.ok) throw new Error(`Couldn't make out the words (${groq ? 'Groq' : 'OpenAI'} ${r.status || r.error}).`);
   return (JSON.parse(r.text).text || '').trim();
 }
