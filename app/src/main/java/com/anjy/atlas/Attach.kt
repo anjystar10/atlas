@@ -48,7 +48,7 @@ object Attach {
 
     class TooBig(msg: String) : Exception(msg)
 
-    private fun dir(ctx: Context) = File(ctx.filesDir, "attachments").apply { mkdirs() }
+    internal fun dir(ctx: Context) = File(ctx.filesDir, "attachments").apply { mkdirs() }
 
     /** Copies what the user picked or pasted into Atlas. Throws [TooBig] (with a sentence for the user) past the limits. */
     fun take(ctx: Context, uri: Uri): Item {

@@ -495,6 +495,29 @@ function deviceCard(col) {
   }).catch(() => { c.innerHTML = '<p class="muted">Couldn\'t read this PC\'s hardware.</p>'; });
 }
 
+// >>> vault
+async function vaultEdit(old) {
+  const v = (x) => esc(x || '');
+  const html = `<div class="col" style="gap:8px;margin-top:6px">
+    <input class="field" id="vn" placeholder="Name, e.g. My Gmail" value="${v(old && old.name)}">
+    <input class="field" id="vs" placeholder="Site, e.g. accounts.google.com" value="${v(old && old.site)}">
+    <input class="field" id="vu" placeholder="Username or email" value="${v(old && old.username)}" autocomplete="off">
+    <input class="field" id="vp" type="password" placeholder="${old ? 'Password (leave empty to keep it)' : 'Password'}" autocomplete="new-password">
+    <input class="field" id="vo" placeholder="Notes (optional)" value="${v(old && old.notes)}">
+    <label class="row small" style="gap:8px"><input type="checkbox" id="vt" ${old && old.trusted ? 'checked' : ''}> Allow without asking on this site</label>
+    ${old ? '<div class="row"><button class="btn" id="vshow">Show Password</button><button class="btn danger" id="vdel">Delete</button></div>' : ''}</div>`;
+  await sheet({ title: old ? 'Edit ' + old.name : 'Add a Sign-in', html, primary: 'Save', onOpen: (o) => {
+    const show = o.querySelector('#vshow'); if (show) show.onclick = async () => { const pw = await host.vault.reveal(old.id); if (pw != null) { const f = o.querySelector('#vp'); f.type = 'text'; f.value = pw; } };
+    const del = o.querySelector('#vdel'); if (del) del.onclick = async () => { await host.vault.remove(old.id); o.remove(); toast('Deleted ' + old.name); render(true); };
+  }, onPrimary: async (o) => {
+    const q = (id) => o.querySelector(id);
+    const r = await host.vault.save({ id: old ? old.id : undefined, name: q('#vn').value, site: q('#vs').value, username: q('#vu').value, password: q('#vp').value, notes: q('#vo').value, trusted: q('#vt').checked });
+    if (r && r.error) { toast(r.error); return false; }
+    toast('Saved'); render(true); return true;
+  } });
+}
+// <<< vault
+
 function renderMe(page) {
   const col = h('<div class="column"></div>'); page.appendChild(col);
   col.appendChild(h('<h1 class="title">Me</h1>'));
@@ -593,6 +616,23 @@ function renderMe(page) {
   chipRow('Speaking Speed', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']], voice.speed(), (k) => voice.setSpeed(k));
   vc.appendChild(settingRow('Keep Listening', pref('keepTalking', true), (on) => setPref('keepTalking', on), "After Atlas answers a spoken question it listens again, so you can just keep talking. Say “that's all” or stay quiet to stop."));
   chipRow('Language You Speak', voice.LANGUAGES, voice.language() || 'auto', (k) => voice.setLanguage(k), 'Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.');
+
+  // >>> vault: sign-ins Atlas Bot may use in its browser (desktop/vault.js; passwords never reach this page unless shown)
+  if (host.vault) {
+    col.appendChild(h('<div class="eyebrow">Vault</div>'));
+    const vc = h('<div class="card"><p class="muted">Loading…</p></div>'); col.appendChild(vc);
+    host.vault.list().then((entries) => {
+      vc.innerHTML = '';
+      vc.appendChild(h(`<div style="font:400 22px var(--serif)">${entries.length ? entries.length + ' saved sign-in' + (entries.length === 1 ? '' : 's') : 'No saved sign-ins'}</div>`));
+      vc.appendChild(h('<p class="muted">Sign-ins Atlas Bot can use in its browser. It never sees them: they go straight into the page, after your OK unless you allow a site. Kept on this PC only, encrypted by Windows, never synced.</p>'));
+      entries.slice().sort((x, y) => x.name.localeCompare(y.name)).forEach((e) => {
+        const r = h(`<div class="vault-row" style="padding:10px 0;cursor:pointer;border-top:1px solid var(--line)"><div style="font-weight:500">${esc(e.name)}</div><div class="small muted">${esc(e.site)}${e.trusted ? ' · allowed without asking' : ''}</div></div>`);
+        r.onclick = () => vaultEdit(e); vc.appendChild(r);
+      });
+      const add = h('<button class="btn" style="margin-top:12px">Add a Sign-in</button>'); add.onclick = () => vaultEdit(null); vc.appendChild(add);
+    }).catch(() => { vc.innerHTML = '<p class="muted">The vault couldn\'t be opened.</p>'; });
+  }
+  // <<< vault
 
   // Devices
   BX.permissionsCard(col, kit());

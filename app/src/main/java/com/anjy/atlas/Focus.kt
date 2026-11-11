@@ -108,7 +108,12 @@ object Focus {
         return mins
     }
 
+    @Volatile private var channelReady = false
+
+    /** Set up once per run of the app (the ongoing notification asks for it on every update). */
     fun channel(ctx: Context) {
+        if (channelReady) return
+        channelReady = true
         ctx.getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel(CH_FOCUS, "Focus sessions", NotificationManager.IMPORTANCE_LOW).apply { description = "Shown while you're in a focus session" })
     }

@@ -386,6 +386,7 @@ object BotBrowser {
         "browser_back" -> "Going back"
         "browser_wait" -> "Waiting for the page"
         "browser_download" -> "Downloading a file"
+        "browser_fill_login" -> "Filling in a saved sign-in"
         else -> "Using the browser"
     }
 
@@ -418,6 +419,18 @@ object BotBrowser {
                 Out(read(v, BrowserRules.ACTION_CHARS), "Opened ${BrowserRules.host(v.url ?: url)}", url = v.url ?: url)
             }
             "browser_read" -> Out(read(v, BrowserRules.READ_CHARS), "Read ${site().ifBlank { "the page" }}")
+            // ---- a saved sign-in from the vault (Vault.kt): the values go into the page, never to the model
+            "browser_fill_login" -> {
+                val ref = args.optString("entry")
+                val e = Vault.find(withContext(Dispatchers.IO) { Vault.all(ctx) }, ref)
+                    ?: return Out("Error: there's no saved sign-in called “${ref.take(40)}” (or more than one fits). Use vault_list for the names, or ask the user to sign in.", "No such saved sign-in")
+                if (!Vault.siteMatches(e.site, site())) return Out("Error: the saved sign-in “${e.name}” is for ${e.site}, but this page is ${site().ifBlank { "not a website" }}. Open ${e.site}'s sign-in page first.", "Wrong site for that sign-in")
+                val r = eval(v, Vault.fillJs(e.username, e.password))
+                if (r?.optBoolean("ok") != true) return Out("Error: couldn't find the sign-in fields on this page. Open the sign-in page (it may be a step further, e.g. after entering the username).", "No sign-in fields here")
+                delay(200)
+                Out("Filled the saved sign-in “${e.name}”: username ${if (r.optBoolean("user")) "filled" else "not found"}, password ${if (r.optBoolean("pass")) "filled" else "not found (it may be on the next step)"}. Now click the sign-in / next button.\n\n" + read(v, BrowserRules.ACTION_CHARS),
+                    "Filled your saved sign-in for ${e.site}")
+            }
             "browser_click" -> {
                 val target = args.optString("target")
                 val f = eval(v, findJs(target))

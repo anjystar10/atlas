@@ -124,12 +124,13 @@ object Bots {
     // ---------------------------------------------------------------- what the user (or Atlas) does
 
     /** Sends a bot to do [goal]. Returns the job. */
-    fun deploy(ctx: Context, goal: String, details: String, specialist: String? = null, routine: String? = null, parent: String? = null, maxCalls: Int = 0, maxMs: Long = 0): BotJob {
+    fun deploy(ctx: Context, goal: String, details: String, specialist: String? = null, routine: String? = null, parent: String? = null, maxCalls: Int = 0, maxMs: Long = 0, memo: Boolean = false): BotJob {
         init(ctx)
         val now = System.currentTimeMillis()
         val device = try { Store.read(ctx) { it.deviceId } } catch (_: Exception) { "" }
         val j = BotJob(UUID.randomUUID().toString(), Plain.memory(goal).ifBlank { goal.trim() }.take(300), details.trim().take(4000), now, device)
         j.history.add(now to BotRules.QUEUED)
+        j.memo = memo
         j.specialist = specialist; j.routine = routine; j.maxCalls = maxCalls; j.maxMs = maxMs
         if (parent != null) { j.parent = parent; j.depth = (job(parent)?.depth ?: 0) + 1 }
         jobs.add(j)
@@ -411,7 +412,10 @@ object Bots {
                         // ---- the bot's web browser (BotBrowser): act on websites, with risky clicks and submits waiting for an OK
                         in browserTools -> {
                             val (label, inForm) = BotBrowser.inspect(app, j.id, c.name, c.args)
-                            BrowserRules.approval(c.name, c.args, label, inForm, BotBrowser.site())?.let { what ->
+                            // a saved sign-in the user allowed on this site goes ahead without asking (Vault.kt)
+                            val trusted = c.name == "browser_fill_login" && withContext(Dispatchers.IO) { Vault.find(Vault.all(app), c.args.optString("entry")) }
+                                ?.let { it.trusted && Vault.siteMatches(it.site, BotBrowser.site()) } == true
+                            if (!trusted) BrowserRules.approval(c.name, c.args, label, inForm, BotBrowser.site())?.let { what ->
                                 askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label)); return
                             }
                             val out = runBrowser(j, c)
@@ -443,6 +447,8 @@ object Bots {
         val what = label(c)
         j.current = what; j.pending = what; persistNow(); changed()
         val r = Tools.run(app, c)
+        // pictures the bot made go into its job folder (listed on the job page)
+        r.media.forEach { m -> try { val d = BotBrowser.jobDir(app, j.id).apply { mkdirs() }; m.file.copyTo(java.io.File(d, m.file.name), overwrite = true) } catch (e: Exception) { Log.w(TAG, "picture", e) } }
         j.pending = null; j.toolCalls++
         j.step(r.step ?: what)
         if (c.name == "read_page") c.args.optString("url").trim().takeIf { it.startsWith("http") && it !in j.sources }?.let { j.sources.add(it); if (j.sources.size > 40) j.sources.removeAt(0) }
@@ -562,8 +568,21 @@ object Bots {
         // a helper's report goes back to the bot that sent it, not into the chat
         if (j.parent != null) { persist(); changed(); main.post { pump() }; return }
         if (!j.posted) { j.posted = true; Conversation.postFromBot(app, "**Atlas Bot finished:** ${j.goal}\n\n${j.report}") }
+        if (j.memo) sendMemo(j)
         notifyAlert(j, "Atlas Bot is done", j.goal)
         persist(); changed()
+    }
+
+    /** The report as a spoken voice memo in the chat, in the user's chosen voice (needs a Gemini or OpenAI key). */
+    private fun sendMemo(j: BotJob) {
+        val report = j.report ?: return
+        Thread {
+            val f = try { Voice.memoFile(app, Speech.memoText(report), Attach.dir(app)) } catch (e: Exception) { Log.w(TAG, "voice memo", e); null }
+            Handler(Looper.getMainLooper()).post {
+                if (f != null) Conversation.postFromBot(app, "**Voice memo:** ${j.goal}", listOf(Attach.Item(f.path, if (f.name.endsWith(".mp3")) "audio/mpeg" else "audio/wav", "Voice memo")))
+                else Conversation.postFromBot(app, "I couldn't record the voice memo for “${j.goal}” (it needs a Gemini or OpenAI key for the natural voice). The written report is above.")
+            }
+        }.start()
     }
 
     /** A report built from the notes, when the bot ran out of budget without writing one. */
@@ -589,7 +608,7 @@ object Bots {
 
     /** Atlas's own tools that bots don't get: settings, focus sessions, and sending more bots. */
     private val notForBots = setOf("change_setting", "start_focus", "deploy_bot", "save_skill", "set_routine")
-    private val browserTools = setOf("browser_open", "browser_read", "browser_click", "browser_type", "browser_select", "browser_press", "browser_scroll", "browser_back", "browser_wait", "browser_download")
+    private val browserTools = setOf("browser_open", "browser_read", "browser_click", "browser_type", "browser_select", "browser_press", "browser_scroll", "browser_back", "browser_wait", "browser_download", "browser_fill_login" /* vault: Vault.kt */)
 
     private val declarations: JSONArray by lazy {
         JSONArray().apply {
@@ -614,6 +633,7 @@ object Bots {
             put(fn("browser_back", "Go back to the previous page."))
             put(fn("browser_wait", "Wait for the page to finish loading or updating, then read it.",
                 JSONObject().put("seconds", JSONObject().put("type", "number").put("description", "1 to 15 seconds"))))
+            put(Vault.fillDeclaration)   // a saved sign-in from the vault (Vault.kt)
             put(fn("browser_download", "Download a file: a link's number from the page, or a web address. It's kept with this job (the user can save it to Downloads).",
                 JSONObject().put("target", str("The link's number or the file's web address")), listOf("target")))
             // >>> files the bot hands over (BotFiles): its job folder, a PDF document, an Excel spreadsheet, an interactive page
@@ -766,7 +786,12 @@ ${Tools.logContext(ctx)}
 
     // ---------------------------------------------------------------- notifications
 
+    @Volatile private var channelsReady = false
+
+    /** Set up once per run of the app: each call is a slow round trip to Android (see Reminders.channels). */
     fun channels(ctx: Context) {
+        if (channelsReady) return
+        channelsReady = true
         val nm = ctx.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CH_BOT, "Atlas Bot working", NotificationManager.IMPORTANCE_LOW).apply { description = "Shown while Atlas Bot works on a job" })
         nm.createNotificationChannel(NotificationChannel(CH_BOT_ALERT, "Atlas Bot", NotificationManager.IMPORTANCE_HIGH).apply { description = "When a bot finishes, has a question or needs your OK" })

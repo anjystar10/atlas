@@ -40,6 +40,15 @@ contextBridge.exposeInMainWorld('atlasHost', {
     remove: (file) => ipcRenderer.invoke('library:delete', file),
   },
   // <<< bot files
+  // >>> vault
+  vault: {
+    list: () => ipcRenderer.invoke('vault:list'),
+    model: () => ipcRenderer.invoke('vault:model'),
+    save: (entry) => ipcRenderer.invoke('vault:save', entry),
+    remove: (id) => ipcRenderer.invoke('vault:remove', id),
+    reveal: (id) => ipcRenderer.invoke('vault:reveal', id),
+  },
+  // <<< vault
   on: (channel, fn) => {
     const ok = ['notification-click', 'orb-clicked', 'orb-state'];
     if (!ok.includes(channel)) return;

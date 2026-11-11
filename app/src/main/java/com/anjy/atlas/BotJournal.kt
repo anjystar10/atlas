@@ -130,7 +130,8 @@ object BotRules {
         "open_link" -> args.optString("url").trim().lowercase().let { u -> if (riskySchemes.any { u.startsWith(it) }) "Open ${args.optString("url").trim().take(80)} (starts a call, message or email)" else null }
         "tap", "long_press" -> elementLabel?.takeIf { riskyWords.containsMatchIn(it) }?.let { "${if (tool == "tap") "Tap" else "Press and hold"} “${it.take(60)}”" }
         "type_text" -> if (args.optBoolean("press_enter", false)) "Type “${args.optString("text").take(60)}” and press send/enter" else null
-        else -> null
+        // calendar changes and the like (PhoneData.kt)
+        else -> PhoneData.approval(tool, args)
     }
 
     private val readOnlyCommand = Regex("^\\s*(get-[a-z]+|test-path|test-connection|select-string|measure-object|resolve-path|where\\.exe|where|dir|ls|cat|type|echo|hostname|whoami|ipconfig|systeminfo|tasklist|ping)\\b[^;|&>]*$", RegexOption.IGNORE_CASE)
@@ -198,6 +199,8 @@ class BotJob(
     var posted = false
     /** Why this job would be better done on the laptop, once the bot has said so (null: it hasn't). */
     var suggestPc: String? = null
+    /** Also send the report as a spoken voice memo. */
+    var memo = false
     // ---- extras: the user's messages while it works, "wrap up now", the specialist it works as, its team, the routine that sent it
     val inbox = mutableListOf<String>()
     var wrapUp = false
@@ -240,7 +243,7 @@ class BotJob(
         .put("device", device).put("updated_ms", updatedAt).put("suggestPc", suggestPc ?: JSONObject.NULL)
         .put("inbox", JSONArray(inbox)).put("wrapUp", wrapUp).put("specialist", specialist ?: JSONObject.NULL).put("parent", parent ?: JSONObject.NULL)
         .put("depth", depth).put("children", JSONArray(children)).put("routine", routine ?: JSONObject.NULL).put("maxCalls", maxCalls).put("maxMs", maxMs)
-        .put("reported", reported).put("finishNudged", finishNudged)
+        .put("reported", reported).put("finishNudged", finishNudged).put("memo", memo)
 
     companion object {
         private fun JSONObject.str(k: String): String? = if (isNull(k)) null else optString(k).takeIf { has(k) }
@@ -261,6 +264,7 @@ class BotJob(
             inbox.addAll(o.optJSONArray("inbox").strings()); wrapUp = o.optBoolean("wrapUp"); specialist = o.str("specialist"); parent = o.str("parent")
             depth = o.optInt("depth"); children.addAll(o.optJSONArray("children").strings()); routine = o.str("routine")
             maxCalls = o.optInt("maxCalls"); maxMs = o.optLong("maxMs"); reported = o.optBoolean("reported"); finishNudged = o.optBoolean("finishNudged")
+            memo = o.optBoolean("memo")
         }
 
         fun listJson(jobs: List<BotJob>): String = JSONArray().apply { jobs.forEach { put(it.json()) } }.toString()

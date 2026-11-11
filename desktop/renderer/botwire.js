@@ -7,7 +7,7 @@ import { plainReply, plainMemory } from './plain.js';
 import { createBots, MAX_TOOL_CALLS, MAX_WORK_MS, MAX_DEPTH, callsOf, msOf } from './bots.js';
 import { createExtras, skillsIndex, teamIndex, specialistPrompt, rulesPrompt, describeSchedule } from './botx.js';
 import * as sync from './sync.js';
-import { BROWSER_TOOLS, BROWSER, browserLabel } from './botbrowse.js';
+import { BROWSER_TOOLS, BROWSER, VAULT_TOOLS, browserLabel } from './botbrowse.js';
 import { FILE_TOOLS, FILES, filesLabel, runFiles, filesFooter } from './botfiles.js';
 const host = window.atlasHost;
 
@@ -117,9 +117,10 @@ export const bots = createBots({
   isSwitch: (e) => e instanceof brain.Switch,
   isRetryable: (e) => e instanceof brain.Failure && (e.offline || [429, 500, 502, 503, 504].includes(e.code)),
   tools: brain.TOOLS,
-  extraTools: [...(host.botBrowser ? BROWSER_TOOLS : []), ...(host.botFiles ? FILE_TOOLS : [])],
+  extraTools: [...(host.botBrowser ? BROWSER_TOOLS : []), ...(host.vault ? VAULT_TOOLS : []), ...(host.botFiles ? FILE_TOOLS : [])],
   labelFor: (c) => browserLabel(c) || filesLabel(c),
-  runTool: (call, opts) => (BROWSER.has(call.name) ? runBrowser(call, opts) : FILES.has(call.name) ? runFiles(call, opts && opts.job) : brain.runTool(call, opts)),
+  runTool: (call, opts) => (call.name === 'vault_list' ? (host.vault ? host.vault.model().then((out) => ({ out, step: 'Checked your saved sign-ins' })) : Promise.resolve({ out: "Error: the vault isn't available here." }))
+    : BROWSER.has(call.name) ? runBrowser(call, opts) : FILES.has(call.name) ? runFiles(call, opts && opts.job) : brain.runTool(call, opts)),
   reportFooter: filesFooter,
   checkApproval: (call, job) => (BROWSER.has(call.name) && host.botBrowser ? host.botBrowser.check(job.id, job.goal, call.name, call.args || {}) : Promise.resolve(null)),
   onFinal: (job) => { if (job.browser && host.botBrowser) host.botBrowser.close(job.id); },
