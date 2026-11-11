@@ -736,7 +736,8 @@ class MainActivity : Activity() {
     internal var keepSheet = false
     internal val liveAnims = mutableListOf<android.animation.Animator>()
     internal val ticker = android.os.Handler(android.os.Looper.getMainLooper())
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    /** Work tied to this screen: cancelled in onDestroy, so nothing redraws a closed screen (ConnectionsUi uses it too). */
+    internal val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var imeOpen = false
     private lateinit var composer: LinearLayout
     private lateinit var composerField: EditText
