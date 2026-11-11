@@ -434,3 +434,12 @@ test('designed voice id is found in either answer shape, and the description nam
   assert.equal(vo.voiceId({ error: { message: 'no' } }), null);
   for (const w of ['jarvis', 'bettany', 'stark', 'iron man', 'marvel']) assert.ok(!vo.ATLAS_DESIGN.toLowerCase().includes(w));
 });
+
+test('voice: only Gemini refusing the designed voice forgets it (not the network, a busy server or a limit)', () => {
+  assert.equal(vo.refusedVoice(400), true);
+  assert.equal(vo.refusedVoice(404), true);
+  assert.equal(vo.refusedVoice(0), false);      // no connection
+  assert.equal(vo.refusedVoice(429), false);
+  assert.equal(vo.refusedVoice(408), false);
+  assert.equal(vo.refusedVoice(503), false);
+});
