@@ -80,7 +80,7 @@ class Busy extends Error { constructor() { super('Busy.'); this.code = 503; } }
 class Sw extends Error { constructor(to) { super('Keys out.'); this.to = to; } }
 
 /** A bot world with a scripted model: each call takes the next turn from [script] (a function of the brief, or a turn). */
-function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false } = {}) {
+function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false, tools = null, extraApproval = null } = {}) {
   const w = { saved: journal, notes: [], posts: [], ran: [], briefs: [], tools: [], timers: [], calls: 0, prov: providers, made: 0 };
   let n = 0, clock = 1000;
   w.bots = B.createBots({
@@ -90,7 +90,7 @@ function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gem
       const i = n++; const s = script[i]; if (!s) throw new Error('script ran out at ' + i); return typeof s === 'function' ? s(brief) : s; }, results: (list) => w.notes.push(list.map((x) => x.out)) }; },
     callWithKeys: async (p, sess, call) => { const k = w.calls++; if (k === switchAt) throw new Sw(w.prov[1]); if (k === failAt) throw new Busy(); return call(); },
     isSwitch: (e) => e instanceof Sw, isRetryable: (e) => e instanceof Busy,
-    tools: [{ name: 'web_search' }, { name: 'read_page' }, { name: 'run_command' }, { name: 'change_setting' }, { name: 'deploy_bot' }],
+    tools: tools || [{ name: 'web_search' }, { name: 'read_page' }, { name: 'run_command' }, { name: 'change_setting' }, { name: 'deploy_bot' }], extraApproval,
     runTool: async (c, o) => { w.ran.push([c.name, !!(o && o.approved)]); return { out: `${c.name} result`, step: `Did ${c.name}` }; },
     systemPrompt: (j) => { w.sysFor = (w.sysFor || []).concat([j && j.id]); return 'sys'; }, notify: (t, b, tag) => w.notes.push(['notify', t, tag]), post: (m) => w.posts.push(m),
     plainReply: (s) => String(s).trim(), plainMemory: (s) => String(s).trim(),
@@ -703,4 +703,28 @@ test('connections: approvals follow each kind of action (W2 kinds), and the trus
   const idx = new Map([['mcp__n__get', { server: 'n', tool: 'get', readOnly: true, destructive: false, trust: 'reads' }], ['mcp__n__wipe', { server: 'n', tool: 'wipe', readOnly: true, destructive: true, trust: 'reads' }]]);
   assert.equal(CN.approvalFrom(idx, 'mcp__n__get', {}), null);
   assert.ok(CN.approvalFrom(idx, 'mcp__n__wipe', {}), 'marked read-only AND destructive: ask');
+});
+
+test('connections in a bot: tools appear while the bot runs; read-only ones go ahead, changes wait for the OK', async () => {
+  const snap = { servers: [{ name: 'notes', status: 'off', trust: 'reads', chat: true, bots: true, tools: [] }], apis: [] };
+  const toolsSeen = () => [{ name: 'web_search' }, ...CN.declarationsFrom(snap, 'bots')];
+  const idx = () => { const m = new Map(); CN.declarationsFrom(snap, 'bots', m); return m; };
+  const w = world([
+    turn(call('mcp__notes__add', { a: 1, b: 2 })),
+    turn(call('mcp__notes__save_note', { text: 'hello' })),
+    (brief) => { assert.ok(brief.includes('Approved and done')); return turn(call('finish', { report: 'Saved.' })); },
+  ], { tools: toolsSeen, extraApproval: (name, a) => CN.approvalFrom(idx(), name, a) });
+  // the server connects after the app started: its tools must still reach the bot
+  snap.servers[0].status = 'connected';
+  snap.servers[0].tools = [{ name: 'add', inputSchema: { type: 'object', properties: { a: { type: 'number' }, b: { type: 'number' } } }, readOnly: true },
+    { name: 'save_note', inputSchema: { type: 'object', properties: { text: { type: 'string' } } }, readOnly: false }];
+  await w.bots.init();
+  const j = w.bots.deploy('Note it', '');
+  await settle(w);
+  assert.ok(w.tools[0].includes('mcp__notes__add') && w.tools[0].includes('mcp__notes__save_note'), 'the bot was offered the connection tools');
+  assert.deepEqual(w.ran, [['mcp__notes__add', false]], 'the read-only tool ran; the change did not');
+  assert.equal(j.state, B.S.AWAITING_APPROVAL);
+  w.bots.approve(j.id, true); await settle(w);
+  assert.deepEqual(w.ran, [['mcp__notes__add', false], ['mcp__notes__save_note', true]]);
+  assert.equal(j.state, B.S.COMPLETED);
 });

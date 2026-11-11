@@ -112,6 +112,7 @@ function createConnections(deps) {
   function explain(e, stderr) {
     const m = String((e && e.message) || e);
     if (/ENOENT/.test(m)) return "Couldn't start it: that command wasn't found on this PC.";
+    if (/fetch failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET/i.test(m + ' ' + ((e && e.cause && e.cause.code) || ''))) return "Couldn't reach it. Check the address, that the server is running, and this PC's internet.";
     if (/401|403|Unauthorized/i.test(m)) return 'The server turned Atlas down (401/403). Check the token.';
     const tail = stderr && stderr.trim() ? ' — ' + stderr.trim().split('\n').pop().slice(0, 160) : '';
     return m.slice(0, 200) + tail;
