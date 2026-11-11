@@ -67,7 +67,9 @@ object Bots {
     fun job(id: String?) = jobs.firstOrNull { it.id == id }
     /** True while any job is working or about to (the background service stays up for these). */
     fun active() = jobs.any { it.state == BotRules.RUNNING || it.state == BotRules.QUEUED || it.state == BotRules.WAITING_RETRY }
-    fun visible() = jobs.filter { !it.final || System.currentTimeMillis() - it.updatedAt < 7 * 24 * 3_600_000L }.sortedByDescending { it.createdAt }
+    // helpers show inside their bot's page, not in the list
+    fun visible() = jobs.filter { it.parent == null && (!it.final || System.currentTimeMillis() - it.updatedAt < 7 * 24 * 3_600_000L) }.sortedByDescending { it.createdAt }
+    fun helpers(id: String) = job(id)?.children?.mapNotNull { job(it) } ?: emptyList()
 
     // ---------------------------------------------------------------- the journal
 
@@ -78,6 +80,7 @@ object Bots {
         if (loaded) return
         app = ctx.applicationContext
         loaded = true
+        BotExtras.init(app)
         try {
             val f = file()
             if (f.baseFile.exists()) jobs.addAll(BotJob.parseList(String(f.readFully(), Charsets.UTF_8)))
@@ -96,7 +99,8 @@ object Bots {
     }
 
     private fun snapshot(): ByteArray {
-        val finished = jobs.filter { it.final }.sortedByDescending { it.updatedAt }.drop(KEEP_FINISHED).toSet()
+        // a finished helper stays while its bot still needs its report
+        val finished = jobs.filter { it.final && !(it.parent != null && job(it.parent)?.final == false) }.sortedByDescending { it.updatedAt }.drop(KEEP_FINISHED).toSet()
         if (finished.isNotEmpty()) jobs.removeAll(finished)
         return BotJob.listJson(jobs).toByteArray(Charsets.UTF_8)
     }
@@ -120,12 +124,14 @@ object Bots {
     // ---------------------------------------------------------------- what the user (or Atlas) does
 
     /** Sends a bot to do [goal]. Returns the job. */
-    fun deploy(ctx: Context, goal: String, details: String): BotJob {
+    fun deploy(ctx: Context, goal: String, details: String, specialist: String? = null, routine: String? = null, parent: String? = null, maxCalls: Int = 0, maxMs: Long = 0): BotJob {
         init(ctx)
         val now = System.currentTimeMillis()
         val device = try { Store.read(ctx) { it.deviceId } } catch (_: Exception) { "" }
         val j = BotJob(UUID.randomUUID().toString(), Plain.memory(goal).ifBlank { goal.trim() }.take(300), details.trim().take(4000), now, device)
         j.history.add(now to BotRules.QUEUED)
+        j.specialist = specialist; j.routine = routine; j.maxCalls = maxCalls; j.maxMs = maxMs
+        if (parent != null) { j.parent = parent; j.depth = (job(parent)?.depth ?: 0) + 1 }
         jobs.add(j)
         persist(); changed(); pump()
         return j
@@ -148,13 +154,34 @@ object Bots {
         j.move(BotRules.CANCELLED, System.currentTimeMillis()); j.current = null
         BotBrowser.release(id)
         cancelAlert(j)
+        j.children.toList().forEach { stop(it) }   // its helpers stop with it
         persist(); changed(); pump()
     }
 
-    fun approve(id: String, yes: Boolean) {
+    /** A message from the user to a bot while it works (or waits): it reads it at its next step. */
+    fun steer(id: String, text: String): Boolean {
+        val j = job(id) ?: return false
+        val t = text.trim().take(1000)
+        if (t.isEmpty() || j.final) return false
+        j.inbox.add(t); j.step("You said: ${t.take(120)}"); j.updatedAt = System.currentTimeMillis()
+        persist(); changed(); return true
+    }
+
+    /** "Wrap up now": the bot stops after its current step and writes the report with what it has. */
+    fun wrapUp(id: String) {
+        val j = job(id) ?: return
+        if (j.final) return
+        j.wrapUp = true; j.step("You asked it to wrap up"); j.updatedAt = System.currentTimeMillis()
+        if (j.state == BotRules.PAUSED || j.state == BotRules.WAITING_HELPERS) j.move(BotRules.QUEUED, System.currentTimeMillis())
+        persist(); changed(); pump()
+    }
+
+    /** [always]: also allow this kind of action from now on (the user's standing choice, in Me). */
+    fun approve(id: String, yes: Boolean, always: Boolean = false) {
         val j = job(id) ?: return
         val a = j.approval ?: return
         if (j.state != BotRules.AWAITING_APPROVAL) return
+        if (yes && always) a.category?.let { BotExtras.setMode(it, "allow") }
         a.decision = if (yes) "approved" else "denied"
         j.move(BotRules.QUEUED, System.currentTimeMillis()); cancelAlert(j)
         persist(); changed(); pump()
@@ -189,8 +216,26 @@ object Bots {
     private val retryTick = Runnable { pump() }
 
     /** Starts what can start (at most [BotRules.MAX_RUNNING] at once) and wakes up for the next retry. */
+    /** A bot waiting on helpers carries on once they've all finished (their reports go into its notes). */
+    private fun wakeParents() {
+        jobs.filter { it.state == BotRules.WAITING_HELPERS }.forEach { p ->
+            if (p.children.mapNotNull { job(it) }.all { it.final }) { takeHelperReports(p); p.move(BotRules.QUEUED, System.currentTimeMillis()); persist() }
+        }
+    }
+    private fun takeHelperReports(p: BotJob) {
+        p.children.mapNotNull { job(it) }.filter { it.final && !it.reported }.forEach { k ->
+            k.reported = true
+            val who = k.specialist?.let { BotExtras.specialist(it)?.optString("name") } ?: "A helper"
+            val body = if (k.state == BotRules.COMPLETED) (k.report ?: "").take(4000) else "It couldn't finish (${k.error ?: BotRules.label(k.state)})."
+            p.notes.add("$who reported on \"${k.goal}\":\n$body"); while (p.notes.size > 60) p.notes.removeAt(0)
+            p.toolCalls += k.toolCalls   // the helpers' work counts against the whole job's budget
+            p.step("$who reported back")
+        }
+    }
+
     fun pump() {
         if (!loaded) return
+        wakeParents()
         val now = System.currentTimeMillis()
         // how many may work at once depends on the phone right now: one when it's hot, short of memory or saving battery
         val slots = try { minOf(BotRules.MAX_RUNNING, ModelDirector.botSlots(DeviceProfiler.read(app))) } catch (_: Exception) { 1 }
@@ -237,18 +282,29 @@ object Bots {
         val tried = mutableSetOf(p.id)
         var nudges = 0
         var extra = ""
+        // the user's messages since the last turn become standing instructions (kept in the notes for the whole job)
+        fun inbox() {
+            if (j.inbox.isEmpty()) return
+            j.inbox.forEach { j.notes.add("NEW INSTRUCTION FROM THE USER (follow it; it overrides earlier plans where they differ): $it") }
+            j.inbox.clear(); while (j.notes.size > 60) j.notes.removeAt(0); persist()
+        }
         while (stillMine()) {
             tick()
-            val wrapping = j.toolCalls >= MAX_TOOL_CALLS || j.workMs >= MAX_WORK_MS
-            val brief = brief(j) + extra + if (wrapping) "\n\nYour budget for this job is used up. Call finish now with the best report you can from your plan and notes, and say plainly what's left undone." else ""
+            inbox()
+            val wrapping = j.wrapUp || j.toolCalls >= BotRules.callsOf(j) || j.workMs >= BotRules.msOf(j)
+            val brief = brief(j) + extra + when {
+                j.wrapUp -> "\n\nThe user asked you to wrap up now. Call finish with the best report you can from what you have, and say plainly what's left undone."
+                wrapping -> "\n\nYour budget for this job is used up. Call finish now with the best report you can from your plan and notes, and say plainly what's left undone."
+                else -> ""
+            }
             extra = ""
-            val session = try { withContext(Dispatchers.IO) { Providers.session(app, p, emptyList(), brief, tools = if (wrapping) finishOnly else declarations) } }
+            val session = try { withContext(Dispatchers.IO) { Providers.session(app, p, emptyList(), brief, tools = if (wrapping) finishOnly else toolsFor(j)) } }
                 catch (f: Gemini.Failure) { return fail(j, f.message ?: "Couldn't start ${p.name}.") }
             var rounds = 0
             while (stillMine() && rounds < ROUNDS_PER_PART) {
                 rounds++
                 j.current = "Thinking"; changed()
-                val system = withContext(Dispatchers.IO) { systemPrompt(app) }
+                val system = withContext(Dispatchers.IO) { systemPrompt(app, j) }
                 val turn = try {
                     KeyRouter.call(app, p, session, onStatus = { st -> if (stillMine()) { j.current = st ?: "Thinking"; changed() } }) { session.call(system) }
                 } catch (sw: KeyRouter.SwitchService) {
@@ -274,7 +330,47 @@ object Bots {
                 for (c in turn.calls) {
                     if (!stillMine()) break
                     when (c.name) {
-                        "finish" -> { complete(j, c.args.optString("report").ifBlank { turn.text.ifBlank { compiled(j) } }); return }
+                        "finish" -> {
+                            val busy = j.children.mapNotNull { job(it) }.filter { !it.final }
+                            if (busy.isNotEmpty() && !j.finishNudged && !wrapping) {
+                                j.finishNudged = true
+                                results.add(c to "${busy.size} of your helpers are still working. Call wait_for_helpers to get their reports first (or call finish again to finish without them)."); continue
+                            }
+                            busy.forEach { stop(it.id) }
+                            complete(j, c.args.optString("report").ifBlank { turn.text.ifBlank { compiled(j) } }); return
+                        }
+                        // ---- extras (BotExtras): skills, helpers, a specialist's own notes
+                        "use_skill" -> {
+                            val sk = BotExtras.skill(c.args.optString("name"))
+                            results.add(c to (sk?.let { BotExtras.Rules.skillText(it) } ?: "There's no skill called \"${c.args.optString("name")}\". Skills: ${BotExtras.skills.joinToString(", ") { it.optString("name") }.ifEmpty { "none yet" }}."))
+                            sk?.let { j.step("Using the skill: ${it.optString("name")}") }
+                        }
+                        "delegate" -> {
+                            val sp = BotExtras.specialist(c.args.optString("specialist"))
+                            val task = c.args.optString("task").trim()
+                            when {
+                                j.depth >= BotRules.MAX_DEPTH -> results.add(c to "Helpers can't hand work on any further: do it yourself.")
+                                sp == null -> results.add(c to "There's no specialist bot called \"${c.args.optString("specialist")}\". The team: ${BotExtras.specialists.joinToString(", ") { it.optString("name") }}.")
+                                task.isEmpty() -> results.add(c to "Error: say what the helper should do.")
+                                j.children.size >= BotRules.MAX_CHILDREN -> results.add(c to "You already have ${BotRules.MAX_CHILDREN} helpers: that's the limit. Do the rest yourself.")
+                                else -> {
+                                    val (calls, ms) = BotRules.childBudget(j)
+                                    val k = deploy(app, task.lineSequence().first().take(300), task, specialist = sp.optString("id"), parent = j.id, maxCalls = calls, maxMs = ms)
+                                    j.children.add(k.id); j.step("Handed to ${sp.optString("name")}: ${k.goal.take(100)}"); persist()
+                                    results.add(c to "${sp.optString("name")} is on it. Keep working on other parts; call wait_for_helpers when you need its report.")
+                                }
+                            }
+                        }
+                        "wait_for_helpers" -> {
+                            val busy = j.children.mapNotNull { job(it) }.filter { !it.final }
+                            if (busy.isEmpty()) { takeHelperReports(j); results.add(c to if (j.children.isEmpty()) "You haven't handed anything to a helper." else "All your helpers have reported: their reports are in your notes now."); continue }
+                            j.current = null; j.move(BotRules.WAITING_HELPERS, System.currentTimeMillis()); j.step("Waiting for ${busy.size} helper${if (busy.size == 1) "" else "s"}")
+                            persistNow(); changed(); return
+                        }
+                        "bot_remember", "bot_forget" -> {
+                            val sp = j.specialist
+                            results.add(c to if (sp == null) "Only specialist bots keep their own notes." else BotExtras.specialistNote(sp, c.args.optString("text"), c.name == "bot_forget"))
+                        }
                         "update_plan" -> {
                             val lines = c.args.optString("plan").lines().map { it.trim() }.filter { it.isNotEmpty() }
                             if (lines.isNotEmpty()) {
@@ -334,7 +430,8 @@ object Bots {
                 if (j.toolCalls >= BotRules.BIG_JOB_STEPS && j.suggestPc == null) suggestLaptop(j, "It's taking many steps.")
                 session.results(results)
                 persist(); changed()
-                if (j.toolCalls >= MAX_TOOL_CALLS || j.workMs >= MAX_WORK_MS) break
+                if (j.toolCalls >= BotRules.callsOf(j) || j.workMs >= BotRules.msOf(j) || j.wrapUp) break
+                if (j.inbox.isNotEmpty()) break   // the user said something: a fresh turn that includes it
             }
         }
     }
@@ -380,8 +477,12 @@ object Bots {
         val a = j.approval ?: return
         val d = a.decision ?: return
         j.approval = null
-        if (d == "denied") { j.notes.add("The user said NO to: ${a.what}. Don't do it; find another way or finish without it."); j.step("You said no to: ${a.what}"); persist(); return }
-        j.step("You approved: ${a.what}")
+        if (d == "denied") {
+            j.notes.add(if (a.auto) "The user never allows this kind of action (${a.what}). Don't do it; find another way or finish without it." else "The user said NO to: ${a.what}. Don't do it; find another way or finish without it.")
+            if (!a.auto) j.step("You said no to: ${a.what}")
+            persist(); return
+        }
+        if (!a.auto) j.step("You approved: ${a.what}")
         if (a.tool == null || a.args == null) { j.notes.add("The user approved: ${a.what}. Go ahead with exactly that."); persist(); return }
         if (a.tool in browserTools) {
             // a browser action: check the page still shows the same thing, then do it
@@ -411,6 +512,18 @@ object Bots {
     }
 
     private suspend fun askApproval(j: BotJob, a: Approval) {
+        // the user's standing choice for this kind of action: always allowed, never allowed, or ask (BotExtras)
+        a.category = a.category ?: BotExtras.Rules.categoryOf(a.tool, a.args, a.what)
+        val mode = BotExtras.mode(a.category!!)
+        if (mode != "ask") {
+            a.decision = if (mode == "allow") "approved" else "denied"; a.auto = true
+            j.approval = a; j.current = null
+            j.step((if (mode == "allow") "Allowed by your rule (you always allow: " else "Not done: you never allow ") + BotExtras.Rules.label(a.category).lowercase() + (if (mode == "allow") ")" else "") + ": ${a.what}")
+            // straight back in the queue: the decision is acted on at the start of its next turn, like a tapped one
+            j.move(BotRules.AWAITING_APPROVAL, System.currentTimeMillis()); j.move(BotRules.QUEUED, System.currentTimeMillis())
+            persistNow(); changed(); main.post { pump() }
+            return
+        }
         j.approval = a; j.current = null
         j.move(BotRules.AWAITING_APPROVAL, System.currentTimeMillis()); j.step("Waiting for your OK: ${a.what}")
         persistNow(); notifyAlert(j, "Atlas Bot needs your OK", a.what, approval = true); changed()
@@ -431,6 +544,8 @@ object Bots {
         j.plan.forEach { it.done = true }
         j.current = null; j.error = null
         j.move(BotRules.COMPLETED, now)
+        // a helper's report goes back to the bot that sent it, not into the chat
+        if (j.parent != null) { persist(); changed(); main.post { pump() }; return }
         if (!j.posted) { j.posted = true; Conversation.postFromBot(app, "**Atlas Bot finished:** ${j.goal}\n\n${j.report}") }
         notifyAlert(j, "Atlas Bot is done", j.goal)
         persist(); changed()
@@ -458,7 +573,7 @@ object Bots {
     private val finishOnly by lazy { JSONArray().put(finishTool) }
 
     /** Atlas's own tools that bots don't get: settings, focus sessions, and sending more bots. */
-    private val notForBots = setOf("change_setting", "start_focus", "deploy_bot")
+    private val notForBots = setOf("change_setting", "start_focus", "deploy_bot", "save_skill", "set_routine")
     private val browserTools = setOf("browser_open", "browser_read", "browser_click", "browser_type", "browser_select", "browser_press", "browser_scroll", "browser_back", "browser_wait", "browser_download")
 
     private val declarations: JSONArray by lazy {
@@ -499,11 +614,35 @@ object Bots {
             put(finishTool)
         }
     }
+    private val extraTools: Map<String, JSONObject> by lazy {
+        mapOf(
+            "use_skill" to fn("use_skill", "Load one of the skills the user taught you (listed in your instructions) and follow it for this kind of job.", JSONObject().put("name", str("The skill's name")), listOf("name")),
+            "delegate" to fn("delegate", "Hand part of this job to one of the user's specialist bots (listed in your instructions). It works on its own and reports back; call wait_for_helpers when you need the reports. Up to 4 helpers; give each a clear, self-contained task.",
+                JSONObject().put("specialist", str("The specialist bot's name")).put("task", str("Exactly what it should do and report back, with everything it needs to know")), listOf("specialist", "task")),
+            "wait_for_helpers" to fn("wait_for_helpers", "Wait until your helpers have reported. Their reports are added to your notes, then you carry on."),
+            "bot_remember" to fn("bot_remember", "Save a note for yourself (this specialist) for future jobs: a lasting fact about how the user likes this kind of work done.", JSONObject().put("text", str("The note")), listOf("text")),
+            "bot_forget" to fn("bot_forget", "Remove one of your own saved notes that is wrong or out of date.", JSONObject().put("text", str("The note, or words from it")), listOf("text")),
+        )
+    }
+    /** The tools this job's bot gets: a specialist only its own kinds; helpers only at the allowed depth; skills when there are any. */
+    private fun toolsFor(j: BotJob): JSONArray {
+        val sp = j.specialist?.let { BotExtras.specialist(it) }
+        val out = JSONArray()
+        for (i in 0 until declarations.length()) {
+            val d = declarations.getJSONObject(i); val n = d.optString("name")
+            if (n != "finish" && BotExtras.Rules.toolAllowed(sp, n)) out.put(d)
+        }
+        out.put(extraTools["use_skill"])
+        if (j.depth < BotRules.MAX_DEPTH && BotExtras.specialists.isNotEmpty()) { out.put(extraTools["delegate"]); out.put(extraTools["wait_for_helpers"]) }
+        if (sp != null) { out.put(extraTools["bot_remember"]); out.put(extraTools["bot_forget"]) }
+        out.put(finishTool)
+        return out
+    }
     private val toolNames: Set<String> by lazy { (0 until Tools.declarations.length()).map { Tools.declarations.getJSONObject(it).optString("name") }.filter { it !in notForBots }.toSet() }
 
     private val stampFmt = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH)
 
-    private fun systemPrompt(ctx: Context): String {
+    private fun systemPrompt(ctx: Context, j: BotJob? = null): String {
         val name = Store.read(ctx) { it.settings.name }.ifBlank { "the user" }
         val now = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(Engine.zone)
         val phone = if (PhoneControl.on()) "on" else "OFF (you can't use apps; do what you can without them, or ask the user to turn it on in Atlas → Me → Phone control)"
@@ -542,19 +681,36 @@ Using the phone (only when the job needs it):
 
 Big jobs: the user also has Atlas on their laptop, with bigger local models and PC tools. If this job is heavy (very long, many big files, needs the PC's apps or files, or would be much better with a bigger model), call suggest_laptop once early, then keep doing what you can here.
 
-Budget: up to $MAX_TOOL_CALLS tool steps and ${MAX_WORK_MS / 60_000} minutes for the job. When it's nearly used up, finish with what you have.
+Budget: up to ${j?.let { BotRules.callsOf(it) } ?: MAX_TOOL_CALLS} tool steps and ${(j?.let { BotRules.msOf(it) } ?: MAX_WORK_MS) / 60_000} minutes for the job. When it's nearly used up, finish with what you have.
+${teamPart(j)}
 
 Now: ${now.format(stampFmt)} (${Engine.zone.id}).
 ${Tools.logContext(ctx)}
 """.trim()
     }
 
+    /** Skills, the team, the user's standing rules and (for a specialist) who it is: from BotExtras. */
+    private fun teamPart(j: BotJob?): String {
+        val out = mutableListOf<String>()
+        BotExtras.Rules.skillsIndex(BotExtras.skills.toList()).takeIf { it.isNotEmpty() }?.let { out.add(it) }
+        if ((j?.depth ?: 0) < BotRules.MAX_DEPTH) BotExtras.Rules.teamIndex(BotExtras.specialists.filter { it.optString("id") != j?.specialist }).takeIf { it.isNotEmpty() }?.let {
+            out.add("$it\nHand a part to one with delegate when it fits their speciality and the job is big enough to split; small jobs you do yourself.")
+        }
+        BotExtras.Rules.rulesPrompt(BotExtras.policy).takeIf { it.isNotEmpty() }?.let { out.add(it) }
+        j?.routine?.let { id -> BotExtras.routines.firstOrNull { it.optString("id") == id } }?.let { r ->
+            out.add("This job is the routine \"${r.optString("name")}\" (${BotExtras.Rules.describeSchedule(r.optJSONObject("schedule"))}). Keep the report short and focused on what's new since last time.")
+        }
+        val sp = j?.specialist?.let { BotExtras.specialist(it) }
+        return (if (out.isNotEmpty()) "\n" + out.joinToString("\n\n") else "") + BotExtras.Rules.specialistPrompt(sp)
+    }
+
     /** Where the job stands, as the opening message of each fresh round with the model. */
     private fun brief(j: BotJob): String = buildString {
         append("Your job: ").append(j.goal)
         if (j.details.isNotBlank()) append("\nDetails: ").append(j.details)
-        val left = ((MAX_WORK_MS - j.workMs) / 60_000).coerceAtLeast(0)
-        append("\n(Tool steps used: ${j.toolCalls} of $MAX_TOOL_CALLS. Time left: about $left min.)")
+        val left = ((BotRules.msOf(j) - j.workMs) / 60_000).coerceAtLeast(0)
+        append("\n(Tool steps used: ${j.toolCalls} of ${BotRules.callsOf(j)}. Time left: about $left min.)")
+        if (j.parent != null) append("\n(You are a helper: another bot gave you this task. Your report goes back to it, not to the user.)")
         if (j.plan.isEmpty()) append("\n\nNo plan yet: start by making one with update_plan.")
         else { append("\n\nYour plan:"); j.plan.forEachIndexed { i, it -> append("\n${i + 1}. ${if (it.done) "[x]" else "[ ]"} ${it.text}") } }
         if (j.notes.isNotEmpty()) { append("\n\nYour notes so far:"); j.notes.forEach { append("\n- ").append(it) } }

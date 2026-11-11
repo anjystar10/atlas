@@ -165,6 +165,9 @@ class BotActivity : Activity() {
             Bots.deploy(applicationContext, goal, "")
             render()
         }, 16)
+        // routines, skills, the team (BotExtrasActivity)
+        add(row(button("Routines") { startActivity(BotExtrasActivity.intent(this, "routines")) }, button("Skills") { startActivity(BotExtrasActivity.intent(this, "skills")) },
+            button("Team") { startActivity(BotExtrasActivity.intent(this, "team")) }), 12)
         val all = Bots.visible()
         if (all.isEmpty()) {
             add(card().apply {
@@ -218,8 +221,16 @@ class BotActivity : Activity() {
                 add(card().apply {
                     addView(text("It wants to:", 13f, WARN, semi))
                     addView(text(a.what, 17f, FG, serif), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
-                    addView(row(button("Deny") { Bots.approve(j.id, false) }, button("Approve", primary = true) { Bots.approve(j.id, true) }),
+                    // Allow once, or always allow this kind of action (the standing choice in Me → Bot Permissions)
+                    val kind = a.category?.let { BotExtras.Rules.label(it) }
+                    if (kind != null) addView(text("Kind: $kind", 12f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+                    addView(row(button("Deny") { Bots.approve(j.id, false) }, button("Allow Once", primary = true) { Bots.approve(j.id, true) }),
                         LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+                    if (kind != null) addView(button("Always Allow This Kind") {
+                        android.app.AlertDialog.Builder(this@BotActivity).setTitle("Always Allow This Kind?")
+                            .setMessage("Bots won't ask again before: ${kind.lowercase()}. You can change this in Me → Bot Permissions.")
+                            .setPositiveButton("Always Allow") { _, _ -> Bots.approve(j.id, true, always = true) }.setNegativeButton("Cancel", null).show()
+                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
                 }, 14)
             }
             BotRules.AWAITING_ANSWER -> {
@@ -241,6 +252,26 @@ class BotActivity : Activity() {
             j.state == BotRules.PAUSED -> add(row(button("Stop") { Bots.stop(j.id) }, button("Resume", primary = true) { Bots.resume(j.id) }), 14)
             !j.final && j.state !in BotRules.WAITING_ON_USER -> add(row(button("Pause") { Bots.pause(j.id) }, button("Stop") { Bots.stop(j.id) }), 14)
             j.state == BotRules.AWAITING_APPROVAL || j.state == BotRules.AWAITING_ANSWER -> add(row(button("Pause") { Bots.pause(j.id) }, button("Stop") { Bots.stop(j.id) }), 10)
+        }
+
+        // talk to it while it works, or ask it to wrap up (not while it waits on an answer: that box is above)
+        if (!j.final && j.state != BotRules.AWAITING_ANSWER) {
+            add(input("Tell the bot something (it reads it at its next step)") { t -> if (Bots.steer(j.id, t)) android.widget.Toast.makeText(this, "Sent: it reads it at its next step.", android.widget.Toast.LENGTH_SHORT).show() }, 12)
+            add(button(if (j.wrapUp) "Wrapping Up…" else "Wrap Up Now") { if (!j.wrapUp) Bots.wrapUp(j.id) }, 8)
+        }
+
+        // its helpers (specialist bots it handed parts to)
+        val kids = Bots.helpers(j.id)
+        if (kids.isNotEmpty()) {
+            add(text("HELPERS", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
+            kids.forEach { k ->
+                val who = k.specialist?.let { BotExtras.specialist(it)?.optString("name") }
+                add(card().apply {
+                    isClickable = true; setOnClickListener { open(k) }; pressFx()
+                    addView(text(k.goal, 15f, FG, serif).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END })
+                    addView(text(listOfNotNull(who, BotRules.label(k.state)).joinToString(" · "), 12f, stateColor(k.state), med), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+                }, 8)
+            }
         }
 
         // the bot's web browser: watch it work, or take over (sign in, pass a human check)
@@ -303,6 +334,11 @@ class BotActivity : Activity() {
             if (j.steps.size > shown.size) add(text("and ${j.steps.size - shown.size} earlier steps", 13f, MUTED), 6)
             shown.forEach { add(text("· $it", 14f, MUTED), 6) }
         }
+
+        // a finished job can become a skill: a first draft from what it did, to edit
+        if (j.state == BotRules.COMPLETED && j.parent == null) add(button("Save as a Skill") {
+            startActivity(BotExtrasActivity.intent(this, "skills").putExtra(BotExtrasActivity.EXTRA_SKILL, BotExtras.Rules.draftSkill(j).toString()))
+        }, 22)
 
         if (j.final) add(button("Remove From List") { Bots.remove(j.id); finish() }, 24)
     }

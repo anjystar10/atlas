@@ -8,7 +8,8 @@ import { endsTalk } from './speech.js';
 import { Orb } from './orb.js';
 import { renderMarkdown } from './md.js';
 import { plainMemory } from './plain.js';
-import { bots } from './botwire.js';
+import { bots, extras } from './botwire.js';
+import * as BX from './botsui.js';
 import * as fitRules from './fit.js';
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
 const host = window.atlasHost;
@@ -145,6 +146,8 @@ function botStrip(parent, center) {
   b.onclick = () => { tab = 'bots'; botView = null; render(); };
   parent.appendChild(b);
 }
+/** The small helpers botsui.js draws with. */
+const kit = () => ({ h, esc, sheet, toast, render });
 function botColor(s) { return s === BOT.COMPLETED ? 'ok' : s === BOT.FAILED ? 'bad' : BOT_WAITING.has(s) ? 'warn' : s === BOT.CANCELLED || s === BOT.PAUSED ? 'muted' : 'accent'; }
 function renderBots(page) {
   const col = h('<div class="column"></div>'); page.appendChild(col);
@@ -161,7 +164,7 @@ function renderBots(page) {
     box.querySelector('#botgo').onclick = go;
     ta.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); } };
     const all = bots.visible();
-    if (!all.length) { col.appendChild(h('<div class="card" style="margin-top:14px"><div style="font:400 19px var(--serif)">No bots yet</div><p class="muted" style="margin:6px 0 0">Ask Atlas for something bigger, like “research the best monitor under $300 for coding and send me a report”, or say “send a bot to…”.</p></div>')); return; }
+    if (!all.length) { col.appendChild(h('<div class="card" style="margin-top:14px"><div style="font:400 19px var(--serif)">No bots yet</div><p class="muted" style="margin:6px 0 0">Ask Atlas for something bigger, like “research the best monitor under $300 for coding and send me a report”, or say “send a bot to…”.</p></div>')); BX.extrasSections(col, kit()); return; }
     const list = h('<div style="margin-top:14px"></div>'); col.appendChild(list);
     for (const x of all) {
       const line = [BOT_LABELS[x.state], x.state === BOT.RUNNING ? x.current : null, x.plan.length ? `plan ${x.plan.filter((p) => p.done).length}/${x.plan.length}` : null].filter(Boolean).join(' · ');
@@ -169,21 +172,18 @@ function renderBots(page) {
       c.onclick = () => { botView = x.id; botDraft = ''; render(); };
       list.appendChild(c);
     }
+    BX.extrasSections(col, kit());
     return;
   }
-  col.appendChild(Object.assign(h('<button class="btn" style="margin-bottom:14px">‹ All Bots</button>'), { onclick: () => { botView = null; render(); } }));
+  const up = j.parent && bots.job(j.parent);
+  col.appendChild(Object.assign(h(`<button class="btn" style="margin-bottom:14px">‹ ${up ? 'Back to Its Bot' : 'All Bots'}</button>`), { onclick: () => { botView = up ? up.id : null; render(); } }));
   col.appendChild(h(`<h1 class="title" style="font-size:30px">${esc(j.goal)}</h1>`));
   if (j.details) col.appendChild(h(`<p class="muted" style="margin:0 0 8px;white-space:pre-wrap">${esc(j.details.slice(0, 600))}</p>`));
   const now = j.state === BOT.RUNNING ? `${BOT_LABELS[j.state]}: ${j.current || 'Thinking'}` : j.state === BOT.WAITING_RETRY ? `${BOT_LABELS[j.state]} at ${fmtTime(j.retryAt)}${j.error ? ` (${j.error})` : ''}`
     : j.state === BOT.FAILED ? `${BOT_LABELS[j.state]}: ${j.error || ''}` : BOT_LABELS[j.state];
   col.appendChild(h(`<div class="${botColor(j.state)}" style="font-weight:500">${esc(now)}</div>`));
   col.appendChild(h(`<div class="small muted" style="margin-top:2px">${j.toolCalls} steps · ${Math.floor(j.workMs / 60000)} min${j.provider ? ' · ' + esc(j.provider) : ''}</div>`));
-  if (j.state === BOT.AWAITING_APPROVAL && j.approval) {
-    const c = h(`<div class="card" style="margin-top:14px"><div class="small warn" style="font-weight:600">It wants to:</div><div style="font:400 19px var(--serif);margin-top:4px">${esc(j.approval.what)}</div>
-      <div class="row" style="margin-top:12px"><button class="btn grow" id="bdeny">Deny</button><button class="btn primary grow" id="bok">Approve</button></div></div>`);
-    c.querySelector('#bdeny').onclick = () => bots.approve(j.id, false); c.querySelector('#bok').onclick = () => bots.approve(j.id, true);
-    col.appendChild(c);
-  }
+  if (j.state === BOT.AWAITING_APPROVAL && j.approval) BX.approvalCard(col, j, kit());
   const bb = window.atlasHost.botBrowser;
   if (j.state === BOT.AWAITING_ANSWER && j.handover) {
     const c = h(`<div class="card" style="margin-top:14px"><div class="small warn" style="font-weight:600">It needs you in its browser:</div><div style="font:400 19px var(--serif);margin-top:4px">${esc(j.question || '')}</div>
@@ -220,6 +220,8 @@ function renderBots(page) {
     col.appendChild(wk);
     col.appendChild(h('<div class="small muted" style="margin-top:6px">Its browser keeps its own sign-ins. Files it downloads go to Documents › Atlas Bot.</div>'));
   }
+  BX.steerCard(col, j, kit());
+  BX.helpersList(col, j, kit(), (id) => { botView = id; render(); });
   if (j.report) {
     col.appendChild(h('<div class="eyebrow">REPORT</div>'));
     const r = h('<div class="reply"></div>'); r.innerHTML = renderMarkdown(j.report); col.appendChild(r);
@@ -238,6 +240,7 @@ function renderBots(page) {
     for (const x of shown) l.appendChild(h(`<div>· ${esc(x)}</div>`));
     col.appendChild(l);
   }
+  BX.saveAsSkillButton(col, j, kit());
   if (BOT_FINAL.has(j.state)) col.appendChild(Object.assign(h('<button class="btn" style="margin-top:22px">Remove From List</button>'), { onclick: () => { bots.remove(j.id); botView = null; render(); } }));
 }
 
@@ -576,6 +579,7 @@ function renderMe(page) {
   chipRow('Language You Speak', voice.LANGUAGES, voice.language() || 'auto', (k) => voice.setLanguage(k), 'Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.');
 
   // Devices
+  BX.permissionsCard(col, kit());
   col.appendChild(h('<div class="eyebrow">Your Devices</div>'));
   const dc = h('<div class="card"></div>'); col.appendChild(dc);
   const code = sync.code();
@@ -758,6 +762,7 @@ brain.ui.setting = async (name, value) => {
 async function main() {
   await store.load();
   await bots.init();
+  await extras.init();
   applyTheme();
   document.querySelectorAll('.nav').forEach((n) => (n.onclick = () => { tab = n.dataset.tab; logFull = false; botView = null; render(); }));
   buildComposer();
@@ -773,7 +778,7 @@ async function main() {
     if (what === 'sync') { renderFoot(); if (tab === 'me') render(true, true); }
     if (what === 'bots') {
       // the Bots page redraws (keeping what's being typed); the strip on the Atlas tab follows along
-      if (tab === 'bots') { const ta = $('#botask'); const focused = ta && document.activeElement === ta; render(true); if (focused) { const t = $('#botask'); if (t) { t.focus(); t.selectionStart = t.selectionEnd = t.value.length; } } }
+      if (tab === 'bots') { const ta = $('#botask'); const focused = ta && document.activeElement === ta; render(true, true); if (focused) { const t = $('#botask'); if (t) { t.focus(); t.selectionStart = t.selectionEnd = t.value.length; } } }
       if (tab === 'atlas') { const line = botSummary(bots.jobs, Date.now()); const st = $('#botstrip'); if (!!st !== !!line) render(true); else if (st) st.querySelector('span').textContent = line; }
     }
     if (what === 'prefs' && tab === 'atlas') { const bl = $('#brainline'); if (bl && !brain.convo.busy) bl.textContent = brainLine(); }
