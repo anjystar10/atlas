@@ -97,7 +97,7 @@ function renderAtlas(page) {
     <button class="btn" id="newchat">New Chat</button></div>`);
   const orbSlot = h('<div style="width:56px;height:56px"></div>'); head.prepend(orbSlot); col.appendChild(head);
   homeOrb = new Orb(orbSlot, { size: 56 }); homeOrb.el.style.cursor = 'pointer'; homeOrb.el.onclick = () => startListening();
-  head.querySelector('#newchat').onclick = async () => { if (await sheet({ title: 'Start a New Chat?', body: 'This clears the conversation on this PC. Your Log stays as it is.', primary: 'New Chat' })) { db.chat = []; store.saveChat(); render(); } };
+  head.querySelector('#newchat').onclick = async () => { if (await sheet({ title: 'Start a New Chat?', body: 'This clears the conversation here' + (sync.code() ? ' and on your phone' : '') + '. Your Log stays as it is.', primary: 'New Chat' })) { sync.noteDeleted('chat', db.chat.map((m) => m.id)); db.chat = []; store.saveChat(); render(); } };
   botStrip(col);
   const chat = h('<div class="chat" id="chat"></div>'); col.appendChild(chat);
   fillChat();
@@ -724,7 +724,6 @@ async function main() {
   host.showOrb(pref('onScreen', true));
   if (pref(F)) showFocus();
   checkDue(); setInterval(checkDue, 15000);
-  sync.syncSoon(800); setInterval(() => sync.syncSoon(0), 5 * 60000);
-  window.addEventListener('focus', () => sync.syncSoon(500));
+  sync.syncSoon(800); sync.keepFresh();
 }
 main();

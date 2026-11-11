@@ -21,9 +21,10 @@ import javax.crypto.spec.SecretKeySpec
  * name. The devices share a private link code; everything is encrypted with it on the device before it leaves, so
  * the cloud (King Anjy's own Supabase project) only ever holds scrambled text it can't read.
  *
- * How it works: each record's last-sent fingerprint is kept here. A sync pulls what the other device changed since
- * last time and merges it in, then sends whatever changed here (or a "deleted" mark). The newest edit of a record
- * wins. Offline, nothing is lost: changes wait until the next sync.
+ * How it works (the rules are in [SyncPlan]): each record's last-sent fingerprint is kept here. A sync first notes
+ * what changed here and when, then pulls what the other device changed and merges it in unless this device's own
+ * unsent edit is newer, then sends what changed here (or a "deleted" mark) with the time of the edit. The newest
+ * edit of a record wins, whenever it gets sent. Offline, nothing is lost: changes wait, and Atlas retries by itself.
  */
 object Sync {
     private const val TAG = "AtlasSync"
@@ -66,6 +67,7 @@ object Sync {
         val c = normalize(code) ?: return false
         Store.putString(ctx, "sync_code", c)
         File(ctx.filesDir, "sync-state.json").delete()   // fresh start: everything here is new to the cloud
+        goneFile(ctx).delete()
         syncSoon(ctx, 0)
         return true
     }
@@ -100,89 +102,206 @@ object Sync {
     }
     private val TOKEN = Any()
 
+    /** While Atlas is open: look for the other device's changes every minute (a tiny request). */
+    fun setForeground(ctx: Context, on: Boolean) {
+        val app = ctx.applicationContext
+        main.removeCallbacksAndMessages(POLL)
+        if (!on) return
+        watchNetwork(app)
+        val tick = object : Runnable {
+            override fun run() {
+                if (linked(app) && System.currentTimeMillis() - lastTry > 45_000) Thread { runOnce(app) }.start()
+                main.postAtTime(this, POLL, android.os.SystemClock.uptimeMillis() + 60_000)
+            }
+        }
+        main.postAtTime(tick, POLL, android.os.SystemClock.uptimeMillis() + 60_000)
+    }
+    private val POLL = Any()
+    @Volatile private var lastTry = 0L
+    @Volatile private var failures = 0
+    @Volatile private var watching = false
+
+    /** When the internet comes back, send what was waiting. */
+    fun watchNetwork(ctx: Context) {
+        if (watching) return
+        watching = true
+        val app = ctx.applicationContext
+        try {
+            val cm = app.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            cm.registerDefaultNetworkCallback(object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) { if (failures > 0 || pendingOut) syncSoon(app, 1500) }
+            })
+        } catch (e: Exception) { watching = false; Log.w(TAG, "can't watch the network", e) }
+    }
+    /** Something changed here that the cloud doesn't have yet. */
+    @Volatile var pendingOut = false; private set
+
+    // ------------------------------------------------------------------ deletions Atlas records itself, more kinds
+
+    private fun goneFile(ctx: Context) = File(ctx.filesDir, "sync-gone.json")
+    private val goneLock = Any()
+
+    /**
+     * Chat messages (New Chat) and Log entries are only deleted on the other device when Atlas says they were
+     * deleted on purpose, here. (Their absence alone proves nothing: old ones simply fall out of the synced part.)
+     */
+    fun noteDeleted(ctx: Context, kind: String, ids: Collection<String>) {
+        if (ids.isEmpty() || !linked(ctx)) return
+        synchronized(goneLock) {
+            val o = try { JSONObject(goneFile(ctx).readText()) } catch (_: Exception) { JSONObject() }
+            val now = System.currentTimeMillis()
+            ids.forEach { o.put("$kind:$it", now) }
+            writeAtomic(goneFile(ctx), o.toString())
+        }
+        syncSoon(ctx)
+    }
+    private fun readGone(ctx: Context): Map<String, Long> = synchronized(goneLock) {
+        try { JSONObject(goneFile(ctx).readText()).let { o -> o.keys().asSequence().associateWith { o.optLong(it) } } } catch (_: Exception) { emptyMap() }
+    }
+    private fun dropGone(ctx: Context, keys: Collection<String>) = synchronized(goneLock) {
+        if (keys.isEmpty()) return@synchronized
+        val o = try { JSONObject(goneFile(ctx).readText()) } catch (_: Exception) { return@synchronized }
+        keys.forEach { o.remove(it) }
+        if (o.length() == 0) goneFile(ctx).delete() else writeAtomic(goneFile(ctx), o.toString())
+    }
+    private fun writeAtomic(f: File, text: String) {
+        val tmp = File(f.path + ".tmp"); tmp.writeText(text)
+        if (!tmp.renameTo(f)) { f.writeText(text); tmp.delete() }
+    }
+
+    /**
+     * Another kind of record that syncs (say "job" for Atlas Bot's jobs, later). [list] gives every record as
+     * id → JSON (null: can't be read just now, leave it be); [apply] takes in one from the other device (null: deleted).
+     * Records must be plain JSON with no secrets; a field "updatedAt", "updated_ms" or "at" is read as the edit time.
+     */
+    class Kind(val list: (Context) -> Map<String, JSONObject>?, val apply: (Context, String, JSONObject?) -> Unit, val absentMeansDeleted: Boolean = true)
+    private val kinds = java.util.concurrent.ConcurrentHashMap<String, Kind>()
+    fun register(kind: String, k: Kind) { require(kind !in setOf("task", "memory", "log", "profile", "chat")); kinds[kind] = k }
+
     // ------------------------------------------------------------------ the sync itself
 
     private class Rec(val kind: String, val id: String, val json: JSONObject)
 
-    /** Everything that syncs, as records. */
-    private fun records(ctx: Context): List<Rec> {
+    /** Everything that syncs, as records; and the kinds that couldn't be read just now (those are left untouched). */
+    private fun records(ctx: Context): Pair<List<Rec>, Set<String>> {
         val all = JSONObject(Store.exportJson(ctx))
-        val out = mutableListOf<Rec>()
+        val out = mutableListOf<Rec>(); val skip = mutableSetOf<String>()
         all.optJSONArray("tasks")?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { out.add(Rec("task", it.getString("id"), it)) } }
         all.optJSONArray("memories")?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { out.add(Rec("memory", it.getString("id"), it)) } }
         all.optJSONArray("log")?.let { a -> val n = a.length(); for (i in maxOf(0, n - LOG_KEEP) until n) a.getJSONObject(i).let { out.add(Rec("log", it.getString("id"), it)) } }
-        all.optJSONObject("settings")?.let { st -> out.add(Rec("profile", "me", JSONObject().put("name", st.optString("name")))) }
-        Conversation.exportForSync(ctx).takeLast(CHAT_KEEP).forEach { out.add(Rec("chat", it.getString("id"), it)) }
-        return out
+        // a name that isn't set here is not sent: it must never blank the name on the other device
+        all.optJSONObject("settings")?.optString("name")?.takeIf { it.isNotBlank() }?.let { out.add(Rec("profile", "me", JSONObject().put("name", it))) }
+        val chat = Conversation.exportForSync(ctx)
+        if (chat == null) skip.add("chat") else chat.takeLast(CHAT_KEEP).forEach { out.add(Rec("chat", it.getString("id"), it)) }
+        kinds.forEach { (kind, k) ->
+            val m = try { k.list(ctx) } catch (e: Exception) { Log.w(TAG, "$kind unreadable", e); null }
+            if (m == null) skip.add(kind) else m.forEach { (id, j) -> out.add(Rec(kind, id, j)) }
+        }
+        return out to skip
     }
 
     private fun stateFile(ctx: Context) = File(ctx.filesDir, "sync-state.json")
+    private fun ownTime(j: JSONObject) = maxOf(SyncPlan.ownTime(j), j.optLong("updated_ms"))
 
     @Synchronized
     fun runOnce(ctx: Context): String {
         val code = code(ctx) ?: return "Not linked."
         if (running) return "Already syncing."
         running = true
+        lastTry = System.currentTimeMillis()
         val result = try {
             val st = try { JSONObject(stateFile(ctx).readText()) } catch (_: Exception) { JSONObject() }
+            var first = !st.has("cursor")
             var cursor = st.optLong("cursor", 0)
-            var sent = st.optJSONObject("sent") ?: JSONObject()     // "kind:id" -> fingerprint of what the cloud has
+            var sent = st.optJSONObject("sent") ?: JSONObject()     // "kind:id" -> fingerprint of what the cloud has of ours
+            var dirty = st.optJSONObject("dirty") ?: JSONObject()   // "kind:id" -> {at, fp, del}: changed here, not sent yet
             val me = Store.read(ctx) { it.deviceId }
             // This device's data was started afresh since the last sync (its file couldn't be read and a new one was
             // made): what's missing here wasn't deleted, it was lost. Take everything back from the cloud rather than
             // telling the other device to delete it all.
-            if (freshStart(st.optString("device"), me)) { Log.w(TAG, "local data was re-created: restoring from the cloud"); cursor = 0; sent = JSONObject() }
+            if (freshStart(st.optString("device"), me)) { Log.w(TAG, "local data was re-created: restoring from the cloud"); cursor = 0; sent = JSONObject(); dirty = JSONObject(); first = true }
             val ownerId = owner(code)
+            fun saveState() = writeAtomic(stateFile(ctx), JSONObject().put("v", 2).put("cursor", cursor).put("sent", sent).put("dirty", dirty).put("device", me).toString())
 
-            // 1. take in what the other device changed
+            // 1. note what changed here, with the time it changed, before anything from the cloud is taken in
+            val now = System.currentTimeMillis()
+            val (recs, skip) = records(ctx)
+            val byKey = recs.associateBy { "${it.kind}:${it.id}" }
+            val gone = readGone(ctx)
+            SyncPlan.stamp(sent, dirty, byKey.mapValues { SyncPlan.Local(fp(it.value.json), ownTime(it.value.json)) }, gone, now, first, skip,
+                kinds.filterValues { it.absentMeansDeleted }.keys)
+            if (!first) saveState()           // an edit made offline keeps the time it was noticed, however long sending takes
+            pendingOut = dirty.length() > 0
+
+            // 2. take in what the other device changed, unless this device's own unsent edit is newer
             var got = 0
             while (true) {
                 val page = JSONArray(post("sync_pull", JSONObject().put("p_owner", ownerId).put("p_since", cursor).put("p_limit", 500)))
                 if (page.length() == 0) break
                 val changes = mutableListOf<Triple<String, String, JSONObject?>>()
+                var top = cursor
                 for (i in 0 until page.length()) {
                     val r = page.getJSONObject(i)
-                    cursor = maxOf(cursor, r.getLong("rev"))
+                    top = maxOf(top, r.getLong("rev"))
                     val kind = r.getString("kind"); val id = r.getString("id"); val k = "$kind:$id"
-                    if (r.optBoolean("deleted")) { if (r.optString("device") != me) changes.add(Triple(kind, id, null)); sent.remove(k); continue }
-                    val plain = try { decrypt(code, r.getString("payload")) } catch (e: Exception) { Log.w(TAG, "a record couldn't be read (another code?)"); continue }
-                    sent.put(k, fp(JSONObject(plain)))
-                    if (r.optString("device") != me) changes.add(Triple(kind, id, JSONObject(plain)))
+                    val del = r.optBoolean("deleted"); val from = r.optString("device")
+                    val plain = if (del) null else try { JSONObject(decrypt(code, r.getString("payload"))) } catch (e: Exception) { Log.w(TAG, "a record couldn't be read (another code?)"); continue }
+                    val d0 = dirty.optJSONObject(k)
+                    // the cloud already holds exactly what's here (a re-link, or our own record coming back): nothing to send or take
+                    if (!del && d0 != null && !d0.optBoolean("del") && d0.optString("fp") == fp(plain!!)) { sent.put(k, d0.optString("fp")); dirty.remove(k); continue }
+                    if (from == me) { if (d0 == null) { if (del) sent.remove(k) else sent.put(k, fp(plain!!)) }; continue }   // our own, coming back
+                    if (kind in skip) { top = -1; break }       // can't merge this kind right now: stop here, take it next time
+                    val d = dirty.optJSONObject(k)
+                    if (d != null && SyncPlan.mineWins(d.optLong("at"), me, r.optLong("updated_ms"), from)) continue   // ours is newer: it goes up below
+                    dirty.remove(k)
+                    if (del) sent.remove(k) else sent.put(k, fp(plain!!))
+                    changes.add(Triple(kind, id, plain))
                 }
-                if (changes.isNotEmpty()) { apply(ctx, changes); got += changes.size }
+                if (changes.isNotEmpty()) {
+                    apply(ctx, changes); got += changes.size
+                    // this device may write a record its own way (field order, defaults): that is not an edit to send back
+                    val mine = records(ctx).first.associateBy { "${it.kind}:${it.id}" }
+                    changes.forEach { (kind, id, rec) -> if (rec != null) mine["$kind:$id"]?.let { sent.put("$kind:$id", fp(it.json)) } }
+                }
+                if (top < 0) break
+                cursor = top
+                saveState()
                 if (page.length() < 500) break
             }
 
-            // 2. send what changed here
-            val now = System.currentTimeMillis()
-            val items = JSONArray()
-            val present = HashSet<String>()
-            records(ctx).forEach { r ->
-                val k = "${r.kind}:${r.id}"; present.add(k)
-                val plain = r.json.toString(); val f = fp(r.json)
-                if (sent.optString(k) != f) {
-                    items.put(JSONObject().put("kind", r.kind).put("id", r.id).put("updated_ms", now).put("payload", encrypt(code, plain)).put("device", me))
-                    sent.put(k, f)
-                }
-            }
-            // records that were here before and aren't any more: deleted
-            val gone = sent.keys().asSequence().filter { it !in present && !it.startsWith("chat:") && !it.startsWith("log:") }.toList()
-            gone.forEach { k ->
-                val (kind, id) = k.split(":", limit = 2).let { it[0] to it[1] }
-                items.put(JSONObject().put("kind", kind).put("id", id).put("updated_ms", now).put("deleted", true).put("payload", "").put("device", me))
-                sent.remove(k)
-            }
+            // 3. send what changed here, each with the time of its edit
+            val keys = dirty.keys().asSequence().toList()
             var put = 0
-            for (chunk in (0 until items.length()).chunked(400)) {
-                val arr = JSONArray(); chunk.forEach { arr.put(items.get(it)) }
-                post("sync_push", JSONObject().put("p_owner", ownerId).put("p_items", arr)); put += arr.length()
+            for (chunk in keys.chunked(400)) {
+                val arr = JSONArray()
+                val done = mutableListOf<String>()
+                chunk.forEach { k ->
+                    val d = dirty.getJSONObject(k); val kind = k.substringBefore(':'); val id = k.substringAfter(':')
+                    if (d.optBoolean("del")) arr.put(JSONObject().put("kind", kind).put("id", id).put("updated_ms", d.optLong("at")).put("deleted", true).put("payload", "").put("device", me))
+                    else {
+                        val r = byKey[k] ?: return@forEach
+                        arr.put(JSONObject().put("kind", kind).put("id", id).put("updated_ms", d.optLong("at")).put("payload", encrypt(code, r.json.toString())).put("device", me))
+                    }
+                    done.add(k)
+                }
+                if (arr.length() > 0) post("sync_push", JSONObject().put("p_owner", ownerId).put("p_items", arr))
+                done.forEach { k -> val d = dirty.getJSONObject(k); if (d.optBoolean("del")) sent.remove(k) else sent.put(k, d.optString("fp")); dirty.remove(k) }
+                put += arr.length()
+                saveState()
             }
-            stateFile(ctx).writeText(JSONObject().put("cursor", cursor).put("sent", sent).put("device", me).toString())
-            lastAt = System.currentTimeMillis()
+            saveState()
+            dropGone(ctx, gone.keys.filter { !dirty.has(it) && it.substringBefore(':') !in skip })
+            pendingOut = dirty.length() > 0
+            lastAt = System.currentTimeMillis(); failures = 0
             if (got > 0) main.post { Conversation.reloadFromSync(ctx); Thread { try { Reminders.tickAndSchedule(ctx) } catch (_: Exception) {} }.start() }
             "Synced" + if (got + put > 0) " ($got in, $put out)" else ""
         } catch (e: Exception) {
             Log.w(TAG, "sync failed", e)
+            // try again by itself: after 30 s, then 2, 5 and 15 minutes (and at once when the internet comes back)
+            failures++
+            val wait = longArrayOf(30_000, 120_000, 300_000, 900_000)[minOf(failures, 4) - 1]
+            main.removeCallbacksAndMessages(TOKEN)
+            main.postAtTime({ Thread { runOnce(ctx.applicationContext) }.start() }, TOKEN, android.os.SystemClock.uptimeMillis() + wait)
             "Couldn't sync: " + (if (e is java.net.UnknownHostException || e is java.net.SocketTimeoutException || e is java.net.ConnectException) "offline" else (e.message ?: e.javaClass.simpleName))
         } finally { running = false }
         lastResult = result
@@ -204,11 +323,17 @@ object Sync {
         else -> v.toString()
     }
 
-    /** Merges records from the other device into this one. */
+    /** Merges records from the other device into this one (and waits until they're in). */
     private fun apply(ctx: Context, changes: List<Triple<String, String, JSONObject?>>) {
         val chat = changes.filter { it.first == "chat" }
-        if (chat.isNotEmpty()) main.post { Conversation.mergeFromSync(ctx, chat.map { it.second to it.third }) }
-        val rest = changes.filter { it.first != "chat" }
+        if (chat.isNotEmpty()) {
+            val done = java.util.concurrent.CountDownLatch(1)
+            main.post { try { Conversation.mergeFromSync(ctx, chat.map { it.second to it.third }) } catch (e: Exception) { Log.w(TAG, "chat merge", e) } finally { done.countDown() } }
+            done.await(10, java.util.concurrent.TimeUnit.SECONDS)
+        }
+        val extra = changes.filter { it.first in kinds.keys }
+        extra.forEach { (kind, id, rec) -> try { kinds[kind]?.apply?.invoke(ctx, id, rec) } catch (e: Exception) { Log.w(TAG, "$kind merge", e) } }
+        val rest = changes.filter { it.first != "chat" && it.first !in kinds.keys }
         if (rest.isNotEmpty()) Store.merge(ctx, rest)
         ModelManager.markStale()
     }

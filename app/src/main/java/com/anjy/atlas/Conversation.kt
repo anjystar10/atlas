@@ -108,13 +108,15 @@ object Conversation {
     // ---------------------------------------------------------------- the same conversation on the PC (see Sync)
 
     /** The finished messages, as records for the other device (pictures stay on this one). */
-    fun exportForSync(ctx: Context): List<JSONObject> {
-        val list = java.util.concurrent.FutureTask { messages.filterIndexed { i, m -> !(busy && i == messages.size - 1) && m.source != "error" }.map { m ->
+    /** The conversation as records, or null if it can't be read just now (the sync then leaves the chat alone). */
+    fun exportForSync(ctx: Context): List<JSONObject>? {
+        val app = ctx.applicationContext
+        val list = java.util.concurrent.FutureTask { load(app); messages.filterIndexed { i, m -> !(busy && i == messages.size - 1) && m.source != "error" }.map { m ->
             JSONObject().put("id", m.id).put("user", m.fromUser).put("text", m.text).put("source", m.source).put("at", m.at).put("steps", JSONArray(m.steps))
                 .put("files", m.media.size)
         } }
         if (Looper.myLooper() == Looper.getMainLooper()) list.run() else { mainHandler.post(list) }
-        return try { list.get(5, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
+        return try { list.get(8, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { null }
     }
     private val mainHandler = android.os.Handler(Looper.getMainLooper())
 
@@ -171,6 +173,8 @@ object Conversation {
 
     fun clear(ctx: Context) {
         stop()
+        // New Chat clears the conversation on the other device too
+        try { Sync.noteDeleted(ctx, "chat", messages.map { it.id }) } catch (_: Exception) {}
         messages.clear(); history.clear(); save(ctx); changed()
     }
 

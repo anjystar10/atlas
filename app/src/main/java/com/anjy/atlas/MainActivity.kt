@@ -889,7 +889,7 @@ class MainActivity : Activity() {
         AvatarService.setAppInFront(this, true)
         Conversation.listen(onChat)
         Bots.listen(onBots)
-        Sync.listen(onSync); Sync.syncSoon(this, 500)
+        Sync.listen(onSync); Sync.syncSoon(this, 500); Sync.setForeground(this, true)
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
         if (::aurora.isInitialized) aurora.resume()
         if (returnedFromSystem && tab != 0) render(keepScroll = true)
@@ -900,7 +900,7 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
-        Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync)
+        Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
         stopVoice()
         AvatarService.setAppInFront(this, false)
         Tilt.stop(); if (::aurora.isInitialized) aurora.pause()
