@@ -889,7 +889,8 @@ class MainActivity : Activity() {
         AvatarService.setAppInFront(this, true)
         Conversation.listen(onChat)
         Bots.listen(onBots)
-        Sync.listen(onSync); Sync.syncSoon(this, 500)
+        Sync.listen(onSync); Sync.syncSoon(this, 500); Sync.setForeground(this, true)
+        if (Sync.linked(this)) SyncJob.schedule(this)
         resumedNow = true
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
         if (::aurora.isInitialized) aurora.resume()
@@ -902,7 +903,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
         resumedNow = false
-        Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync)
+        Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
         stopVoice()
         AvatarService.setAppInFront(this, false)
         Tilt.stop(); if (::aurora.isInitialized) aurora.pause()
@@ -1719,6 +1720,12 @@ class MainActivity : Activity() {
         }.apply { alpha = if (botDraft.isBlank()) 0.5f else 1f }
         sc.addView(send, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
         body.add(sc, 20)
+        // routines, skills and the specialist team (BotExtrasActivity)
+        val ex = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        listOf("Routines" to "routines", "Skills" to "skills", "Team" to "team").forEachIndexed { i, (l, pg) ->
+            ex.addView(secondary(l) { startActivity(BotExtrasActivity.intent(this, pg)) }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { if (i > 0) leftMargin = dp(8) })
+        }
+        body.add(ex, 12)
         val all = Bots.visible()
         if (all.isEmpty()) {
             body.add(card().apply {
@@ -1941,6 +1948,12 @@ class MainActivity : Activity() {
         vc.add(chipGroup(Hear.LANGUAGES, { it == (Hear.language(this) ?: "auto") }) { Hear.setLanguage(this, it); render(keepScroll = true) }, 8)
         vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.", 13f, MUTED), 6)
         body.add(vc, 8)
+
+        // what bots may do without asking (BotExtrasActivity)
+        body.add(eyebrow("Atlas Bot"), 16)
+        val bp = card()
+        bp.addView(settingRow("Bot Permissions", "Ask, always or never, per kind of action") { startActivity(BotExtrasActivity.intent(this, "permissions")) })
+        body.add(bp, 8)
 
         // Phone and PC: one Atlas
         body.add(eyebrow("Your Devices"), 16)

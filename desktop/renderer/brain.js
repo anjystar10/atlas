@@ -261,7 +261,16 @@ export const TOOLS = [
   fn('scroll', 'Scroll whatever is under the mouse.', { direction: str('Which way', ['up', 'down']), amount: int('How far, 1-20 (default 5)') }, ['direction']),
   fn('deploy_bot', "Send Atlas Bot to do a bigger job in the background: anything that needs many steps, like deep research with sources, comparing several options, writing a long piece, checking many pages, or a long chain of PC actions. The bot plans, works on its own, and its report lands in this chat when it's done; the chat stays free meanwhile. Don't use it for quick things you can do in a step or two.", {
     goal: str("The job in one clear sentence, e.g. 'Find the best budget laptop under $800 for coding, with sources'"),
-    details: str('Everything the bot should know: what the user wants, preferences, limits, what to include in the report') }, ['goal']),
+    details: str('Everything the bot should know: what the user wants, preferences, limits, what to include in the report'),
+    specialist: str("Optional: one of the user's specialist bots to send (by name), when the job fits its speciality") }, ['goal']),
+  // ---- Atlas Bot extras (botx.js): skills taught by telling, and routines (bots on a schedule)
+  fn('save_skill', 'Save a skill: a reusable way of doing a kind of job that the user teaches you ("when I ask for X, do it like this…"). Bots load it when they do that kind of job. Saving with an existing name updates it.', {
+    name: str('A short name, e.g. "Weekly money check"'), when: str('When to use it'), steps: str('The steps, one per line'),
+    inputs: str('What is needed first (optional)'), checks: str('What to check before finishing (optional)'), output: str('What the result should look like (optional)'),
+    permissions: str('Actions in it that need the user\'s OK (optional)') }, ['name', 'when', 'steps']),
+  fn('set_routine', 'Set up a routine: a bot sent on a schedule, like "every weekday at 8am, summarise the news on AI". Runs every 5 minutes at most.', {
+    goal: str('What the bot should do each time'), schedule: str('When, in plain words: "every weekday at 8am", "every 2 hours", "every Sunday evening", "every month on the 1st at 9am"'),
+    name: str('A short name (optional)'), specialist: str('A specialist bot to send (optional)') }, ['goal', 'schedule']),
 ];
 
 const PC = new Set(['open_app', 'list_apps', 'open_link', 'open_path', 'list_files', 'read_file', 'write_file', 'run_command', 'look_at_screen', 'click', 'type_text', 'press_keys', 'scroll']);
@@ -301,7 +310,8 @@ function readLog(query, limit) {
 }
 
 /** Hooks the screens provide: asking the user to allow something, starting a focus session, changing settings. */
-export const ui = { confirm: async () => false, startFocus: () => {}, setting: () => 'Error: settings unavailable.', settingsText: () => '', deployBot: () => null };
+export const ui = { confirm: async () => false, startFocus: () => {}, setting: () => 'Error: settings unavailable.', settingsText: () => '', deployBot: () => null,
+  saveSkill: () => null, saveRoutine: () => ({ error: 'Routines are unavailable.' }), botTeam: () => '' };
 
 async function webSearch(q) {
   const gk = keyFor('gemini');
@@ -371,8 +381,18 @@ export async function runTool(call, { approved = false } = {}) {
       case 'change_setting': { const out = await ui.setting(a.setting, String(a.value ?? '')); return { out, step: out.startsWith('Error') ? null : out }; }
       case 'deploy_bot': {
         const goal = String(a.goal || '').trim(); if (!goal) return { out: 'Error: give the bot a goal.' };
-        const j = ui.deployBot(goal, String(a.details || '')); if (!j) return { out: "Error: Atlas Bot isn't available right now." };
+        const j = ui.deployBot(goal, String(a.details || ''), a.specialist ? String(a.specialist) : null); if (!j) return { out: "Error: Atlas Bot isn't available right now." };
         return { out: `Atlas Bot is on it: '${j.goal}'. It works in the background; its report will appear in this chat when it's done, and the user can follow it on the Bots page. Tell them briefly, in your own words.`, step: 'Sent Atlas Bot: ' + j.goal };
+      }
+      case 'save_skill': {
+        const name = plainMemory(a.name || ''); if (!name || !String(a.steps || '').trim()) return { out: 'Error: a skill needs a name and steps.' };
+        const sk = ui.saveSkill({ name, when: a.when, steps: a.steps, inputs: a.inputs, checks: a.checks, output: a.output, permissions: a.permissions });
+        return sk ? { out: `Saved the skill "${sk.name}". Bots will use it for that kind of job; the user can edit it on the Bots page.`, step: 'Saved a skill: ' + sk.name } : { out: "Error: skills aren't available right now." };
+      }
+      case 'set_routine': {
+        const r = ui.saveRoutine({ goal: String(a.goal || ''), schedule: String(a.schedule || ''), name: a.name ? String(a.name) : undefined, specialist: a.specialist ? String(a.specialist) : null });
+        if (r.error) return { out: 'Error: ' + r.error };
+        return { out: `Routine set: "${r.routine.name}", next run ${new Date(r.routine.nextAt).toLocaleString()}. The user can pause, test or delete it on the Bots page.`, step: 'Set a routine: ' + r.routine.name };
       }
       case 'start_focus': { const title = plainMemory(a.title || '') || 'Focus'; ui.startFocus(title, a.minutes || null, a.id || null); return { out: `Focus session started for '${title}'.`, step: 'Started a focus session: ' + title }; }
     }
@@ -432,6 +452,8 @@ Where you're running (so you can say why something is held back; don't bring it 
 Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of PC actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
+- When they teach you how they want a kind of job done, save it with save_skill. When they want a bot on a schedule ("every morning…"), use set_routine (for one-off reminders use set_reminder).
+${ui.botTeam()}
 
 Your own settings (change_setting, when they ask):
 ${ui.settingsText()}

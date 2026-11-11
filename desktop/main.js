@@ -217,6 +217,23 @@ ipcMain.handle('pc:run', async (e, name, args) => {
   catch (err) { return { error: err.message || String(err) }; }
 });
 
+// ------------------------------------------------------------------ Atlas Bot's own browser (see botbrowser.js)
+// >>> bot browser
+const botBrowser = require('./botbrowser');
+const okJob = (id) => typeof id === 'string' && /^[\w-]{1,64}$/.test(id);
+ipcMain.handle('bot:browser', async (e, jobId, title, name, args) => {
+  if (!fromMain(e) || !okJob(jobId) || !/^browser_\w+$/.test(String(name))) return { out: 'Error: not allowed' };
+  try { return await botBrowser.run(jobId, String(title || ''), name, args || {}); } catch (err) { return { out: 'Error: ' + (err.message || err) }; }
+});
+ipcMain.handle('bot:browser-check', async (e, jobId, title, name, args) => {
+  if (!fromMain(e) || !okJob(jobId)) return null;
+  try { return await botBrowser.check(jobId, String(title || ''), name, args || {}); } catch { return null; }
+});
+ipcMain.handle('bot:browser-show', (e, jobId, title) => { if (!fromMain(e) || !okJob(jobId)) return false; return botBrowser.show(jobId, String(title || '')); });
+ipcMain.handle('bot:browser-close', (e, jobId) => { if (fromMain(e) && okJob(jobId)) botBrowser.close(jobId); return true; });
+ipcMain.handle('bot:browser-info', (e, jobId) => (fromMain(e) && okJob(jobId) ? botBrowser.info(jobId) : { open: false }));
+// <<< bot browser
+
 // ------------------------------------------------------------------ start
 
 app.whenReady().then(() => {
