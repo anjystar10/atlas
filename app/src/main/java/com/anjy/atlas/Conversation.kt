@@ -287,7 +287,7 @@ Where you're running (so you can say why something is held back; don't bring it 
 
 Your own settings (change_setting, when they ask, e.g. "talk to me", "use a deeper voice", "dark mode", "get off my screen"):
 ${Self.describe(ctx)}
-
+${Connections.promptLine(ctx).let { if (it.isEmpty()) "" else "\n$it\n" }}
 Using the phone:
 - To do something in an app: open_app, then work from the numbered elements on the screen. Every action returns the new screen; check it to see what happened. Numbers change after each action, so only use numbers from the latest screen.
 - If something isn't visible, scroll or look for another way in. If an approach fails twice, try a different one; after a few tries, stop and say exactly what blocked you.
@@ -308,7 +308,10 @@ ${Tools.logContext(ctx)}
         val m = withContext(Dispatchers.IO) { media.filter { !it.textFile }.map { Attach.media(it) } }
         // text and Word files go into the message itself, so every service can read them
         val full = q + withContext(Dispatchers.IO) { media.filter { it.textFile }.joinToString("") { Attach.inlineText(it) } }
-        var session = Providers.session(ctx, p, history.toList(), full, m)
+        // >>> connections: their tools are added while connected (they come and go)
+        val tools = withContext(Dispatchers.IO) { Connections.declarations(ctx, "chat").let { extra -> if (extra.length() == 0) Tools.declarations else JSONArray().apply { for (i in 0 until Tools.declarations.length()) put(Tools.declarations.get(i)); for (i in 0 until extra.length()) put(extra.get(i)) } } }
+        // <<< connections
+        var session = Providers.session(ctx, p, history.toList(), full, m, tools)
         var final: String? = null
         var steps = 0
         val tried = mutableSetOf(p.id)
@@ -321,7 +324,7 @@ ${Tools.logContext(ctx)}
                 p = sw.to; reply.source = p.name
                 status = "Switching to ${p.name}"; changed()
                 val done = if (reply.steps.isEmpty()) "" else "\n\n(Note for you, Atlas: you already did these steps for this request before the service changed, don't repeat them: ${reply.steps.joinToString("; ")}. Continue from there.)"
-                session = Providers.session(ctx, p, history.toList(), full + done, m)
+                session = Providers.session(ctx, p, history.toList(), full + done, m, tools)
                 steps--
                 continue
             }

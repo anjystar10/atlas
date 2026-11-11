@@ -421,7 +421,7 @@ object Bots {
                             results.add(c to out.text)
                         }
                         else -> {
-                            if (c.name !in toolNames) { results.add(c to "Error: there's no tool called ${c.name}."); continue }
+                            if (c.name !in toolNames && !Connections.owns(c.name)) { results.add(c to "Error: there's no tool called ${c.name}."); continue }
                             val label = if (c.name == "tap" || c.name == "long_press") withContext(Dispatchers.Default) { PhoneControl.labelOf(c.args.optInt("element", -1)) } else null
                             BotRules.phoneApproval(c.name, c.args, label)?.let { what ->
                                 askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label)); return
@@ -444,7 +444,8 @@ object Bots {
     private suspend fun runTool(j: BotJob, c: Gemini.Call): String {
         val what = label(c)
         j.current = what; j.pending = what; persistNow(); changed()
-        val r = Tools.run(app, c)
+        // a connection tool reaching here was already cleared by the bot's approval rules
+        val r = if (Connections.owns(c.name)) Connections.run(app, c, approved = true) else Tools.run(app, c)
         // pictures the bot made go into its job folder (listed on the job page)
         r.media.forEach { m -> try { val d = BotBrowser.jobDir(app, j.id).apply { mkdirs() }; m.file.copyTo(java.io.File(d, m.file.name), overwrite = true) } catch (e: Exception) { Log.w(TAG, "picture", e) } }
         j.pending = null; j.toolCalls++
@@ -652,6 +653,9 @@ object Bots {
             val d = declarations.getJSONObject(i); val n = d.optString("name")
             if (n != "finish" && BotExtras.Rules.toolAllowed(sp, n)) out.put(d)
         }
+        // >>> connections (Connections.kt): the servers the user lets bots use, as they are now
+        Connections.declarations(app, "bots").let { c -> for (i in 0 until c.length()) { val d = c.getJSONObject(i); if (BotExtras.Rules.toolAllowed(sp, d.optString("name"))) out.put(d) } }
+        // <<< connections
         out.put(extraTools["use_skill"])
         if (j.depth < BotRules.MAX_DEPTH && BotExtras.specialists.isNotEmpty()) { out.put(extraTools["delegate"]); out.put(extraTools["wait_for_helpers"]) }
         if (sp != null) { out.put(extraTools["bot_remember"]); out.put(extraTools["bot_forget"]) }
@@ -703,6 +707,7 @@ Big jobs: the user also has Atlas on their laptop, with bigger local models and 
 
 Budget: up to ${j?.let { BotRules.callsOf(it) } ?: MAX_TOOL_CALLS} tool steps and ${(j?.let { BotRules.msOf(it) } ?: MAX_WORK_MS) / 60_000} minutes for the job. When it's nearly used up, finish with what you have.
 ${teamPart(j)}
+${Connections.promptLine(ctx)}
 
 Now: ${now.format(stampFmt)} (${Engine.zone.id}).
 ${Tools.logContext(ctx)}
@@ -758,7 +763,7 @@ ${Tools.logContext(ctx)}
         "forget" -> "Deleting a memory"
         "read_log" -> "Checking your Log"
         "open_link" -> "Opening a link"
-        else -> if (c.name in browserTools) BotBrowser.label(c.name, c.args) else "Working"
+        else -> if (c.name in browserTools) BotBrowser.label(c.name, c.args) else Connections.label(c.name, c.args) ?: "Working"
     }
 
     // ---------------------------------------------------------------- notifications
