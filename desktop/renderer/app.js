@@ -546,6 +546,17 @@ function renderMe(page) {
     }
     vc.appendChild(l);
   }
+  // how fast Atlas talks, whether a spoken chat keeps going, and the language it listens for
+  const chipRow = (title, options, current, pick, note) => {
+    vc.appendChild(h(`<div style="margin-top:16px">${esc(title)}</div>`));
+    const cs = h('<div class="chips" style="margin-top:8px"></div>');
+    for (const [k, label] of options) { const c = h(`<span class="chip ${k === current ? 'on' : ''}">${esc(label)}</span>`); c.onclick = () => { pick(k); render(true); }; cs.appendChild(c); }
+    vc.appendChild(cs);
+    if (note) vc.appendChild(h(`<p class="small muted" style="margin-top:6px">${esc(note)}</p>`));
+  };
+  chipRow('Speaking Speed', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']], voice.speed(), (k) => voice.setSpeed(k));
+  vc.appendChild(settingRow('Keep Listening', pref('keepTalking', true), (on) => setPref('keepTalking', on), "After Atlas answers a spoken question it listens again, so you can just keep talking. Say “that's all” or stay quiet to stop."));
+  chipRow('Language You Speak', voice.LANGUAGES, voice.language() || 'auto', (k) => voice.setLanguage(k), 'Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.');
 
   // Devices
   col.appendChild(h('<div class="eyebrow">Your Devices</div>'));
@@ -702,7 +713,7 @@ brain.ui.settingsText = () => {
   return [`- speak_replies (on/off) — now ${on(pref('speakReplies', false))}`,
     `- voice: now ${eng ? voice.current(eng).label : "Windows' voice"}; choices: ${voice.voices(eng).map((v) => v.label).join(', ')}`,
     `- theme (dark/light) — now ${pref('theme', 'dark')}`, `- on_screen (on/off): the orb in the corner of the PC — now ${on(pref('onScreen', true))}`,
-    `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)', `- speaking_speed (slow/normal/fast): how fast Atlas talks — now ${voice.speed()}`, `- dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${on(brain.dontSwitch())}`].join('\n');
+    `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)', `- speaking_speed (slow/normal/fast): how fast Atlas talks — now ${voice.speed()}`, `- keep_listening (on/off): after a spoken answer, listen again — now ${on(pref('keepTalking', true))}`, `- listen_language (a code like en, en-GB, fr, yo, or auto) — now ${voice.language() || 'auto'}`, `- dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${on(brain.dontSwitch())}`].join('\n');
 };
 brain.ui.setting = async (name, value) => {
   const flag = { on: true, true: true, yes: true, off: false, false: false, no: false }[String(value).toLowerCase().trim()];
@@ -716,6 +727,8 @@ brain.ui.setting = async (name, value) => {
       case 'your_name': if (!value.trim()) return 'Error: give the name.'; db.state.settings.name = value.trim().slice(0, 40); store.saveState(); return `I'll call you ${value.trim()}.`;
       case 'alarm_sound': db.state.settings.sound = need(); store.saveState(); return `Alarm sound ${flag ? 'on' : 'off'}.`;
       case 'speaking_speed': return `I'll speak at ${voice.setSpeed(value)} speed.`;
+      case 'keep_listening': { const b = /^(on|true|yes|1|enable)/i.test(String(value).trim()); setPref('keepTalking', b); return b ? "I'll keep listening after I answer." : "I'll listen only when you ask me to."; }
+      case 'listen_language': { const l = String(value).trim(); if (!/^auto$/i.test(l) && !/^[A-Za-z]{2,3}(-[A-Za-z]{2})?$/.test(l)) return 'Error: give a language code like en, en-GB, fr or yo (or auto).'; voice.setLanguage(l); return /^auto$/i.test(l) ? "I'll work out the language myself." : `I'll listen for ${l}.`; }
       case 'dont_switch': setPref('dont_switch', need()); return flag ? "I'll stay on the service you chose and won't switch to another one (your other keys for it can still take over)." : "I'll switch to another service again when one keeps failing or runs out.";
       case 'start_with_windows': await host.autostart(need()); return flag ? 'I\'ll start with Windows (quietly, in the tray).' : "I won't start with Windows.";
     }
