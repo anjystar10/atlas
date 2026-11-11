@@ -104,9 +104,9 @@ class SpeechTest {
     }
 
     @Test fun designedVoiceIdFromAnyShape() {
-        assertEquals("voice_abc123", Voice.voiceId(org.json.JSONObject("""{"id":"voice_abc123","sample_audio":{"data":"AAAA"}}""")))
-        assertEquals("voice_x9", Voice.voiceId(org.json.JSONObject("""{"voice":{"name":"voices/voice_x9","display_name":"Atlas"}}""")))
-        assertNull(Voice.voiceId(org.json.JSONObject("""{"error":{"message":"nope"}}""")))
+        assertEquals("voice_abc123", Speech.voiceId(org.json.JSONObject("""{"id":"voice_abc123","sample_audio":{"data":"AAAA"}}""")))
+        assertEquals("voice_x9", Speech.voiceId(org.json.JSONObject("""{"voice":{"name":"voices/voice_x9","display_name":"Atlas"}}""")))
+        assertNull(Speech.voiceId(org.json.JSONObject("""{"error":{"message":"nope"}}""")))
     }
 
     @Test fun atlasVoiceDescriptionNamesNoOne() {

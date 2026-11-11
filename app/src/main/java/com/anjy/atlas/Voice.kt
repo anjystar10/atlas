@@ -264,7 +264,7 @@ object Voice {
             .put("prompted", JSONObject().put("input", ATLAS_DESIGN)))
         return try {
             val r = Providers.post("https://generativelanguage.googleapis.com/v1beta/voices", mapOf("x-goog-api-key" to key), body, "Gemini voice design")
-            val id = voiceId(r)
+            val id = Speech.voiceId(r)
             Store.putString(ctx, "atlas_voice_designed", if (id != null) "$keyTag|$id" else "-")
             id
         } catch (e: Gemini.Failure) {
@@ -273,23 +273,6 @@ object Voice {
             if (!e.offline && e.code in 400..499 && e.code != 429 && e.code != 408) Store.putString(ctx, "atlas_voice_designed", "-")
             null
         } catch (e: Exception) { Log.w(TAG, "voice design", e); null }
-    }
-
-    /** The `voice_…` id in a voice-design answer (it may come as "id" or as a resource name ending in it). */
-    internal fun voiceId(o: Any?): String? {
-        var found: String? = null
-        fun walk(x: Any?) {
-            if (found != null) return
-            when (x) {
-                is JSONObject -> {
-                    for (k in listOf("id", "name", "voice")) { val v = x.opt(k); if (v is String && v.substringAfterLast('/').startsWith("voice_")) { found = v.substringAfterLast('/'); return } }
-                    x.keys().forEach { k -> if (k != "sample_audio") walk(x.opt(k)) }
-                }
-                is JSONArray -> for (i in 0 until x.length()) walk(x.opt(i))
-            }
-        }
-        walk(o)
-        return found
     }
 
     /** A calm British male voice from Google's voice library, looked up once and remembered. Null if none. */

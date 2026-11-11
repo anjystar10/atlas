@@ -163,6 +163,24 @@ object Speech {
     /** "That's all", "never mind", "goodbye": the conversation is over. */
     fun endsTalk(text: String): Boolean = END.matches(text.trim().trim('.', '!', ' '))
 
+    /** The `voice_…` id in a voice-design answer (it may come as "id" or as a resource name ending in it). */
+    fun voiceId(o: Any?): String? {
+        var found: String? = null
+        fun walk(x: Any?) {
+            if (found != null) return
+            when (x) {
+                is org.json.JSONObject -> {
+                    for (k in listOf("id", "name", "voice")) { val v = x.opt(k); if (v is String && v.substringAfterLast('/').startsWith("voice_")) { found = v.substringAfterLast('/'); return } }
+                    x.keys().forEach { k -> if (k != "sample_audio") walk(x.opt(k)) }
+                }
+                is org.json.JSONArray -> for (i in 0 until x.length()) walk(x.opt(i))
+            }
+        }
+        walk(o)
+        return found
+    }
+
+
     // ---------------------------------------------------------------- how fast Atlas talks
 
     /** "slow", "normal" or "fast" from whatever was said or stored. */
