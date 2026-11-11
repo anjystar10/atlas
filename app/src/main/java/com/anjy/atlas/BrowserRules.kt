@@ -24,11 +24,15 @@ object BrowserRules {
         val u = raw.trim()
         if (u.isEmpty() || u.any { it.isWhitespace() }) return null
         val lower = u.lowercase()
-        if (lower.startsWith("https://") || lower.startsWith("http://")) return u.takeIf { it.length > lower.indexOf("://") + 3 }
+        if (lower.startsWith("https://")) return u.takeIf { it.length > 8 }
+        // the phone only allows plain http to itself (its network security settings), so other sites go over https
+        if (lower.startsWith("http://")) return u.takeIf { it.length > 7 }?.let { if (local(lower.removePrefix("http://"))) it else "https://" + it.substring(7) }
         if (Regex("^[a-z][a-z0-9+.-]*:").containsMatchIn(lower) && !Regex("^[^/:]+:\\d+(/|$)").containsMatchIn(lower)) return null
         if (!Regex("^[a-z0-9-]+(\\.[a-z0-9-]+)+(:\\d+)?([/?#].*)?$", RegexOption.IGNORE_CASE).matches(u) && !lower.startsWith("localhost") && !lower.startsWith("127.0.0.1")) return null
-        return "https://$u"
+        return if (local(lower)) "http://$u" else "https://$u"
     }
+
+    private fun local(rest: String) = rest.startsWith("127.0.0.1") || rest.startsWith("localhost")
 
     /** A file name that's safe on disk: no folders, no odd characters, not empty, not too long. */
     fun safeFileName(raw: String?, fallback: String = "download"): String {

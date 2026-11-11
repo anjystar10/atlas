@@ -15,6 +15,8 @@ class BrowserRulesTest {
         assertEquals("http://127.0.0.1:8080/x", BrowserRules.normalizeUrl("http://127.0.0.1:8080/x"))
         assertEquals("https://example.com/a?b=1", BrowserRules.normalizeUrl("example.com/a?b=1"))
         assertEquals("https://shop.example.co.uk:8443/p", BrowserRules.normalizeUrl("shop.example.co.uk:8443/p"))
+        assertEquals("https://news.example.com/a", BrowserRules.normalizeUrl("http://news.example.com/a"))
+        assertEquals("http://localhost:8000/t", BrowserRules.normalizeUrl("localhost:8000/t"))
         // anything that could reach into the phone, or isn't an address
         for (bad in listOf("javascript:alert(1)", "file:///sdcard/x", "intent://scan#Intent;end", "content://x", "data:text/html,hi", "tel:123", "", "hello world", "https://", "notadomain"))
             assertNull(bad, BrowserRules.normalizeUrl(bad))
