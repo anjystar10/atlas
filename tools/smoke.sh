@@ -152,6 +152,103 @@ adb shell "cat /data/data/$PKG/files/atlas-state.json" > "$OUT/gemini/state.json
 kill $MOCK 2>/dev/null
 if crashed || ! alive; then log "CRASH in gemini conversation"; fi
 
+# Cloud AI through the key pool, and Atlas Bot acting on a website, against a stand-in service and a test shop on
+# this machine (tools/mock_ai.py, reached at the phone's 127.0.0.1 through adb reverse). The first key is turned down,
+# so Atlas has to move to the second; one message meets a busy service twice; one bot orders from the shop (and must
+# ask before placing the order); one bot meets a password field (and must leave that to the user).
+log "cloud AI and Atlas Bot (stand-in service and test shop)"
+AI="$OUT/ai"; mkdir -p "$AI"
+python3 tools/mock_ai.py 8766 "$AI" > "$AI/server.txt" 2>&1 &
+AIPID=$!
+sleep 1
+adb reverse tcp:8766 tcp:8766
+bot_state() { # goal-substring -> "id state" of the newest matching job
+  adb shell "cat /data/data/$PKG/files/bots.json" 2>/dev/null | python3 -c "
+import json,sys
+try: d=json.load(sys.stdin)
+except Exception: print('- none'); sys.exit()
+jobs=d.get('jobs',d) if isinstance(d,dict) else d
+m=[j for j in jobs if sys.argv[1].lower() in j.get('goal','').lower()]
+m.sort(key=lambda j:j.get('createdAt',0))
+print((m[-1]['id']+' '+m[-1]['state']) if m else '- none')" "$1"
+}
+wait_bot() { # goal-substring state seconds
+  for i in $(seq 1 "$3"); do set -- "$1" "$2" "$3" $(bot_state "$1"); [ "${5:-}" = "$2" ] && return 0; sleep 1; done
+  return 1
+}
+site_has() { grep -c "$1" "$AI/site-log.jsonl" 2>/dev/null || echo 0; }
+seed dark
+prefs '    <string name="provider">custom</string>
+    <string name="base_custom">http://127.0.0.1:8766/v1</string>
+    <string name="model_custom">mock-model</string>
+    <string name="keys_custom">[{&quot;key&quot;:&quot;bad-key-1&quot;},{&quot;key&quot;:&quot;good-key-2&quot;}]</string>'
+launch atlas
+say "hello there" 8
+say "busy test" 25
+say "remind me to water the plants" 8
+adb shell "cat /data/data/$PKG/files/chat.json" > "$AI/chat-1.json" 2>/dev/null
+python3 - "$AI" >> "$OUT/steps.txt" <<'PY'
+import json, glob, sys
+d = sys.argv[1]
+reqs = [json.load(open(f))["meta"] for f in sorted(glob.glob(d + "/req-*.json"))]
+chat = open(d + "/chat-1.json", errors="replace").read()
+first = reqs[0] if reqs else {}
+print("== AI: first request used key %s and got %s" % (first.get("key"), first.get("status")))
+print("== AI: later requests used: %s" % sorted({r["key"] for r in reqs[1:]}))
+print("== AI: key switch %s" % ("WORKED" if first.get("key") == "bad-key-1" and first.get("status") == 401 and any(r["key"] == "good-key-2" and r["status"] == 200 for r in reqs) else "FAILED"))
+print("== AI: plain reply %s" % ("arrived" if "here" in chat else "MISSING"))
+print("== AI: busy service (two 429s) %s" % ("answered after waiting" if "Through after the wait" in chat else "NO ANSWER"))
+print("== AI: reminder by tool %s" % ("logged" if "Logged it" in chat else "MISSING"))
+PY
+adb shell "cat /data/data/$PKG/files/atlas-state.json" | grep -q "Water the plants" && log "reminder from the cloud model is in the Log" || log "reminder from the cloud model NOT in the Log"
+shot ai-chat
+
+# bot 1: sent from the chat, orders from the shop; the order must wait for the user's OK
+say "send a bot to order a blue widget from the test shop" 10
+shot ai-chat-bot-sent
+if wait_bot "blue widget" awaiting_approval 150; then log "order bot: reached the shop and is waiting for the OK to place the order"; else log "order bot: did NOT reach the approval (state: $(bot_state 'blue widget'))"; fi
+log "order bot: searched the shop for the widget: $(grep -c 'blue widget' "$AI/site-log.jsonl" 2>/dev/null)"
+log "order bot: orders sent BEFORE the OK (must be 0): $(site_has '"/shop/order"')"
+adb shell dumpsys notification --noredact | grep -A3 "needs your OK" | head -8 > "$AI/approval-notification.txt"
+grep -q "needs your OK" "$AI/approval-notification.txt" && log "order bot: approval notification shown" || log "order bot: approval notification NOT found"
+launch bots; shot bots-tab
+set -- $(bot_state "blue widget"); JOB=$1
+adb shell am start -n $PKG/.BotActivity --es bot_id "$JOB" >> "$OUT/steps.txt" 2>&1; sleep 4; shot bot-job-approval
+if tap_desc "Approve"; then log "order bot: approved on the job page"; else log "order bot: Approve button NOT found"; cp /tmp/ui.xml "$AI/ui-approve.xml"; fi
+if wait_bot "blue widget" completed 120; then log "order bot: COMPLETED"; else log "order bot: did NOT complete (state: $(bot_state 'blue widget'))"; fi
+python3 - "$AI" >> "$OUT/steps.txt" <<'PY'
+import json, sys
+rows = [json.loads(l) for l in open(sys.argv[1] + "/site-log.jsonl")]
+orders = [r for r in rows if r["path"] == "/shop/order"]
+print("== order bot: order reached the shop: %s" % (json.dumps(orders[0]["form"]) if orders else "NO"))
+print("== order bot: the shop got size Large: %s" % ("yes" if orders and orders[0]["form"].get("size") == ["Large"] else "NO"))
+PY
+sleep 3; shot bot-job-done
+adb shell "cat /data/data/$PKG/files/chat.json" | grep -q "Ordered" && log "order bot: report posted in the chat" || log "order bot: report NOT in the chat"
+
+# bot 2: sent from the Bots tab, meets a password field: it must stop and leave the sign-in to the user
+launch bots
+tap_desc EDIT || log "Bots tab: no goal field"
+adb shell input text "Sign%sin%sto%sthe%stest%sshop"; sleep 1
+if tap_desc "Send a Bot"; then log "sign-in bot: sent from the Bots tab"; else log "sign-in bot: Send a Bot NOT found"; cp /tmp/ui.xml "$AI/ui-bots-tab.xml"; fi
+sleep 2; shot bots-tab-sent
+if wait_bot "sign in to the test shop" awaiting_answer 120; then log "sign-in bot: stopped at the password and is waiting for the user"; else log "sign-in bot: did NOT wait for the user (state: $(bot_state 'sign in to the test shop'))"; fi
+log "sign-in bot: sign-ins sent by the bot (must be 0): $(site_has '"POST", "path": "/login"')"
+grep -q "hunter2" "$AI/site-log.jsonl" && log "sign-in bot: PASSWORD REACHED THE SITE" || log "sign-in bot: the password never reached the site"
+set -- $(bot_state "sign in to the test shop"); JOB2=$1
+adb shell am start -n $PKG/.BotActivity --es bot_id "$JOB2" >> "$OUT/steps.txt" 2>&1; sleep 4; shot bot-job-signin
+if tap_desc "Open the Browser"; then log "sign-in bot: opened its browser"; else log "sign-in bot: Open the Browser NOT found"; cp /tmp/ui.xml "$AI/ui-open-browser.xml"; fi
+sleep 5; shot bot-browser-watch
+adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml "$AI/ui-browser.xml" >/dev/null 2>&1
+grep -q "Sign in" "$AI/ui-browser.xml" && log "sign-in bot: the browser shows the sign-in page" || log "sign-in bot: sign-in page NOT visible in the browser"
+if tap_desc "Hand Back"; then log "sign-in bot: handed back"; else log "sign-in bot: Hand Back NOT found"; fi
+if wait_bot "sign in to the test shop" completed 90; then log "sign-in bot: COMPLETED after the hand-back"; else log "sign-in bot: did NOT complete (state: $(bot_state 'sign in to the test shop'))"; fi
+adb shell "cat /data/data/$PKG/files/bots.json" > "$AI/bots.json" 2>/dev/null
+adb shell "cat /data/data/$PKG/files/chat.json" > "$AI/chat-2.json" 2>/dev/null
+adb logcat -d -s AtlasBot:V AtlasBotBrowser:V chromium:V cr_AwContents:V > "$AI/bot-log.txt" 2>&1
+kill $AIPID 2>/dev/null
+if crashed || ! alive; then log "CRASH in cloud AI / Atlas Bot"; fi
+
 # The Hey Atlas panel, opened the way the wake word opens it
 log "assist panel"
 adb shell am start -n $PKG/.AssistActivity >> "$OUT/steps.txt" 2>&1; sleep 4; shot assist-panel
