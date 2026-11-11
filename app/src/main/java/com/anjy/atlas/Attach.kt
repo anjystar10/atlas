@@ -48,7 +48,7 @@ object Attach {
 
     class TooBig(msg: String) : Exception(msg)
 
-    private fun dir(ctx: Context) = File(ctx.filesDir, "attachments").apply { mkdirs() }
+    internal fun dir(ctx: Context) = File(ctx.filesDir, "attachments").apply { mkdirs() }
 
     /** Copies what the user picked or pasted into Atlas. Throws [TooBig] (with a sentence for the user) past the limits. */
     fun take(ctx: Context, uri: Uri): Item {
@@ -66,7 +66,9 @@ object Attach {
                 cr.openInputStream(uri)?.use { i -> out.outputStream().use { i.copyTo(it) } } ?: throw TooBig("Couldn't read “$name”.")
                 return Item(out.absolutePath, "application/pdf", name)
             }
-            val raw = cr.openInputStream(uri)?.use { it.readBytes() } ?: throw TooBig("Couldn't read “$name”.")
+            // read with a cap: some apps don't say how big a file is, and reading a huge one whole would run Atlas out of memory
+            val raw = cr.openInputStream(uri)?.use { readCapped(it, FILE_MAX_MB * 1024L * 1024L) { "“$name” is over $FILE_MAX_MB MB; files can be up to $FILE_MAX_MB MB." } }
+                ?: throw TooBig("Couldn't read “$name”.")
             var text = if (isWord) wordText(raw) else String(raw, Charsets.UTF_8)
             if (text.isBlank()) throw TooBig("“$name” has no text I can read.")
             if (text.length > TEXT_MAX_CHARS) text = text.take(TEXT_MAX_CHARS) + "\n…(the rest of the file was cut: it's very long)"
@@ -84,7 +86,8 @@ object Attach {
             } catch (_: Exception) { 0L }
             if (secs > VIDEO_MAX_SECONDS) throw TooBig("That video is ${secs}s long; the limit is $VIDEO_MAX_SECONDS seconds.")
             val out = File(dir(ctx), "${UUID.randomUUID()}.mp4")
-            cr.openInputStream(uri)?.use { i -> out.outputStream().use { i.copyTo(it) } } ?: throw TooBig("Couldn't read that video.")
+            try { cr.openInputStream(uri)?.use { i -> out.outputStream().use { copyCapped(i, it, VIDEO_MAX_MB * 1024L * 1024L) { "That video is over $VIDEO_MAX_MB MB; the limit is $VIDEO_MAX_MB MB. Trim it or send a shorter clip." } } } ?: throw TooBig("Couldn't read that video.") }
+            catch (e: TooBig) { out.delete(); throw e }
             Item(out.absolutePath, if (mime == "video/mp4" || mime == "video/webm" || mime == "video/quicktime") mime else "video/mp4")
         } else if (mime.startsWith("image/")) {
             // decode (any format the phone reads), shrink, and save as JPEG: small, and accepted everywhere
@@ -103,13 +106,33 @@ object Attach {
         } else throw TooBig("Atlas can take pictures and videos.")
     }
 
+    private const val WORD_XML_MAX = 40L * 1024 * 1024
+
+    /** Everything from [ins], or [TooBig] with [why] once it passes [max] bytes (nothing past the cap is held). */
+    internal fun readCapped(ins: java.io.InputStream, max: Long, why: () -> String): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        copyCapped(ins, out, max, why)
+        return out.toByteArray()
+    }
+
+    internal fun copyCapped(ins: java.io.InputStream, out: java.io.OutputStream, max: Long, why: () -> String) {
+        val buf = ByteArray(64 * 1024); var total = 0L
+        while (true) {
+            val n = ins.read(buf); if (n < 0) break
+            total += n
+            if (total > max) throw TooBig(why())
+            out.write(buf, 0, n)
+        }
+    }
+
     /** The words in a Word (.docx) file: its paragraphs, read from the document inside the zip. */
     private fun wordText(bytes: ByteArray): String {
         java.util.zip.ZipInputStream(bytes.inputStream()).use { z ->
             while (true) {
                 val e = z.nextEntry ?: break
                 if (e.name == "word/document.xml") {
-                    val xml = String(z.readBytes(), Charsets.UTF_8)
+                    // capped: a Word file is a zip, and a doctored one can unpack to gigabytes
+                    val xml = String(readCapped(z, WORD_XML_MAX) { "That Word document is too large to read." }, Charsets.UTF_8)
                     return xml.replace(Regex("</w:p>"), "\n").replace(Regex("<w:tab/>"), "\t").replace(Regex("<[^>]+>"), "")
                         .replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'")
                         .lines().joinToString("\n") { it.trimEnd() }.replace(Regex("\n{3,}"), "\n\n").trim()

@@ -32,7 +32,7 @@ object Conversation {
     private const val KEEP_TURNS = 24
 
     class Msg(val fromUser: Boolean, var text: String, var source: String, val at: Long, val steps: MutableList<String> = mutableListOf(),
-              val media: List<Attach.Item> = emptyList(), val id: String = java.util.UUID.randomUUID().toString())
+              var media: List<Attach.Item> = emptyList(), val id: String = java.util.UUID.randomUUID().toString())
 
     val messages = mutableListOf<Msg>()
     var busy = false; private set
@@ -108,13 +108,15 @@ object Conversation {
     // ---------------------------------------------------------------- the same conversation on the PC (see Sync)
 
     /** The finished messages, as records for the other device (pictures stay on this one). */
-    fun exportForSync(ctx: Context): List<JSONObject> {
-        val list = java.util.concurrent.FutureTask { messages.filterIndexed { i, m -> !(busy && i == messages.size - 1) && m.source != "error" }.map { m ->
+    /** The conversation as records, or null if it can't be read just now (the sync then leaves the chat alone). */
+    fun exportForSync(ctx: Context): List<JSONObject>? {
+        val app = ctx.applicationContext
+        val list = java.util.concurrent.FutureTask { load(app); messages.filterIndexed { i, m -> !(busy && i == messages.size - 1) && m.source != "error" }.map { m ->
             JSONObject().put("id", m.id).put("user", m.fromUser).put("text", m.text).put("source", m.source).put("at", m.at).put("steps", JSONArray(m.steps))
                 .put("files", m.media.size)
         } }
         if (Looper.myLooper() == Looper.getMainLooper()) list.run() else { mainHandler.post(list) }
-        return try { list.get(5, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
+        return try { list.get(8, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { null }
     }
     private val mainHandler = android.os.Handler(Looper.getMainLooper())
 
@@ -140,10 +142,10 @@ object Conversation {
      * Atlas Bot finished a job: its report joins the chat as an Atlas message (and so reaches the other device too).
      * While Atlas is answering, it goes in just before the exchange in progress. Main thread.
      */
-    fun postFromBot(ctx: Context, text: String) {
+    fun postFromBot(ctx: Context, text: String, media: List<Attach.Item> = emptyList()) {
         val app = ctx.applicationContext
         load(app)
-        val m = Msg(false, Plain.reply(text), "Atlas Bot", System.currentTimeMillis())
+        val m = Msg(false, Plain.reply(text), "Atlas Bot", System.currentTimeMillis(), media = media)
         val at = inFlight?.takeIf { busy }?.let { messages.indexOf(it.first) } ?: -1
         if (at >= 0) messages.add(at, m) else messages.add(m)
         // the model hears about it next time
@@ -171,6 +173,8 @@ object Conversation {
 
     fun clear(ctx: Context) {
         stop()
+        // New Chat clears the conversation on the other device too
+        try { Sync.noteDeleted(ctx, "chat", messages.map { it.id }) } catch (_: Exception) {}
         messages.clear(); history.clear(); save(ctx); changed()
     }
 
@@ -181,6 +185,9 @@ object Conversation {
         gen++
         if (busy) { busy = false; status = null; usingPhone = false; changed() }
     }
+
+    /** The pictures in the user's latest message that has any (for generate_image to work from). */
+    fun latestUserImages(): List<java.io.File> = messages.lastOrNull { it.fromUser && it.media.any { m -> m.image } }?.media?.filter { it.image && it.file.exists() }?.map { it.file } ?: emptyList()
 
     /** Send [text] as the user. [spoken]: it came by voice, so the answer is read out too. */
     fun send(ctx: Context, text: String, spoken: Boolean = false, onSpoken: (() -> Unit)? = null, media: List<Attach.Item> = emptyList()) {
@@ -250,12 +257,13 @@ You are Atlas, $name's personal AI assistant. You live on their Android phone an
 
 How you talk:
 - Like a sharp, warm friend. Natural and relaxed, short by default, longer when they want detail.
+- Be straight with them: they're an adult. Answer what was asked, fully and plainly. Don't lecture, moralise, pile on warnings or disclaimers, or back away from a topic because it's blunt, dark or uncomfortable; give your real opinion when asked. If something is truly dangerous, say so once, in a sentence, and carry on.
 - Read their meaning, not just their words. They often write casually with slang and typos ("ik", "ngl", "bro", "tryna"); understand it and match their energy. A compliment is a compliment: take it warmly.
 - Never curt, defensive or preachy. Never say "what's your issue".
 - You can help with anything: questions, advice, ideas, writing, maths, plans, explaining things.
 - Be honest. Only say you did something if a tool result shows it worked. If you don't know, say so; if it might have changed recently, search the web.
 - Never show code, ids, function or tool names, JSON, or how you work inside, unless they asked you for code. Say what you did in plain words ("Saved", "Done, it's in your Log").
-${if (spoken) "- This message came by voice and your answer will be read aloud: one to three short spoken sentences. No lists, no formatting, no links." else """- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler, no repeating the question."""}
+${if (spoken) "- This message came by voice and your answer will be read aloud: one to three short spoken sentences. No lists, no formatting, no links. Spoken, you are composed and courteous, the unflappable aide: precise, quietly warm, a touch of dry wit when it fits; never gushing." else """- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler, no repeating the question."""}
 
 The Log (only what's worth keeping):
 - set_reminder when they want reminding or have something to do at a time ("remind me to pick up my sister next Thursday"). Work out the exact date from today's date. If they gave a day but no time, ask what time unless one is obvious from context.
@@ -271,6 +279,11 @@ The internet:
 Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of phone actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
+- When they teach you how they want a kind of job done, save it with save_skill. When they want a bot on a schedule ("every morning…"), use set_routine (one-off reminders stay set_reminder).
+${botTeam()}
+
+Where you're running (so you can say why something is held back; don't bring it up otherwise):
+- ${try { DeviceGuard.line(ctx) } catch (e: Exception) { "this phone" }}
 
 Your own settings (change_setting, when they ask, e.g. "talk to me", "use a deeper voice", "dark mode", "get off my screen"):
 ${Self.describe(ctx)}
@@ -321,6 +334,7 @@ ${Tools.logContext(ctx)}
                 val r = Tools.run(ctx, c)
                 if (r.phone && !usingPhone) usingPhone = true
                 r.step?.let { reply.steps.add(it) }
+                if (r.media.isNotEmpty()) reply.media = reply.media + r.media   // pictures Atlas made, shown with its reply
                 results.add(c to r.out)
                 changed()
             }
@@ -340,6 +354,11 @@ ${Tools.logContext(ctx)}
             KeyRouter.call(ctx, p, session, onStatus = { st -> status = st ?: was; changed() }, call = call)
         } finally { if (status != was) { status = was; changed() } }
     }
+
+    /** The skills and the specialist team, for Atlas's own instructions. */
+    private fun botTeam(): String = try {
+        listOf(BotExtras.Rules.skillsIndex(BotExtras.skills.toList()), BotExtras.Rules.teamIndex(BotExtras.specialists.toList())).filter { it.isNotEmpty() }.joinToString("\n")
+    } catch (_: Exception) { "" }
 
     private fun stepNote(steps: List<String>) = if (steps.isEmpty()) "" else "\n(What I did: ${steps.joinToString("; ")})"
 

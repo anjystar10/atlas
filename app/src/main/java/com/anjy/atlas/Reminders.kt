@@ -37,10 +37,25 @@ object Reminders {
 
     fun fmt(ms: Long): String = Instant.ofEpochMilli(ms).atZone(Engine.zone).format(hhmm)
 
+    @Volatile private var channelsReady = false
+
+    /**
+     * The notification channels, set up once per run of the app. Every call here is a round trip to Android, and
+     * services call this on the main thread as they start, so repeating it each time froze the screen on a busy phone.
+     */
     fun channels(ctx: Context) {
+        if (channelsReady) return
+        synchronized(this) { if (channelsReady) return; makeChannels(ctx); channelsReady = true }
+    }
+
+    private fun makeChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
-        // the old reminder channels go
-        listOf("atlas_reminders", "atlas_quiet").forEach { try { nm.deleteNotificationChannel(it) } catch (_: Exception) {} }
+        // the old reminder channels go (once: a delete is a slow call into Android, and they only need removing once)
+        val prefs = ctx.getSharedPreferences("atlas_channels", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("old_gone", false)) {
+            listOf("atlas_reminders", "atlas_quiet").forEach { try { nm.deleteNotificationChannel(it) } catch (_: Exception) {} }
+            prefs.edit().putBoolean("old_gone", true).apply()
+        }
         nm.createNotificationChannel(NotificationChannel(CH_ALARM, "Alarms", NotificationManager.IMPORTANCE_HIGH).apply {
             description = "Rings at the time of things you asked Atlas to remind you about"
             setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
@@ -183,6 +198,7 @@ class BootReceiver : BroadcastReceiver() {
                 Engine.zone = java.time.ZoneId.systemDefault()
                 Reminders.channels(context)
                 Reminders.tickAndSchedule(context.applicationContext)
+                BotExtras.tick(context.applicationContext)   // routines: set the next alarm, and run any missed while off
                 AvatarService.startIfEnabled(context)
             } catch (e: Exception) { Log.e("AtlasAlarms", "boot", e) }
             finally { pending.finish() }

@@ -2,8 +2,31 @@
 // one runs out, and the tools: the Log, the web, its own settings, and the PC itself.
 import { db, pref, setPref, saveChat, changed, OPEN, findTask, createTask, updateTask, respond, cancelTask, deleteTask, remember, forget } from './store.js';
 import { plainReply, plainMemory } from './plain.js';
+import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
 const host = window.atlasHost;
+
+// ---- this PC, measured: a local model is checked against free memory before it's used (see fit.js) ----
+export const device = fitRules.profileCache(() => (host.device ? host.device() : null), 30000);
+/** The local model in use and where it would run now, or null when it isn't a local model. */
+export async function localVerdict(p, fresh = true) {
+  if (!p || !p.local) return null;
+  const prof = await device.get(fresh);
+  if (!prof) return null;
+  const id = modelOf(p), base = baseOf(p);
+  const rt = (prof.runtimes || []).find((r) => r.base === base);
+  const m = (rt && rt.models.find((x) => x.id === id)) || { id, sizeMb: -1 };
+  return fitRules.fit(prof, m);
+}
+/** Before a local model answers: if it would freeze this PC right now, use a cloud service instead (unless Don't Switch), or say why not. */
+async function guardLocal(p) {
+  const v = await localVerdict(p).catch(() => null);
+  if (!v || v.ok) return p;
+  const other = !dontSwitch() && PROVIDERS.find((x) => !x.local && readyKey(x.id));
+  if (other) { convo.status = `${modelOf(p)} is too big for this PC right now: using ${other.name}`; changed('chat'); return other; }
+  throw new Failure(v.reason + (dontSwitch() ? ' (Don\'t Switch Services is on, so I stayed with it.)' : ''));
+}
+// ---- end hardware ----
 
 export const PROVIDERS = [
   { id: 'gemini', name: 'Gemini', style: 'gemini', base: 'https://generativelanguage.googleapis.com/v1beta/models/', model: 'gemini-3.8-flash', keyUrl: 'https://aistudio.google.com/apikey', hint: 'AIza…' },
@@ -112,6 +135,8 @@ export function session(p, key, history, user, media, tools = TOOLS) {
       async call(system) {
         const req = { systemInstruction: { parts: [{ text: system }] }, contents: trimScreens(contents), tools: [{ functionDeclarations: tools }] };
         if (model.startsWith('gemini-3')) req.generationConfig = { thinkingConfig: { thinkingLevel: 'low' } };
+        // Google's adjustable content filters at their most open setting (the user's choice); the model's own limits still apply
+        req.safetySettings = ['HARM_CATEGORY_HARASSMENT', 'HARM_CATEGORY_HATE_SPEECH', 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'HARM_CATEGORY_DANGEROUS_CONTENT'].map((category) => ({ category, threshold: 'BLOCK_NONE' }));
         const r = await post(`${p.base}${model}:generateContent`, { 'x-goog-api-key': this.key }, req, 'Gemini');
         if (r.promptFeedback && r.promptFeedback.blockReason) throw new Failure(`Gemini refused that message (${r.promptFeedback.blockReason}).`);
         const cand = (r.candidates || [])[0]; if (!cand) throw new Failure('Gemini sent back an empty answer.');
@@ -205,7 +230,7 @@ const str = (description, e) => ({ type: 'string', description, ...(e ? { enum: 
 const int = (description) => ({ type: 'integer', description });
 const bool = (description) => ({ type: 'boolean', description });
 const fn = (name, description, props, required = []) => ({ name, description, ...(props ? { parameters: { type: 'object', properties: props, ...(required.length ? { required } : {}) } } : {}) });
-export const SETTINGS = ['speak_replies', 'voice', 'theme', 'on_screen', 'your_name', 'alarm_sound', 'start_with_windows', 'dont_switch'];
+export const SETTINGS = ['speak_replies', 'voice', 'theme', 'on_screen', 'your_name', 'alarm_sound', 'start_with_windows', 'dont_switch', 'speaking_speed', 'keep_listening', 'listen_language'];
 
 export const TOOLS = [
   fn('set_reminder', 'Log a reminder. At its time Atlas rings an alarm (important things) or sends a notification (lighter things), on this PC and on the phone.', {
@@ -237,7 +262,16 @@ export const TOOLS = [
   fn('scroll', 'Scroll whatever is under the mouse.', { direction: str('Which way', ['up', 'down']), amount: int('How far, 1-20 (default 5)') }, ['direction']),
   fn('deploy_bot', "Send Atlas Bot to do a bigger job in the background: anything that needs many steps, like deep research with sources, comparing several options, writing a long piece, checking many pages, or a long chain of PC actions. The bot plans, works on its own, and its report lands in this chat when it's done; the chat stays free meanwhile. Don't use it for quick things you can do in a step or two.", {
     goal: str("The job in one clear sentence, e.g. 'Find the best budget laptop under $800 for coding, with sources'"),
-    details: str('Everything the bot should know: what the user wants, preferences, limits, what to include in the report') }, ['goal']),
+    details: str('Everything the bot should know: what the user wants, preferences, limits, what to include in the report'),
+    specialist: str("Optional: one of the user's specialist bots to send (by name), when the job fits its speciality") }, ['goal']),
+  // ---- Atlas Bot extras (botx.js): skills taught by telling, and routines (bots on a schedule)
+  fn('save_skill', 'Save a skill: a reusable way of doing a kind of job that the user teaches you ("when I ask for X, do it like this…"). Bots load it when they do that kind of job. Saving with an existing name updates it.', {
+    name: str('A short name, e.g. "Weekly money check"'), when: str('When to use it'), steps: str('The steps, one per line'),
+    inputs: str('What is needed first (optional)'), checks: str('What to check before finishing (optional)'), output: str('What the result should look like (optional)'),
+    permissions: str('Actions in it that need the user\'s OK (optional)') }, ['name', 'when', 'steps']),
+  fn('set_routine', 'Set up a routine: a bot sent on a schedule, like "every weekday at 8am, summarise the news on AI". Runs every 5 minutes at most.', {
+    goal: str('What the bot should do each time'), schedule: str('When, in plain words: "every weekday at 8am", "every 2 hours", "every Sunday evening", "every month on the 1st at 9am"'),
+    name: str('A short name (optional)'), specialist: str('A specialist bot to send (optional)') }, ['goal', 'schedule']),
 ];
 
 const PC = new Set(['open_app', 'list_apps', 'open_link', 'open_path', 'list_files', 'read_file', 'write_file', 'run_command', 'look_at_screen', 'click', 'type_text', 'press_keys', 'scroll']);
@@ -277,7 +311,8 @@ function readLog(query, limit) {
 }
 
 /** Hooks the screens provide: asking the user to allow something, starting a focus session, changing settings. */
-export const ui = { confirm: async () => false, startFocus: () => {}, setting: () => 'Error: settings unavailable.', settingsText: () => '', deployBot: () => null };
+export const ui = { confirm: async () => false, startFocus: () => {}, setting: () => 'Error: settings unavailable.', settingsText: () => '', deployBot: () => null,
+  saveSkill: () => null, saveRoutine: () => ({ error: 'Routines are unavailable.' }), botTeam: () => '' };
 
 async function webSearch(q) {
   const gk = keyFor('gemini');
@@ -347,8 +382,18 @@ export async function runTool(call, { approved = false } = {}) {
       case 'change_setting': { const out = await ui.setting(a.setting, String(a.value ?? '')); return { out, step: out.startsWith('Error') ? null : out }; }
       case 'deploy_bot': {
         const goal = String(a.goal || '').trim(); if (!goal) return { out: 'Error: give the bot a goal.' };
-        const j = ui.deployBot(goal, String(a.details || '')); if (!j) return { out: "Error: Atlas Bot isn't available right now." };
+        const j = ui.deployBot(goal, String(a.details || ''), a.specialist ? String(a.specialist) : null); if (!j) return { out: "Error: Atlas Bot isn't available right now." };
         return { out: `Atlas Bot is on it: '${j.goal}'. It works in the background; its report will appear in this chat when it's done, and the user can follow it on the Bots page. Tell them briefly, in your own words.`, step: 'Sent Atlas Bot: ' + j.goal };
+      }
+      case 'save_skill': {
+        const name = plainMemory(a.name || ''); if (!name || !String(a.steps || '').trim()) return { out: 'Error: a skill needs a name and steps.' };
+        const sk = ui.saveSkill({ name, when: a.when, steps: a.steps, inputs: a.inputs, checks: a.checks, output: a.output, permissions: a.permissions });
+        return sk ? { out: `Saved the skill "${sk.name}". Bots will use it for that kind of job; the user can edit it on the Bots page.`, step: 'Saved a skill: ' + sk.name } : { out: "Error: skills aren't available right now." };
+      }
+      case 'set_routine': {
+        const r = ui.saveRoutine({ goal: String(a.goal || ''), schedule: String(a.schedule || ''), name: a.name ? String(a.name) : undefined, specialist: a.specialist ? String(a.specialist) : null });
+        if (r.error) return { out: 'Error: ' + r.error };
+        return { out: `Routine set: "${r.routine.name}", next run ${new Date(r.routine.nextAt).toLocaleString()}. The user can pause, test or delete it on the Bots page.`, step: 'Set a routine: ' + r.routine.name };
       }
       case 'start_focus': { const title = plainMemory(a.title || '') || 'Focus'; ui.startFocus(title, a.minutes || null, a.id || null); return { out: `Focus session started for '${title}'.`, step: 'Started a focus session: ' + title }; }
     }
@@ -385,9 +430,10 @@ export function systemPrompt(spoken) {
 
 How you talk:
 - Like a sharp, warm friend. Natural and relaxed, short by default, longer when they want detail. Understand casual writing and slang; match their energy.
+- Be straight with them: they're an adult. Answer what was asked, fully and plainly. Don't lecture, moralise, pile on warnings or disclaimers, or back away from a topic because it's blunt, dark or uncomfortable; give your real opinion when asked. If something is truly dangerous, say so once, in a sentence, and carry on.
 - Be honest. Only say you did something if a tool result shows it worked. If you don't know, say so; if it might have changed recently, search the web.
 - Never show code, ids, function or tool names, JSON, or how you work inside, unless they asked you for code. Say what you did in plain words.
-${spoken ? '- This came by voice and your answer will be read aloud: one to three short spoken sentences. No lists, no formatting, no links.' : '- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler.'}
+${spoken ? '- This came by voice and your answer will be read aloud: one to three short spoken sentences. No lists, no formatting, no links. Spoken, you are composed and courteous, the unflappable aide: precise, quietly warm, a touch of dry wit when it fits; never gushing.' : '- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler.'}
 
 The Log (only what's worth keeping):
 - set_reminder when they want reminding or have something to do at a time. Work out the exact date from today. If they gave a day but no time, ask what time unless it's obvious.
@@ -402,9 +448,14 @@ Using the PC:
 - Before anything that sends a message, posts, buys, deletes, or changes an account, say exactly what you're about to do and wait for their go-ahead, unless they already asked for that exact action.
 - Never type passwords or payment details unless they give them to you in this chat for that purpose.
 
+Where you're running (so you can say why something is held back; don't bring it up otherwise):
+- ${fitRules.line(device.now())}
+
 Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of PC actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
+- When they teach you how they want a kind of job done, save it with save_skill. When they want a bot on a schedule ("every morning…"), use set_routine (for one-off reminders use set_reminder).
+${ui.botTeam()}
 
 ${conn.promptLine() ? conn.promptLine() + '\n\n' : ''}Your own settings (change_setting, when they ask):
 ${ui.settingsText()}
@@ -433,6 +484,7 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
       const g = byId('gemini'); if (readyKey('gemini')) p = g; else throw new Failure(`${p.name} can't watch videos. Gemini can: add a Gemini key, or send a picture instead.`);
     }
     const full = q + attachments.filter((x) => x.kind === 'text').map((x) => `\n\n[File: ${x.name}]\n${x.text}\n[End of ${x.name}]`).join('');
+    p = await guardLocal(p);
     reply.source = p.name;
     const tools = [...TOOLS, ...conn.declarations('chat')];   // connections
     let sess = session(p, keyFor(p.id), hist, full, media, tools);
@@ -446,7 +498,7 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
       catch (e) {
         if (!(e instanceof Switch)) throw e;
         if (tried.has(e.to.id)) throw new Failure(e.message);
-        tried.add(e.to.id); p = e.to; reply.source = p.name; convo.status = 'Switching to ' + p.name; changed('chat');
+        tried.add(e.to.id); p = await guardLocal(e.to); tried.add(p.id); reply.source = p.name; convo.status = 'Switching to ' + p.name; changed('chat');
         const done = reply.steps.length ? `\n\n(Note for you, Atlas: you already did these steps for this request before the service changed, don't repeat them: ${reply.steps.join('; ')}. Continue from there.)` : '';
         sess = session(p, keyFor(p.id), hist, full + done, media, tools); steps--; continue;
       }

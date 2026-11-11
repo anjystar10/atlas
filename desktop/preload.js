@@ -16,12 +16,33 @@ contextBridge.exposeInMainWorld('atlasHost', {
   orbState: (st) => ipcRenderer.send('orb:state', st),
   autostart: (on) => ipcRenderer.invoke('app:autostart', on),
   info: () => ipcRenderer.invoke('app:info'),
+  device: () => ipcRenderer.invoke('device:profile'),
   openExternal: (url) => ipcRenderer.invoke('open:external', url),
   pickFiles: () => ipcRenderer.invoke('file:pick'),
   loadFile: (p) => ipcRenderer.invoke('file:load', p),
   pathOf: (file) => { try { return webUtils.getPathForFile(file); } catch { return null; } },
   pc: (name, args) => ipcRenderer.invoke('pc:run', name, args),
+  // >>> bot browser
+  botBrowser: {
+    run: (jobId, title, name, args) => ipcRenderer.invoke('bot:browser', jobId, title, name, args),
+    check: (jobId, title, name, args) => ipcRenderer.invoke('bot:browser-check', jobId, title, name, args),
+    show: (jobId, title) => ipcRenderer.invoke('bot:browser-show', jobId, title),
+    close: (jobId) => ipcRenderer.invoke('bot:browser-close', jobId),
+    info: (jobId) => ipcRenderer.invoke('bot:browser-info', jobId),
+  },
+  // <<< bot browser
+  // >>> vault
+  vault: {
+    list: () => ipcRenderer.invoke('vault:list'),
+    model: () => ipcRenderer.invoke('vault:model'),
+    save: (entry) => ipcRenderer.invoke('vault:save', entry),
+    remove: (id) => ipcRenderer.invoke('vault:remove', id),
+    reveal: (id) => ipcRenderer.invoke('vault:reveal', id),
+  },
+  // <<< vault
+  // >>> connections
   conn: (op, ...args) => ipcRenderer.invoke('conn', op, ...args),
+  // <<< connections
   on: (channel, fn) => {
     const ok = ['notification-click', 'orb-clicked', 'orb-state', 'connections-changed'];
     if (!ok.includes(channel)) return;

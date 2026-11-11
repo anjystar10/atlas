@@ -26,14 +26,14 @@ import kotlin.math.roundToInt
 class BotActivity : Activity() {
     companion object { const val EXTRA_ID = "bot_id" }
 
-    private val BG = Color.parseColor("#05050F")
-    private val FG = Color.parseColor("#F0F1FF")
-    private val MUTED = Color.parseColor("#9BA1C9")
-    private val ACCENT = Color.parseColor("#A99BFF")
-    private val GOOD = Color.parseColor("#7FD8A6")
-    private val WARN = Color.parseColor("#F2C46D")
-    private val BAD = Color.parseColor("#F08A8A")
-    private val SURFACE = Color.parseColor("#14163A")
+    private val BG = Palette.NIGHT.bg
+    private val FG = Palette.NIGHT.fg
+    private val MUTED = Palette.NIGHT.muted
+    private val ACCENT = Palette.NIGHT.accentInk
+    private val GOOD = Palette.NIGHT.done
+    private val WARN = Palette.NIGHT.warm
+    private val BAD = Palette.NIGHT.danger
+    private val SURFACE = Palette.NIGHT.surface2
 
     private lateinit var col: LinearLayout
     private lateinit var scroll: ScrollView
@@ -116,7 +116,7 @@ class BotActivity : Activity() {
     private fun button(label: String, primary: Boolean = false, onTap: () -> Unit) = TextView(this).apply {
         text = label; textSize = 15f; typeface = if (primary) semi else med; gravity = Gravity.CENTER
         setTextColor(if (primary) Color.WHITE else FG); setPadding(dp(14), dp(13), dp(14), dp(14))
-        background = Finish(if (primary) Color.parseColor("#5B4BF0") else SURFACE, -1f, true, resources.displayMetrics.density, glass = !primary)
+        background = Finish(if (primary) Palette.NIGHT.primaryBottom else SURFACE, -1f, true, resources.displayMetrics.density, glass = !primary)
         isClickable = true; setOnClickListener { onTap() }; pressFx()
     }
 
@@ -165,6 +165,9 @@ class BotActivity : Activity() {
             Bots.deploy(applicationContext, goal, "")
             render()
         }, 16)
+        // routines, skills, the team (BotExtrasActivity)
+        add(row(button("Routines") { startActivity(BotExtrasActivity.intent(this, "routines")) }, button("Skills") { startActivity(BotExtrasActivity.intent(this, "skills")) },
+            button("Team") { startActivity(BotExtrasActivity.intent(this, "team")) }), 12)
         val all = Bots.visible()
         if (all.isEmpty()) {
             add(card().apply {
@@ -218,8 +221,16 @@ class BotActivity : Activity() {
                 add(card().apply {
                     addView(text("It wants to:", 13f, WARN, semi))
                     addView(text(a.what, 17f, FG, serif), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
-                    addView(row(button("Deny") { Bots.approve(j.id, false) }, button("Approve", primary = true) { Bots.approve(j.id, true) }),
+                    // Allow once, or always allow this kind of action (the standing choice in Me → Bot Permissions)
+                    val kind = a.category?.let { BotExtras.Rules.label(it) }
+                    if (kind != null) addView(text("Kind: $kind", 12f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+                    addView(row(button("Deny") { Bots.approve(j.id, false) }, button("Allow Once", primary = true) { Bots.approve(j.id, true) }),
                         LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+                    if (kind != null) addView(button("Always Allow This Kind") {
+                        android.app.AlertDialog.Builder(this@BotActivity).setTitle("Always Allow This Kind?")
+                            .setMessage("Bots won't ask again before: ${kind.lowercase()}. You can change this in Me → Bot Permissions.")
+                            .setPositiveButton("Always Allow") { _, _ -> Bots.approve(j.id, true, always = true) }.setNegativeButton("Cancel", null).show()
+                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
                 }, 14)
             }
             BotRules.AWAITING_ANSWER -> {
@@ -243,13 +254,61 @@ class BotActivity : Activity() {
             j.state == BotRules.AWAITING_APPROVAL || j.state == BotRules.AWAITING_ANSWER -> add(row(button("Pause") { Bots.pause(j.id) }, button("Stop") { Bots.stop(j.id) }), 10)
         }
 
+        // talk to it while it works, or ask it to wrap up (not while it waits on an answer: that box is above)
+        if (!j.final && j.state != BotRules.AWAITING_ANSWER) {
+            add(input("Tell the bot something (it reads it at its next step)") { t -> if (Bots.steer(j.id, t)) android.widget.Toast.makeText(this, "Sent: it reads it at its next step.", android.widget.Toast.LENGTH_SHORT).show() }, 12)
+            add(button(if (j.wrapUp) "Wrapping Up…" else "Wrap Up Now") { if (!j.wrapUp) Bots.wrapUp(j.id) }, 8)
+        }
+
+        // its helpers (specialist bots it handed parts to)
+        val kids = Bots.helpers(j.id)
+        if (kids.isNotEmpty()) {
+            add(text("HELPERS", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
+            kids.forEach { k ->
+                val who = k.specialist?.let { BotExtras.specialist(it)?.optString("name") }
+                add(card().apply {
+                    isClickable = true; setOnClickListener { open(k) }; pressFx()
+                    addView(text(k.goal, 15f, FG, serif).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END })
+                    addView(text(listOfNotNull(who, BotRules.label(k.state)).joinToString(" · "), 12f, stateColor(k.state), med), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
+                }, 8)
+            }
+        }
+
+        // the bot's web browser: watch it work, or take over (sign in, pass a human check)
+        if (BotBrowser.live(j.id)) {
+            val waiting = j.state == BotRules.AWAITING_ANSWER
+            add(row(button(if (waiting) "Open the Browser" else "Watch the Browser", primary = waiting) {
+                startActivity(BotBrowserActivity.intent(this, j.id))
+            }), 12)
+        }
+
+        // files the bot downloaded: kept with the job, savable to the phone's Downloads
+        val got = BotBrowser.files(this, j.id)
+        if (got.isNotEmpty()) {
+            add(text("FILES", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
+            got.forEach { f ->
+                add(card().apply {
+                    addView(text(f.name, 15f, FG, med).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
+                    addView(text("${(f.length() / 1024).coerceAtLeast(1)} KB", 12f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
+                    addView(button("Save to Downloads") {
+                        // a download can be up to 50 MB: copy it off the main thread, or the screen freezes ("isn't responding")
+                        val app = applicationContext
+                        Thread {
+                            val where = BotBrowser.saveToDownloads(app, f)
+                            runOnUiThread { android.widget.Toast.makeText(app, where?.let { "Saved to $it" } ?: "Couldn't save it", android.widget.Toast.LENGTH_SHORT).show() }
+                        }.start()
+                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+                }, 8)
+            }
+        }
+
         // the report
         j.report?.let { r ->
             add(text("REPORT", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
-            val st = Markdown.Style(body, semi, serif, mono, FG, MUTED, ACCENT, Color.argb(40, 255, 255, 255), resources.displayMetrics.density, 16f)
+            val st = Markdown.Style(serif, Type.serifSemi(this), Type.serifMedium(this), mono, FG, MUTED, ACCENT, Color.argb(40, 255, 255, 255), resources.displayMetrics.density, Type.READ, italic = Type.serifItalic(this))
             Markdown.parse(r, st).forEach { b ->
                 when (b) {
-                    is Markdown.Prose -> add(text(b.text, 16f).apply { setLineSpacing(0f, 1.32f); setTextIsSelectable(true)
+                    is Markdown.Prose -> add(text(b.text, Type.READ, FG, serif).apply { setLineSpacing(0f, Type.LEAD_READ); setTextIsSelectable(true)
                         movementMethod = android.text.method.LinkMovementMethod.getInstance() }, 8)
                     is Markdown.Code -> add(text(b.text, 13.5f, FG, mono).apply { setPadding(dp(12), dp(10), dp(12), dp(10))
                         background = Finish(SURFACE, dp(12).toFloat(), true, resources.displayMetrics.density, glass = true); setTextIsSelectable(true) }, 8)
@@ -275,6 +334,11 @@ class BotActivity : Activity() {
             if (j.steps.size > shown.size) add(text("and ${j.steps.size - shown.size} earlier steps", 13f, MUTED), 6)
             shown.forEach { add(text("· $it", 14f, MUTED), 6) }
         }
+
+        // a finished job can become a skill: a first draft from what it did, to edit
+        if (j.state == BotRules.COMPLETED && j.parent == null) add(button("Save as a Skill") {
+            startActivity(BotExtrasActivity.intent(this, "skills").putExtra(BotExtrasActivity.EXTRA_SKILL, BotExtras.Rules.draftSkill(j).toString()))
+        }, 22)
 
         if (j.final) add(button("Remove From List") { Bots.remove(j.id); finish() }, 24)
     }

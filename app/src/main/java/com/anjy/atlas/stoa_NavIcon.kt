@@ -15,6 +15,7 @@ class NavIcon(context: Context, kind: Int) : View(context) {
     private val ids = when (kind) {
         0 -> R.drawable.ic_spark_off to R.drawable.ic_spark_on
         1 -> R.drawable.ic_book to R.drawable.ic_book
+        3 -> R.drawable.ic_bot to R.drawable.ic_bot
         else -> R.drawable.nav_me_off to R.drawable.nav_me_on
     }
     private val off: Drawable = context.getDrawable(ids.first)!!.mutate()

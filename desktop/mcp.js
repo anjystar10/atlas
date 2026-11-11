@@ -176,6 +176,8 @@ function createConnections(deps) {
     const b = new URL(base.replace(/\/+$/, '') + '/');
     const p = String(path || '').trim();
     if (/^[a-z][a-z0-9+.-]*:/i.test(p) || p.startsWith('//') || p.includes('\\')) throw new Error('Give a path inside the API, like /v1/items, not a whole address.');
+    // encoded dots and slashes: some servers decode them after routing, which would step outside the API
+    if (/%2e|%2f|%5c/i.test(p)) throw new Error("That path has encoded dots or slashes in it; write them plainly.");
     const u = new URL(p.replace(/^\/+/, ''), b);
     if (u.origin !== b.origin || !u.pathname.startsWith(b.pathname)) throw new Error('That path leaves the API.');
     if (query && typeof query === 'object') for (const [k, v] of Object.entries(query)) if (v != null) u.searchParams.set(k, String(v));

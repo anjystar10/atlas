@@ -132,6 +132,7 @@ ipcMain.handle('net:fetch', async (e, url, opts = {}) => {
       const fd = new FormData();
       for (const [k, v] of Object.entries(opts.form)) {
         if (v && typeof v === 'object' && v.base64) fd.append(k, new Blob([Buffer.from(v.base64, 'base64')], { type: v.type }), v.name || 'file');
+        else if (Array.isArray(v)) v.forEach((x) => fd.append(k, String(x)));   // a list: the same field once per item (e.g. keywords[])
         else fd.append(k, String(v));
       }
       init.body = fd;
@@ -185,6 +186,9 @@ ipcMain.handle('app:autostart', (e, on) => {
   return app.getLoginItemSettings().openAtLogin;
 });
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, data: DATA() }));
+// ---- this PC's hardware, measured (device.js): for picking local models that fit and pacing bots ----
+ipcMain.handle('device:profile', async (e) => { if (!fromMain(e)) return null; try { return await require('./device').profile(DATA()); } catch { return null; } });
+// ---- end hardware ----
 ipcMain.handle('open:external', (e, url) => { if (fromMain(e)) openSafe(url); });
 
 // ------------------------------------------------------------------ files the user picks or drops (attachments)
@@ -212,6 +216,32 @@ ipcMain.handle('pc:run', async (e, name, args) => {
   try { return await pc.run(name, args, { desktopCapturer, screen, shell }); }
   catch (err) { return { error: err.message || String(err) }; }
 });
+
+// ------------------------------------------------------------------ Atlas Bot's own browser (see botbrowser.js)
+// >>> bot browser
+const botBrowser = require('./botbrowser');
+const okJob = (id) => typeof id === 'string' && /^[\w-]{1,64}$/.test(id);
+ipcMain.handle('bot:browser', async (e, jobId, title, name, args) => {
+  if (!fromMain(e) || !okJob(jobId) || !/^browser_\w+$/.test(String(name))) return { out: 'Error: not allowed' };
+  try { return await botBrowser.run(jobId, String(title || ''), name, args || {}); } catch (err) { return { out: 'Error: ' + (err.message || err) }; }
+});
+ipcMain.handle('bot:browser-check', async (e, jobId, title, name, args) => {
+  if (!fromMain(e) || !okJob(jobId)) return null;
+  try { return await botBrowser.check(jobId, String(title || ''), name, args || {}); } catch { return null; }
+});
+ipcMain.handle('bot:browser-show', (e, jobId, title) => { if (!fromMain(e) || !okJob(jobId)) return false; return botBrowser.show(jobId, String(title || '')); });
+ipcMain.handle('bot:browser-close', (e, jobId) => { if (fromMain(e) && okJob(jobId)) botBrowser.close(jobId); return true; });
+ipcMain.handle('bot:browser-info', (e, jobId) => (fromMain(e) && okJob(jobId) ? botBrowser.info(jobId) : { open: false }));
+// <<< bot browser
+
+// >>> vault (see vault.js): sign-ins for Atlas Bot, encrypted by Windows for this user; passwords stay in this process
+const vault = require('./vault');
+ipcMain.handle('vault:list', (e) => (fromMain(e) ? vault.list() : []));
+ipcMain.handle('vault:model', (e) => (fromMain(e) ? vault.forModelNow() : ''));
+ipcMain.handle('vault:save', (e, entry) => { if (!fromMain(e) || !entry || typeof entry !== 'object') return { error: 'not allowed' }; try { return { ok: vault.save(entry) }; } catch (err) { return { error: err.message } } });
+ipcMain.handle('vault:remove', (e, id) => (fromMain(e) && typeof id === 'string' ? vault.remove(id) : false));
+ipcMain.handle('vault:reveal', (e, id) => (fromMain(e) && typeof id === 'string' ? vault.reveal(id, BrowserWindow.fromWebContents(e.sender)) : null));
+// <<< vault
 
 // ------------------------------------------------------------------ connections (MCP servers and web APIs; see mcp.js)
 

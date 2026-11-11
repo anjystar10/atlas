@@ -30,6 +30,11 @@ object Gemini {
         put("tools", JSONArray().put(JSONObject().put("functionDeclarations", tools)))
         // Gemini 3 models think before answering; "low" keeps replies quick. Older models don't take this setting.
         if (model.startsWith("gemini-3")) put("generationConfig", JSONObject().put("thinkingConfig", JSONObject().put("thinkingLevel", "low")))
+        // Google's adjustable content filters at their most open setting (the user's choice); the model's own limits still apply
+        put("safetySettings", JSONArray().apply {
+            for (c in listOf("HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT"))
+                put(JSONObject().put("category", c).put("threshold", "BLOCK_NONE"))
+        })
     }
 
     fun userText(text: String): JSONObject =

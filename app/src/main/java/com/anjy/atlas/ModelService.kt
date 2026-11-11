@@ -37,6 +37,17 @@ class ModelService : Service() {
 
     override fun onBind(intent: Intent?): IBinder = messenger.binder
 
+    /**
+     * Atlas let go of the model (put away when idle, short of memory, hot, or a new file). Unbinding only ends this
+     * Service: the ":brain" process would stay cached with the model's weights still in memory, so the memory isn't
+     * freed and the next load can find the old model still there. This process exists only for the model, so it ends.
+     */
+    override fun onDestroy() {
+        // (no cleanUp first: an answer may still be running on another thread; ending the process frees everything)
+        super.onDestroy()
+        android.os.Process.killProcess(android.os.Process.myPid())
+    }
+
     private fun send(to: Messenger?, what: Int, id: Int, text: String? = null) {
         val m = Message.obtain(null, what, id, 0)
         if (text != null) m.data = Bundle().apply { putString("text", text) }

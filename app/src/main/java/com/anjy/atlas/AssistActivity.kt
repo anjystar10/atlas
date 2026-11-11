@@ -35,7 +35,7 @@ class AssistActivity : Activity() {
     private lateinit var field: EditText
     private lateinit var micBtn: FrameLayout
     private lateinit var sendBtn: FrameLayout
-    private var voice: VoiceInput? = null
+    private var voice: Hearing? = null
     private var listening = false
     /** The reply this panel is showing (the last message once it asked something). */
     private var asked = false
@@ -44,9 +44,9 @@ class AssistActivity : Activity() {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
     private fun font(id: Int, fb: Typeface) = try { resources.getFont(id) } catch (_: Throwable) { fb }
 
-    private val BG = Color.parseColor("#04040C")
-    private val FG = Color.parseColor("#EEF0FF")
-    private val MUTED = Color.parseColor("#9BA1C9")
+    private val BG = Palette.NIGHT.bg
+    private val FG = Palette.NIGHT.fg
+    private val MUTED = Palette.NIGHT.muted
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -173,12 +173,12 @@ class AssistActivity : Activity() {
         greet.text = "Listening…"
         said.visibility = View.GONE; answer.visibility = View.GONE; steps.visibility = View.GONE
         orb.energy = 1f
-        voice = VoiceInput(this,
+        voice = Hear.open(this,
             onPartial = { t -> said.visibility = View.VISIBLE; said.setTextColor(FG); said.text = t },
             onLevel = { l -> orb.level = l },
             onDone = { t ->
                 listening = false; orb.level = 0f
-                if (t.isNullOrBlank()) { greet.text = "I didn't catch that."; said.visibility = View.GONE; orb.energy = 0f; return@VoiceInput }
+                if (t.isNullOrBlank()) { greet.text = "I didn't catch that."; said.visibility = View.GONE; orb.energy = 0f; return@open }
                 ask(t, spoken = true)
             },
             onError = { msg -> listening = false; orb.level = 0f; orb.energy = 0f; greet.visibility = View.VISIBLE; greet.text = msg }
