@@ -27,6 +27,7 @@ class ImageGenTest {
         assertEquals("1024x1024", ImageGen.openAiSize("1:1"))
         assertEquals("1536x1024", ImageGen.openAiSize("16:9"))
         assertEquals("1024x1536", ImageGen.openAiSize("9:16"))
-        assertEquals("1024x1024", ImageGen.openAiSize("5:4"))
+        assertEquals("1536x1024", ImageGen.openAiSize("5:4"))
+        assertEquals("1024x1024", ImageGen.openAiSize("bad"))
     }
 }
