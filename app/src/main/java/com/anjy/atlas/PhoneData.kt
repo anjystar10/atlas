@@ -107,7 +107,7 @@ object PhoneData {
     // ---------------------------------------------------------------- permissions
 
     private const val CH_ACCESS = "atlas_access"
-    private var pending: CompletableDeferred<Boolean>? = null
+    @Volatile private var pending: CompletableDeferred<Boolean>? = null
 
     /** True while one of Atlas's screens is in front (so asking on screen is allowed and makes sense). */
     private fun onScreen(): Boolean = ActivityManager.RunningAppProcessInfo().also { ActivityManager.getMyMemoryState(it) }.importance ==
@@ -128,8 +128,9 @@ object PhoneData {
                 ctx.startActivity(Intent(ctx, PermissionActivity::class.java).putExtra(PermissionActivity.EXTRA_PERMS, perms.toTypedArray())
                     .putExtra(PermissionActivity.EXTRA_WHY, what).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
-            val ok = withTimeoutOrNull(60_000) { d.await() } ?: false
-            if (ok && granted(ctx, perms)) return null
+            withTimeoutOrNull(60_000) { d.await() }
+            // what Android says counts, not the answer that came back (it can be lost if the screen was rebuilt)
+            if (granted(ctx, perms)) return null
             return Tools.Result("Error: they didn't allow Atlas to $what. Tell them it can be turned on in Android Settings → Apps → Atlas → Permissions if they change their mind.")
         }
         notifyAsk(ctx, perms, what)

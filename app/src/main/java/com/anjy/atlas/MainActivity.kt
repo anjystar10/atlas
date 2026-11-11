@@ -1275,14 +1275,13 @@ class MainActivity : Activity() {
             memoPlayer = null; memoPlaying = null
             if (was != item.path) {
                 Voice.hush()
+                val mp = android.media.MediaPlayer()
                 try {
-                    memoPlayer = android.media.MediaPlayer().apply {
-                        setDataSource(item.path)
-                        setOnCompletionListener { mp -> mp.release(); if (memoPlayer === mp) { memoPlayer = null; memoPlaying = null; render(keepScroll = true) } }
-                        prepare(); start()
-                    }
-                    memoPlaying = item.path
-                } catch (e: Exception) { memoPlayer = null; showBanner("Couldn't play it") }
+                    mp.setDataSource(item.path)
+                    mp.setOnCompletionListener { done -> done.release(); if (memoPlayer === done) { memoPlayer = null; memoPlaying = null; render(keepScroll = true) } }
+                    mp.prepare(); mp.start()
+                    memoPlayer = mp; memoPlaying = item.path
+                } catch (e: Exception) { mp.release(); memoPlayer = null; showBanner("Couldn't play it") }   // a file that won't play: free its player
             }
             render(keepScroll = true)
         }
