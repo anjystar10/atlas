@@ -350,6 +350,10 @@ export function createExtras(deps) {
     saveRoutine, removeRoutine, enableRoutine, runRoutine, applySynced, synced, mine,
     skill: (name) => findByName(data.skills, name), specialist: (name) => data.specialists.find((s) => s.id === name) || findByName(data.specialists, name),
     mode: (category) => modeFor(data.policy, category),
+    allows: (sp, tool) => toolAllowed(sp, tool),
+    /** The kind of a risky action: from its wording first (what it would do), else from the tool. */
+    categoryOf: (tool, args, what) => { const g = guessCategory(what); return g !== 'other' || !tool ? g : categoryFor(tool, args || {}); },
+    label: categoryLabel, skillText, draftSkill,
     onChange: (f) => { listeners.add(f); return () => listeners.delete(f); },
     idle: () => saving,
   };

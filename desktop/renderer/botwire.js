@@ -4,10 +4,12 @@ import { db, saveChat, changed, uid } from './store.js';
 import * as fitRules from './fit.js';
 import * as brain from './brain.js';
 import { plainReply, plainMemory } from './plain.js';
-import { createBots, MAX_TOOL_CALLS, MAX_WORK_MS } from './bots.js';
+import { createBots, MAX_TOOL_CALLS, MAX_WORK_MS, MAX_DEPTH, callsOf, msOf } from './bots.js';
+import { createExtras, skillsIndex, teamIndex, specialistPrompt, rulesPrompt, describeSchedule } from './botx.js';
+import * as sync from './sync.js';
 const host = window.atlasHost;
 
-function systemPrompt() {
+function systemPrompt(j = {}) {
   const name = (db.state.settings.name || '').trim() || 'the user';
   return `You are Atlas Bot, an agent that Atlas (${name}'s personal AI assistant) sends to do a job in the background on their Windows PC. You're not chatting: nobody reads what you write until you finish. Work through the job with your tools, then call finish with the report.
 
@@ -31,10 +33,22 @@ Safety:
 
 Using the PC (only when the job needs it): open_app, open_path, list_files and read_file to look around; for anything on screen, look_at_screen first, then click using its coordinates, then look again to check.
 
-Budget: up to ${MAX_TOOL_CALLS} tool steps and ${MAX_WORK_MS / 60000} minutes for the job. When it's nearly used up, finish with what you have.
+Budget: up to ${j.id ? callsOf(j) : MAX_TOOL_CALLS} tool steps and ${Math.round((j.id ? msOf(j) : MAX_WORK_MS) / 60000)} minutes for the job. When it's nearly used up, finish with what you have.
+${teamPart(j)}
 
 Now: ${new Date().toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
 ${brain.logContext()}`;
+}
+
+/** Skills, the team, the user's standing rules and (for a specialist) who it is: from botx.js. */
+function teamPart(j) {
+  const out = [];
+  const sk = skillsIndex(extras.data.skills); if (sk) out.push(sk);
+  if ((j.depth || 0) < MAX_DEPTH) { const t = teamIndex(extras.data.specialists.filter((s) => s.id !== j.specialist)); if (t) out.push(t + '\nHand a part to one with delegate when it fits their speciality and the job is big enough to split; small jobs you do yourself.'); }
+  const r = rulesPrompt(extras.data.policy); if (r) out.push(r);
+  if (j.routine) { const rt = extras.data.routines.find((x) => x.id === j.routine); if (rt) out.push(`This job is the routine "${rt.name}" (${describeSchedule(rt.schedule)}). Keep the report short and focused on what's new since last time.`); }
+  const sp = j.specialist ? extras.data.specialists.find((s) => s.id === j.specialist) : null;
+  return (out.length ? '\n' + out.join('\n\n') : '') + specialistPrompt(sp);
 }
 
 /** The report joins the chat as an Atlas message (and so reaches the phone too). While Atlas is answering, it goes in before that exchange. */
@@ -44,6 +58,29 @@ function post(text) {
   if (busy > 0) db.chat.splice(busy - 1, 0, m); else db.chat.push(m);
   saveChat(); changed('chat');
 }
+
+// skills, routines, specialist bots and the approval rules (botx.json), shared with the phone through sync
+export const extras = createExtras({
+  load: () => host.read('botx.json'),
+  save: (text) => host.write('botx.json', text),
+  now: () => Date.now(), uid, deviceId: () => db.state.deviceId || '',
+  setTimer: (f, ms) => setTimeout(f, ms), clearTimer: (t) => clearTimeout(t),
+  // a routine is due: send its bot (as its specialist, when it has one)
+  fire: (r) => bots.deploy(r.goal, `This is the routine "${r.name}", which runs ${describeSchedule(r.schedule).toLowerCase()}.`, { specialist: r.specialist || null, routine: r.id }),
+  // only one device runs each firing: the cloud decides (offline or not linked: the device that made the routine)
+  claim: async (r, due) => {
+    const c = await sync.claim(`routine:${r.id}:${due}`, 15 * 60000);
+    return c ? c.mine : extras.mine(r);
+  },
+  changed: () => sync.syncSoon(),
+});
+for (const kind of ['skill', 'routine', 'specialist', 'botpolicy']) {
+  sync.registerKind(kind, {
+    list: () => Object.fromEntries(extras.synced().filter((x) => x.kind === kind).map((x) => [x.id, x.json])),
+    apply: (id, rec) => extras.applySynced(kind, id, rec),
+  });
+}
+extras.onChange(() => changed('bots'));
 
 export const bots = createBots({
   load: () => host.read('bots.json'),
@@ -63,6 +100,16 @@ export const bots = createBots({
   setTimer: (f, ms) => setTimeout(f, ms), clearTimer: (t) => clearTimeout(t),
   // one bot at a time when this PC is short of memory (fit.js); the profile is refreshed in the background
   slots: () => { brain.device.get().catch(() => {}); return fitRules.botSlots(brain.device.now()); },
+  extras,
 });
 bots.onChange(() => changed('bots'));
-brain.ui.deployBot = (goal, details) => bots.deploy(goal, details);
+brain.ui.deployBot = (goal, details, specialist) => {
+  const sp = specialist ? extras.specialist(specialist) : null;
+  return bots.deploy(goal, details, { specialist: sp ? sp.id : null });
+};
+brain.ui.saveSkill = (x) => extras.saveSkill(x);
+brain.ui.saveRoutine = (x) => {
+  const sp = x.specialist ? extras.specialist(x.specialist) : null;
+  return extras.saveRoutine({ name: x.name, goal: x.goal, scheduleText: x.schedule, specialist: sp ? sp.id : null });
+};
+brain.ui.botTeam = () => [skillsIndex(extras.data.skills), teamIndex(extras.data.specialists)].filter(Boolean).join('\n');
