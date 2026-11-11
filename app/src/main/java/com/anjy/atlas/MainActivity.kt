@@ -71,6 +71,12 @@ class MainActivity : Activity() {
     internal var BLUE = Color.parseColor("#EEF0FF")      // ink: actions, links, selection
     internal var ACCENT = Color.parseColor("#8B6CFF")    // Atlas's violet: highlights, check-ins, warnings
     internal var GOLD = Color.parseColor("#6FA8FF")      // the second light: sky blue
+    /** The one warm colour (amber): only for what needs your eye. */
+    internal var WARM = Color.parseColor("#F2B866")
+    /** The accent for small text and links (a lighter tint at night, so it reads on dark glass). */
+    internal var ACCENT_INK = Color.parseColor("#A594FF")
+    /** Quieter than MUTED: the smallest notes. */
+    internal var FAINT = Color.parseColor("#7C81AD")
     internal var STEEL = Color.parseColor("#17193A")     // neutral tag fill
     internal var NAVBG = Color.parseColor("#15162E")
     /** By day, the fill of the quieter buttons: dark glass, like the main ones. (At night they're clear glass.) */
@@ -83,22 +89,18 @@ class MainActivity : Activity() {
         dark = mode == "dark" || (mode == "system" && systemDark)
         // both looks are set in full every time: switching back from light to dark (without restarting the
         // screen) must put every dark colour back, not just the ones a fresh start happens to begin with
+        // every colour comes from the one palette (Design.kt); both looks are set in full every time, so switching
+        // back from light to dark (without restarting the screen) puts every colour back
+        val p = if (dark) Palette.DARK else Palette.LIGHT
+        BG = p.bg; SURFACE = p.surface; SURFACE2 = p.surface2; LINE = p.line; FG = p.fg; MUTED = p.muted; FAINT = p.faint
+        DONE = p.done; MISS = p.danger; ACCENT = p.accent; ACCENT_INK = p.accentInk; GOLD = p.blue; WARM = p.warm
         if (!dark) {
-            // frosted glass on a lavender-blue page. SURFACE is what a pane of frosted glass (white at about 45%) looks
-            // like over it, so flat fills, sheets and blends match the glass panels; SURFACE2 is thinner glass, LINE its rim.
-            BG = Color.parseColor("#C5C8EC"); SURFACE = Color.parseColor(LIGHT_GLASS); SURFACE2 = Color.parseColor("#D3D5F2")
-            LINE = Color.parseColor("#F3F3FD"); FG = Color.parseColor("#0A0B1F"); MUTED = Color.parseColor("#3E4170")
-            ON = Color.parseColor("#FFFFFF")
-            DONE = Color.parseColor("#0A6646"); MISS = Color.parseColor("#A11B35")
-            BLUE = Color.parseColor("#0A0B1F"); ACCENT = Color.parseColor("#5A3FD6"); GOLD = Color.parseColor("#2448B8")
-            STEEL = Color.parseColor("#E6E7F8"); NAVBG = Color.parseColor("#0A0B1F"); BTN2 = Color.parseColor("#0A0B1F")
+            // by day: frosted glass panels on a lavender-blue page, navy-black ink, dark glass buttons
+            ON = Color.WHITE; BLUE = p.fg
+            STEEL = Color.parseColor("#E6E7F8"); NAVBG = p.fg; BTN2 = p.fg
         } else {
-            BG = Color.parseColor("#05050F"); SURFACE = Color.parseColor("#0E0F22"); SURFACE2 = Color.parseColor("#17193A")
-            LINE = Color.parseColor("#262A52"); FG = Color.parseColor("#EEF0FF"); MUTED = Color.parseColor("#9BA1C9")
-            ON = Color.parseColor("#06061A")
-            DONE = Color.parseColor("#5BD6A6"); MISS = Color.parseColor("#FF6B81")
-            BLUE = Color.parseColor("#EEF0FF"); ACCENT = Color.parseColor("#8B6CFF"); GOLD = Color.parseColor("#6FA8FF")
-            STEEL = Color.parseColor("#17193A"); NAVBG = Color.parseColor("#15162E"); BTN2 = Color.parseColor("#0E0F22")
+            ON = Color.parseColor("#06061A"); BLUE = p.fg
+            STEEL = p.surface2; NAVBG = Color.parseColor("#15162E"); BTN2 = p.surface
         }
     }
 
@@ -117,17 +119,22 @@ class MainActivity : Activity() {
     internal val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
 
     private fun font(id: Int, fallback: Typeface) = try { resources.getFont(id) } catch (e: Throwable) { fallback }
-    // Newsreader, an elegant serif, for titles, the greeting and numbers; Geist for everything you read.
-    internal val THIN by lazy { font(R.font.newsreader_light, Typeface.create("serif", Typeface.NORMAL)) }
-    internal val NUM by lazy { font(R.font.newsreader_light, Typeface.create("serif", Typeface.NORMAL)) }
-    internal val DISPLAY by lazy { font(R.font.newsreader_regular, Typeface.create("serif", Typeface.NORMAL)) }
-    internal val WORDMARK by lazy { font(R.font.newsreader_medium, Typeface.create("serif", Typeface.BOLD)) }
+    // Type (see Design.kt): Newsreader, a serif made for reading, for titles, the greeting, numbers, Atlas's
+    // replies and what you write; Geist for the small working parts (buttons, labels, tags).
+    internal val THIN by lazy { Type.serifLight(this) }
+    internal val NUM by lazy { Type.serifLight(this) }
+    internal val DISPLAY by lazy { Type.serif(this) }
+    internal val WORDMARK by lazy { Type.serifMedium(this) }
+    /** Reading text: Atlas's replies, your messages, what you type. */
+    internal val READ by lazy { Type.serif(this) }
+    internal val READ_BOLD by lazy { Type.serifSemi(this) }
+    internal val READ_ITALIC by lazy { Type.serifItalic(this) }
     /** Titles. Small "headings" (under 18sp) are set in Geist SemiBold (see text()). */
     internal val HEAD get() = DISPLAY
-    internal val SEMI by lazy { font(R.font.geist_semibold, Typeface.create("sans-serif-medium", Typeface.NORMAL)) }
-    internal val MED by lazy { font(R.font.geist_medium, Typeface.create("sans-serif-medium", Typeface.NORMAL)) }
-    internal val BODY by lazy { font(R.font.geist_regular, Typeface.DEFAULT) }
-    internal val MONO by lazy { font(R.font.geist_mono, Typeface.MONOSPACE) }
+    internal val SEMI by lazy { Type.sansSemi(this) }
+    internal val MED by lazy { Type.sansMedium(this) }
+    internal val BODY by lazy { Type.sans(this) }
+    internal val MONO by lazy { Type.mono(this) }
     internal val PIX get() = NUM
 
     internal lateinit var scroll: ScrollView
@@ -426,7 +433,7 @@ class MainActivity : Activity() {
     /** A short message in the app's own pill (not the phone's grey toast). */
     internal fun toast(s: String) = showBanner(s, BLUE)
     /** Tabs in the order they appear (and swipe): Atlas, Log, Me. */
-    internal val order: List<Int> get() = listOf(0, 1, 2)
+    internal val order: List<Int> get() = listOf(0, 1, 3, 2)   // Atlas, Log, Bots, Me (ids stay: 2 is Me)
     internal fun pos(id: Int) = order.indexOf(id)
 
     /** The nav: a floating pill of five icons; the current page sits in a light circle. */
@@ -743,7 +750,7 @@ class MainActivity : Activity() {
     private var homeOrb: OrbView? = null
     private var statusLine: TextView? = null
     private var shownCount = -1
-    private var voiceInput: VoiceInput? = null
+    private var voiceInput: Hearing? = null
     /** Which service the Brain card in Me is showing. */
     private var brainShown: String? = null
 
@@ -754,7 +761,7 @@ class MainActivity : Activity() {
 
     private val density get() = resources.displayMetrics.density
     private fun tabFor(name: String?) = when (name) {
-        "atlas", "chat", "today", "home" -> 0; "log", "memory" -> 1; "settings", "me" -> 2; else -> null
+        "atlas", "chat", "today", "home" -> 0; "log", "memory" -> 1; "settings", "me" -> 2; "bots", "bot" -> 3; else -> null
     }
 
     /** Back closes the topmost overlay first, then returns to Atlas, then leaves the app. */
@@ -882,7 +889,9 @@ class MainActivity : Activity() {
         AvatarService.setAppInFront(this, true)
         Conversation.listen(onChat)
         Bots.listen(onBots)
-        Sync.listen(onSync); Sync.syncSoon(this, 500)
+        Sync.listen(onSync); Sync.syncSoon(this, 500); Sync.setForeground(this, true)
+        if (Sync.linked(this)) SyncJob.schedule(this)
+        resumedNow = true
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
         if (::aurora.isInitialized) aurora.resume()
         if (returnedFromSystem && tab != 0) render(keepScroll = true)
@@ -893,7 +902,8 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
-        Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync)
+        resumedNow = false
+        Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
         stopVoice()
         AvatarService.setAppInFront(this, false)
         Tilt.stop(); if (::aurora.isInitialized) aurora.pause()
@@ -962,6 +972,7 @@ class MainActivity : Activity() {
         when (tab) {
             0 -> renderAtlas()
             1 -> renderLog()
+            3 -> renderBots()
             else -> renderMe()
         }
         lastLogSig = logSignature()
@@ -1151,6 +1162,8 @@ class MainActivity : Activity() {
             if ((chip == null) != line.isEmpty()) render(keepScroll = true)
             else chip?.let { it.text = "Atlas Bot  ·  $line  ›"; it.contentDescription = "Atlas Bot: $line" }
         }
+        // the Bots tab follows along, unless you're in the middle of typing a job
+        if (tab == 3 && botDraft.isBlank()) render(keepScroll = true)
     }
 
     /** Draws the conversation into [list]. */
@@ -1180,8 +1193,8 @@ class MainActivity : Activity() {
     }
 
     /** How replies are set: Geist for reading, the serif for big headings, the violet for list markers and links. */
-    private fun mdStyle() = Markdown.Style(BODY, SEMI, DISPLAY, MONO, FG, MUTED, ACCENT,
-        if (dark) Color.argb(40, 255, 255, 255) else Color.argb(26, 10, 11, 31), density, 16f)
+    private fun mdStyle() = Markdown.Style(READ, READ_BOLD, WORDMARK, MONO, FG, MUTED, ACCENT_INK,
+        if (dark) Color.argb(40, 255, 255, 255) else Color.argb(26, 10, 11, 31), density, Type.READ, italic = READ_ITALIC)
 
     /**
      * One message. Yours: a compact glass bubble on the right. Atlas's: neat full-width text (no box, so long
@@ -1193,7 +1206,8 @@ class MainActivity : Activity() {
         val copy = { _: View -> getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas", m.text)); showBanner("Copied"); true }
         if (m.fromUser) {
             if (m.media.isNotEmpty()) wrap.addView(mediaStrip(m.media, dp(84)), LinearLayout.LayoutParams(WRAP, WRAP).apply { bottomMargin = dp(6) })
-            wrap.addView(text(m.text, 16f, FG, keepEmoji = true).apply {
+            wrap.addView(text(m.text, Type.READ, FG, READ, keepEmoji = true).apply {
+                setLineSpacing(0f, 1.3f)
                 background = Finish(SURFACE, dp(20).toFloat(), dark, density, glass = true)
                 setPadding(dp(15), dp(10), dp(15), dp(11))
                 maxWidth = (resources.displayMetrics.widthPixels * 0.78).toInt()
@@ -1208,8 +1222,8 @@ class MainActivity : Activity() {
             Markdown.parse(m.text, st).forEachIndexed { i, block ->
                 val v: View = when (block) {
                     is Markdown.Prose -> TextView(this).apply {
-                        text = block.text; setTextColor(if (m.source == "error") MISS else FG); textSize = 16f; typeface = BODY
-                        setLineSpacing(0f, 1.32f); linksClickable = true; movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                        text = block.text; setTextColor(if (m.source == "error") MISS else FG); textSize = Type.READ; typeface = READ
+                        setLineSpacing(0f, Type.LEAD_READ); linksClickable = true; movementMethod = android.text.method.LinkMovementMethod.getInstance()
                         setOnLongClickListener(copy)
                     }
                     is Markdown.Code -> codeBox(block)
@@ -1298,7 +1312,7 @@ class MainActivity : Activity() {
             pressFx()
         }
         composerField = EditText(this).apply {
-            hint = "Ask anything…"; setTextColor(FG); setHintTextColor(MUTED); textSize = 16f; typeface = BODY
+            hint = "Ask anything…"; setTextColor(FG); setHintTextColor(MUTED); textSize = Type.READ; typeface = READ
             background = rounded(if (dark) SURFACE2 else Color.parseColor(LIGHT_FIELD), 999, LINE)
             setPadding(dp(18), dp(13), dp(18), dp(13)); maxLines = 5
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
@@ -1327,7 +1341,7 @@ class MainActivity : Activity() {
             // Atlas's key: a glowing drop of blue and violet. Nothing typed: talk. Something to send: send. Working: stop.
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL; gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(34).toFloat()
-                colors = intArrayOf(Color.parseColor("#6E8BFF"), Color.parseColor("#4B3BD6"))
+                colors = intArrayOf(Palette.DARK.primaryTop, Palette.DARK.primaryBottom)
             }
             elevation = dp(8).toFloat(); outlineSpotShadowColor = Color.parseColor("#5B6CFF"); outlineAmbientShadowColor = Color.parseColor("#5B6CFF")
             isClickable = true; contentDescription = "Speak"
@@ -1430,7 +1444,12 @@ class MainActivity : Activity() {
 
     private fun sendMessage(q: String, spoken: Boolean = false, media: List<Attach.Item> = emptyList()) {
         if (tab != 0) { tab = 0; render() }
-        Conversation.send(this, q, spoken, media = media)
+        // a spoken question keeps the conversation going: once Atlas has finished answering aloud, it listens again
+        // (not if you cut the answer off, left the app, or switched Keep Listening off)
+        val again: (() -> Unit)? = if (spoken && Hear.handsFree(this)) ({
+            body.postDelayed({ if (resumedNow && tab == 0 && voiceInput == null && !Conversation.busy && !Voice.busy && talkTurns < 30) voice(followUp = true) }, 450)
+        }) else null
+        Conversation.send(this, q, spoken, onSpoken = again, media = media)
         scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
     }
 
@@ -1438,25 +1457,34 @@ class MainActivity : Activity() {
 
     private var closeVoiceSheet: (() -> Unit)? = null
 
-    private fun voice() {
+    private var talkTurns = 0
+    private var resumedNow = false
+
+    /** Listens. [followUp]: Atlas has just answered aloud and is listening for more; silence then simply ends the talk. */
+    private fun voice(followUp: Boolean = false) {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC); return
         }
         if (voiceInput != null) { voiceInput?.finish(); return }
+        if (!followUp) talkTurns = 0
         Conversation.hush()
         AvatarService.holdMic(this, true)
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
         val orb = OrbView(this).apply { energy = 1f; still = Prefs.reduceMotion(this@MainActivity) }
         col.addView(orb, LinearLayout.LayoutParams(dp(170), dp(170)))
-        val heard = text("Listening…", 18f, MUTED, MED, keepEmoji = true).apply { gravity = Gravity.CENTER; minLines = 2 }
+        val heard = text(if (followUp) "Listening… say “that's all” when you're done" else "Listening…", 18f, MUTED, MED, keepEmoji = true).apply { gravity = Gravity.CENTER; minLines = 2 }
         col.add(heard, 8)
         var got: String? = null
-        val vi = VoiceInput(this,
+        val vi = Hear.open(this,
             onPartial = { t -> heard.text = t; heard.setTextColor(FG); got = t },
             onLevel = { l -> orb.level = l },
             onDone = { t ->
                 stopVoice()
-                if (t.isNullOrBlank()) showBanner("I didn't catch that.", MUTED) else sendMessage(t, spoken = true)
+                when {
+                    t.isNullOrBlank() -> if (!followUp) showBanner("I didn't catch that.", MUTED)   // quiet after an answer: the talk is over
+                    followUp && Speech.endsTalk(t) -> Unit                                          // "that's all": nothing is sent
+                    else -> { talkTurns++; sendMessage(t, spoken = true) }
+                }
             },
             onError = { msg -> stopVoice(); showBanner(msg, MUTED) })
         voiceInput = vi
@@ -1627,6 +1655,93 @@ class MainActivity : Activity() {
         if (!logFull) body.add(secondary(if (all.size > LOG_RECENT) "Full History (${all.size})" else "Full History") { logFull = true; render() }, 12)
     }
 
+    // ================================================================ THIS DEVICE
+
+    /** What this phone has right now, and what Atlas will (and won't) run on it because of that. */
+    private fun deviceCard() {
+        val d = try { DeviceProfiler.read(this) } catch (e: Exception) { return }
+        fun gb(mb: Long) = if (mb < 0) "?" else "%.1f GB".format(mb / 1024.0)
+        body.add(eyebrow("This Device"), 16)
+        val c = card()
+        c.addView(text(d.model.ifBlank { "This phone" }, 18f, FG, HEAD, keepEmoji = true))
+        val chip = listOfNotNull(d.chip.ifBlank { null }, if (d.cores > 0) "${d.cores} cores" + (if (d.bigCores in 1 until d.cores) " (${d.bigCores} fast)" else "") else null).joinToString(" · ")
+        val lines = listOfNotNull(
+            "Memory: ${gb(d.availRamMb)} free of ${gb(d.totalRamMb)}",
+            if (chip.isNotEmpty()) "Chip: $chip" else null,
+            if (d.graphics.isNotBlank()) "Graphics: ${d.graphics}" else null,
+            "Heat: ${ModelDirector.thermalWord(d.thermal)}",
+            "Battery: " + (if (d.batteryPct < 0) "unknown" else "${d.batteryPct}%") + (if (d.charging) ", charging" else "") + (if (d.powerSave) ", Battery Saver on" else ""),
+            if (d.freeStorageMb >= 0) "Storage: ${gb(d.freeStorageMb)} free" else null)
+        c.add(text(lines.joinToString("\n"), 14f, MUTED), 6)
+        ModelDirector.holdingBack(d)?.let { c.add(text(it, 14f, WARM, MED), 10) }
+
+        val name = ModelManager.modelName(this)
+        if (name == null) c.add(text("No offline model yet. When you add one, Atlas checks it fits this phone's free memory before every load.", 14f, MUTED), 10)
+        else {
+            val f = ModelManager.modelFile(this)
+            val spec = DeviceGuard.cachedSpec(this, f, name)
+            if (spec == null) {
+                // first time for this file: read what it needs in the background, then show it
+                c.add(text("Offline model: checking what $name needs…", 14f, MUTED, keepEmoji = true), 10)
+                scope.launch(Dispatchers.IO) { DeviceGuard.spec(applicationContext, f, name); withContext(Dispatchers.Main) { if (tab == 2) render(keepScroll = true) } }
+            } else {
+                val rec = DeviceGuard.record(this, spec)
+                val v = ModelDirector.decide(d, spec, rec, DeviceGuard.force(this))
+                c.add(text("Offline model", 15f, FG, MED), 12)
+                c.add(text((if (v.allowed) "Will run here. " else "Held back. ") + v.reason, 14f, if (v.allowed) MUTED else WARM, keepEmoji = true), 4)
+                c.add(text("Needs about ${gb(v.peakMb)} at its peak (the file, plus memory for an 8,192-token conversation, plus working space)." +
+                    (if (!spec.known) " The file didn't state its layout, so this is an estimate." else ""), 13f, MUTED), 4)
+                if (rec != null && rec.tokensPerSec > 0) c.add(text("Last ran here at about ${"%.0f".format(rec.tokensPerSec)} tokens a second" +
+                    (if (rec.firstTokenMs > 0) ", first word after ${"%.1f".format(rec.firstTokenMs / 1000.0)} s" else "") +
+                    (if (rec.loadMs > 0) ", loaded in ${"%.0f".format(rec.loadMs / 1000.0)} s" else "") + ".", 13f, MUTED), 4)
+                if (rec != null && rec.died > 0) c.add(text("It has stopped ${rec.died} time${if (rec.died == 1) "" else "s"} on this phone.", 13f, MUTED), 4)
+                c.add(switchRow(null, "Run It Anyway", DeviceGuard.force(this)) { on -> DeviceGuard.setForce(this, on); render(keepScroll = true) }, 12)
+                c.add(text("On: Atlas loads the model even when memory is tight or Battery Saver is on. It still won't when the phone is hot or the model can't fit at all. The model runs apart from Atlas, so the worst case is the model stopping, not Atlas.", 13f, MUTED), 6)
+            }
+        }
+        c.add(text("The offline model is put away after 10 minutes unused, or when Android says memory is short, and loads again when needed. These checks stay on this phone.", 13f, MUTED), 10)
+        body.add(c, 8)
+    }
+
+    // ================================================================ BOTS
+
+    private var botDraft = ""
+    /** The Bots tab: send a bot, and every job with where it stands. A job opens on its own page. */
+    private fun renderBots() {
+        pageTitle("Bots")
+        body.add(text("Jobs Atlas sent a bot to do. They keep working when you leave, and each report lands in your chat.", 15f, MUTED), 6)
+        val sc = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        lateinit var send: TextView
+        val f = field("Send a bot to… (e.g. find the three best budget laptops for coding, with sources)", botDraft, multi = true) { botDraft = it; send.alpha = if (it.isBlank()) 0.5f else 1f }
+        sc.addView(f, LinearLayout.LayoutParams(MATCH, WRAP))
+        send = primary("Send a Bot") {
+            val goal = botDraft.trim()
+            if (goal.isNotEmpty()) { botDraft = ""; Bots.deploy(applicationContext, goal, ""); showBanner("Bot sent"); render(keepScroll = true) }
+        }.apply { alpha = if (botDraft.isBlank()) 0.5f else 1f }
+        sc.addView(send, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
+        body.add(sc, 20)
+        val all = Bots.visible()
+        if (all.isEmpty()) {
+            body.add(card().apply {
+                addView(text("No bots yet", 18f, FG, HEAD))
+                add(text("Ask Atlas for something bigger, like “research the best phone under $300 for photos and send me a report”, or say “send a bot to…”.", 15f, MUTED), 6)
+            }, 22)
+            return
+        }
+        body.add(eyebrow("Jobs"), 22)
+        all.forEach { j ->
+            val c = card().apply {
+                isClickable = true; pressFx()
+                setOnClickListener { startActivity(Intent(this@MainActivity, BotActivity::class.java).putExtra(BotActivity.EXTRA_ID, j.id)) }
+            }
+            c.addView(text(j.goal, 17f, FG, HEAD).apply { maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END })
+            val line = listOfNotNull(BotRules.label(j.state), if (j.state == BotRules.RUNNING) j.current else null,
+                if (j.plan.isNotEmpty()) "plan ${j.plan.count { it.done }}/${j.plan.size}" else null).joinToString(" · ")
+            c.add(text(line, 13f, MUTED, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, 6)
+            body.add(c, 10)
+        }
+    }
+
     // ================================================================ ME
 
     private fun renderMe() {
@@ -1743,6 +1858,7 @@ class MainActivity : Activity() {
             off.add(br, 8)
         }
         body.add(off, 8)
+        deviceCard()
 
         // Phone control
         body.add(eyebrow("Phone Control"), 16)
@@ -1813,6 +1929,18 @@ class MainActivity : Activity() {
             }
             vc.add(rows, 8)
         }
+        // how fast Atlas talks, how it hears, and whether a spoken chat keeps going
+        vc.add(hairline(), 10, MATCH, dp(1))
+        vc.add(text("Speaking Speed", 16f, FG, MED), 12)
+        vc.add(chipGroup(listOf("slow" to "Slow", "normal" to "Normal", "fast" to "Fast"), { it == Voice.speed(this) }) { Voice.setSpeed(this, it); render(keepScroll = true) }, 8)
+        vc.add(switchRow(null, "Keep Listening", Hear.handsFree(this)) { on -> Hear.setHandsFree(this, on) }, 14)
+        vc.add(text("After Atlas answers a spoken question it listens again, so you can just keep talking. Say “that's all”, stay quiet, or tap Cancel to stop.", 13f, MUTED), 6)
+        vc.add(text("Hearing", 16f, FG, MED), 14)
+        vc.add(chipGroup(listOf("auto" to "Sharpest", "phone" to "Phone Only"), { it == Hear.mode(this) }) { Hear.setMode(this, it); render(keepScroll = true) }, 8)
+        vc.add(text("Now: ${Hear.describe(this)}.", 13f, MUTED), 6)
+        vc.add(text("Language You Speak", 16f, FG, MED), 14)
+        vc.add(chipGroup(Hear.LANGUAGES, { it == (Hear.language(this) ?: "auto") }) { Hear.setLanguage(this, it); render(keepScroll = true) }, 8)
+        vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.", 13f, MUTED), 6)
         body.add(vc, 8)
 
         // Phone and PC: one Atlas
@@ -2030,7 +2158,8 @@ class MainActivity : Activity() {
                 scope.launch {
                     try {
                         val n = withContext(Dispatchers.IO) {
-                            val txt = contentResolver.openInputStream(uri)?.use { String(it.readBytes(), Charsets.UTF_8) } ?: throw IllegalStateException("Couldn't open that file.")
+                            // a backup is small; a wrong pick (a video, say) must not be read whole into memory
+                            val txt = contentResolver.openInputStream(uri)?.use { String(Attach.readCapped(it, 50L * 1024 * 1024) { "That file is too big to be an Atlas backup." }, Charsets.UTF_8) } ?: throw IllegalStateException("Couldn't open that file.")
                             Store.importJson(applicationContext, txt)
                         }
                         withContext(Dispatchers.IO) { Reminders.tickAndSchedule(applicationContext) }

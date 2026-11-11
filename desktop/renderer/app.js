@@ -4,10 +4,12 @@ import { db, pref, setPref, onChange } from './store.js';
 import * as brain from './brain.js';
 import * as sync from './sync.js';
 import * as voice from './voice.js';
+import { endsTalk } from './speech.js';
 import { Orb } from './orb.js';
 import { renderMarkdown } from './md.js';
 import { plainMemory } from './plain.js';
 import { bots } from './botwire.js';
+import * as fitRules from './fit.js';
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
 const host = window.atlasHost;
 
@@ -96,7 +98,7 @@ function renderAtlas(page) {
     <button class="btn" id="newchat">New Chat</button></div>`);
   const orbSlot = h('<div style="width:56px;height:56px"></div>'); head.prepend(orbSlot); col.appendChild(head);
   homeOrb = new Orb(orbSlot, { size: 56 }); homeOrb.el.style.cursor = 'pointer'; homeOrb.el.onclick = () => startListening();
-  head.querySelector('#newchat').onclick = async () => { if (await sheet({ title: 'Start a New Chat?', body: 'This clears the conversation on this PC. Your Log stays as it is.', primary: 'New Chat' })) { db.chat = []; store.saveChat(); render(); } };
+  head.querySelector('#newchat').onclick = async () => { if (await sheet({ title: 'Start a New Chat?', body: 'This clears the conversation here' + (sync.code() ? ' and on your phone' : '') + '. Your Log stays as it is.', primary: 'New Chat' })) { sync.noteDeleted('chat', db.chat.map((m) => m.id)); db.chat = []; store.saveChat(); render(); } };
   botStrip(col);
   const chat = h('<div class="chat" id="chat"></div>'); col.appendChild(chat);
   fillChat();
@@ -327,7 +329,7 @@ async function startListening(followUp = false) {
   const orb = new Orb(o.querySelector('#lorb'), { size: 220 }); orb.energy = 1;
   host.orbState({ energy: 1, listening: true });
   let cancelled = false;
-  listenCtl = voice.listen({ onLevel: (l) => { orb.level = l; host.orbState({ energy: 1, level: l, listening: true }); } });
+  listenCtl = voice.listen({ onLevel: (l) => { orb.level = l; host.orbState({ energy: 1, level: l, listening: true }); }, onState: () => { const el = o.querySelector('.heard'); if (el) el.textContent = 'One moment…'; } });
   o.querySelector('[data-k=done]').onclick = () => listenCtl && listenCtl.stop();
   o.querySelector('[data-k=cancel]').onclick = () => { cancelled = true; listenCtl && listenCtl.stop(); };
   try {
@@ -335,6 +337,8 @@ async function startListening(followUp = false) {
     const p = listenCtl.done;
     const words = await p.then((w) => w, (e) => { throw e; });
     o.querySelector('.heard').textContent = words ? words : '';
+    // "that's all", "never mind", "goodbye" after a reply: the conversation is over, nothing is sent
+    if (!cancelled && words && followUp && endsTalk(words)) { o.remove(); listenCtl = null; host.orbState({ energy: 0 }); return; }
     if (!cancelled && words) { o.remove(); listenCtl = null; host.orbState({ energy: 0 }); await submit(true, words); return; }
     if (!cancelled && !followUp) { o.querySelector('.heard').textContent = "I didn't catch that."; await new Promise((r) => setTimeout(r, 1200)); }
   } catch (e) { toast(e.message || String(e), 4000); }
@@ -429,6 +433,32 @@ function settingRow(label, on, onToggle, note) {
   r.querySelector('.switch').onclick = (e) => { e.currentTarget.classList.toggle('on'); onToggle(e.currentTarget.classList.contains('on')); };
   return r;
 }
+/** What this PC has right now, and what Atlas will (and won't) run on it because of that. Measured each time Me opens. */
+function deviceCard(col) {
+  col.appendChild(h('<div class="eyebrow">This Device</div>'));
+  const c = h('<div class="card"><p class="muted">Measuring this PC…</p></div>'); col.appendChild(c);
+  const gb = (mb) => (mb == null || mb < 0 ? '?' : (mb / 1024).toFixed(1) + ' GB');
+  brain.device.get(true).then(async (p) => {
+    if (!c.isConnected) return;
+    if (!p) { c.innerHTML = '<p class="muted">Couldn\'t read this PC\'s hardware.</p>'; return; }
+    const cards = (p.gpus || []).map((g) => `${esc(g.name)}: ${g.vramTotalMb > 0 ? gb(g.vramTotalMb) + ' of its own memory' : 'its memory size isn\'t reported'}${g.vramFreeMb >= 0 ? `, ${gb(g.vramFreeMb)} free` : ''}`);
+    const cores = p.physicalCores > 0 ? `${p.physicalCores} cores, ${p.logicalCores} threads` : `${p.logicalCores} threads`;
+    const lines = [`Memory: ${gb(p.freeRamMb)} free of ${gb(p.totalRamMb)}`, `Processor: ${esc(p.cpu || 'unknown')} (${cores})`,
+      ...(cards.length ? cards.map((x) => 'Graphics: ' + x) : ['Graphics: no separate graphics memory found']),
+      ...(p.diskFreeMb >= 0 ? [`Disk: ${gb(p.diskFreeMb)} free`] : [])];
+    c.innerHTML = `<div style="font:400 22px var(--serif)">This PC</div><p class="muted small" style="margin-top:6px;line-height:1.7">${lines.join('<br>')}</p>`;
+    const hold = fitRules.holdingBack(p); if (hold) c.appendChild(h(`<p class="warn" style="margin-top:10px">${esc(hold)}</p>`));
+    const act = brain.byId('local'); const v = act && brain.modelOf(act) ? await brain.localVerdict(act, false) : null;
+    if (v) c.appendChild(h(`<p style="margin-top:12px"><b>Local model ${esc(brain.modelOf(act))}</b><br><span class="${v.ok ? 'muted' : 'warn'} small">${esc(v.reason)}</span></p>`));
+    const any = (p.runtimes || []).flatMap((r) => r.models);
+    if (any.length) {
+      const best = fitRules.rank(p, any).find((m) => m.fit.place === 'gpu' || m.fit.place === 'split');
+      if (best) c.appendChild(h(`<p class="muted small" style="margin-top:8px">Best local model for this PC right now: ${esc(best.id)} (${esc(best.fit.reason)})</p>`));
+    } else c.appendChild(h('<p class="muted small" style="margin-top:8px">No local model server found (Ollama or LM Studio). Atlas uses your online services.</p>'));
+    c.appendChild(h('<p class="muted small" style="margin-top:10px">Before every local answer Atlas checks the model fits what\'s free, so it never makes the PC freeze; bots run one at a time when memory is short. These checks stay on this PC.</p>'));
+  }).catch(() => { c.innerHTML = '<p class="muted">Couldn\'t read this PC\'s hardware.</p>'; });
+}
+
 function renderMe(page) {
   const col = h('<div class="column"></div>'); page.appendChild(col);
   col.appendChild(h('<h1 class="title">Me</h1>'));
@@ -446,13 +476,17 @@ function renderMe(page) {
   if (shown.local) {
     bc.appendChild(h(`<p class="muted small" style="margin-top:14px">Models running on this PC with Ollama or LM Studio. They work offline; when you're offline, Atlas uses one automatically if it's set here.</p>`));
     const found = h('<div class="list" style="margin-top:6px"><div class="item muted">Looking for models on this PC…</div></div>'); bc.appendChild(found);
-    brain.detectLocal().then((ms) => {
+    Promise.all([brain.detectLocal(), brain.device.get(true).catch(() => null)]).then(([ms, prof]) => {
       found.innerHTML = '';
+      // what each model needs against what this PC has free now, best-first
+      const sized = new Map(); for (const rt of (prof && prof.runtimes) || []) for (const x of rt.models) sized.set(rt.base + '|' + x.id, x);
+      if (prof) ms = fitRules.rank(prof, ms.map((m) => ({ ...m, ...(sized.get(m.base + '|' + m.model) || { sizeMb: -1 }), id: m.model })));
       if (!ms.length) found.appendChild(h('<div class="item muted">None found. Start Ollama (ollama.com) or LM Studio\'s server, then come back here.</div>'));
       for (const m of ms) {
         const on = brain.modelOf(shown) === m.model && brain.baseOf(shown) === m.base;
-        const r = h(`<div class="item" style="cursor:pointer"><div class="grow"><div class="t">${esc(m.model)}</div><div class="m">${esc(m.server)}</div></div><span class="tag ${on ? 'ok' : ''}">${on ? 'In use' : 'Use'}</span></div>`);
-        r.onclick = () => { setPref('model_local', m.model); setPref('base_local', m.base); setPref('provider', 'local'); toast('Using ' + m.model); render(true); };
+        const where = m.fit ? { gpu: 'Runs on the graphics card', split: 'Graphics card + memory (slower)', cpu: 'Processor only (slow)', no: 'Too big for this PC right now', unknown: 'Size unknown' }[m.fit.place] : '';
+        const r = h(`<div class="item" style="cursor:pointer" title="${esc(m.fit ? m.fit.reason : '')}"><div class="grow"><div class="t">${esc(m.model)}</div><div class="m">${esc(m.server)}${where ? ' · ' + esc(where) : ''}</div></div><span class="tag ${on ? 'ok' : m.fit && !m.fit.ok ? 'warn' : ''}">${on ? 'In use' : 'Use'}</span></div>`);
+        r.onclick = () => { setPref('model_local', m.model); setPref('base_local', m.base); setPref('provider', 'local'); toast(m.fit && !m.fit.ok ? m.fit.reason : 'Using ' + m.model, m.fit && !m.fit.ok ? 6000 : 2500); render(true); };
         found.appendChild(r);
       }
     });
@@ -495,6 +529,8 @@ function renderMe(page) {
   bc.appendChild(h('<p class="small muted" style="margin-top:10px">Keys stay on this PC (they don\'t sync). When Atlas thinks online, what you say goes to that service.</p>'));
 
   // Voice
+  deviceCard(col);
+
   col.appendChild(h('<div class="eyebrow">Voice</div>'));
   const vc = h('<div class="card"></div>'); col.appendChild(vc);
   vc.appendChild(settingRow('Speak Replies', pref('speakReplies', false), (on) => setPref('speakReplies', on), 'Spoken questions always get a spoken answer.'));
@@ -510,6 +546,17 @@ function renderMe(page) {
     }
     vc.appendChild(l);
   }
+  // how fast Atlas talks, whether a spoken chat keeps going, and the language it listens for
+  const chipRow = (title, options, current, pick, note) => {
+    vc.appendChild(h(`<div style="margin-top:16px">${esc(title)}</div>`));
+    const cs = h('<div class="chips" style="margin-top:8px"></div>');
+    for (const [k, label] of options) { const c = h(`<span class="chip ${k === current ? 'on' : ''}">${esc(label)}</span>`); c.onclick = () => { pick(k); render(true); }; cs.appendChild(c); }
+    vc.appendChild(cs);
+    if (note) vc.appendChild(h(`<p class="small muted" style="margin-top:6px">${esc(note)}</p>`));
+  };
+  chipRow('Speaking Speed', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']], voice.speed(), (k) => voice.setSpeed(k));
+  vc.appendChild(settingRow('Keep Listening', pref('keepTalking', true), (on) => setPref('keepTalking', on), "After Atlas answers a spoken question it listens again, so you can just keep talking. Say “that's all” or stay quiet to stop."));
+  chipRow('Language You Speak', voice.LANGUAGES, voice.language() || 'auto', (k) => voice.setLanguage(k), 'Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.');
 
   // Devices
   col.appendChild(h('<div class="eyebrow">Your Devices</div>'));
@@ -666,7 +713,7 @@ brain.ui.settingsText = () => {
   return [`- speak_replies (on/off) — now ${on(pref('speakReplies', false))}`,
     `- voice: now ${eng ? voice.current(eng).label : "Windows' voice"}; choices: ${voice.voices(eng).map((v) => v.label).join(', ')}`,
     `- theme (dark/light) — now ${pref('theme', 'dark')}`, `- on_screen (on/off): the orb in the corner of the PC — now ${on(pref('onScreen', true))}`,
-    `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)', `- dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${on(brain.dontSwitch())}`].join('\n');
+    `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)', `- speaking_speed (slow/normal/fast): how fast Atlas talks — now ${voice.speed()}`, `- keep_listening (on/off): after a spoken answer, listen again — now ${on(pref('keepTalking', true))}`, `- listen_language (a code like en, en-GB, fr, yo, or auto) — now ${voice.language() || 'auto'}`, `- dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${on(brain.dontSwitch())}`].join('\n');
 };
 brain.ui.setting = async (name, value) => {
   const flag = { on: true, true: true, yes: true, off: false, false: false, no: false }[String(value).toLowerCase().trim()];
@@ -679,6 +726,9 @@ brain.ui.setting = async (name, value) => {
       case 'on_screen': setPref('onScreen', need()); host.showOrb(flag); return flag ? "I'm in the corner of your screen now." : "I'm off your screen.";
       case 'your_name': if (!value.trim()) return 'Error: give the name.'; db.state.settings.name = value.trim().slice(0, 40); store.saveState(); return `I'll call you ${value.trim()}.`;
       case 'alarm_sound': db.state.settings.sound = need(); store.saveState(); return `Alarm sound ${flag ? 'on' : 'off'}.`;
+      case 'speaking_speed': return `I'll speak at ${voice.setSpeed(value)} speed.`;
+      case 'keep_listening': { const b = /^(on|true|yes|1|enable)/i.test(String(value).trim()); setPref('keepTalking', b); return b ? "I'll keep listening after I answer." : "I'll listen only when you ask me to."; }
+      case 'listen_language': { const l = String(value).trim(); if (!/^auto$/i.test(l) && !/^[A-Za-z]{2,3}(-[A-Za-z]{2})?$/.test(l)) return 'Error: give a language code like en, en-GB, fr or yo (or auto).'; voice.setLanguage(l); return /^auto$/i.test(l) ? "I'll work out the language myself." : `I'll listen for ${l}.`; }
       case 'dont_switch': setPref('dont_switch', need()); return flag ? "I'll stay on the service you chose and won't switch to another one (your other keys for it can still take over)." : "I'll switch to another service again when one keeps failing or runs out.";
       case 'start_with_windows': await host.autostart(need()); return flag ? 'I\'ll start with Windows (quietly, in the tray).' : "I won't start with Windows.";
     }
@@ -720,7 +770,6 @@ async function main() {
   host.showOrb(pref('onScreen', true));
   if (pref(F)) showFocus();
   checkDue(); setInterval(checkDue, 15000);
-  sync.syncSoon(800); setInterval(() => sync.syncSoon(0), 5 * 60000);
-  window.addEventListener('focus', () => sync.syncSoon(500));
+  sync.syncSoon(800); sync.keepFresh();
 }
 main();

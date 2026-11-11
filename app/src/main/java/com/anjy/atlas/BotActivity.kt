@@ -26,14 +26,14 @@ import kotlin.math.roundToInt
 class BotActivity : Activity() {
     companion object { const val EXTRA_ID = "bot_id" }
 
-    private val BG = Color.parseColor("#05050F")
-    private val FG = Color.parseColor("#F0F1FF")
-    private val MUTED = Color.parseColor("#9BA1C9")
-    private val ACCENT = Color.parseColor("#A99BFF")
-    private val GOOD = Color.parseColor("#7FD8A6")
-    private val WARN = Color.parseColor("#F2C46D")
-    private val BAD = Color.parseColor("#F08A8A")
-    private val SURFACE = Color.parseColor("#14163A")
+    private val BG = Palette.NIGHT.bg
+    private val FG = Palette.NIGHT.fg
+    private val MUTED = Palette.NIGHT.muted
+    private val ACCENT = Palette.NIGHT.accentInk
+    private val GOOD = Palette.NIGHT.done
+    private val WARN = Palette.NIGHT.warm
+    private val BAD = Palette.NIGHT.danger
+    private val SURFACE = Palette.NIGHT.surface2
 
     private lateinit var col: LinearLayout
     private lateinit var scroll: ScrollView
@@ -116,7 +116,7 @@ class BotActivity : Activity() {
     private fun button(label: String, primary: Boolean = false, onTap: () -> Unit) = TextView(this).apply {
         text = label; textSize = 15f; typeface = if (primary) semi else med; gravity = Gravity.CENTER
         setTextColor(if (primary) Color.WHITE else FG); setPadding(dp(14), dp(13), dp(14), dp(14))
-        background = Finish(if (primary) Color.parseColor("#5B4BF0") else SURFACE, -1f, true, resources.displayMetrics.density, glass = !primary)
+        background = Finish(if (primary) Palette.NIGHT.primaryBottom else SURFACE, -1f, true, resources.displayMetrics.density, glass = !primary)
         isClickable = true; setOnClickListener { onTap() }; pressFx()
     }
 
@@ -243,13 +243,37 @@ class BotActivity : Activity() {
             j.state == BotRules.AWAITING_APPROVAL || j.state == BotRules.AWAITING_ANSWER -> add(row(button("Pause") { Bots.pause(j.id) }, button("Stop") { Bots.stop(j.id) }), 10)
         }
 
+        // the bot's web browser: watch it work, or take over (sign in, pass a human check)
+        if (BotBrowser.live(j.id)) {
+            val waiting = j.state == BotRules.AWAITING_ANSWER
+            add(row(button(if (waiting) "Open the Browser" else "Watch the Browser", primary = waiting) {
+                startActivity(BotBrowserActivity.intent(this, j.id))
+            }), 12)
+        }
+
+        // files the bot downloaded: kept with the job, savable to the phone's Downloads
+        val got = BotBrowser.files(this, j.id)
+        if (got.isNotEmpty()) {
+            add(text("FILES", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
+            got.forEach { f ->
+                add(card().apply {
+                    addView(text(f.name, 15f, FG, med).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
+                    addView(text("${(f.length() / 1024).coerceAtLeast(1)} KB", 12f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
+                    addView(button("Save to Downloads") {
+                        val where = BotBrowser.saveToDownloads(this@BotActivity, f)
+                        android.widget.Toast.makeText(this@BotActivity, where?.let { "Saved to $it" } ?: "Couldn't save it", android.widget.Toast.LENGTH_SHORT).show()
+                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+                }, 8)
+            }
+        }
+
         // the report
         j.report?.let { r ->
             add(text("REPORT", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
-            val st = Markdown.Style(body, semi, serif, mono, FG, MUTED, ACCENT, Color.argb(40, 255, 255, 255), resources.displayMetrics.density, 16f)
+            val st = Markdown.Style(serif, Type.serifSemi(this), Type.serifMedium(this), mono, FG, MUTED, ACCENT, Color.argb(40, 255, 255, 255), resources.displayMetrics.density, Type.READ, italic = Type.serifItalic(this))
             Markdown.parse(r, st).forEach { b ->
                 when (b) {
-                    is Markdown.Prose -> add(text(b.text, 16f).apply { setLineSpacing(0f, 1.32f); setTextIsSelectable(true)
+                    is Markdown.Prose -> add(text(b.text, Type.READ, FG, serif).apply { setLineSpacing(0f, Type.LEAD_READ); setTextIsSelectable(true)
                         movementMethod = android.text.method.LinkMovementMethod.getInstance() }, 8)
                     is Markdown.Code -> add(text(b.text, 13.5f, FG, mono).apply { setPadding(dp(12), dp(10), dp(12), dp(10))
                         background = Finish(SURFACE, dp(12).toFloat(), true, resources.displayMetrics.density, glass = true); setTextIsSelectable(true) }, 8)

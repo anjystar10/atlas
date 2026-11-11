@@ -23,8 +23,15 @@ export function plainMemory(s) {
   return t ? t[0].toUpperCase() + t.slice(1) : t;
 }
 export function plainSpoken(s) {
-  let t = plainReply(s).replace(FENCE, ' ');
-  t = t.split('\n').map((l) => l.trim().replace(/^#+\s*/, '').replace(/^([-*•]|\d+[.)])\s+/, '')).join('. ');
-  t = t.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[*_#`>|]/g, '').replace(/\.\s*\.+/g, '.').replace(/\s+/g, ' ').trim().replace(/^\.+|\.+$/g, '');
-  return t ? t + '.' : t;
+  let t = plainReply(s).replace(FENCE, " There's some code on screen. ");
+  // links: say the words, not the address; a bare address becomes "a link"
+  t = t.replace(/!?\[([^\]]*)\]\((?:[^()\s]|\([^()\s]*\))*\)/g, '$1').replace(/(https?:\/\/|www\.)\S+/g, 'a link');
+  // tables: the divider row goes; cells are read with pauses. Each line is its own sentence.
+  const lines = t.split('\n').filter((l) => !/^\|?[\s:|-]*-{2,}[\s:|-]*\|?$/.test(l.trim()))
+    .map((l) => l.trim().replace(/^[#> ]+/, '').replace(/^[| ]+|[| ]+$/g, '').replace(/\s*\|\s*/g, ', ').replace(/^([-*•]|\d+[.)])\s+/, '')).filter(Boolean);
+  t = lines.map((l) => (/[.!?…:;,]$/.test(l) ? (l.endsWith(':') ? l.slice(0, -1) + '.' : l) : l + '.')).join(' ');
+  t = t.replace(/[*_#`~^\\]/g, '').replace(/\s*[–—]\s*/g, ', ').replace(/&/g, ' and ').replace(/(\d)\s*%/g, '$1 percent')
+    .replace(/\(\s*\)/g, '').replace(/\.\s*\.+/g, '.').replace(/,\s*([.,!?])/g, '$1').replace(/\s+/g, ' ');
+  return t.trim();
 }
+

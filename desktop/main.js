@@ -132,6 +132,7 @@ ipcMain.handle('net:fetch', async (e, url, opts = {}) => {
       const fd = new FormData();
       for (const [k, v] of Object.entries(opts.form)) {
         if (v && typeof v === 'object' && v.base64) fd.append(k, new Blob([Buffer.from(v.base64, 'base64')], { type: v.type }), v.name || 'file');
+        else if (Array.isArray(v)) v.forEach((x) => fd.append(k, String(x)));   // a list: the same field once per item (e.g. keywords[])
         else fd.append(k, String(v));
       }
       init.body = fd;
@@ -185,6 +186,9 @@ ipcMain.handle('app:autostart', (e, on) => {
   return app.getLoginItemSettings().openAtLogin;
 });
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, data: DATA() }));
+// ---- this PC's hardware, measured (device.js): for picking local models that fit and pacing bots ----
+ipcMain.handle('device:profile', async (e) => { if (!fromMain(e)) return null; try { return await require('./device').profile(DATA()); } catch { return null; } });
+// ---- end hardware ----
 ipcMain.handle('open:external', (e, url) => { if (fromMain(e)) openSafe(url); });
 
 // ------------------------------------------------------------------ files the user picks or drops (attachments)

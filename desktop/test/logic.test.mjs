@@ -286,15 +286,32 @@ test('links keep underscores and stay links; trailing punctuation stays outside'
   assert.ok(!h.includes('<em>'));
   assert.ok(!renderMarkdown('[x](javascript:alert(1))').includes('href'));
 });
-test('a reminder edited here while offline is not overwritten by an older copy', async () => {
-  const { db } = await import('../renderer/store.js');
-  db.state = { tasks: [{ id: 't1', title: 'Gym at 7', updatedAt: 2000 }], memories: [], log: [], settings: {} };
-  const older = { id: 't1', title: 'Gym', updatedAt: 1000 }, newer = { id: 't1', title: 'Gym at 8', updatedAt: 3000 };
-  // 'stale-fingerprint' stands for what the cloud had before the edit here
-  assert.equal(await sync.keepMine('task', 't1', older, 'stale-fingerprint'), true);
-  assert.equal(await sync.keepMine('task', 't1', newer, 'stale-fingerprint'), false);
-  assert.equal(await sync.keepMine('memory', 't1', older, 'x'), false);
-  assert.equal(await sync.keepMine('task', 'nope', older, 'x'), false);
+// The phone and the PC must agree exactly: the same cases run in app/src/test/.../SyncPlanTest.kt (tools/sync-fixtures.json).
+test('sync: the same fingerprints, encryption and merge rules as the phone', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { createHash } = await import('node:crypto');
+  const fx = JSON.parse(readFileSync(new URL('../../tools/sync-fixtures.json', import.meta.url), 'utf8'));
+  assert.equal(await sync.owner(fx.code), fx.owner);
+  assert.equal(await sync.decrypt(fx.code, fx.fromPc), fx.plain);
+  assert.equal(await sync.decrypt(fx.code, fx.fromPhoneJava), fx.plain, 'reads what the phone encrypts');
+  for (const c of fx.canonical) {
+    const canon = sync.canonical(JSON.parse(c.json));
+    assert.equal(canon, c.canonical);
+    assert.equal(createHash('sha1').update(canon, 'utf8').digest('hex'), c.sha1);
+  }
+  for (const m of fx.mineWins) assert.equal(sync.mineWins(m.myAt, m.me, m.theirAt, m.theirDevice), m.wins);
+  for (const c of fx.stamp) {
+    const sent = structuredClone(c.sent), dirty = structuredClone(c.dirty);
+    sync.stamp(sent, dirty, c.local, c.gone, c.now, c.first, c.skip, c.extraImplicit);
+    assert.deepEqual(sent, c.expectSent, c.name); assert.deepEqual(dirty, c.expectDirty, c.name);
+  }
+});
+test('sync: an older edit from the other device never beats a newer one made here offline', () => {
+  // made here at 2000 while offline, the phone's copy says 1000: ours stays and goes up; a later phone edit at 3000 wins
+  assert.equal(sync.mineWins(2000, 'pc', 1000, 'phone'), true);
+  assert.equal(sync.mineWins(2000, 'pc', 3000, 'phone'), false);
+  assert.equal(sync.freshStart('old-id', 'new-id'), true, 'a re-created data file restores from the cloud instead of deleting');
+  assert.equal(sync.freshStart('', 'new-id'), false);
 });
 test('PowerShell quoting and programs that need a yes', async () => {
   const { createRequire } = await import('node:module');
@@ -305,4 +322,115 @@ test('PowerShell quoting and programs that need a yes', async () => {
   for (const p of ['C:\\x\\setup.exe', '~/Downloads/run.BAT', '"C:\\a b\\s.ps1"', 'thing.lnk']) assert.equal(pc.runsSomething(p), true, p);
   for (const p of ['~/Documents/notes.txt', 'C:\\Pictures', 'photo.jpg']) assert.equal(pc.runsSomething(p), false, p);
   assert.equal(pc.sendKeysCombo('ctrl+shift+t'), '^+t');
+});
+
+// ------------------------------------------------------------------ hearing and speaking: the plain rules (same as Speech.kt)
+const sp = await import('../renderer/speech.js');
+const feedAll = (ep, levels) => { let last = 'going'; for (const [level, ms] of levels) for (let i = 0; i < ms / sp.FRAME_MS; i++) if (last === 'going') last = ep.feed(level); return last; };
+test('knows when you have finished talking', () => {
+  assert.equal(feedAll(new sp.Endpointer(), [[0.003, 400], [0.08, 1200], [0.003, 1500]]), 'done');
+  const ep = new sp.Endpointer();
+  assert.equal(feedAll(ep, [[0.003, 300], [0.08, 800], [0.003, 900], [0.08, 600]]), 'going');   // a pause for breath
+  assert.equal(feedAll(ep, [[0.003, 1400]]), 'done');
+  assert.equal(feedAll(new sp.Endpointer(), [[0.002, 7200]]), 'nothing');
+  assert.equal(feedAll(new sp.Endpointer(), [[0.003, 500], [0.2, 60], [0.003, 7000]]), 'nothing');   // a click
+  assert.equal(feedAll(new sp.Endpointer(), [[0.02, 600], [0.15, 1000], [0.02, 1600]]), 'done');      // a noisy room
+});
+test('replies are cut into pieces to speak without losing a word', () => {
+  assert.deepEqual(sp.sentences('Dr. Ade is at 3.5 km. Is that fine? Good!'), ['Dr. Ade is at 3.5 km.', 'Is that fine?', 'Good!']);
+  const text = Array.from({ length: 30 }, (_, i) => `Sentence number ${i + 1} is here.`).join(' ');
+  const c = sp.chunks(text);
+  assert.ok(c.length > 2 && c[0].length <= 140 && c.every((x) => x.length <= 320));
+  assert.equal(c.join(' '), text);
+  const long = 'word '.repeat(200).trim();
+  assert.equal(sp.chunks(long).join(' '), long);
+});
+test('what was heard is tidied; the end of a talk is recognised', () => {
+  assert.equal(sp.fixHeard('Thank you.', 300), '');
+  assert.equal(sp.fixHeard('Thank you.', 1500), 'Thank you.');
+  assert.equal(sp.fixHeard('Atlas, Anjy', 5000, 'Atlas, Anjy'), '');
+  assert.equal(sp.fixHeard("hey at last what's the time"), "Hey Atlas, what's the time");
+  assert.equal(sp.fixHeard('Ask Atlus to wait'), 'Ask Atlas to wait');
+  for (const t of ["That's all", "that's all, thanks", 'Never mind.', "No, that's all for now", 'Goodbye']) assert.ok(sp.endsTalk(t), t);
+  for (const t of ["That's all I know about it, what else?", 'Remind me to say goodbye to mum', 'thanks']) assert.ok(!sp.endsTalk(t), t);
+  assert.deepEqual(sp.names('Call Tunde about the Lagos trip. Then rest'), ['Tunde', 'Lagos']);
+});
+test('spoken text reads cleanly: no addresses, table bars or doubled marks', () => {
+  const s = plainSpoken("Here's the plan:\n\n| Day | Task |\n|---|---|\n| Mon | Gym |\n\nSee [the guide](https://ex.com/a_b) or https://ex.com/x. Done?");
+  assert.ok(!/http|\||\?\.|---/.test(s), s);
+  assert.ok(s.includes('the guide') && s.includes('Mon, Gym') && s.endsWith('Done?'), s);
+});
+
+// ---- this PC: will a local model fit? (renderer/fit.js) ----
+import * as fitR from '../renderer/fit.js';
+// the user's laptop: 16 GB, an NVIDIA card (size measured, here an 8 GB card with 7 GB free), ~9 GB of memory free
+const msi = { totalRamMb: 16_000, freeRamMb: 9_000, physicalCores: 8, logicalCores: 16, cpu: 'Intel Core i7', gpus: [{ name: 'NVIDIA GeForce RTX 4060 Laptop GPU', vramTotalMb: 8188, vramFreeMb: 7200, source: 'nvidia-smi' }] };
+
+test('fit: a 7B model runs on the laptop card, a 14B splits, a 70B is refused', () => {
+  const m7 = fitR.fit(msi, { id: 'qwen2.5:7b', sizeMb: 4_700 });
+  assert.equal(m7.place, 'split', 'a 4.7 GB file plus its cache and workspace is over 6.9 GB of card');
+  const m3 = fitR.fit(msi, { id: 'llama3.2:3b', sizeMb: 2_000 });
+  assert.equal(m3.place, 'gpu');
+  const m14 = fitR.fit(msi, { id: 'qwen2.5:14b', sizeMb: 9_000 });
+  assert.equal(m14.place, 'split');
+  const m70 = fitR.fit(msi, { id: 'llama3.3:70b', sizeMb: 42_000 });
+  assert.equal(m70.place, 'no'); assert.equal(m70.ok, false); assert.match(m70.reason, /freeze/);
+});
+
+test('fit: a model the server already holds counts its own memory as free', () => {
+  const busy = { ...msi, freeRamMb: 3_000, gpus: [{ ...msi.gpus[0], vramFreeMb: 1_000 }] };
+  assert.equal(fitR.fit(busy, { id: 'qwen2.5:7b', sizeMb: 4_700 }).ok, false);
+  assert.equal(fitR.fit(busy, { id: 'qwen2.5:7b', sizeMb: 4_700, loaded: true, vramMb: 4_700 }).ok, true);
+});
+
+test('fit: no card, or a card whose free memory isn\'t reported', () => {
+  const cpuOnly = { ...msi, gpus: [] };
+  assert.equal(fitR.fit(cpuOnly, { id: 'llama3.2:3b', sizeMb: 2_000 }).place, 'cpu');
+  const unknownFree = { ...msi, gpus: [{ name: 'NVIDIA GeForce RTX 4060', vramTotalMb: 8188, vramFreeMb: -1 }] };
+  assert.equal(fitR.cardFreeMb(unknownFree), Math.round(8188 * 0.85) - fitR.VRAM_SPARE_MB);
+  assert.equal(fitR.fit(msi, { id: 'mystery', sizeMb: -1 }).place, 'unknown');
+});
+
+test('fit: size from a model name when the server doesn\'t say', () => {
+  assert.ok(Math.abs(fitR.sizeFromName('qwen2.5-7b-instruct-q4_k_m') - 4005) < 50);
+  assert.ok(fitR.sizeFromName('llama3.1:8b') > 4000);
+  assert.ok(fitR.sizeFromName('gemma-2-9b-it-Q8_0') > 9000);
+  assert.equal(fitR.sizeFromName('phi4'), -1);
+});
+
+test('fit: ranking puts card-sized models first, refused ones last', () => {
+  const r = fitR.rank(msi, [{ id: 'big:70b', sizeMb: 42_000 }, { id: 'small:3b', sizeMb: 2_000 }, { id: 'mid:14b', sizeMb: 9_000 }]);
+  assert.deepEqual(r.map((m) => m.id), ['small:3b', 'mid:14b', 'big:70b']);
+});
+
+test('fit: bots run one at a time when memory is short', () => {
+  assert.equal(fitR.botSlots(msi), 2);
+  assert.equal(fitR.botSlots({ ...msi, freeRamMb: 1_800 }), 1);
+  assert.equal(fitR.botSlots({ ...msi, physicalCores: 2 }), 1);
+  assert.equal(fitR.botSlots(null), 2);
+  assert.match(fitR.line(msi), /RTX 4060/);
+});
+
+test('fit: the profile cache reads once, then reuses', async () => {
+  let reads = 0; const c = fitR.profileCache(async () => { reads++; return { freeRamMb: reads }; }, 60000);
+  await Promise.all([c.get(), c.get()]);
+  assert.equal(reads, 1); assert.equal(c.now().freeRamMb, 1);
+  await c.get(true); assert.equal(reads, 2);
+});
+
+// ---- speech on the PC: OpenAI's current speech model form, the designed Atlas voice
+const vo = await import('../renderer/voice.js');
+test('transcription form: gpt-transcribe gets keywords and languages; older models get language', () => {
+  const f = vo.transcribeForm('gpt-transcribe', 'Atlas, Tunde, Lagos', 'en', { base64: 'AA', type: 'audio/wav', name: 's.wav' });
+  assert.deepEqual(f['keywords[]'], ['Atlas', 'Tunde', 'Lagos']);
+  assert.deepEqual(f['languages[]'], ['en']);
+  assert.equal(f.language, undefined); assert.equal(f.temperature, undefined); assert.equal(f.prompt, 'Atlas, Tunde, Lagos');
+  const g = vo.transcribeForm('whisper-large-v3-turbo', '', 'fr', { base64: 'AA' });
+  assert.equal(g.language, 'fr'); assert.equal(g['keywords[]'], undefined); assert.equal(g.prompt, undefined); assert.equal(g.temperature, '0');
+});
+test('designed voice id is found in either answer shape, and the description names no one', () => {
+  assert.equal(vo.voiceId({ id: 'voice_abc', sample_audio: { data: 'AAAA' } }), 'voice_abc');
+  assert.equal(vo.voiceId({ voice: { name: 'voices/voice_x9' } }), 'voice_x9');
+  assert.equal(vo.voiceId({ error: { message: 'no' } }), null);
+  for (const w of ['jarvis', 'bettany', 'stark', 'iron man', 'marvel']) assert.ok(!vo.ATLAS_DESIGN.toLowerCase().includes(w));
 });

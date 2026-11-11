@@ -27,7 +27,9 @@ object Markdown {
 
     class Style(
         val body: Typeface, val bold: Typeface, val heading: Typeface, val mono: Typeface,
-        val ink: Int, val muted: Int, val accent: Int, val codeBg: Int, val density: Float, val textSizeSp: Float
+        val ink: Int, val muted: Int, val accent: Int, val codeBg: Int, val density: Float, val textSizeSp: Float,
+        /** A true italic of the body face; without one the body face is slanted. */
+        val italic: Typeface? = null
     )
 
     private class Face(val face: Typeface) : MetricAffectingSpan() {
@@ -183,7 +185,7 @@ object Markdown {
                 }
                 else -> {
                     sb.append(g[6].ifEmpty { g[7] })
-                    sb.setSpan(android.text.style.StyleSpan(Typeface.ITALIC), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    sb.setSpan(st.italic?.let { Face(it) } ?: android.text.style.StyleSpan(Typeface.ITALIC), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
             }
             last = m.range.last + 1

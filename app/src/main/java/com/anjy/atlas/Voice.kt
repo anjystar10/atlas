@@ -25,7 +25,7 @@ object Voice {
     private var player: MediaPlayer? = null
     private var tts: TextToSpeech? = null
     private var ttsReady = false
-    private var pending: Pair<String, (() -> Unit)?>? = null
+    private var pending: Triple<String, Int, (() -> Unit)?>? = null
     /** Why the natural voice last failed (shown in Me), or null. */
     @Volatile var lastProblem: String? = null; private set
     /** Who actually spoke last, for Me → Voice ("Atlas (Gemini)", "the phone's voice"). */
@@ -36,9 +36,18 @@ object Voice {
     /** A voice to choose: who it is, which engine's voice it uses, and how it delivers lines. */
     class Choice(val id: String, val label: String, val about: String, val voice: String, val style: String)
 
-    private const val ATLAS_STYLE = "calm, composed and refined; crisp and articulate with a British accent; quietly warm with a touch of dry wit; unhurried, like a trusted AI butler"
+    // An original voice with a butler's manner (not a copy of any actor or character's voice).
+    private const val ATLAS_STYLE = "a composed, impeccably polite British assistant: Received Pronunciation, crisp consonants, low and even pitch, unhurried and precise, quietly warm with understated dry wit; never theatrical, never sing-song"
+    /** How Atlas delivers a line with Gemini (Google asks for delivery only here: accent and timbre belong to the voice itself). */
+    private const val ATLAS_DELIVERY = "composed and unhurried, crisp and precise, quietly warm with understated dry wit; never theatrical, never sing-song"
+    /**
+     * The voice itself, designed once from a description (Gemini's voice design) and kept: Atlas's own voice, made up
+     * fresh rather than copied from anyone. Kept to traits; the description names no real person or character.
+     */
+    internal const val ATLAS_DESIGN = "A composed, impeccably polite British assistant in his forties with a crisp Received Pronunciation accent and a low, " +
+        "smooth, even baritone; unhurried and precise, quietly warm, with an understated dry wit."
     val geminiChoices = listOf(
-        Choice("atlas", "Atlas", "British, calm, refined", "Charon", ATLAS_STYLE),
+        Choice("atlas", "Atlas", "British, calm, refined", "Charon", ATLAS_DELIVERY),
         Choice("charon", "Charon", "deep, informative", "Charon", "clear and steady, informative, relaxed"),
         Choice("algenib", "Algenib", "gravelly, low", "Algenib", "low and gravelly, unhurried, quietly confident"),
         Choice("gacrux", "Gacrux", "mature, assured", "Gacrux", "mature and assured, measured pace"),
@@ -49,7 +58,7 @@ object Voice {
         Choice("zephyr", "Zephyr", "bright (female)", "Zephyr", "bright and cheerful"),
     )
     val openAiChoices = listOf(
-        Choice("atlas", "Atlas", "British, calm, refined", "fable", "Speak with a refined British accent. " + ATLAS_STYLE + "."),
+        Choice("atlas", "Atlas", "British, calm, refined", "fable", "Accent: British Received Pronunciation throughout. Manner: " + ATLAS_STYLE + ". Pacing: measured, with brief natural pauses at commas and full stops."),
         Choice("onyx", "Onyx", "deep", "onyx", "Deep, calm and confident."),
         Choice("ash", "Ash", "clear, direct", "ash", "Clear and direct, friendly."),
         Choice("echo", "Echo", "smooth", "echo", "Smooth and relaxed."),
@@ -88,79 +97,140 @@ object Voice {
 
     fun clean(s: String) = Plain.spoken(s)
 
-    /** Says [text]; [onDone] runs on the main thread once it has finished (or failed). */
+    /** True from the moment Atlas is asked to speak until it has finished or been hushed (so also while the voice is being fetched). */
+    @Volatile var busy = false; private set
+
+    /** "slow", "normal" or "fast". */
+    fun speed(ctx: Context) = Speech.speed(Store.getString(ctx, "voice_speed"))
+    fun setSpeed(ctx: Context, v: String): String { val sp = Speech.speed(v); Store.putString(ctx, "voice_speed", sp); return sp }
+
+    /**
+     * Says [text]; [onDone] runs on the main thread once it has finished (or failed). A long reply is spoken in
+     * pieces (a short first one, so the voice starts quickly, the next fetched while it plays); if the natural
+     * voice fails part-way, the phone's own voice carries on, so a reply is never silently dropped.
+     */
     fun speak(ctx: Context, text: String, onDone: (() -> Unit)? = null) {
         val app = ctx.applicationContext
         val say = clean(text)
         hush()
         val mine = ++gen
         if (say.isEmpty()) { onDone?.let { main.post(it) }; return }
+        begin(app)
+        val finish = { ended(app, mine); onDone?.invoke(); Unit }
         val eng = engine(app)
-        if (eng == null) { system(app, say, mine, onDone); return }
-        speakWith(app, eng, say, mine, onDone)
+        if (eng == null) { main.post { if (mine == gen) system(app, say, mine, finish) }; return }
+        speakParts(app, eng, Speech.chunks(say), mine, finish)
     }
 
-    /** Plays [text] in the chosen voice right away: the "Hear It" key in Me. */
+    /** Plays a line in the chosen voice right away: the "Hear It" key in Me. */
     fun preview(ctx: Context, engine: String, id: String, onDone: (() -> Unit)? = null) {
         val app = ctx.applicationContext
         hush()
         val mine = ++gen
         setChoice(app, engine, id)   // tapping a voice to hear it also chooses it
-        speakWith(app, engine, "Hello, I'm Atlas. Here's how I sound. What can I help you with today?", mine, onDone)
+        begin(app)
+        speakParts(app, engine, listOf("Good day. I'm Atlas. This is how I sound. What can I do for you?"), mine) { ended(app, mine); onDone?.invoke() }
     }
 
-    private fun speakWith(app: Context, eng: String, say: String, mine: Int, onDone: (() -> Unit)?) {
-        Thread {
-            // speech cut off before it finished leaves its file behind: clear out old ones
-            try { app.cacheDir.listFiles { f -> f.name.startsWith("speech-") && System.currentTimeMillis() - f.lastModified() > 10 * 60_000L }?.forEach { it.delete() } } catch (_: Exception) {}
-            val file = try {
-                if (eng == "gemini") geminiSpeech(app, say) else openAiSpeech(app, say)
-            } catch (e: Exception) {
-                Log.w(TAG, "natural voice failed", e)
-                lastProblem = e.message ?: e.javaClass.simpleName
-                null
-            }
-            main.post {
-                if (mine != gen) return@post
-                if (file == null) { system(app, say, mine, onDone); return@post }
-                lastProblem = null
-                lastSpoke = "${current(app, eng).label} (${if (eng == "gemini") "Gemini" else "OpenAI"})"
-                play(file, mine, onDone) { system(app, say, mine, onDone) }
-            }
-        }.start()
+    private fun begin(app: Context) { busy = true; focus(app, true) }
+    private fun ended(app: Context, mine: Int) { if (mine == gen) { busy = false; speaking = false; focus(app, false) } }
+
+    private val FAILED = Any()
+
+    private fun speakParts(app: Context, eng: String, parts: List<String>, mine: Int, finish: () -> Unit) {
+        if (parts.isEmpty()) { main.post { if (mine == gen) finish() }; return }
+        val got = arrayOfNulls<Any>(parts.size)      // a File, or FAILED
+        var next = 0
+        var playing = false
+        lateinit var pump: () -> Unit
+        fun fetch(i: Int) {
+            Thread {
+                if (i == 0) try { app.cacheDir.listFiles { f -> f.name.startsWith("speech-") && System.currentTimeMillis() - f.lastModified() > 10 * 60_000L }?.forEach { it.delete() } } catch (_: Exception) {}
+                val file = if (mine != gen) null else try {
+                    if (eng == "gemini") geminiSpeech(app, parts[i]) else openAiSpeech(app, parts[i])
+                } catch (e: Exception) {
+                    Log.w(TAG, "natural voice failed", e)
+                    lastProblem = e.message ?: e.javaClass.simpleName
+                    null
+                }
+                main.post {
+                    if (mine != gen) { file?.delete(); return@post }
+                    got[i] = file ?: FAILED
+                    if (file != null) {
+                        if (i == 0) { lastProblem = null; lastSpoke = "${current(app, eng).label} (${if (eng == "gemini") "Gemini" else "OpenAI"})" }
+                        if (i + 1 < parts.size) fetch(i + 1)   // the next piece is fetched while this one plays
+                    }
+                    pump()
+                }
+            }.start()
+        }
+        pump = pump@{
+            if (playing || mine != gen || next >= parts.size) return@pump
+            val r = got[next] ?: return@pump                    // not here yet
+            // the natural voice failed: the phone's own voice says the rest
+            val rest = { got.forEach { (it as? File)?.delete() }; system(app, parts.drop(next).joinToString(" "), mine, finish) }
+            if (r !is File) { rest(); return@pump }
+            playing = true
+            play(app, r, mine, onEnd = { playing = false; got[next] = null; next++; if (next >= parts.size) finish() else pump() }, fallback = { playing = false; rest() })
+        }
+        fetch(0)
     }
 
     fun hush() {
         gen++
+        busy = false
         speaking = false
         try { player?.stop() } catch (_: Exception) {}
         try { player?.release() } catch (_: Exception) {}
         player = null
         try { tts?.stop() } catch (_: Exception) {}
+        main.post { doneFor.keys.removeAll { !it.startsWith("atlas-$gen-") } }
+        focusCtx?.let { focus(it, false) }
     }
 
-    private fun play(file: File, mine: Int, onDone: (() -> Unit)?, fallback: () -> Unit) {
+    // other sound (music, a video) is turned down while Atlas speaks, and comes back after
+    private var focusReq: android.media.AudioFocusRequest? = null
+    private var focusCtx: Context? = null
+    private val speechAttrs get() = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()
+    @Synchronized private fun focus(app: Context, on: Boolean) {
+        try {
+            val am = app.getSystemService(android.media.AudioManager::class.java) ?: return
+            if (on) {
+                if (focusReq != null) return
+                val r = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK).setAudioAttributes(speechAttrs).build()
+                am.requestAudioFocus(r); focusReq = r; focusCtx = app
+            } else focusReq?.let { am.abandonAudioFocusRequest(it); focusReq = null }
+        } catch (e: Exception) { Log.w(TAG, "audio focus", e) }
+    }
+
+    private fun play(app: Context, file: File, mine: Int, onEnd: () -> Unit, fallback: () -> Unit) {
         try {
             val mp = MediaPlayer()
-            mp.setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANT).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+            mp.setAudioAttributes(speechAttrs)
             mp.setDataSource(file.absolutePath)
-            mp.setOnCompletionListener { it.release(); if (player === it) player = null; file.delete(); speaking = false; if (mine == gen) onDone?.invoke() }
-            mp.setOnErrorListener { m, _, _ -> m.release(); if (player === m) player = null; speaking = false; if (mine == gen) fallback(); true }
-            mp.prepare(); mp.start(); speaking = true
+            mp.setOnCompletionListener { it.release(); if (player === it) player = null; file.delete(); speaking = false; if (mine == gen) onEnd() }
+            mp.setOnErrorListener { m, _, _ -> m.release(); if (player === m) player = null; file.delete(); speaking = false; if (mine == gen) fallback(); true }
+            mp.prepare()
+            val rate = Speech.rate(speed(app))
+            if (rate != 1f) try { mp.playbackParams = mp.playbackParams.setSpeed(rate) } catch (e: Exception) { Log.w(TAG, "speed", e) }
+            mp.start(); speaking = true
             player = mp
-        } catch (e: Exception) { Log.w(TAG, "playback", e); fallback() }
+        } catch (e: Exception) { Log.w(TAG, "playback", e); file.delete(); speaking = false; fallback() }
     }
 
     // ---- Gemini's speech model (Interactions API), returns 24 kHz WAV ----
     private fun geminiSpeech(ctx: Context, text: String): File {
         val key = Providers.key(ctx, "gemini")!!
         val c = current(ctx, "gemini")
-        // "Atlas" uses a real British voice from Google's voice library when one can be found; otherwise Charon
-        val voice = if (c.id == "atlas") britishVoice(ctx, key) ?: c.voice else c.voice
-        val r = try { geminiCall(key, text, voice, c.style) } catch (e: Exception) {
+        // "Atlas": its own designed voice; else a calm British man's voice from Google's library; else Charon
+        val designed = if (c.id == "atlas") designedVoice(ctx, key) else null
+        val voice = if (c.id == "atlas") designed ?: britishVoice(ctx, key) ?: c.voice else c.voice
+        val style = c.style + Speech.pace(speed(ctx)).let { if (it.isEmpty()) "" else "; $it" }
+        val r = try { geminiCall(key, text, voice, style) } catch (e: Exception) {
             if (voice == c.voice) throw e
-            Store.putString(ctx, "atlas_voice_id", "-")   // that library voice didn't work: don't try it again
-            geminiCall(key, text, c.voice, c.style)
+            // that voice didn't work: don't try it again (a designed one falls back to the library's, then Charon)
+            Store.putString(ctx, if (voice == designed) "atlas_voice_designed" else "atlas_voice_id", "-")
+            geminiCall(key, text, c.voice, style)
         }
         val b64 = findAudio(r) ?: throw IllegalStateException("Gemini sent no audio")
         return wavFile(ctx, b64)
@@ -177,13 +247,41 @@ object Voice {
         return Providers.post("https://generativelanguage.googleapis.com/v1beta/interactions", mapOf("x-goog-api-key" to key), body, "Gemini voice")
     }
 
+    /**
+     * Atlas's own voice, designed once on this Gemini key from [ATLAS_DESIGN] and remembered (Google keeps a designed
+     * voice for a year after it was last used). Null if it can't be made; a refusal is remembered so it isn't asked again.
+     */
+    private fun designedVoice(ctx: Context, key: String): String? {
+        val keyTag = key.takeLast(6)
+        Store.getString(ctx, "atlas_voice_designed")?.let { saved ->
+            if (saved == "-") return null
+            val (tag, id) = saved.split("|", limit = 2).let { if (it.size == 2) it[0] to it[1] else "" to saved }
+            if (tag == keyTag && id.isNotBlank()) return id   // a designed voice belongs to the project of the key that made it
+        }
+        val body = JSONObject().put("store", true).put("voice", JSONObject()
+            .put("model", "gemini-3.8-flash-tts").put("type", "prompted").put("display_name", "Atlas")
+            .put("gender", "male").put("language_code", "en-GB")
+            .put("prompted", JSONObject().put("input", ATLAS_DESIGN)))
+        return try {
+            val r = Providers.post("https://generativelanguage.googleapis.com/v1beta/voices", mapOf("x-goog-api-key" to key), body, "Gemini voice design")
+            val id = Speech.voiceId(r)
+            Store.putString(ctx, "atlas_voice_designed", if (id != null) "$keyTag|$id" else "-")
+            id
+        } catch (e: Gemini.Failure) {
+            Log.w(TAG, "voice design", e)
+            // turned down (no access, bad request): don't ask again; a dropped connection or a busy server tries again next time
+            if (!e.offline && e.code in 400..499 && e.code != 429 && e.code != 408) Store.putString(ctx, "atlas_voice_designed", "-")
+            null
+        } catch (e: Exception) { Log.w(TAG, "voice design", e); null }
+    }
+
     /** A calm British male voice from Google's voice library, looked up once and remembered. Null if none. */
     private fun britishVoice(ctx: Context, key: String): String? {
         Store.getString(ctx, "atlas_voice_id")?.let { return it.takeIf { it != "-" } }
         // "-" (don't look again) only once the library has actually answered; a dropped connection tries again next time
         var answered = false
         val found = try {
-            val q = "language_code=en-GB&gender=male&page_size=50"
+            val q = "language_code=en-GB&gender=male&type=prebuilt&page_size=50"
             val con = java.net.URL("https://generativelanguage.googleapis.com/v1beta/voices?$q").openConnection() as java.net.HttpURLConnection
             try {
                 con.connectTimeout = 10_000; con.readTimeout = 15_000; con.setRequestProperty("x-goog-api-key", key)
@@ -237,6 +335,8 @@ object Voice {
     }
 
     // ---- OpenAI's speech endpoint, returns MP3 ----
+    // (OpenAI has marked gpt-4o-mini-tts for shutdown on 6 January 2027, pointing to its Realtime API instead; until then this
+    // endpoint works. If it starts failing, the phone's voice takes over by itself and Me says why.)
     private fun openAiSpeech(ctx: Context, text: String): File {
         val key = Providers.key(ctx, "openai")!!
         val c = current(ctx, "openai")
@@ -258,15 +358,15 @@ object Voice {
     private fun system(ctx: Context, text: String, mine: Int, onDone: (() -> Unit)?) {
         val t = tts
         if (t == null || !ttsReady) {
-            pending = text to onDone
+            pending = Triple(text, mine, onDone)
             if (t == null) tts = TextToSpeech(ctx) { st ->
                 ttsReady = st == TextToSpeech.SUCCESS
-                if (ttsReady) { pickVoice(ctx); listen() }
-                pending?.let { (p, d) -> pending = null; if (ttsReady) say(p, gen, d) else d?.let { main.post(it) } }
+                if (ttsReady) { pickVoice(ctx); listen() } else { lastProblem = "the phone has no working voice installed"; tts = null }
+                main.post { pending?.let { (p, m, d) -> pending = null; if (m == gen) { if (ttsReady) say(ctx, p, m, d) else d?.invoke() } } }
             }
             return
         }
-        say(text, mine, onDone)
+        say(ctx, text, mine, onDone)
     }
 
     private val doneFor = mutableMapOf<String, () -> Unit>()
@@ -274,15 +374,29 @@ object Voice {
     private fun listen() {
         tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(id: String?) { speaking = true }
-            override fun onDone(id: String?) { speaking = false; id?.let { k -> main.post { doneFor.remove(k)?.invoke() } } }
+            override fun onDone(id: String?) { main.post { doneFor.remove(id)?.let { speaking = false; it() } } }
             @Deprecated("Deprecated in Java") override fun onError(id: String?) { onDone(id) }
+            override fun onError(id: String?, errorCode: Int) { onDone(id) }
+            override fun onStop(id: String?, interrupted: Boolean) { speaking = false }
         })
     }
 
-    private fun say(text: String, mine: Int, onDone: (() -> Unit)?) {
-        val id = "atlas-$mine"
-        onDone?.let { doneFor[id] = it }
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, id)
+    /** The phone's voice takes a limited length at a time, so a long reply is queued in pieces; [onDone] follows the last. */
+    private fun say(ctx: Context, text: String, mine: Int, onDone: (() -> Unit)?) {
+        val t = tts
+        val fail = { speaking = false; onDone?.let { main.post { if (mine == gen) it() } }; Unit }
+        if (t == null) { fail(); return }
+        try {
+            t.setSpeechRate(Speech.rate(speed(ctx)))
+            val max = (TextToSpeech.getMaxSpeechInputLength() - 200).coerceIn(400, 1500)
+            val parts = Speech.chunks(text, first = max, rest = max)
+            parts.forEachIndexed { i, p ->
+                val id = "atlas-$mine-$i"
+                if (i == parts.lastIndex && onDone != null) doneFor[id] = { if (mine == gen) onDone() }
+                if (t.speak(p, if (i == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, null, id) != TextToSpeech.SUCCESS) { doneFor.remove(id); fail(); return }
+            }
+            if (lastSpoke == null || engine(ctx) != null) lastSpoke = "the phone's voice"
+        } catch (e: Exception) { Log.w(TAG, "phone voice", e); fail() }
     }
 
     private fun pickVoice(ctx: Context) {
@@ -290,9 +404,12 @@ object Voice {
         try {
             // the phone's best English voice, preferring a British one for Atlas
             val voices = t.voices?.filter { it.locale.language == "en" && !it.features.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) } ?: return
-            val best = voices.maxWithOrNull(compareBy({ it.quality }, { it.locale.country == "GB" }, { if (it.isNetworkConnectionRequired) 1 else 0 }, { -it.latency }))
+            // British first (as long as it isn't a rough-quality voice), then a man's voice where the phone's voice
+            // engine names them (Google's British male voices), then quality; needing the network counts against
+            val best = voices.maxWithOrNull(compareBy({ it.locale.country == "GB" && it.quality >= android.speech.tts.Voice.QUALITY_NORMAL },
+                { Speech.britishMale(it.name) }, { it.quality }, { if (it.isNetworkConnectionRequired) 0 else 1 }, { -it.latency }))
             if (best != null) { t.voice = best; lastSpoke = "the phone's voice (${best.locale.displayCountry})" }
-            t.setSpeechRate(1.0f); t.setPitch(1.0f)
+            t.setPitch(0.94f)   // a touch lower and calmer
         } catch (e: Exception) { Log.w(TAG, "voice choice", e) }
     }
 }
