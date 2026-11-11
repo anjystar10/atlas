@@ -652,7 +652,25 @@ function renderMe(page) {
     r.querySelector('#link').onclick = async () => { if (await sync.link(r.querySelector('#code').value)) { toast('Linked. Syncing…'); render(true); } else toast("That code doesn't look right. Check it and try again."); };
     const n = h('<button class="btn" style="margin-top:10px">Start a New Link Here Instead</button>'); n.onclick = async () => { await sync.link(sync.newCode()); render(true); }; dc.appendChild(n);
   } else {
-    dc.appendChild(h(`<div style="font:400 22px var(--serif)">Linked</div><p class="muted" style="margin:4px 0 10px">${esc(sync.status.last || 'Syncing…')}${sync.status.at ? ' · ' + esc(logged(sync.status.at)) : ''}</p>`));
+    dc.appendChild(h(`<div style="font:400 22px var(--serif)">Linked</div>`));
+    // how syncing stands, in plain words: when it last worked, what's waiting, the phone, any problem and its fix
+    const ss = sync.status, p = ss.problem;
+    const whenSaid = (ms) => { const t = logged(ms); return t.startsWith('Today ') ? 'today ' + t.slice(6) : 'on ' + t; };
+    const headline = p ? p.text : ss.running ? 'Syncing…' : ss.at ? `Synced ${whenSaid(ss.at)}${ss.pending ? ` · ${ss.pending} change${ss.pending === 1 ? '' : 's'} waiting to go up` : ''}` : (ss.last || 'Syncing…');
+    const lines = [`<p style="margin:4px 0 2px;color:${p && p.kind !== 'offline' ? 'var(--warm)' : 'var(--muted)'}">${esc(headline)}</p>`];
+    if (p && p.fix) lines.push(`<p class="small muted" style="margin:2px 0">${esc(p.fix)}</p>`);
+    const cloudNow = Date.now() + (ss.skew || 0);
+    if (!ss.others.length) lines.push('<p class="small muted" style="margin:6px 0 0">Your phone hasn\'t synced yet. Enter the code below in Atlas there.</p>');
+    for (const o of ss.others) {
+      const who = o.platform === 'android' ? 'Your phone' : o.platform === 'windows' ? 'Another PC' : 'Your other device';
+      const ago = cloudNow - o.seenMs;
+      const seen = o.seenMs <= 0 ? 'not seen yet' : ago < 11 * 60000 ? 'active now' : 'last seen ' + whenSaid(Date.now() - ago);
+      lines.push(`<p class="small muted" style="margin:6px 0 0">${esc(who)} · ${esc(seen)}${o.app ? ' · Atlas ' + esc(o.app) : ''}</p>`);
+      if (o.outdated) lines.push('<p class="small" style="margin:2px 0 0;color:var(--warm)">Update Atlas there so everything syncs both ways.</p>');
+    }
+    if (ss.tooBig) lines.push(`<p class="small muted" style="margin:4px 0 0">${ss.tooBig} item${ss.tooBig === 1 ? ' is' : 's are'} too big to sync and stay${ss.tooBig === 1 ? 's' : ''} on this PC only.</p>`);
+    if (ss.waiting) lines.push(`<p class="small" style="margin:4px 0 0;color:var(--warm)">${ss.waiting} item${ss.waiting === 1 ? '' : 's'} from your phone need${ss.waiting === 1 ? 's' : ''} a newer Atlas here. Update Atlas to bring ${ss.waiting === 1 ? 'it' : 'them'} in.</p>`);
+    dc.appendChild(h(`<div style="margin-bottom:10px">${lines.join('')}</div>`));
     dc.appendChild(h(`<div class="small muted">Your link code (keep it private):</div>`));
     dc.appendChild(h(`<div class="field mono" style="margin:6px 0 10px;text-align:center;font-size:17px;user-select:all">${esc(code)}</div>`));
     const r = h('<div class="row"><button class="btn">Copy Code</button><button class="btn">Sync Now</button><button class="btn danger">Unlink This PC</button></div>'); dc.appendChild(r);
@@ -857,6 +875,6 @@ async function main() {
   host.showOrb(pref('onScreen', true));
   if (pref(F)) showFocus();
   checkDue(); setInterval(checkDue, 15000);
-  sync.syncSoon(800); sync.keepFresh();
+  sync.loadStatus(); sync.syncSoon(800); sync.keepFresh();
 }
 main();

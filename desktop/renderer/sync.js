@@ -11,7 +11,7 @@ const KEY = 'sb_publishable_C03KposFeeF3oZ3z6c554g_91mwmbTj';
 const ALPHABET = 'ABCDEFGHJKMNPQRSTVWXYZ23456789';
 const CHAT_KEEP = 120, LOG_KEEP = 400;
 
-export const status = { last: null, at: 0, running: false, pendingOut: false };
+export const status = { last: null, at: 0, running: false, pendingOut: false, pending: 0, problem: null, others: [], tooBig: 0, waiting: 0, skew: 0 };
 
 export const code = () => pref('syncCode', '') || null;
 export function newCode() {
@@ -28,9 +28,14 @@ export function normalize(c) {
 export async function link(c) {
   const n = normalize(c); if (!n) return false;
   setPref('syncCode', n); await host.write('sync-state.json', '{}'); await host.write('sync-gone.json', '{}');
+  Object.assign(status, { problem: null, others: [], pending: 0, tooBig: 0, waiting: 0 });
   syncSoon(0); return true;
 }
-export async function unlink() { setPref('syncCode', ''); await host.write('sync-state.json', '{}'); status.last = null; }
+export async function unlink() {
+  clearTimeout(timer);                       // no retry waiting to run against a link that's gone
+  setPref('syncCode', ''); await host.write('sync-state.json', '{}');
+  Object.assign(status, { last: null, problem: null, others: [], pending: 0, tooBig: 0, waiting: 0 });
+}
 
 const enc = new TextEncoder(), dec = new TextDecoder();
 async function sha256(s) { return new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(s))); }
@@ -205,21 +210,30 @@ function dropGone(keys) {
  * Records must be plain JSON with no secrets; "updatedAt", "updated_ms" or "at" is read as the edit time.
  */
 const kinds = new Map();
+/** Kinds every Atlas of this version knows. "device" is each device saying it's there (and which Atlas it runs). */
+const BUILT_IN = ['task', 'memory', 'log', 'profile', 'chat', 'device'];
 export function registerKind(kind, { list, apply, absentMeansDeleted = true }) {
-  if (['task', 'memory', 'log', 'profile', 'chat'].includes(kind)) throw new Error('reserved kind');
+  if (BUILT_IN.includes(kind)) throw new Error('reserved kind');
   kinds.set(kind, { list, apply, absentMeansDeleted });
+}
+const known = (kind) => BUILT_IN.includes(kind) || kinds.has(kind);
+function devicesOf(o, me) {
+  return Object.entries(o || {}).filter(([id]) => id !== me)
+    .map(([id, j]) => ({ id, platform: j.platform || '', name: j.name || '', app: j.app || '', protocol: Number(j.proto) || 2, seenMs: Number(j.said) || 0, outdated: (Number(j.proto) || 2) < PROTOCOL }))
+    .sort((a, b) => b.seenMs - a.seenMs);
 }
 
 // ------------------------------------------------------------------ the records
 
 /** Everything that syncs, as records; and the kinds that couldn't be read just now. */
-async function records() {
+async function records(presence) {
   const out = [], skip = [];
   for (const t of db.state.tasks) out.push({ kind: 'task', id: t.id, json: t });
   for (const m of db.state.memories) out.push({ kind: 'memory', id: m.id, json: m });
   for (const l of db.state.log.slice(-LOG_KEEP)) out.push({ kind: 'log', id: l.id, json: l });
-  // a name that isn't set here is not sent: it must never blank the name on the other device
-  if ((db.state.settings.name || '').trim()) out.push({ kind: 'profile', id: 'me', json: { name: db.state.settings.name } });
+  // your name and how reminders behave (a name that isn't set here is left out: it must never blank the phone's)
+  out.push({ kind: 'profile', id: 'me', json: profileOf(db.state.settings) });
+  if (presence) out.push({ kind: 'device', id: db.state.deviceId, json: presence });
   for (const m of db.chat.filter((m) => !m.pending && m.source !== 'error').slice(-CHAT_KEEP))
     out.push({ kind: 'chat', id: m.id, json: { id: m.id, user: !!m.user, text: m.text, source: m.source || '', at: m.at, steps: m.steps || [], files: (m.media || []).length || m.files || 0 } });
   for (const [kind, k] of kinds) {
@@ -229,17 +243,20 @@ async function records() {
   return { recs: out, skip };
 }
 
+/** The cloud's answer when it isn't a success (status 0: no answer at all: offline, timed out). */
+class CloudError extends Error { constructor(st, body) { super(st === 0 ? 'offline' : `the cloud answered ${st}`); this.status = st; this.body = body || ''; } }
 async function rpc(fn, body) {
   const r = await host.fetch(`${URL_BASE}/${fn}`, { method: 'POST', headers: { apikey: KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body), timeout: 30000 });
-  if (!r.ok) throw new Error(r.status === 0 ? 'offline' : `the cloud answered ${r.status}`);
+  if (!r.ok) throw new CloudError(r.status || 0, r.text || r.error || '');
   return JSON.parse(r.text);
 }
 
+/** Takes one record in. Throws when a registered kind can't take it in just now (it's kept and tried again, not lost). */
 async function applyRecord(kind, id, rec) {
-  if (kinds.has(kind)) { try { await kinds.get(kind).apply(id, rec); } catch {} return kind; }
+  if (kinds.has(kind)) { await kinds.get(kind).apply(id, rec); return kind; }
   const arr = kind === 'task' ? db.state.tasks : kind === 'memory' ? db.state.memories : kind === 'log' ? db.state.log : null;
-  // a device that has no name set doesn't wipe the one this device has
-  if (kind === 'profile') { if (rec && typeof rec.name === 'string' && rec.name.trim()) db.state.settings.name = rec.name; return 'state'; }
+  // your name and how reminders behave (an older Atlas sends only the name; a blank name never wipes this one)
+  if (kind === 'profile') { if (rec) Object.assign(db.state.settings, profileFields(rec)); return 'state'; }
   if (kind === 'chat') {
     const i = db.chat.findIndex((m) => m.id === id);
     if (!rec) { if (i >= 0) db.chat.splice(i, 1); return 'chat'; }
@@ -269,105 +286,201 @@ export async function claim(id, leaseMs) {
 }
 
 let timer = 0, failures = 0, lastTry = 0;
-export function syncSoon(ms = 4000) { if (!code()) return; clearTimeout(timer); timer = setTimeout(() => runOnce(), ms); }
-/** While Atlas is running: look for the phone's changes every minute (a tiny request), and at once when the internet returns. */
+/** Asks for a sync shortly (changes made close together go in one). Also what the device link calls when the phone says "something changed". */
+export function syncSoon(ms = 1500) { if (!code()) return; clearTimeout(timer); timer = setTimeout(() => runOnce(), ms); }
+/**
+ * While Atlas is running: look for the phone's changes every 20 seconds (a tiny request), at once when the internet
+ * returns or the window comes to the front, and after the PC wakes from sleep (the clock jumps past the timer).
+ */
 export function keepFresh() {
-  setInterval(() => { if (code() && Date.now() - lastTry > 45000) runOnce(); }, 60000);
+  let tick = Date.now();
+  setInterval(() => {
+    const now = Date.now(), slept = now - tick > 60000; tick = now;
+    if (!code()) return;
+    if (slept) syncSoon(2000);
+    else if (now - lastTry > 15000) runOnce();
+  }, 20000);
   window.addEventListener('focus', () => syncSoon(500));
-  window.addEventListener('online', () => { if (failures > 0 || status.pendingOut) syncSoon(1500); });
+  window.addEventListener('online', () => syncSoon(1500));
 }
 
+let inflight = null;
+/**
+ * Syncs now. If a sync is already running, this one starts right after it (so a change made meanwhile goes up at
+ * once, and "Sync Now" gets the answer of a sync that includes everything up to the tap).
+ */
 export async function runOnce() {
-  const c = code(); if (!c || status.running) return status.last;
+  if (!code()) return status.last;
+  while (inflight) { try { await inflight; } catch {} }
+  inflight = runInner();
+  try { return await inflight; } finally { inflight = null; }
+}
+
+async function runInner() {
+  const c = code(); if (!c) return status.last;
   status.running = true; lastTry = Date.now();
   try {
     let st = {}; try { st = JSON.parse((await host.read('sync-state.json')) || '{}'); } catch {}
     let first = st.cursor === undefined;
     let cursor = st.cursor || 0, sent = st.sent || {}, dirty = st.dirty || {};
+    let recent = Array.isArray(st.recent) ? st.recent : [], seen = st.seen || {}, parked = st.parked || {};
+    const devices = st.devices || {}, tooBig = st.tooBig || {};
     const me = db.state.deviceId, own = await owner(c);
     // this PC's data was started afresh since the last sync: what's missing wasn't deleted, it was lost. Take it back from the cloud.
-    if (freshStart(st.device, me)) { cursor = 0; sent = {}; dirty = {}; first = true; }
-    // how far this PC's clock is from the cloud's (learnt from each send): edit times are kept in cloud time, so a
-    // clock that runs fast can't win every disagreement, and a slow one can't lose them all
+    if (freshStart(st.device, me)) { cursor = 0; sent = {}; dirty = {}; first = true; recent = []; seen = {}; parked = {}; }
+    // how far this PC's clock is from the cloud's: edit times are kept in cloud time, so a clock that runs fast can't
+    // win every disagreement. Learnt from each send, and asked afresh when the clock was changed (or the PC slept).
     let skew = Number(st.skew) || 0;
-    const save = () => host.write('sync-state.json', JSON.stringify({ v: 2, cursor, sent, dirty, device: me, skew }));
+    // (wall clock minus time since Atlas started: it only moves when the clock is changed)
+    const base = Date.now() - performance.now();
+    if (st.skew === undefined || st.base === undefined || Math.abs(base - Number(st.base)) > 5000) {
+      skew = Number(await rpc('sync_time', {})) - Date.now();
+    }
+    status.skew = skew;
+    let said = Number(st.said) || 0;
+    const save = () => host.write('sync-state.json', JSON.stringify({ v: 3, cursor, recent, seen, parked, sent, dirty, device: me, skew, base, said, devices, tooBig, lastAt: status.at }));
 
     // 1. note what changed here, with the time it changed, before anything from the cloud is taken in
     const now = Date.now() + skew;
-    const { recs, skip } = await records();
+    if (presenceDue(said, now)) said = now;
+    let version = ''; try { version = (await host.info()).version || ''; } catch {}
+    const presence = { platform: 'windows', name: 'PC', app: version, proto: PROTOCOL, said };
+    const { recs, skip } = await records(presence);
     const byKey = {}, local = {};
     for (const r of recs) { const k = r.kind + ':' + r.id; byKey[k] = r; local[k] = { fp: await fp(r.json), ownTime: ownTime(r.json) }; }
     await goneQueue; const gone = await readGone();
     stamp(sent, dirty, local, gone, now, first, skip, [...kinds].filter(([, k]) => k.absentMeansDeleted).map(([n]) => n));
+    devices[me] = presence;
     if (!first) await save();        // an edit made offline keeps the time it was noticed, however long sending takes
     status.pendingOut = Object.keys(dirty).length > 0;
 
     // 2. take in what the phone changed, unless this PC's own unsent edit is newer
-    let got = 0; const touched = new Set();
-    for (;;) {
-      const page = await rpc('sync_pull', { p_owner: own, p_since: cursor, p_limit: 500 });
-      if (!page.length) break;
+    let got = 0, blocked = false; const touched = new Set();
+    const takeIn = async (rows, replay) => {
       const applied = [];
-      for (const r of page) {
-        cursor = Math.max(cursor, r.rev);
-        const k = r.kind + ':' + r.id;
-        let rec = null; if (!r.deleted) { try { rec = JSON.parse(await decrypt(c, r.payload)); } catch { continue; } }
+      for (const r of rows) {
+        const k = r.kind + ':' + r.id, rev = Number(r.rev) || 0;
+        if (!replay && alreadyTaken(seen[k] === undefined ? -1 : seen[k], rev)) continue;
+        if (skip.includes(r.kind)) { blocked = true; break; }       // can't merge this kind right now: stop here, take it next time
+        if (!known(r.kind)) {
+          // a kind this version doesn't know (made by a newer Atlas): kept, and taken in once Atlas knows it
+          if (!parked[k] || (Number(parked[k].rev) || 0) <= rev) parked[k] = r;
+          seen[k] = rev; continue;
+        }
+        if (!replay) delete parked[k];                               // a newer copy came: the parked one is old news
+        let rec = null; if (!r.deleted) { try { rec = JSON.parse(await decrypt(c, r.payload)); } catch { seen[k] = rev; continue; } }
+        seen[k] = rev;
+        if (r.kind === 'device') { if (r.id !== me) { if (rec) devices[r.id] = rec; else delete devices[r.id]; } continue; }
         const d = dirty[k];
         // the cloud already holds exactly what's here (a re-link, or our own record coming back): nothing to send or take
         if (rec && d && !d.del && d.fp === await fp(rec)) { sent[k] = d.fp; delete dirty[k]; continue; }
         if (r.device === me) { if (!d) { if (r.deleted) delete sent[k]; else sent[k] = await fp(rec); } continue; }   // our own, coming back
         if (d && mineWins(d.at, me, r.updated_ms, r.device)) continue;        // ours is newer: it goes up below
         delete dirty[k];
-        if (r.deleted) delete sent[k]; else sent[k] = await fp(rec);
-        const w = await applyRecord(r.kind, r.id, rec); if (w) touched.add(w); got++;
-        if (rec) applied.push(k);
+        try {
+          const w = await applyRecord(r.kind, r.id, rec); if (w) touched.add(w); got++;
+          if (r.deleted) delete sent[k]; else sent[k] = await fp(rec);
+          if (rec) applied.push(k);
+        } catch (e) {
+          // couldn't be taken in just now: kept and tried again next time, not lost
+          console.warn('sync: a record could not be taken in', r.kind, e && e.message);
+          parked[k] = { ...r, retry: true }; delete sent[k];
+        }
       }
       if (applied.length) {
         // this PC may keep a record its own way (field order, defaults): that is not an edit to send back
-        const mine = {}; for (const r of (await records()).recs) mine[r.kind + ':' + r.id] = r.json;
+        const mine = {}; for (const r of (await records(presence)).recs) mine[r.kind + ':' + r.id] = r.json;
         for (const k of applied) if (mine[k]) sent[k] = await fp(mine[k]);
       }
+    };
+    // parked records this Atlas can take in now (it learnt the kind, or a merge that failed may work now)
+    const ready = Object.keys(parked).filter((k) => known(kindOf(k)) && !skip.includes(kindOf(k)));
+    if (ready.length) {
+      const rows = ready.map((k) => parked[k]).sort((a, b) => (Number(a.rev) || 0) - (Number(b.rev) || 0));
+      for (const k of ready) delete parked[k];
+      await takeIn(rows, true);
+    }
+    let pos = cursor, top = cursor;
+    while (!blocked) {
+      const page = await rpc('sync_pull', { p_owner: own, p_since: pos, p_limit: 500 });
+      if (!page.length) break;
+      await takeIn(page, false);
       if (touched.has('state')) saveState(true);
       if (touched.has('chat')) saveChat(true);
+      if (blocked) break;
+      pos = Math.max(...page.map((r) => Number(r.rev) || 0)); top = Math.max(top, pos);
       await save();
       if (page.length < 500) break;
     }
+    // where to pull from next time: a little behind the newest position, in case two sends were numbered out of order
+    if (!blocked) {
+      [cursor, recent] = advance(cursor, [...recent, [Date.now(), top]], Date.now());
+      for (const k of Object.keys(seen)) if (seen[k] <= cursor) delete seen[k];
+    }
+    const pk = Object.keys(parked);
+    if (pk.length > 3000) for (const k of pk.sort((a, b) => (Number(parked[a].rev) || 0) - (Number(parked[b].rev) || 0)).slice(0, pk.length - 3000)) delete parked[k];
 
-    // 3. send what changed here, each with the time of its edit
-    const keys = Object.keys(dirty); let put = 0, again = false;
-    for (let i = 0; i < keys.length; i += 400) {
-      const items = [], done = [];
-      for (const k of keys.slice(i, i + 400)) {
-        const d = dirty[k], kind = kindOf(k), id = k.slice(kind.length + 1);
-        if (d.del) items.push({ kind, id, updated_ms: d.at, deleted: true, payload: '', device: me });
-        else { const r = byKey[k]; if (!r) continue; items.push({ kind, id, updated_ms: d.at, payload: await encrypt(c, JSON.stringify(r.json)), device: me }); }
-        done.push(k);
+    // 3. send what changed here, each with the time of its edit, in sends the cloud accepts
+    const items = [];
+    for (const k of Object.keys(dirty)) {
+      const d = dirty[k], kind = kindOf(k), id = k.slice(kind.length + 1);
+      if (d.del) { items.push([k, { kind, id, updated_ms: d.at, deleted: true, payload: '', device: me }]); continue; }
+      const r = byKey[k]; if (!r) continue;
+      let payload = await encrypt(c, JSON.stringify(r.json));
+      if (payload.length > MAX_RECORD && kind === 'chat') {
+        // a huge message: the phone gets it cut short (the whole of it stays here)
+        payload = await encrypt(c, JSON.stringify({ ...r.json, text: String(r.json.text || '').slice(0, 600000) + '\n\n… (cut short: too long to sync)' }));
       }
-      const rejected = new Set();
-      if (items.length) {
-        const res = await rpc('sync_push2', { p_owner: own, p_items: items });
-        if (res && res.now > 0) skew = res.now - Date.now();
-        for (const x of (res && res.rejected) || []) rejected.add(x.kind + ':' + x.id);
+      if (payload.length > MAX_RECORD) {
+        // too big for the cloud: not sent (and not tried again until it changes); Me → Your Devices says so
+        console.warn('sync: a record is too big to sync', kind); tooBig[k] = d.fp; sent[k] = d.fp; delete dirty[k]; continue;
       }
-      for (const k of done) {
+      delete tooBig[k];
+      items.push([k, { kind, id, updated_ms: d.at, payload, device: me }]);
+    }
+    let put = 0, again = false;
+    for (const batch of batches(items.map(([, x]) => x.payload.length + 200))) {
+      const res = await rpc('sync_push2', { p_owner: own, p_items: batch.map((i) => items[i][1]) });
+      if (res && res.now > 0) { skew = res.now - Date.now(); status.skew = skew; }
+      const rejected = new Set(((res && res.rejected) || []).map((x) => x.kind + ':' + x.id));
+      for (const i of batch) {
+        const k = items[i][0], d = dirty[k]; if (!d) continue;
         // the cloud already had a newer edit (made on the phone a moment ago): ours is dropped, the phone's comes in next
         if (rejected.has(k)) { delete dirty[k]; again = true; continue; }
-        if (dirty[k].del) delete sent[k]; else sent[k] = dirty[k].fp; delete dirty[k];
+        if (d.del) delete sent[k]; else sent[k] = d.fp; delete dirty[k];
       }
-      put += items.length;
+      put += batch.length;
       await save();
     }
+    for (const k of Object.keys(tooBig)) if (!byKey[k]) delete tooBig[k];
+    status.at = Date.now();
     await save();
     await dropGone(Object.keys(gone).filter((k) => !dirty[k] && !skip.includes(kindOf(k))));
-    status.pendingOut = Object.keys(dirty).length > 0;
-    status.at = Date.now(); failures = 0;
+    status.pendingOut = Object.keys(dirty).length > 0; status.pending = Object.keys(dirty).length;
+    status.others = devicesOf(devices, me); status.tooBig = Object.keys(tooBig).length; status.waiting = Object.keys(parked).length;
+    failures = 0; status.problem = null;
     if (again) syncSoon(1500);
     status.last = 'Synced' + (got + put ? ` (${got} in, ${put} out)` : '');
     for (const w of touched) changed(w);
   } catch (e) {
-    status.last = "Couldn't sync: " + (e.message || e);
-    // try again by itself: after 30 s, then 2, 5 and 15 minutes (and at once when the internet comes back)
-    failures++; clearTimeout(timer); timer = setTimeout(() => runOnce(), [30000, 120000, 300000, 900000][Math.min(failures, 4) - 1]);
+    const p = e instanceof CloudError ? problem(e.status, e.body) : { kind: 'other', text: "Couldn't sync: " + (e.message || e), fix: null };
+    status.problem = p;
+    status.last = p.kind === 'offline' ? "Couldn't sync: offline" : p.text;
+    // try again by itself: after 30 s, then 2, 5 and 15 minutes (and at once when the internet comes back); a sleeping
+    // cloud isn't asked again so often (it won't wake by itself)
+    failures++;
+    const waits = p.kind === 'paused' ? [900000, 1800000, 3600000, 3600000] : [30000, 120000, 300000, 900000];
+    clearTimeout(timer); timer = setTimeout(() => runOnce(), waits[Math.min(failures, 4) - 1]);
   } finally { status.running = false; changed('sync'); }
   return status.last;
+}
+
+/** After a restart: what the last sync knew (for Me → Your Devices before the first sync finishes). */
+export async function loadStatus() {
+  try {
+    const st = JSON.parse((await host.read('sync-state.json')) || '{}');
+    status.others = devicesOf(st.devices, db.state.deviceId); status.pending = Object.keys(st.dirty || {}).length;
+    status.tooBig = Object.keys(st.tooBig || {}).length; status.waiting = Object.keys(st.parked || {}).length;
+    if (!status.at) status.at = Number(st.lastAt) || 0; status.skew = Number(st.skew) || 0;
+  } catch {}
 }

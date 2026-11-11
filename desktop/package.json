@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --no-warnings --test test/logic.test.mjs",
+    "test": "node --no-warnings --test test/logic.test.mjs test/sync.e2e.mjs",
     "test:browser": "electron --no-sandbox test/browser.e2e.js && electron --no-sandbox test/botjob.e2e.js && electron --no-sandbox test/files.e2e.js",
     "test:mcp": "node --no-warnings test/mcp.e2e.js",
     "dist": "electron-builder --win nsis --x64 --publish never"
