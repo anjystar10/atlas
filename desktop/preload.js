@@ -31,6 +31,15 @@ contextBridge.exposeInMainWorld('atlasHost', {
     info: (jobId) => ipcRenderer.invoke('bot:browser-info', jobId),
   },
   // <<< bot browser
+  // >>> bot files
+  botFiles: {
+    run: (jobId, goal, name, args) => ipcRenderer.invoke('bot:files', jobId, goal, name, args),
+    library: () => ipcRenderer.invoke('library:list'),
+    open: (file) => ipcRenderer.invoke('library:open', file),
+    show: (file) => ipcRenderer.invoke('library:show', file),
+    remove: (file) => ipcRenderer.invoke('library:delete', file),
+  },
+  // <<< bot files
   on: (channel, fn) => {
     const ok = ['notification-click', 'orb-clicked', 'orb-state'];
     if (!ok.includes(channel)) return;

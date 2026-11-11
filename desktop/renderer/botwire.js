@@ -8,6 +8,7 @@ import { createBots, MAX_TOOL_CALLS, MAX_WORK_MS, MAX_DEPTH, callsOf, msOf } fro
 import { createExtras, skillsIndex, teamIndex, specialistPrompt, rulesPrompt, describeSchedule } from './botx.js';
 import * as sync from './sync.js';
 import { BROWSER_TOOLS, BROWSER, browserLabel } from './botbrowse.js';
+import { FILE_TOOLS, FILES, filesLabel, runFiles, filesFooter } from './botfiles.js';
 const host = window.atlasHost;
 
 function systemPrompt(j = {}) {
@@ -40,6 +41,11 @@ Using your browser:
 - Clicks or keys that send, post, buy or pay, book, sign up, subscribe, accept terms or delete are checked on the page and wait for the user's OK automatically; say clearly in your plan what you're about to do.
 - Downloads land in this job's folder on the PC (Documents/Atlas Bot); browser_upload takes files from there.
 - In the report, say exactly what you did on which site and how you know it worked (the confirmation text, an order or reference number, the final address). Never claim a step happened unless a browser result showed it.
+
+Files you hand over (your job folder, Documents/Atlas Bot):
+- When the job calls for something the user will keep, make the real file: make_document for a report, brief, letter or plan (a typeset PDF); make_spreadsheet for data, comparisons, budgets or trackers (Excel, with formulas where they help); make_page for an interactive view with tables to sort and filter and charts.
+- workspace_write / workspace_read / workspace_list keep drafts, notes and data in the job folder; downloads land there too.
+- The report still gives the answer itself (the key findings), then names the files you made. They show in Atlas Bot › Library.
 
 Using the PC (only when the job needs it): open_app, open_path, list_files and read_file to look around; for anything on screen, look_at_screen first, then click using its coordinates, then look again to check.
 
@@ -111,9 +117,10 @@ export const bots = createBots({
   isSwitch: (e) => e instanceof brain.Switch,
   isRetryable: (e) => e instanceof brain.Failure && (e.offline || [429, 500, 502, 503, 504].includes(e.code)),
   tools: brain.TOOLS,
-  extraTools: host.botBrowser ? BROWSER_TOOLS : [],
-  labelFor: browserLabel,
-  runTool: (call, opts) => (BROWSER.has(call.name) ? runBrowser(call, opts) : brain.runTool(call, opts)),
+  extraTools: [...(host.botBrowser ? BROWSER_TOOLS : []), ...(host.botFiles ? FILE_TOOLS : [])],
+  labelFor: (c) => browserLabel(c) || filesLabel(c),
+  runTool: (call, opts) => (BROWSER.has(call.name) ? runBrowser(call, opts) : FILES.has(call.name) ? runFiles(call, opts && opts.job) : brain.runTool(call, opts)),
+  reportFooter: filesFooter,
   checkApproval: (call, job) => (BROWSER.has(call.name) && host.botBrowser ? host.botBrowser.check(job.id, job.goal, call.name, call.args || {}) : Promise.resolve(null)),
   onFinal: (job) => { if (job.browser && host.botBrowser) host.botBrowser.close(job.id); },
   systemPrompt,

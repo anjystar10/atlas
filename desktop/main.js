@@ -233,6 +233,17 @@ ipcMain.handle('bot:browser-show', (e, jobId, title) => { if (!fromMain(e) || !o
 ipcMain.handle('bot:browser-close', (e, jobId) => { if (fromMain(e) && okJob(jobId)) botBrowser.close(jobId); return true; });
 ipcMain.handle('bot:browser-info', (e, jobId) => (fromMain(e) && okJob(jobId) ? botBrowser.info(jobId) : { open: false }));
 // <<< bot browser
+// >>> bot files (see botfiles.js): the job folder, documents, spreadsheets, pages, and the Library
+const botFiles = require('./botfiles');
+ipcMain.handle('bot:files', async (e, jobId, goal, name, args) => {
+  if (!fromMain(e) || !okJob(jobId) || !botFiles.NAMES.includes(String(name))) return { out: 'Error: not allowed' };
+  try { return await botFiles.run(jobId, String(goal || ''), name, args || {}); } catch (err) { return { out: 'Error: ' + (err.message || err) }; }
+});
+ipcMain.handle('library:list', (e) => (fromMain(e) ? botFiles.library() : []));
+ipcMain.handle('library:open', (e, file) => (fromMain(e) ? botFiles.open(String(file || '')) : false));
+ipcMain.handle('library:show', (e, file) => (fromMain(e) ? botFiles.showInFolder(String(file || '')) : false));
+ipcMain.handle('library:delete', (e, file) => (fromMain(e) ? botFiles.remove(String(file || '')) : false));
+// <<< bot files
 
 // ------------------------------------------------------------------ start
 

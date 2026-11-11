@@ -202,3 +202,6 @@ textarea.field { resize: vertical; min-height: 64px; font: 400 var(--t-read)/1.4
 .botplan .done { color: var(--muted); } .botplan .done span { color: var(--done); }
 .botsteps > div { color: var(--muted); font-size: 14px; }
 .botcard .small { margin-top: 4px; }
+
+/* the Library (library.js) */
+.libicon { width: 38px; height: 38px; flex: none; border-radius: 10px; display: grid; place-items: center; font: 500 18px var(--sans); color: var(--accent-text, var(--accent)); background: color-mix(in srgb, var(--accent) 14%, transparent); }

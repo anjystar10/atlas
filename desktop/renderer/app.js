@@ -10,6 +10,7 @@ import { renderMarkdown } from './md.js';
 import { plainMemory } from './plain.js';
 import { bots, extras } from './botwire.js';
 import * as BX from './botsui.js';
+import { renderLibrary, refreshLibrary } from './library.js';
 import * as fitRules from './fit.js';
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
 const host = window.atlasHost;
@@ -151,6 +152,9 @@ const kit = () => ({ h, esc, sheet, toast, render });
 function botColor(s) { return s === BOT.COMPLETED ? 'ok' : s === BOT.FAILED ? 'bad' : BOT_WAITING.has(s) ? 'warn' : s === BOT.CANCELLED || s === BOT.PAUSED ? 'muted' : 'accent'; }
 function renderBots(page) {
   const col = h('<div class="column"></div>'); page.appendChild(col);
+  // >>> library: everything bots made (library.js)
+  if (botView === 'library') { renderLibrary(col, kit(), () => { botView = null; render(); }); return; }
+  // <<< library
   const j = botView && bots.job(botView);
   if (!j) {
     botView = null;
@@ -163,6 +167,11 @@ function renderBots(page) {
     const go = () => { const g = ta.value.trim(); if (!g) return; botDraft = ''; bots.deploy(g, ''); toast('Atlas Bot is on it.'); render(true); };
     box.querySelector('#botgo').onclick = go;
     ta.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); } };
+    // >>> library
+    const lib = h('<div class="card botcard" role="button" tabindex="0" style="margin-top:12px"><div class="row"><div class="grow"><div class="goal">Library</div><div class="small muted" style="margin-top:4px">Documents, spreadsheets, pages and downloads your bots made</div></div><span class="tag">Open ›</span></div></div>');
+    lib.onclick = () => { botView = 'library'; refreshLibrary(); render(); };
+    col.appendChild(lib);
+    // <<< library
     const all = bots.visible();
     if (!all.length) { col.appendChild(h('<div class="card" style="margin-top:14px"><div style="font:400 19px var(--serif)">No bots yet</div><p class="muted" style="margin:6px 0 0">Ask Atlas for something bigger, like “research the best monitor under $300 for coding and send me a report”, or say “send a bot to…”.</p></div>')); BX.extrasSections(col, kit()); return; }
     const list = h('<div style="margin-top:14px"></div>'); col.appendChild(list);
@@ -222,6 +231,13 @@ function renderBots(page) {
   }
   BX.steerCard(col, j, kit());
   BX.helpersList(col, j, kit(), (id) => { botView = id; render(); });
+  // >>> library: the files this job made
+  if (Array.isArray(j.made) && j.made.length) {
+    const c = h(`<div class="card" style="margin-top:14px"><div class="row"><div class="grow"><div class="small muted" style="font-weight:600">FILES IT MADE</div><div style="margin-top:4px">${esc(j.made.slice(0, 8).join(', '))}${j.made.length > 8 ? ` and ${j.made.length - 8} more` : ''}</div></div><button class="btn primary" id="blib">Open the Library</button></div></div>`);
+    c.querySelector('#blib').onclick = () => { botView = 'library'; refreshLibrary(); render(); };
+    col.appendChild(c);
+  }
+  // <<< library
   if (j.report) {
     col.appendChild(h('<div class="eyebrow">REPORT</div>'));
     const r = h('<div class="reply"></div>'); r.innerHTML = renderMarkdown(j.report); col.appendChild(r);

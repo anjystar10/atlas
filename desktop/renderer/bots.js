@@ -169,6 +169,7 @@ export function parsePlan(text) {
  *  extraTools?: more tool declarations only bots get (e.g. the PC's browser);  labelFor?(call) → a short label for them
  *  checkApproval?(call, job) → Promise<sentence|null>: a look at the real thing (e.g. the button on the page) before it runs
  *  onFinal?(job): a job finished, was stopped or removed (e.g. close its browser window)
+ *  reportFooter?(job) → text added to the end of its report (e.g. the files it made and where they are)
  *  systemPrompt(job): string;  notify(title, body, tag);  post(markdown): the report into the chat
  *  extras?: skills, specialists and approval rules (botx.js createExtras): enables use_skill, delegate, bot_remember and
  *           the user's always-allow / never rules
@@ -344,7 +345,7 @@ export function createBots(deps) {
   }
 
   function complete(j, report) {
-    j.report = deps.plainReply(report || '') || compiled(j);
+    j.report = (deps.plainReply(report || '') || compiled(j)) + (deps.reportFooter ? deps.reportFooter(j) : '');   // e.g. the files it made
     for (const p of j.plan) p.done = true;
     j.current = null; j.error = null;
     move(j, S.COMPLETED, now());
