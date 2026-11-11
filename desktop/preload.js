@@ -49,8 +49,11 @@ contextBridge.exposeInMainWorld('atlasHost', {
     reveal: (id) => ipcRenderer.invoke('vault:reveal', id),
   },
   // <<< vault
+  // >>> connections
+  conn: (op, ...args) => ipcRenderer.invoke('conn', op, ...args),
+  // <<< connections
   on: (channel, fn) => {
-    const ok = ['notification-click', 'orb-clicked', 'orb-state'];
+    const ok = ['notification-click', 'orb-clicked', 'orb-state', 'connections-changed'];
     if (!ok.includes(channel)) return;
     ipcRenderer.on(channel, (_e, ...args) => fn(...args));
   }

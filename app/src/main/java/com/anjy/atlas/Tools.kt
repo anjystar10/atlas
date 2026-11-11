@@ -163,6 +163,9 @@ object Tools {
     suspend fun run(ctx: Context, c: Gemini.Call): Result {
         val a = c.args
         val now = System.currentTimeMillis()
+        // >>> connections: an MCP tool (mcp__server__tool) goes to Connections.kt
+        if (c.name.startsWith("mcp__")) return try { Connections.run(ctx, c, approved = false) } catch (e: Exception) { Result("Error: ${e.message ?: e.javaClass.simpleName}") }
+        // <<< connections
         return try {
             when (c.name) {
                 "set_reminder" -> withContext(Dispatchers.IO) {
@@ -289,6 +292,9 @@ object Tools {
                     else Result("Routine set: \"${r.optString("name")}\", next run ${android.text.format.DateUtils.formatDateTime(ctx, r.optLong("nextAt"), android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY or android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_TIME)}. The user can pause, test or delete it on the Bots tab.", "Set a routine: ${r.optString("name")}")
                 }
                 in PhoneData.names -> PhoneData.run(ctx, c.name, a)
+                // >>> connections (Connections.kt): MCP servers and web APIs; anything that changes things is asked on screen first
+                in setOf(McpWire.CALL_API) -> Connections.run(ctx, c, approved = false)
+                // <<< connections
                 "vault_list" -> withContext(Dispatchers.IO) { Result(Vault.forModel(Vault.all(ctx)), "Checked your saved sign-ins") }
                 "generate_image" -> withContext(Dispatchers.Main) { if (a.optBoolean("use_my_pictures", false)) Conversation.latestUserImages() else emptyList() }.let { refs -> withContext(Dispatchers.IO) {
                     val prompt = a.optString("prompt").trim()

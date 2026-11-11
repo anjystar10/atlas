@@ -80,7 +80,7 @@ class Busy extends Error { constructor() { super('Busy.'); this.code = 503; } }
 class Sw extends Error { constructor(to) { super('Keys out.'); this.to = to; } }
 
 /** A bot world with a scripted model: each call takes the next turn from [script] (a function of the brief, or a turn). */
-function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false } = {}) {
+function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false, tools = null, extraApproval = null } = {}) {
   const w = { saved: journal, notes: [], posts: [], ran: [], briefs: [], tools: [], timers: [], calls: 0, prov: providers, made: 0 };
   let n = 0, clock = 1000;
   w.bots = B.createBots({
@@ -90,7 +90,7 @@ function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gem
       const i = n++; const s = script[i]; if (!s) throw new Error('script ran out at ' + i); return typeof s === 'function' ? s(brief) : s; }, results: (list) => w.notes.push(list.map((x) => x.out)) }; },
     callWithKeys: async (p, sess, call) => { const k = w.calls++; if (k === switchAt) throw new Sw(w.prov[1]); if (k === failAt) throw new Busy(); return call(); },
     isSwitch: (e) => e instanceof Sw, isRetryable: (e) => e instanceof Busy,
-    tools: [{ name: 'web_search' }, { name: 'read_page' }, { name: 'run_command' }, { name: 'change_setting' }, { name: 'deploy_bot' }],
+    tools: tools || [{ name: 'web_search' }, { name: 'read_page' }, { name: 'run_command' }, { name: 'change_setting' }, { name: 'deploy_bot' }], extraApproval,
     runTool: async (c, o) => { w.ran.push([c.name, !!(o && o.approved)]); return { out: `${c.name} result`, step: `Did ${c.name}` }; },
     systemPrompt: (j) => { w.sysFor = (w.sysFor || []).concat([j && j.id]); return 'sys'; }, notify: (t, b, tag) => w.notes.push(['notify', t, tag]), post: (m) => w.posts.push(m),
     plainReply: (s) => String(s).trim(), plainMemory: (s) => String(s).trim(),
@@ -684,4 +684,64 @@ test("a bot's files: the report footer lists what it made", async () => {
   assert.match(filesFooter({ made: ['a.pdf', 'b.xlsx'] }), /^\n\n\*\*Files:\*\* a\.pdf, b\.xlsx \(open them in Atlas Bot › Library\)\.$/);
   assert.deepEqual([...FILES], ['workspace_list', 'workspace_read', 'workspace_write', 'make_document', 'make_spreadsheet', 'make_page']);
   for (const t of FILE_TOOLS) assert.ok(t.description.length > 20 && /^[a-z_]+$/.test(t.name));
+});
+
+// ------------------------------------------------------------------ connections (MCP servers, web APIs)
+import * as CN from '../renderer/connect.js';
+
+test('connections: tool names fit every AI service (≤64, letters, numbers, _) and stay unique when cut', () => {
+  assert.equal(CN.toolName('notes', 'add'), 'mcp__notes__add');
+  assert.equal(CN.toolName('my-files', 'read.file'), 'mcp__my_files__read_file');
+  const long1 = CN.toolName('server', 'a'.repeat(80) + '_one'), long2 = CN.toolName('server', 'a'.repeat(80) + '_two');
+  assert.ok(long1.length <= 64 && long2.length <= 64 && long1 !== long2);
+  assert.match(long1, /^[A-Za-z0-9_]+$/);
+});
+
+test('connections: schemas lose what Gemini refuses ($ref, allOf, anyOf, defaults, extra keys) but keep their meaning', () => {
+  const s = CN.simpleSchema({ type: 'object', $defs: { Pt: { type: 'object', properties: { x: { type: 'number' } }, required: ['x'] } }, additionalProperties: false,
+    properties: { at: { $ref: '#/$defs/Pt', description: 'where' }, kind: { anyOf: [{ type: 'string', enum: ['a', 'b'] }, { type: 'null' }] }, n: { type: ['integer', 'null'], default: 3 },
+      both: { allOf: [{ type: 'object', properties: { p: { type: 'string' } } }, { properties: { q: { type: 'boolean' } }, required: ['q'] }] } }, required: ['at', 'ghost'] });
+  assert.deepEqual(s.properties.at, { type: 'object', description: 'where', properties: { x: { type: 'number' } }, required: ['x'] });
+  assert.deepEqual(s.properties.kind, { type: 'string', enum: ['a', 'b'], nullable: true });
+  assert.deepEqual(s.properties.n, { type: 'integer', description: 'Default: 3', nullable: true });
+  assert.deepEqual(Object.keys(s.properties.both.properties), ['p', 'q']);
+  assert.deepEqual(s.required, ['at'], 'a required field that does not exist is dropped');
+  assert.ok(!JSON.stringify(s).includes('additionalProperties') && !JSON.stringify(s).includes('$'));
+});
+
+test('connections: approvals follow each kind of action (W2 kinds), and the trust setting', () => {
+  assert.equal(X.connectionCategory('call_api', { method: 'DELETE', path: '/items/1' }), 'delete');
+  assert.equal(X.connectionCategory('call_api', { method: 'POST', path: '/v1/orders' }), 'purchase');
+  assert.equal(X.connectionCategory('call_api', { method: 'POST', path: '/messages/send' }), 'message');
+  assert.equal(X.connectionCategory('mcp__slack__post_message', {}), 'publish');
+  assert.equal(X.connectionCategory('mcp__gmail__send_email', {}), 'message');
+  assert.equal(X.connectionCategory('mcp__notes__save_note', {}), 'other');
+  assert.equal(X.connectionCategory('run_command', {}), null);
+  const idx = new Map([['mcp__n__get', { server: 'n', tool: 'get', readOnly: true, destructive: false, trust: 'reads' }], ['mcp__n__wipe', { server: 'n', tool: 'wipe', readOnly: true, destructive: true, trust: 'reads' }]]);
+  assert.equal(CN.approvalFrom(idx, 'mcp__n__get', {}), null);
+  assert.ok(CN.approvalFrom(idx, 'mcp__n__wipe', {}), 'marked read-only AND destructive: ask');
+});
+
+test('connections in a bot: tools appear while the bot runs; read-only ones go ahead, changes wait for the OK', async () => {
+  const snap = { servers: [{ name: 'notes', status: 'off', trust: 'reads', chat: true, bots: true, tools: [] }], apis: [] };
+  const toolsSeen = () => [{ name: 'web_search' }, ...CN.declarationsFrom(snap, 'bots')];
+  const idx = () => { const m = new Map(); CN.declarationsFrom(snap, 'bots', m); return m; };
+  const w = world([
+    turn(call('mcp__notes__add', { a: 1, b: 2 })),
+    turn(call('mcp__notes__save_note', { text: 'hello' })),
+    (brief) => { assert.ok(brief.includes('Approved and done')); return turn(call('finish', { report: 'Saved.' })); },
+  ], { tools: toolsSeen, extraApproval: (name, a) => CN.approvalFrom(idx(), name, a) });
+  // the server connects after the app started: its tools must still reach the bot
+  snap.servers[0].status = 'connected';
+  snap.servers[0].tools = [{ name: 'add', inputSchema: { type: 'object', properties: { a: { type: 'number' }, b: { type: 'number' } } }, readOnly: true },
+    { name: 'save_note', inputSchema: { type: 'object', properties: { text: { type: 'string' } } }, readOnly: false }];
+  await w.bots.init();
+  const j = w.bots.deploy('Note it', '');
+  await settle(w);
+  assert.ok(w.tools[0].includes('mcp__notes__add') && w.tools[0].includes('mcp__notes__save_note'), 'the bot was offered the connection tools');
+  assert.deepEqual(w.ran, [['mcp__notes__add', false]], 'the read-only tool ran; the change did not');
+  assert.equal(j.state, B.S.AWAITING_APPROVAL);
+  w.bots.approve(j.id, true); await settle(w);
+  assert.deepEqual(w.ran, [['mcp__notes__add', false], ['mcp__notes__save_note', true]]);
+  assert.equal(j.state, B.S.COMPLETED);
 });

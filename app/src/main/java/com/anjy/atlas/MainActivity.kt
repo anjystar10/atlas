@@ -892,6 +892,7 @@ class MainActivity : Activity() {
         Sync.listen(onSync); Sync.syncSoon(this, 500); Sync.setForeground(this, true)
         if (Sync.linked(this)) SyncJob.schedule(this)
         resumedNow = true
+        Connections.asker = connectionsAsker(); refreshConnections()   // >>> connections: chat asks here; tools checked again
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
         if (::aurora.isInitialized) aurora.resume()
         if (returnedFromSystem && tab != 0) render(keepScroll = true)
@@ -903,6 +904,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
         resumedNow = false
+        Connections.asker = null   // >>> connections: nothing on screen to ask with
         Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
         stopVoice()
         AvatarService.setAppInFront(this, false)
@@ -2019,6 +2021,11 @@ class MainActivity : Activity() {
         vc.add(chipGroup(Hear.LANGUAGES, { it == (Hear.language(this) ?: "auto") }) { Hear.setLanguage(this, it); render(keepScroll = true) }, 8)
         vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.", 13f, MUTED), 6)
         body.add(vc, 8)
+
+        // >>> connections: MCP servers and web APIs (ConnectionsUi.kt)
+        body.add(eyebrow("Connections"), 16)
+        body.add(connectionsCard(), 8)
+        // <<< connections
 
         // sign-ins Atlas Bot may use (VaultUi.kt)
         body.add(eyebrow("Vault"), 16)

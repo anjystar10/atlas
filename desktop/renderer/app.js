@@ -12,6 +12,8 @@ import { bots, extras } from './botwire.js';
 import * as BX from './botsui.js';
 import { renderLibrary, refreshLibrary } from './library.js';
 import * as fitRules from './fit.js';
+import * as conn from './connect.js';   // >>> connections (MCP servers, web APIs)
+import { renderConnections } from './connui.js';
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
 const host = window.atlasHost;
 
@@ -634,6 +636,10 @@ function renderMe(page) {
   }
   // <<< vault
 
+  // >>> connections: MCP servers and web APIs (connui.js)
+  renderConnections(col, { h, esc, sheet, toast, render, settingRow });
+  // <<< connections
+
   // Devices
   BX.permissionsCard(col, kit());
   col.appendChild(h('<div class="eyebrow">Your Devices</div>'));
@@ -819,6 +825,9 @@ async function main() {
   await store.load();
   await bots.init();
   await extras.init();
+  // >>> connections: the main process reconnects them at start; redraw Me when their status changes
+  conn.init(); conn.state.listeners.add(() => { if (tab === 'me') render(true, true); });
+  // <<< connections
   applyTheme();
   document.querySelectorAll('.nav').forEach((n) => (n.onclick = () => { tab = n.dataset.tab; logFull = false; botView = null; render(); }));
   buildComposer();
