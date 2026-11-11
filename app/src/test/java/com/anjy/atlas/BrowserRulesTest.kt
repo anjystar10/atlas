@@ -81,6 +81,11 @@ class BrowserRulesTest {
         assertNull(BrowserRules.approval("browser_click", none, null, false, ""))
         assertNull(BrowserRules.approval("browser_type", JSONObject().put("text", "shoes"), "Search", true, ""))
         assertNotNull(BrowserRules.approval("browser_type", JSONObject().put("text", "hi").put("submit", true), "Message", true, ""))
+        // a search box can be submitted without an OK; a message box or a risky one can't
+        assertNull(BrowserRules.approval("browser_type", JSONObject().put("text", "blue widget").put("submit", true), "Search the shop", true, "shop.com"))
+        assertNull(BrowserRules.approval("browser_press", JSONObject().put("key", "Enter"), "Find a product", true, ""))
+        assertNotNull(BrowserRules.approval("browser_press", JSONObject().put("key", "Enter"), "Write a reply", true, ""))
+        assertNotNull(BrowserRules.approval("browser_type", JSONObject().put("text", "x").put("submit", true), "Search and post", true, ""))
         assertNotNull(BrowserRules.approval("browser_press", JSONObject().put("key", "Enter"), "Comment", true, ""))
         assertNull(BrowserRules.approval("browser_press", JSONObject().put("key", "Enter"), null, false, ""))
         assertNull(BrowserRules.approval("browser_press", JSONObject().put("key", "Tab"), null, true, ""))

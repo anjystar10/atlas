@@ -109,6 +109,10 @@ object BrowserRules {
 
     fun risky(label: String?): Boolean = label != null && riskyWords.containsMatchIn(label)
 
+    private val searchWords = Regex("\\b(search|find|look up|lookup|query)\\b", RegexOption.IGNORE_CASE)
+    /** A search box ("Search the shop", "Find a product"): submitting it is safe, unless the label also names something risky. */
+    fun searchField(label: String?): Boolean = label != null && searchWords.containsMatchIn(label) && !risky(label)
+
     /**
      * Browser actions that need the user's OK, as a sentence saying what would happen; null when the bot can go ahead.
      * [label] is what the target element says; [inForm] whether it sits in a form (Enter would submit it); [site] the page's host.
@@ -117,8 +121,9 @@ object BrowserRules {
         val where = if (site.isNotBlank()) " on $site" else ""
         return when (tool) {
             "browser_click" -> if (risky(label)) "Click “${label!!.take(60)}”$where" else null
-            "browser_type" -> if (args.optBoolean("submit", false)) "Type “${args.optString("text").take(60)}” and submit$where" else null
-            "browser_press" -> if (args.optString("key").trim().equals("enter", true) && inForm) "Press Enter, which submits the form${label?.let { " (“${it.take(40)}”)" } ?: ""}$where" else null
+            // submitting a search box only looks something up, so it doesn't need an OK (otherwise every search would ask)
+            "browser_type" -> if (args.optBoolean("submit", false) && !searchField(label)) "Type “${args.optString("text").take(60)}” and submit$where" else null
+            "browser_press" -> if (args.optString("key").trim().equals("enter", true) && inForm && !searchField(label)) "Press Enter, which submits the form${label?.let { " (“${it.take(40)}”)" } ?: ""}$where" else null
             else -> null
         }
     }
