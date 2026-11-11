@@ -10,8 +10,8 @@
   "scripts": {
     "start": "electron .",
     "test": "node --no-warnings --test test/logic.test.mjs",
-    "dist": "electron-builder --win nsis --x64 --publish never",
-    "test:browser": "electron --no-sandbox test/browser.e2e.js && electron --no-sandbox test/botjob.e2e.js"
+    "test:browser": "electron --no-sandbox test/browser.e2e.js && electron --no-sandbox test/botjob.e2e.js",
+    "dist": "electron-builder --win nsis --x64 --publish never"
   },
   "devDependencies": {
     "electron": "33.4.11",
@@ -21,35 +21,9 @@
     "appId": "com.anjy.atlas.desktop",
     "productName": "Atlas",
     "artifactName": "Atlas-Setup.${ext}",
-    "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "pc.js",
-      "renderer/**/*",
-      "build/icon.png"
-    ],
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "build/icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "shortcutName": "Atlas",
-      "runAfterFinish": true
-    }
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["main.js", "preload.js", "pc.js", "renderer/**/*", "build/icon.png"],
+    "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },
+    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "Atlas", "runAfterFinish": true }
   }
 }
