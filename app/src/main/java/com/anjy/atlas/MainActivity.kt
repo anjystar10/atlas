@@ -2129,7 +2129,8 @@ class MainActivity : Activity() {
                 scope.launch {
                     try {
                         val n = withContext(Dispatchers.IO) {
-                            val txt = contentResolver.openInputStream(uri)?.use { String(it.readBytes(), Charsets.UTF_8) } ?: throw IllegalStateException("Couldn't open that file.")
+                            // a backup is small; a wrong pick (a video, say) must not be read whole into memory
+                            val txt = contentResolver.openInputStream(uri)?.use { String(Attach.readCapped(it, 50L * 1024 * 1024) { "That file is too big to be an Atlas backup." }, Charsets.UTF_8) } ?: throw IllegalStateException("Couldn't open that file.")
                             Store.importJson(applicationContext, txt)
                         }
                         withContext(Dispatchers.IO) { Reminders.tickAndSchedule(applicationContext) }
