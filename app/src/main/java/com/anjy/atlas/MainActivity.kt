@@ -890,6 +890,7 @@ class MainActivity : Activity() {
         Conversation.listen(onChat)
         Bots.listen(onBots)
         Sync.listen(onSync); Sync.syncSoon(this, 500); Sync.setForeground(this, true)
+        if (Sync.linked(this)) SyncJob.schedule(this)
         resumedNow = true
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
         if (::aurora.isInitialized) aurora.resume()

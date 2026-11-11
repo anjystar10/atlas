@@ -3,7 +3,6 @@ package com.anjy.atlas
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
@@ -35,7 +34,7 @@ object Sync {
     private const val CHAT_KEEP = 120
     private const val LOG_KEEP = 400
 
-    private val main = Handler(Looper.getMainLooper())
+    private val main by lazy { Handler(Looper.getMainLooper()) }
     @Volatile var lastResult: String? = null; private set
     @Volatile var lastAt: Long = 0; private set
     @Volatile private var running = false
@@ -68,13 +67,14 @@ object Sync {
         Store.putString(ctx, "sync_code", c)
         File(ctx.filesDir, "sync-state.json").delete()   // fresh start: everything here is new to the cloud
         goneFile(ctx).delete()
+        SyncJob.schedule(ctx)
         syncSoon(ctx, 0)
         return true
     }
 
-    fun unlink(ctx: Context) { Store.putString(ctx, "sync_code", ""); File(ctx.filesDir, "sync-state.json").delete(); lastResult = null }
+    fun unlink(ctx: Context) { Store.putString(ctx, "sync_code", ""); File(ctx.filesDir, "sync-state.json").delete(); lastResult = null; SyncJob.cancel(ctx) }
 
-    private fun owner(code: String) = hex(sha("atlas-owner:$code"))
+    internal fun owner(code: String) = hex(sha("atlas-owner:$code"))
     private fun key(code: String) = SecretKeySpec(sha("atlas-key:$code"), "AES")
     private fun sha(s: String) = MessageDigest.getInstance("SHA-256").digest(s.toByteArray(Charsets.UTF_8))
     private fun hex(b: ByteArray) = b.joinToString("") { "%02x".format(it) }
@@ -83,10 +83,10 @@ object Sync {
     internal fun encrypt(code: String, plain: String): String {
         val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
         val c = Cipher.getInstance("AES/GCM/NoPadding"); c.init(Cipher.ENCRYPT_MODE, key(code), GCMParameterSpec(128, iv))
-        return Base64.encodeToString(iv + c.doFinal(plain.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP)
+        return java.util.Base64.getEncoder().encodeToString(iv + c.doFinal(plain.toByteArray(Charsets.UTF_8)))
     }
     internal fun decrypt(code: String, payload: String): String {
-        val all = Base64.decode(payload, Base64.NO_WRAP)
+        val all = java.util.Base64.getDecoder().decode(payload)
         val c = Cipher.getInstance("AES/GCM/NoPadding"); c.init(Cipher.DECRYPT_MODE, key(code), GCMParameterSpec(128, all, 0, 12))
         return String(c.doFinal(all, 12, all.size - 12), Charsets.UTF_8)
     }
@@ -221,10 +221,13 @@ object Sync {
             // telling the other device to delete it all.
             if (freshStart(st.optString("device"), me)) { Log.w(TAG, "local data was re-created: restoring from the cloud"); cursor = 0; sent = JSONObject(); dirty = JSONObject(); first = true }
             val ownerId = owner(code)
-            fun saveState() = writeAtomic(stateFile(ctx), JSONObject().put("v", 2).put("cursor", cursor).put("sent", sent).put("dirty", dirty).put("device", me).toString())
+            // how far this phone's clock is from the cloud's (learnt from each send): edit times are kept in cloud time,
+            // so a phone whose clock runs fast can't win every disagreement, and a slow one can't lose them all
+            var skew = st.optLong("skew", 0)
+            fun saveState() = writeAtomic(stateFile(ctx), JSONObject().put("v", 2).put("cursor", cursor).put("sent", sent).put("dirty", dirty).put("device", me).put("skew", skew).toString())
 
             // 1. note what changed here, with the time it changed, before anything from the cloud is taken in
-            val now = System.currentTimeMillis()
+            val now = System.currentTimeMillis() + skew
             val (recs, skip) = records(ctx)
             val byKey = recs.associateBy { "${it.kind}:${it.id}" }
             val gone = readGone(ctx)
@@ -272,6 +275,7 @@ object Sync {
             // 3. send what changed here, each with the time of its edit
             val keys = dirty.keys().asSequence().toList()
             var put = 0
+            var again = false
             for (chunk in keys.chunked(400)) {
                 val arr = JSONArray()
                 val done = mutableListOf<String>()
@@ -284,8 +288,18 @@ object Sync {
                     }
                     done.add(k)
                 }
-                if (arr.length() > 0) post("sync_push", JSONObject().put("p_owner", ownerId).put("p_items", arr))
-                done.forEach { k -> val d = dirty.getJSONObject(k); if (d.optBoolean("del")) sent.remove(k) else sent.put(k, d.optString("fp")); dirty.remove(k) }
+                val rejected = HashSet<String>()
+                if (arr.length() > 0) {
+                    val res = JSONObject(post("sync_push2", JSONObject().put("p_owner", ownerId).put("p_items", arr)))
+                    res.optLong("now").takeIf { it > 0 }?.let { skew = it - System.currentTimeMillis() }
+                    res.optJSONArray("rejected")?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { rejected.add(it.optString("kind") + ":" + it.optString("id")) } }
+                }
+                done.forEach { k ->
+                    val d = dirty.getJSONObject(k)
+                    // the cloud already had a newer edit (made on the other device a moment ago): ours is dropped, theirs comes in next
+                    if (k in rejected) { dirty.remove(k); again = true; return@forEach }
+                    if (d.optBoolean("del")) sent.remove(k) else sent.put(k, d.optString("fp")); dirty.remove(k)
+                }
                 put += arr.length()
                 saveState()
             }
@@ -293,6 +307,7 @@ object Sync {
             dropGone(ctx, gone.keys.filter { !dirty.has(it) && it.substringBefore(':') !in skip })
             pendingOut = dirty.length() > 0
             lastAt = System.currentTimeMillis(); failures = 0
+            if (again) syncSoon(ctx, 1500)
             if (got > 0) main.post { Conversation.reloadFromSync(ctx); Thread { try { Reminders.tickAndSchedule(ctx) } catch (_: Exception) {} }.start() }
             "Synced" + if (got + put > 0) " ($got in, $put out)" else ""
         } catch (e: Exception) {
@@ -309,18 +324,57 @@ object Sync {
         return result
     }
 
+    /**
+     * One device at a time: asks the cloud to hold [id] (say an Atlas Bot job) for this device for [leaseMs]
+     * (at most an hour; 0 lets it go). Atomic in the cloud, so two devices asking at once can't both get it.
+     * Returns who holds it now (null: nobody), or null on failure (offline, not linked). Network: not on the main thread.
+     */
+    class Claim(val holder: String?, val mine: Boolean, val untilMs: Long)
+    fun claim(ctx: Context, id: String, leaseMs: Long): Claim? {
+        val code = code(ctx) ?: return null
+        val me = Store.read(ctx) { it.deviceId }
+        return try {
+            val r = JSONObject(post("sync_claim", JSONObject().put("p_owner", owner(code)).put("p_id", id).put("p_device", me).put("p_lease_ms", leaseMs)))
+            Claim(r.optString("holder").takeIf { !r.isNull("holder") && it.isNotEmpty() }, r.optBoolean("mine"), r.optLong("until_ms"))
+        } catch (e: Exception) { Log.w(TAG, "claim failed", e); null }
+    }
+
     /** The data here has a different device id from the one the last sync saw: it was made anew since. */
     internal fun freshStart(lastDevice: String, me: String) = lastDevice.isNotEmpty() && lastDevice != me
 
     /** A record's fingerprint, the same whatever order its fields are in (the PC writes them in its own order). */
     private fun fp(o: JSONObject) = hex(MessageDigest.getInstance("SHA-1").digest(canonical(o).toByteArray(Charsets.UTF_8)))
     internal fun canonical(v: Any?): String = when (v) {
-        is JSONObject -> v.keys().asSequence().sorted().joinToString(",", "{", "}") { k -> JSONObject.quote(k) + ":" + canonical(v.opt(k)) }
+        is JSONObject -> v.keys().asSequence().sorted().joinToString(",", "{", "}") { k -> quote(k) + ":" + canonical(v.opt(k)) }
         is JSONArray -> (0 until v.length()).joinToString(",", "[", "]") { canonical(v.opt(it)) }
-        is String -> JSONObject.quote(v)
+        is String -> quote(v)
         null, JSONObject.NULL -> "null"
-        is Number -> if (v.toDouble() == Math.floor(v.toDouble()) && !v.toDouble().isInfinite() && Math.abs(v.toDouble()) < 1e15) v.toLong().toString() else v.toString()
+        is Int, is Long, is Short, is Byte -> v.toString()
+        is Number -> v.toDouble().let { d -> if (d == Math.floor(d) && Math.abs(d) < 9.007199254740992E15) d.toLong().toString() else d.toString() }
         else -> v.toString()
+    }
+    /** A string written exactly as JavaScript's JSON.stringify writes it (org.json escapes more), so fingerprints match the PC's. */
+    internal fun quote(s: String): String {
+        val b = StringBuilder(s.length + 2).append('"')
+        var i = 0
+        while (i < s.length) {
+            val c = s[i]
+            when {
+                c == '"' -> b.append("\\\"")
+                c == '\\' -> b.append("\\\\")
+                c == '\b' -> b.append("\\b")
+                c == '\u000C' -> b.append("\\f")
+                c == '\n' -> b.append("\\n")
+                c == '\r' -> b.append("\\r")
+                c == '\t' -> b.append("\\t")
+                c < ' ' -> b.append("\\u%04x".format(c.code))
+                Character.isHighSurrogate(c) && i + 1 < s.length && Character.isLowSurrogate(s[i + 1]) -> { b.append(c).append(s[i + 1]); i++ }
+                Character.isSurrogate(c) -> b.append("\\u%04x".format(c.code))   // a lone half of a pair
+                else -> b.append(c)
+            }
+            i++
+        }
+        return b.append('"').toString()
     }
 
     /** Merges records from the other device into this one (and waits until they're in). */
@@ -329,7 +383,8 @@ object Sync {
         if (chat.isNotEmpty()) {
             val done = java.util.concurrent.CountDownLatch(1)
             main.post { try { Conversation.mergeFromSync(ctx, chat.map { it.second to it.third }) } catch (e: Exception) { Log.w(TAG, "chat merge", e) } finally { done.countDown() } }
-            done.await(10, java.util.concurrent.TimeUnit.SECONDS)
+            // not taken in (the app is stuck): stop here, so these records are pulled again next time rather than lost
+            if (!done.await(20, java.util.concurrent.TimeUnit.SECONDS)) throw IllegalStateException("the chat was busy")
         }
         val extra = changes.filter { it.first in kinds.keys }
         extra.forEach { (kind, id, rec) -> try { kinds[kind]?.apply?.invoke(ctx, id, rec) } catch (e: Exception) { Log.w(TAG, "$kind merge", e) } }

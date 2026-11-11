@@ -286,15 +286,32 @@ test('links keep underscores and stay links; trailing punctuation stays outside'
   assert.ok(!h.includes('<em>'));
   assert.ok(!renderMarkdown('[x](javascript:alert(1))').includes('href'));
 });
-test('a reminder edited here while offline is not overwritten by an older copy', async () => {
-  const { db } = await import('../renderer/store.js');
-  db.state = { tasks: [{ id: 't1', title: 'Gym at 7', updatedAt: 2000 }], memories: [], log: [], settings: {} };
-  const older = { id: 't1', title: 'Gym', updatedAt: 1000 }, newer = { id: 't1', title: 'Gym at 8', updatedAt: 3000 };
-  // 'stale-fingerprint' stands for what the cloud had before the edit here
-  assert.equal(await sync.keepMine('task', 't1', older, 'stale-fingerprint'), true);
-  assert.equal(await sync.keepMine('task', 't1', newer, 'stale-fingerprint'), false);
-  assert.equal(await sync.keepMine('memory', 't1', older, 'x'), false);
-  assert.equal(await sync.keepMine('task', 'nope', older, 'x'), false);
+// The phone and the PC must agree exactly: the same cases run in app/src/test/.../SyncPlanTest.kt (tools/sync-fixtures.json).
+test('sync: the same fingerprints, encryption and merge rules as the phone', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { createHash } = await import('node:crypto');
+  const fx = JSON.parse(readFileSync(new URL('../../tools/sync-fixtures.json', import.meta.url), 'utf8'));
+  assert.equal(await sync.owner(fx.code), fx.owner);
+  assert.equal(await sync.decrypt(fx.code, fx.fromPc), fx.plain);
+  assert.equal(await sync.decrypt(fx.code, fx.fromPhoneJava), fx.plain, 'reads what the phone encrypts');
+  for (const c of fx.canonical) {
+    const canon = sync.canonical(JSON.parse(c.json));
+    assert.equal(canon, c.canonical);
+    assert.equal(createHash('sha1').update(canon, 'utf8').digest('hex'), c.sha1);
+  }
+  for (const m of fx.mineWins) assert.equal(sync.mineWins(m.myAt, m.me, m.theirAt, m.theirDevice), m.wins);
+  for (const c of fx.stamp) {
+    const sent = structuredClone(c.sent), dirty = structuredClone(c.dirty);
+    sync.stamp(sent, dirty, c.local, c.gone, c.now, c.first, c.skip, c.extraImplicit);
+    assert.deepEqual(sent, c.expectSent, c.name); assert.deepEqual(dirty, c.expectDirty, c.name);
+  }
+});
+test('sync: an older edit from the other device never beats a newer one made here offline', () => {
+  // made here at 2000 while offline, the phone's copy says 1000: ours stays and goes up; a later phone edit at 3000 wins
+  assert.equal(sync.mineWins(2000, 'pc', 1000, 'phone'), true);
+  assert.equal(sync.mineWins(2000, 'pc', 3000, 'phone'), false);
+  assert.equal(sync.freshStart('old-id', 'new-id'), true, 'a re-created data file restores from the cloud instead of deleting');
+  assert.equal(sync.freshStart('', 'new-id'), false);
 });
 test('PowerShell quoting and programs that need a yes', async () => {
   const { createRequire } = await import('node:module');

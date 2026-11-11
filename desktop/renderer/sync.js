@@ -181,6 +181,19 @@ async function applyRecord(kind, id, rec) {
   return 'state';
 }
 
+/**
+ * One device at a time: asks the cloud to hold [id] (say an Atlas Bot job) for this PC for [leaseMs] (at most an hour;
+ * 0 lets it go). Atomic in the cloud, so the phone and this PC asking at once can't both get it.
+ * Returns { holder, mine, untilMs } (holder null: nobody), or null on failure (offline, not linked).
+ */
+export async function claim(id, leaseMs) {
+  const c = code(); if (!c) return null;
+  try {
+    const r = await rpc('sync_claim', { p_owner: await owner(c), p_id: id, p_device: db.state.deviceId, p_lease_ms: leaseMs });
+    return { holder: r.holder || null, mine: !!r.mine, untilMs: Number(r.until_ms) || 0 };
+  } catch { return null; }
+}
+
 let timer = 0, failures = 0, lastTry = 0;
 export function syncSoon(ms = 4000) { if (!code()) return; clearTimeout(timer); timer = setTimeout(() => runOnce(), ms); }
 /** While Atlas is running: look for the phone's changes every minute (a tiny request), and at once when the internet returns. */
@@ -200,10 +213,13 @@ export async function runOnce() {
     const me = db.state.deviceId, own = await owner(c);
     // this PC's data was started afresh since the last sync: what's missing wasn't deleted, it was lost. Take it back from the cloud.
     if (freshStart(st.device, me)) { cursor = 0; sent = {}; dirty = {}; first = true; }
-    const save = () => host.write('sync-state.json', JSON.stringify({ v: 2, cursor, sent, dirty, device: me }));
+    // how far this PC's clock is from the cloud's (learnt from each send): edit times are kept in cloud time, so a
+    // clock that runs fast can't win every disagreement, and a slow one can't lose them all
+    let skew = Number(st.skew) || 0;
+    const save = () => host.write('sync-state.json', JSON.stringify({ v: 2, cursor, sent, dirty, device: me, skew }));
 
     // 1. note what changed here, with the time it changed, before anything from the cloud is taken in
-    const now = Date.now();
+    const now = Date.now() + skew;
     const { recs, skip } = await records();
     const byKey = {}, local = {};
     for (const r of recs) { const k = r.kind + ':' + r.id; byKey[k] = r; local[k] = { fp: await fp(r.json), ownTime: ownTime(r.json) }; }
@@ -244,7 +260,7 @@ export async function runOnce() {
     }
 
     // 3. send what changed here, each with the time of its edit
-    const keys = Object.keys(dirty); let put = 0;
+    const keys = Object.keys(dirty); let put = 0, again = false;
     for (let i = 0; i < keys.length; i += 400) {
       const items = [], done = [];
       for (const k of keys.slice(i, i + 400)) {
@@ -253,8 +269,17 @@ export async function runOnce() {
         else { const r = byKey[k]; if (!r) continue; items.push({ kind, id, updated_ms: d.at, payload: await encrypt(c, JSON.stringify(r.json)), device: me }); }
         done.push(k);
       }
-      if (items.length) await rpc('sync_push', { p_owner: own, p_items: items });
-      for (const k of done) { if (dirty[k].del) delete sent[k]; else sent[k] = dirty[k].fp; delete dirty[k]; }
+      const rejected = new Set();
+      if (items.length) {
+        const res = await rpc('sync_push2', { p_owner: own, p_items: items });
+        if (res && res.now > 0) skew = res.now - Date.now();
+        for (const x of (res && res.rejected) || []) rejected.add(x.kind + ':' + x.id);
+      }
+      for (const k of done) {
+        // the cloud already had a newer edit (made on the phone a moment ago): ours is dropped, the phone's comes in next
+        if (rejected.has(k)) { delete dirty[k]; again = true; continue; }
+        if (dirty[k].del) delete sent[k]; else sent[k] = dirty[k].fp; delete dirty[k];
+      }
       put += items.length;
       await save();
     }
@@ -262,6 +287,7 @@ export async function runOnce() {
     await dropGone(Object.keys(gone).filter((k) => !dirty[k] && !skip.includes(kindOf(k))));
     status.pendingOut = Object.keys(dirty).length > 0;
     status.at = Date.now(); failures = 0;
+    if (again) syncSoon(1500);
     status.last = 'Synced' + (got + put ? ` (${got} in, ${put} out)` : '');
     for (const w of touched) changed(w);
   } catch (e) {
