@@ -81,4 +81,36 @@ class SpeechTest {
     @Test fun namesForTheHint() {
         assertEquals(listOf("Tunde", "Lagos"), Hear.names("Call Tunde about the Lagos trip. Then rest"))
     }
+
+    @Test fun britishMalePhoneVoices() {
+        assertTrue(Speech.britishMale("en-gb-x-rjs-local"))
+        assertTrue(Speech.britishMale("en-GB-x-gbd-network"))
+        assertFalse(Speech.britishMale("en-gb-x-fis-local"))
+        assertFalse(Speech.britishMale("en-us-x-iom-local"))
+        assertFalse(Speech.britishMale(null))
+    }
+
+    @Test fun endingATalk() {
+        assertTrue(Speech.endsTalk("That's all, thanks."))
+        assertTrue(Speech.endsTalk("never mind"))
+        assertFalse(Speech.endsTalk("that's all I know about the trip, what else is there"))
+    }
+
+    @Test fun languageCodeForSpeechModels() {
+        assertEquals("en", Hear.iso("en-GB"))
+        assertEquals("yo", Hear.iso("yo"))
+        assertNull(Hear.iso(null))
+        assertNull(Hear.iso("1x"))
+    }
+
+    @Test fun designedVoiceIdFromAnyShape() {
+        assertEquals("voice_abc123", Speech.voiceId(org.json.JSONObject("""{"id":"voice_abc123","sample_audio":{"data":"AAAA"}}""")))
+        assertEquals("voice_x9", Speech.voiceId(org.json.JSONObject("""{"voice":{"name":"voices/voice_x9","display_name":"Atlas"}}""")))
+        assertNull(Speech.voiceId(org.json.JSONObject("""{"error":{"message":"nope"}}""")))
+    }
+
+    @Test fun atlasVoiceDescriptionNamesNoOne() {
+        val d = Voice.ATLAS_DESIGN.lowercase()
+        listOf("jarvis", "bettany", "stark", "iron man", "marvel").forEach { assertFalse(it, d.contains(it)) }
+    }
 }

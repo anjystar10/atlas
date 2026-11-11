@@ -229,7 +229,7 @@ const str = (description, e) => ({ type: 'string', description, ...(e ? { enum: 
 const int = (description) => ({ type: 'integer', description });
 const bool = (description) => ({ type: 'boolean', description });
 const fn = (name, description, props, required = []) => ({ name, description, ...(props ? { parameters: { type: 'object', properties: props, ...(required.length ? { required } : {}) } } : {}) });
-export const SETTINGS = ['speak_replies', 'voice', 'theme', 'on_screen', 'your_name', 'alarm_sound', 'start_with_windows', 'dont_switch', 'speaking_speed'];
+export const SETTINGS = ['speak_replies', 'voice', 'theme', 'on_screen', 'your_name', 'alarm_sound', 'start_with_windows', 'dont_switch', 'speaking_speed', 'keep_listening', 'listen_language'];
 
 export const TOOLS = [
   fn('set_reminder', 'Log a reminder. At its time Atlas rings an alarm (important things) or sends a notification (lighter things), on this PC and on the phone.', {
@@ -411,7 +411,7 @@ How you talk:
 - Be straight with them: they're an adult. Answer what was asked, fully and plainly. Don't lecture, moralise, pile on warnings or disclaimers, or back away from a topic because it's blunt, dark or uncomfortable; give your real opinion when asked. If something is truly dangerous, say so once, in a sentence, and carry on.
 - Be honest. Only say you did something if a tool result shows it worked. If you don't know, say so; if it might have changed recently, search the web.
 - Never show code, ids, function or tool names, JSON, or how you work inside, unless they asked you for code. Say what you did in plain words.
-${spoken ? '- This came by voice and your answer will be read aloud: one to three short spoken sentences. No lists, no formatting, no links.' : '- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler.'}
+${spoken ? '- This came by voice and your answer will be read aloud: one to three short spoken sentences. No lists, no formatting, no links. Spoken, you are composed and courteous, the unflappable aide: precise, quietly warm, a touch of dry wit when it fits; never gushing.' : '- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler.'}
 
 The Log (only what's worth keeping):
 - set_reminder when they want reminding or have something to do at a time. Work out the exact date from today. If they gave a day but no time, ask what time unless it's obvious.

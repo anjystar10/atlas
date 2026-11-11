@@ -400,3 +400,20 @@ test('fit: the profile cache reads once, then reuses', async () => {
   assert.equal(reads, 1); assert.equal(c.now().freeRamMb, 1);
   await c.get(true); assert.equal(reads, 2);
 });
+
+// ---- speech on the PC: OpenAI's current speech model form, the designed Atlas voice
+const vo = await import('../renderer/voice.js');
+test('transcription form: gpt-transcribe gets keywords and languages; older models get language', () => {
+  const f = vo.transcribeForm('gpt-transcribe', 'Atlas, Tunde, Lagos', 'en', { base64: 'AA', type: 'audio/wav', name: 's.wav' });
+  assert.deepEqual(f['keywords[]'], ['Atlas', 'Tunde', 'Lagos']);
+  assert.deepEqual(f['languages[]'], ['en']);
+  assert.equal(f.language, undefined); assert.equal(f.temperature, undefined); assert.equal(f.prompt, 'Atlas, Tunde, Lagos');
+  const g = vo.transcribeForm('whisper-large-v3-turbo', '', 'fr', { base64: 'AA' });
+  assert.equal(g.language, 'fr'); assert.equal(g['keywords[]'], undefined); assert.equal(g.prompt, undefined); assert.equal(g.temperature, '0');
+});
+test('designed voice id is found in either answer shape, and the description names no one', () => {
+  assert.equal(vo.voiceId({ id: 'voice_abc', sample_audio: { data: 'AAAA' } }), 'voice_abc');
+  assert.equal(vo.voiceId({ voice: { name: 'voices/voice_x9' } }), 'voice_x9');
+  assert.equal(vo.voiceId({ error: { message: 'no' } }), null);
+  for (const w of ['jarvis', 'bettany', 'stark', 'iron man', 'marvel']) assert.ok(!vo.ATLAS_DESIGN.toLowerCase().includes(w));
+});

@@ -132,6 +132,7 @@ ipcMain.handle('net:fetch', async (e, url, opts = {}) => {
       const fd = new FormData();
       for (const [k, v] of Object.entries(opts.form)) {
         if (v && typeof v === 'object' && v.base64) fd.append(k, new Blob([Buffer.from(v.base64, 'base64')], { type: v.type }), v.name || 'file');
+        else if (Array.isArray(v)) v.forEach((x) => fd.append(k, String(x)));   // a list: the same field once per item (e.g. keywords[])
         else fd.append(k, String(v));
       }
       init.body = fd;
