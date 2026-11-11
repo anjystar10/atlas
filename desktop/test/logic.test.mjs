@@ -608,3 +608,13 @@ test('specialist notes and the synced copies of skills, routines, team and rules
   // a routine made on the PC keeps the phone's own run times when the phone runs it
   for (const x of e.ex.synced()) assert.ok(!/api.?key|secret|password|"code"/i.test(JSON.stringify(x.json)), 'nothing secret syncs');
 });
+
+test('a command is only read-only when nothing can hide a second command in it', () => {
+  for (const c of ['Get-Date\nRemove-Item -Recurse X', 'Get-Date\r\nRemove-Item X', 'echo $(Remove-Item X)', 'echo `Remove-Item X`', 'Get-ChildItem; Remove-Item X',
+    'dir | Remove-Item', 'echo hi > C:\\x.txt', 'type x < y', 'Get-Date & del x', 'Get-Item {Remove-Item X}', 'echo (Remove-Item X)'])
+    assert.ok(B.approvalFor('run_command', { command: c }), 'needs an OK: ' + JSON.stringify(c));
+  for (const c of ['Get-Date', 'dir C:\\Users', 'Get-ChildItem C:\\temp', 'whoami', 'ipconfig'])
+    assert.equal(B.approvalFor('run_command', { command: c }), null, 'read-only: ' + c);
+  assert.ok(B.approvalFor('type_text', { text: 'hello\n' }), 'typing a new line presses Enter, so it needs an OK');
+  assert.equal(B.approvalFor('type_text', { text: 'hello' }), null);
+});

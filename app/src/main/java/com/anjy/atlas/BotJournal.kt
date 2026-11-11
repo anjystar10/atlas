@@ -134,10 +134,15 @@ object BotRules {
     }
 
     private val readOnlyCommand = Regex("^\\s*(get-[a-z]+|test-path|test-connection|select-string|measure-object|resolve-path|where\\.exe|where|dir|ls|cat|type|echo|hostname|whoami|ipconfig|systeminfo|tasklist|ping)\\b[^;|&>]*$", RegexOption.IGNORE_CASE)
+    /** Anything that could chain or hide a second command (new lines, $( ), backticks, script blocks, pipes, redirects) is never "read-only". */
+    private val chains = Regex("[\\r\\n`$({;|&<>]")
+    fun isReadOnlyCommand(c: String) = !chains.containsMatchIn(c) && readOnlyCommand.matches(c)
 
     /** The same for the PC's tools (kept here so both apps follow one rule; the PC's copy is in bots.js). */
     fun pcApproval(tool: String, args: JSONObject): String? = when (tool) {
-        "run_command" -> args.optString("command").let { c -> if (readOnlyCommand.matches(c)) null else "Run this command on your PC: ${c.take(120)}" }
+        "run_command" -> args.optString("command").let { c -> if (isReadOnlyCommand(c)) null else "Run this command on your PC: ${c.take(120)}" }
+        // a new line in typed text is pressed as Enter on the PC, which may send or submit something
+        "type_text" -> args.optString("text").let { t -> if (t.contains('\n') || t.contains('\r')) "Type “${t.replace(Regex("\\s+"), " ").take(60)}” with Enter (this may send or submit something)" else null }
         "write_file" -> "Write the file ${args.optString("path").take(100)}"
         else -> null
     }

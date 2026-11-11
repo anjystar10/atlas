@@ -57,11 +57,16 @@ export function summary(jobs, now) {
 // ---- what needs the user's OK first (the PC's tools, and the Log's)
 
 const READ_ONLY = /^\s*(get-[a-z]+|test-path|test-connection|select-string|measure-object|resolve-path|where\.exe|where|dir|ls|cat|type|echo|hostname|whoami|ipconfig|systeminfo|tasklist|ping)\b[^;|&>]*$/i;
+/** Anything that could chain or hide a second command (new lines, $( ), backticks, script blocks, pipes, redirects) is never "read-only". */
+const CHAINS = /[\r\n`$({;|&<>]/;
+export const readOnlyCommand = (c) => { const t = String(c || ''); return !CHAINS.test(t) && READ_ONLY.test(t); };
 const RISKY_LINKS = ['tel:', 'sms:', 'smsto:', 'mms:', 'mailto:'];
 /** A sentence saying what would happen, when a bot needs the user's OK before running [tool]; null when it can go ahead. */
 export function approvalFor(tool, a = {}) {
   switch (tool) {
-    case 'run_command': return READ_ONLY.test(String(a.command || '')) ? null : `Run this command on your PC: ${String(a.command || '').slice(0, 160)}`;
+    case 'run_command': return readOnlyCommand(a.command) ? null : `Run this command on your PC: ${String(a.command || '').slice(0, 160)}`;
+    // a new line in typed text is pressed as Enter (pc.js), which may send or submit something, like press_keys Enter
+    case 'type_text': return /[\r\n]/.test(String(a.text || '')) ? `Type “${String(a.text || '').replace(/\s+/g, ' ').slice(0, 60)}” with Enter (this may send or submit something)` : null;
     case 'write_file': return `Write the file ${String(a.path || '').slice(0, 120)}`;
     case 'forget': return 'Delete a saved memory';
     case 'update_reminder': return a.action === 'delete' ? 'Delete a reminder from your Log' : a.action === 'cancel' ? 'Cancel a reminder' : null;

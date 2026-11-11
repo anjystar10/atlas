@@ -107,4 +107,14 @@ class BotExtrasTest {
         val old = BotJob.from(JSONObject().put("id", "o").put("goal", "g").put("state", "queued"))
         assertTrue("a job saved by an older Atlas loads with defaults", old.inbox.isEmpty() && old.parent == null && old.depth == 0)
     }
+
+    @Test fun aCommandIsOnlyReadOnlyWhenNothingCanHideASecondOne() {
+        for (c in listOf("Get-Date\nRemove-Item -Recurse X", "Get-Date\r\nRemove-Item X", "echo \$(Remove-Item X)", "echo `Remove-Item X`", "Get-ChildItem; Remove-Item X",
+            "dir | Remove-Item", "echo hi > C:\\x.txt", "Get-Date & del x", "Get-Item {Remove-Item X}", "echo (Remove-Item X)"))
+            assertTrue("needs an OK: $c", BotRules.pcApproval("run_command", JSONObject().put("command", c)) != null)
+        for (c in listOf("Get-Date", "dir C:\\Users", "whoami", "ipconfig"))
+            assertNull("read-only: $c", BotRules.pcApproval("run_command", JSONObject().put("command", c)))
+        assertTrue(BotRules.pcApproval("type_text", JSONObject().put("text", "hello\n")) != null)
+        assertNull(BotRules.pcApproval("type_text", JSONObject().put("text", "hello")))
+    }
 }
