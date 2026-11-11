@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter
  */
 object Tools {
     /** [out] goes back to the model; [step] is the short line the user sees under Atlas's reply (null: nothing to show). */
-    class Result(val out: String, val step: String? = null, val phone: Boolean = false)
+    class Result(val out: String, val step: String? = null, val phone: Boolean = false, val media: List<Attach.Item> = emptyList())
 
     /** A function for Gemini. One that takes nothing has no "parameters" at all: Gemini refuses an object with no properties. */
     private fun fn(name: String, desc: String, props: JSONObject = JSONObject(), required: List<String> = emptyList()): JSONObject =
@@ -86,6 +86,7 @@ object Tools {
                 JSONObject().put("seconds", int("1 to 15")), listOf("seconds")))
             // calendar, contacts, location and the Clock app (PhoneData.kt)
             PhoneData.declarations.forEach { put(it) }
+            put(ImageGen.declaration)
         }
     }
 
@@ -259,6 +260,15 @@ object Tools {
                         "Sent Atlas Bot: ${j.goal}")
                 }
                 in PhoneData.names -> PhoneData.run(ctx, c.name, a)
+                "generate_image" -> withContext(Dispatchers.Main) { if (a.optBoolean("use_my_pictures", false)) Conversation.latestUserImages() else emptyList() }.let { refs -> withContext(Dispatchers.IO) {
+                    val prompt = a.optString("prompt").trim()
+                    if (prompt.isEmpty()) return@withContext Result("Error: describe the picture.")
+                    val aspect = a.optString("aspect").takeIf { it in ImageGen.ASPECTS } ?: "1:1"
+                    if (a.optBoolean("use_my_pictures", false) && refs.isEmpty()) return@withContext Result("Error: there are no pictures in their latest message to base it on.")
+                    val made = try { ImageGen.make(ctx, prompt, aspect, refs, Attach.dir(ctx)) } catch (e: Exception) { return@withContext Result("Error: couldn't make the picture: ${e.message}") }
+                    Result("Made the picture with ${made.service}; it's shown with this reply (with Save and Share)." + (made.note.takeIf { it.isNotBlank() }?.let { " The image model added: ${it.take(300)}" } ?: ""),
+                        "Made a picture", media = listOf(Attach.Item(made.file.path, made.mime, made.file.name)))
+                } }
                 else -> Result("Error: there's no tool called ${c.name}.")
             }
         } catch (e: AtlasException) { Result("Error: ${e.message}")

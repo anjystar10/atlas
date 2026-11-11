@@ -338,6 +338,8 @@ object Bots {
         val what = label(c)
         j.current = what; j.pending = what; persistNow(); changed()
         val r = Tools.run(app, c)
+        // pictures the bot made go into its job folder (listed on the job page)
+        r.media.forEach { m -> try { val d = BotBrowser.jobDir(app, j.id).apply { mkdirs() }; m.file.copyTo(java.io.File(d, m.file.name), overwrite = true) } catch (e: Exception) { Log.w(TAG, "picture", e) } }
         j.pending = null; j.toolCalls++
         j.step(r.step ?: what)
         if (c.name == "read_page") c.args.optString("url").trim().takeIf { it.startsWith("http") && it !in j.sources }?.let { j.sources.add(it); if (j.sources.size > 40) j.sources.removeAt(0) }

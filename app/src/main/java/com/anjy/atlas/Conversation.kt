@@ -32,7 +32,7 @@ object Conversation {
     private const val KEEP_TURNS = 24
 
     class Msg(val fromUser: Boolean, var text: String, var source: String, val at: Long, val steps: MutableList<String> = mutableListOf(),
-              val media: List<Attach.Item> = emptyList(), val id: String = java.util.UUID.randomUUID().toString())
+              var media: List<Attach.Item> = emptyList(), val id: String = java.util.UUID.randomUUID().toString())
 
     val messages = mutableListOf<Msg>()
     var busy = false; private set
@@ -186,6 +186,9 @@ object Conversation {
         if (busy) { busy = false; status = null; usingPhone = false; changed() }
     }
 
+    /** The pictures in the user's latest message that has any (for generate_image to work from). */
+    fun latestUserImages(): List<java.io.File> = messages.lastOrNull { it.fromUser && it.media.any { m -> m.image } }?.media?.filter { it.image && it.file.exists() }?.map { it.file } ?: emptyList()
+
     /** Send [text] as the user. [spoken]: it came by voice, so the answer is read out too. */
     fun send(ctx: Context, text: String, spoken: Boolean = false, onSpoken: (() -> Unit)? = null, media: List<Attach.Item> = emptyList()) {
         val app = ctx.applicationContext
@@ -329,6 +332,7 @@ ${Tools.logContext(ctx)}
                 val r = Tools.run(ctx, c)
                 if (r.phone && !usingPhone) usingPhone = true
                 r.step?.let { reply.steps.add(it) }
+                if (r.media.isNotEmpty()) reply.media = reply.media + r.media   // pictures Atlas made, shown with its reply
                 results.add(c to r.out)
                 changed()
             }

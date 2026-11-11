@@ -1231,6 +1231,8 @@ class MainActivity : Activity() {
                 wrap.addView(v, LinearLayout.LayoutParams(MATCH, WRAP).apply { if (i > 0) topMargin = dp(10) })
             }
         }
+        // pictures Atlas made, full width, with Save and Share
+        m.media.filter { it.image && it.file.exists() }.forEach { item -> wrap.addView(madePicture(item), LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) }) }
         // what Atlas did, in one quiet line (tap for all of it)
         if (m.steps.isNotEmpty()) {
             val shown = if (m.steps.size <= 3) m.steps.joinToString(" · ") else m.steps.take(2).joinToString(" · ") + " · and ${m.steps.size - 2} more"
@@ -1244,6 +1246,28 @@ class MainActivity : Activity() {
         }
         if (tag.isNotEmpty()) wrap.addView(text(tag, 12f, MUTED, MED).apply { setPadding(0, dp(6), 0, 0); alpha = 0.8f })
         return wrap
+    }
+
+    /** A picture Atlas made: shown whole, rounded, with Save (to Pictures/Atlas) and Share under it. */
+    private fun madePicture(item: Attach.Item): View {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val img = android.widget.ImageView(this).apply {
+            adjustViewBounds = true; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER; setBackgroundColor(SURFACE2)
+            maxHeight = (resources.displayMetrics.heightPixels * 0.6).toInt(); minimumHeight = dp(160)
+            clipToOutline = true; outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(v: View, o: android.graphics.Outline) { o.setRoundRect(0, 0, v.width, v.height, dp(16).toFloat()) } }
+            contentDescription = "Picture Atlas made"
+        }
+        box.addView(img, LinearLayout.LayoutParams(MATCH, WRAP))
+        scope.launch { val b = withContext(Dispatchers.IO) { Attach.thumb(item, 1280) }; if (b != null) { img.minimumHeight = 0; img.setImageBitmap(b) } }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, 0) }
+        row.addView(text("Save", 13f, ACCENT, SEMI).apply { isClickable = true; setPadding(0, dp(4), dp(18), dp(4))
+            setOnClickListener { scope.launch { val ok = withContext(Dispatchers.IO) { ImageGen.saveToGallery(applicationContext, item.file, item.mime) != null }; showBanner(if (ok) "Saved to Pictures/Atlas" else "Couldn't save it") } } })
+        row.addView(text("Share", 13f, ACCENT, SEMI).apply { isClickable = true; setPadding(0, dp(4), dp(18), dp(4))
+            setOnClickListener { scope.launch { val ok = withContext(Dispatchers.IO) { ImageGen.saveToGallery(applicationContext, item.file, item.mime) }
+                if (ok == null) showBanner("Couldn't share it") else startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType(item.mime).putExtra(Intent.EXTRA_STREAM, ok).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Share picture")) } } })
+        box.addView(row)
+        return box
     }
 
     /** A code block: its own box, monospaced, scrolling sideways, with a Copy key. */
