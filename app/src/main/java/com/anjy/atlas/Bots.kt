@@ -307,7 +307,10 @@ object Bots {
                         // ---- the bot's web browser (BotBrowser): act on websites, with risky clicks and submits waiting for an OK
                         in browserTools -> {
                             val (label, inForm) = BotBrowser.inspect(app, j.id, c.name, c.args)
-                            BrowserRules.approval(c.name, c.args, label, inForm, BotBrowser.site())?.let { what ->
+                            // a saved sign-in the user allowed on this site goes ahead without asking (Vault.kt)
+                            val trusted = c.name == "browser_fill_login" && withContext(Dispatchers.IO) { Vault.find(Vault.all(app), c.args.optString("entry")) }
+                                ?.let { it.trusted && Vault.siteMatches(it.site, BotBrowser.site()) } == true
+                            if (!trusted) BrowserRules.approval(c.name, c.args, label, inForm, BotBrowser.site())?.let { what ->
                                 askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label)); return
                             }
                             val out = runBrowser(j, c)
@@ -455,7 +458,7 @@ object Bots {
 
     /** Atlas's own tools that bots don't get: settings, focus sessions, and sending more bots. */
     private val notForBots = setOf("change_setting", "start_focus", "deploy_bot")
-    private val browserTools = setOf("browser_open", "browser_read", "browser_click", "browser_type", "browser_select", "browser_press", "browser_scroll", "browser_back", "browser_wait", "browser_download")
+    private val browserTools = setOf("browser_open", "browser_read", "browser_click", "browser_type", "browser_select", "browser_press", "browser_scroll", "browser_back", "browser_wait", "browser_download", "browser_fill_login" /* vault: Vault.kt */)
 
     private val declarations: JSONArray by lazy {
         JSONArray().apply {
@@ -480,6 +483,7 @@ object Bots {
             put(fn("browser_back", "Go back to the previous page."))
             put(fn("browser_wait", "Wait for the page to finish loading or updating, then read it.",
                 JSONObject().put("seconds", JSONObject().put("type", "number").put("description", "1 to 15 seconds"))))
+            put(Vault.fillDeclaration)   // a saved sign-in from the vault (Vault.kt)
             put(fn("browser_download", "Download a file: a link's number from the page, or a web address. It's kept with this job (the user can save it to Downloads).",
                 JSONObject().put("target", str("The link's number or the file's web address")), listOf("target")))
             put(fn("update_plan", "Write or update your plan for this job: 3 to 8 short steps, one per line, in order. Start a line with [x] when that step is done.",

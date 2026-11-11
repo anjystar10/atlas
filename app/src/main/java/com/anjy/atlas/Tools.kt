@@ -87,6 +87,7 @@ object Tools {
             // calendar, contacts, location and the Clock app (PhoneData.kt)
             PhoneData.declarations.forEach { put(it) }
             put(ImageGen.declaration)
+            put(Vault.listDeclaration)
         }
     }
 
@@ -260,6 +261,7 @@ object Tools {
                         "Sent Atlas Bot: ${j.goal}")
                 }
                 in PhoneData.names -> PhoneData.run(ctx, c.name, a)
+                "vault_list" -> withContext(Dispatchers.IO) { Result(Vault.forModel(Vault.all(ctx)), "Checked your saved sign-ins") }
                 "generate_image" -> withContext(Dispatchers.Main) { if (a.optBoolean("use_my_pictures", false)) Conversation.latestUserImages() else emptyList() }.let { refs -> withContext(Dispatchers.IO) {
                     val prompt = a.optString("prompt").trim()
                     if (prompt.isEmpty()) return@withContext Result("Error: describe the picture.")

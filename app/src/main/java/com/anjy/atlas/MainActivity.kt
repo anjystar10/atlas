@@ -1967,6 +1967,10 @@ class MainActivity : Activity() {
         vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.", 13f, MUTED), 6)
         body.add(vc, 8)
 
+        // sign-ins Atlas Bot may use (VaultUi.kt)
+        body.add(eyebrow("Vault"), 16)
+        body.add(vaultCard(), 8)
+
         // Phone and PC: one Atlas
         body.add(eyebrow("Your Devices"), 16)
         val dv = card()
