@@ -81,7 +81,7 @@ class BotFileRulesTest {
         val html = BotFileRules.pageHtml(tpl, spec)
         assertEquals(1, Regex("</script>").findAll(html).count())
         assertTrue(html.contains("<title>A &lt;b&gt;title&lt;/b&gt;</title>"))
-        assertTrue(html.contains("\\u003c/script>"))
+        assertTrue("every < in the data is escaped", html.substringAfter("application/json\">").substringBefore("</script>").let { !it.contains("<") && it.contains("\\u003c") })
         // the data is still the same JSON once read back
         val data = html.substringAfter("application/json\">").substringBefore("</script>").replace("\\u003c", "<")
         assertEquals("</script>", JSONObject(data).getJSONArray("sections").getJSONObject(0).getJSONArray("rows").getJSONArray(0).getString(0))
