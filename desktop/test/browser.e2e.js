@@ -79,6 +79,28 @@ app.whenReady().then(async () => {
     const p = await run('browser_type', { target: num(r.out, /\[(\d+)\] password field/), text: 'hunter2' });
     assert.match(p.out, /never typed/);
   });
+  await check('vault: a saved sign-in is filled into the page without the bot seeing it, only on its own site', async () => {
+    const vault = require('../vault.js');
+    // this test machine (Linux, no keyring) has no OS protection; Windows uses DPAPI
+    const { safeStorage } = require('electron'); if (!safeStorage.isEncryptionAvailable() && safeStorage.setUsePlainTextEncryption) safeStorage.setUsePlainTextEncryption(true);
+    const pw = 'p"w\\1</x>';
+    vault.save({ name: 'Test site', site: base, username: 'king@example.com', password: pw });
+    assert.equal(vault.list()[0].password, undefined, 'the page-side list must not carry passwords');
+    assert.doesNotMatch(vault.forModelNow(), /king@example|p"w/);
+    r = await run('browser_open', { url: base + '/login' });
+    assert.match(await bb.check(J, T, 'browser_fill_login', { entry: 'Test site' }), /Sign in on 127\.0\.0\.1 with your saved sign-in “Test site”/);
+    const f = await run('browser_fill_login', { entry: 'Test site' });
+    assert.match(f.out, /username filled, password filled/);
+    assert.ok(!f.out.includes(pw), 'the password must not come back to the bot');
+    r = await run('browser_click', { target: num(f.out, /\[(\d+)\] button "Sign in"/) });
+    assert.deepEqual(got.login, { email: 'king@example.com', pw });
+    vault.save({ ...vault.list()[0], trusted: true });
+    await run('browser_open', { url: base + '/login' });
+    assert.equal(await bb.check(J, T, 'browser_fill_login', { entry: 'Test site' }), null, 'allowed on this site: no OK needed');
+    await run('browser_open', { url: base.replace('127.0.0.1', 'localhost') + '/login' });
+    assert.match((await run('browser_fill_login', { entry: 'Test site' })).out, /is for 127\.0\.0\.1, but this page is localhost/);
+    assert.match(await bb.check(J, T, 'browser_fill_login', { entry: 'Test site' }), /Sign in on localhost/, 'another site still asks');
+  });
   await check('a screenshot comes back as a picture', async () => {
     const s = await run('browser_screenshot', {});
     assert.ok(s.image && s.image.base64.length > 2000, 'no picture: ' + s.out);

@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter
  */
 object Tools {
     /** [out] goes back to the model; [step] is the short line the user sees under Atlas's reply (null: nothing to show). */
-    class Result(val out: String, val step: String? = null, val phone: Boolean = false)
+    class Result(val out: String, val step: String? = null, val phone: Boolean = false, val media: List<Attach.Item> = emptyList())
 
     /** A function for Gemini. One that takes nothing has no "parameters" at all: Gemini refuses an object with no properties. */
     private fun fn(name: String, desc: String, props: JSONObject = JSONObject(), required: List<String> = emptyList()): JSONObject =
@@ -82,6 +82,7 @@ object Tools {
             put(fn("deploy_bot", "Send Atlas Bot to do a bigger job in the background: anything that needs many steps, like deep research with sources, comparing several options, writing a long piece, checking many pages, or a long chain of phone actions. The bot plans, works on its own, and its report lands in this chat when it's done; the chat stays free meanwhile. Don't use it for quick things you can do in a step or two.",
                 JSONObject().put("goal", str("The job in one clear sentence, e.g. 'Find the best budget phone under $300 for photos, with sources'"))
                     .put("details", str("Everything the bot should know: what the user wants, preferences, limits, what to include in the report"))
+                    .put("voice_memo", bool("Also send the report as a spoken voice memo (when they ask for one, or are talking to you by voice)"))
                     .put("specialist", str("Optional: one of the user's specialist bots to send (by name), when the job fits its speciality")), listOf("goal")))
             // ---- Atlas Bot extras (BotExtras): skills taught by telling, and routines (bots on a schedule)
             put(fn("save_skill", "Save a skill: a reusable way of doing a kind of job that the user teaches you (\"when I ask for X, do it like this…\"). Bots load it when they do that kind of job. Saving with an existing name updates it.",
@@ -93,6 +94,10 @@ object Tools {
                     .put("name", str("A short name (optional)")).put("specialist", str("A specialist bot to send (optional)")), listOf("goal", "schedule")))
             put(fn("wait", "Wait for something to load (an answer being written, a page loading). Returns the new screen.",
                 JSONObject().put("seconds", int("1 to 15")), listOf("seconds")))
+            // calendar, contacts, location and the Clock app (PhoneData.kt)
+            PhoneData.declarations.forEach { put(it) }
+            put(ImageGen.declaration)
+            put(Vault.listDeclaration)
         }
     }
 
@@ -262,7 +267,7 @@ object Tools {
                     val goal = a.optString("goal").trim()
                     if (goal.isEmpty()) return@withContext Result("Error: give the bot a goal.")
                     val sp = a.optString("specialist").takeIf { it.isNotBlank() }?.let { BotExtras.specialist(it)?.optString("id") }
-                    val j = Bots.deploy(ctx, goal, a.optString("details"), specialist = sp)
+                    val j = Bots.deploy(ctx, goal, a.optString("details"), specialist = sp, memo = a.optBoolean("voice_memo", false))
                     Result("Atlas Bot is on it: '${j.goal}'. It works in the background; its report will appear in this chat when it's done, and the user can follow it from the Atlas Bot strip at the top of the chat. Tell them briefly, in your own words.",
                         "Sent Atlas Bot: ${j.goal}")
                 }
@@ -283,6 +288,17 @@ object Tools {
                     if (r == null) Result("Error: $err")
                     else Result("Routine set: \"${r.optString("name")}\", next run ${android.text.format.DateUtils.formatDateTime(ctx, r.optLong("nextAt"), android.text.format.DateUtils.FORMAT_SHOW_WEEKDAY or android.text.format.DateUtils.FORMAT_SHOW_DATE or android.text.format.DateUtils.FORMAT_SHOW_TIME)}. The user can pause, test or delete it on the Bots tab.", "Set a routine: ${r.optString("name")}")
                 }
+                in PhoneData.names -> PhoneData.run(ctx, c.name, a)
+                "vault_list" -> withContext(Dispatchers.IO) { Result(Vault.forModel(Vault.all(ctx)), "Checked your saved sign-ins") }
+                "generate_image" -> withContext(Dispatchers.Main) { if (a.optBoolean("use_my_pictures", false)) Conversation.latestUserImages() else emptyList() }.let { refs -> withContext(Dispatchers.IO) {
+                    val prompt = a.optString("prompt").trim()
+                    if (prompt.isEmpty()) return@withContext Result("Error: describe the picture.")
+                    val aspect = a.optString("aspect").takeIf { it in ImageGen.ASPECTS } ?: "1:1"
+                    if (a.optBoolean("use_my_pictures", false) && refs.isEmpty()) return@withContext Result("Error: there are no pictures in their latest message to base it on.")
+                    val made = try { ImageGen.make(ctx, prompt, aspect, refs, Attach.dir(ctx)) } catch (e: Exception) { return@withContext Result("Error: couldn't make the picture: ${e.message}") }
+                    Result("Made the picture with ${made.service}; it's shown with this reply (with Save and Share)." + (made.note.takeIf { it.isNotBlank() }?.let { " The image model added: ${it.take(300)}" } ?: ""),
+                        "Made a picture", media = listOf(Attach.Item(made.file.path, made.mime, made.file.name)))
+                } }
                 else -> Result("Error: there's no tool called ${c.name}.")
             }
         } catch (e: AtlasException) { Result("Error: ${e.message}")

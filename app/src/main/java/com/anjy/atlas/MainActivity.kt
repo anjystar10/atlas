@@ -910,7 +910,7 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
-    override fun onDestroy() { scope.cancel(); super.onDestroy() }
+    override fun onDestroy() { scope.cancel(); memoPlayer?.release(); memoPlayer = null; super.onDestroy() }
 
     /** Every 30 seconds: move the engine on, and redraw the Log if something on it changed. */
     private val tick = object : Runnable {
@@ -1231,6 +1231,10 @@ class MainActivity : Activity() {
                 wrap.addView(v, LinearLayout.LayoutParams(MATCH, WRAP).apply { if (i > 0) topMargin = dp(10) })
             }
         }
+        // pictures Atlas made, full width, with Save and Share
+        m.media.filter { it.image && it.file.exists() }.forEach { item -> wrap.addView(madePicture(item), LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) }) }
+        // a voice memo from a bot: a play key with its length
+        m.media.filter { it.mime.startsWith("audio/") && it.file.exists() }.forEach { item -> wrap.addView(voiceMemo(item), LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(10) }) }
         // what Atlas did, in one quiet line (tap for all of it)
         if (m.steps.isNotEmpty()) {
             val shown = if (m.steps.size <= 3) m.steps.joinToString(" · ") else m.steps.take(2).joinToString(" · ") + " · and ${m.steps.size - 2} more"
@@ -1244,6 +1248,65 @@ class MainActivity : Activity() {
         }
         if (tag.isNotEmpty()) wrap.addView(text(tag, 12f, MUTED, MED).apply { setPadding(0, dp(6), 0, 0); alpha = 0.8f })
         return wrap
+    }
+
+    private var memoPlayer: android.media.MediaPlayer? = null
+    private var memoPlaying: String? = null
+
+    /** A voice memo: a glass pill with Play / Stop and its length; one plays at a time. */
+    private fun voiceMemo(item: Attach.Item): View {
+        val pill = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            background = Finish(SURFACE, dp(22).toFloat(), dark, density, glass = true); setPadding(dp(16), dp(10), dp(18), dp(10))
+            isClickable = true; contentDescription = "Play the voice memo"
+        }
+        val label = text(if (memoPlaying == item.path) "■  Stop" else "▶  Play Voice Memo", 15f, ACCENT, SEMI)
+        val len = text("", 13f, MUTED).apply { setPadding(dp(10), 0, 0, 0) }
+        pill.addView(label); pill.addView(len)
+        scope.launch {
+            val ms = withContext(Dispatchers.IO) { try { android.media.MediaMetadataRetriever().run { setDataSource(item.path); val d = extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull(); release(); d } } catch (_: Exception) { null } }
+            if (ms != null) len.text = "%d:%02d".format(ms / 60000, ms / 1000 % 60)
+        }
+        pill.setOnClickListener {
+            val was = memoPlaying
+            memoPlayer?.let { p -> try { p.stop() } catch (_: Exception) {}; p.release() }
+            memoPlayer = null; memoPlaying = null
+            if (was != item.path) {
+                Voice.hush()
+                try {
+                    memoPlayer = android.media.MediaPlayer().apply {
+                        setDataSource(item.path)
+                        setOnCompletionListener { mp -> mp.release(); if (memoPlayer === mp) { memoPlayer = null; memoPlaying = null; render(keepScroll = true) } }
+                        prepare(); start()
+                    }
+                    memoPlaying = item.path
+                } catch (e: Exception) { memoPlayer = null; showBanner("Couldn't play it") }
+            }
+            render(keepScroll = true)
+        }
+        return pill
+    }
+
+    /** A picture Atlas made: shown whole, rounded, with Save (to Pictures/Atlas) and Share under it. */
+    private fun madePicture(item: Attach.Item): View {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val img = android.widget.ImageView(this).apply {
+            adjustViewBounds = true; scaleType = android.widget.ImageView.ScaleType.FIT_CENTER; setBackgroundColor(SURFACE2)
+            maxHeight = (resources.displayMetrics.heightPixels * 0.6).toInt(); minimumHeight = dp(160)
+            clipToOutline = true; outlineProvider = object : android.view.ViewOutlineProvider() {
+                override fun getOutline(v: View, o: android.graphics.Outline) { o.setRoundRect(0, 0, v.width, v.height, dp(16).toFloat()) } }
+            contentDescription = "Picture Atlas made"
+        }
+        box.addView(img, LinearLayout.LayoutParams(MATCH, WRAP))
+        scope.launch { val b = withContext(Dispatchers.IO) { Attach.thumb(item, 1280) }; if (b != null) { img.minimumHeight = 0; img.setImageBitmap(b) } }
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(8), 0, 0) }
+        row.addView(text("Save", 13f, ACCENT, SEMI).apply { isClickable = true; setPadding(0, dp(4), dp(18), dp(4))
+            setOnClickListener { scope.launch { val ok = withContext(Dispatchers.IO) { ImageGen.saveToGallery(applicationContext, item.file, item.mime) != null }; showBanner(if (ok) "Saved to Pictures/Atlas" else "Couldn't save it") } } })
+        row.addView(text("Share", 13f, ACCENT, SEMI).apply { isClickable = true; setPadding(0, dp(4), dp(18), dp(4))
+            setOnClickListener { scope.launch { val ok = withContext(Dispatchers.IO) { ImageGen.saveToGallery(applicationContext, item.file, item.mime) }
+                if (ok == null) showBanner("Couldn't share it") else startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType(item.mime).putExtra(Intent.EXTRA_STREAM, ok).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Share picture")) } } })
+        box.addView(row)
+        return box
     }
 
     /** A code block: its own box, monospaced, scrolling sideways, with a Copy key. */
@@ -1948,6 +2011,10 @@ class MainActivity : Activity() {
         vc.add(chipGroup(Hear.LANGUAGES, { it == (Hear.language(this) ?: "auto") }) { Hear.setLanguage(this, it); render(keepScroll = true) }, 8)
         vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.", 13f, MUTED), 6)
         body.add(vc, 8)
+
+        // sign-ins Atlas Bot may use (VaultUi.kt)
+        body.add(eyebrow("Vault"), 16)
+        body.add(vaultCard(), 8)
 
         // what bots may do without asking (BotExtrasActivity)
         body.add(eyebrow("Atlas Bot"), 16)

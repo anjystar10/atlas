@@ -121,6 +121,7 @@ object BrowserRules {
         val where = if (site.isNotBlank()) " on $site" else ""
         return when (tool) {
             "browser_click" -> if (risky(label)) "Click “${label!!.take(60)}”$where" else null
+            "browser_fill_login" -> "Sign in$where with your saved sign-in “${args.optString("entry").take(40)}”"
             // submitting a search box only looks something up, so it doesn't need an OK (otherwise every search would ask)
             "browser_type" -> if (args.optBoolean("submit", false) && !searchField(label)) "Type “${args.optString("text").take(60)}” and submit$where" else null
             // "return" is pressed as Enter too (BotBrowser maps both), so it needs the same OK
