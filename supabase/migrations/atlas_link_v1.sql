@@ -1,0 +1,5 @@
+-- Applied to the Atlas Supabase project as migrations atlas_link_v1 + atlas_link_v1_fix_beat (kept here for reference).
+-- Device Link: an end-to-end encrypted relay between one person's own devices. Tables locked (RLS on, no grants);
+-- only the functions below are callable by the app (anon): link_send, link_pull (long poll ≤2.2 s), link_head,
+-- link_beat (presence), link_frame_put / link_frame_get (newest screen frame only, long poll ≤2.2 s).
+-- Messages older than 10 minutes are removed on each send; at most 400 per owner.
