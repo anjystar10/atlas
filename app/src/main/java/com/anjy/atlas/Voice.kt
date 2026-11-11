@@ -38,8 +38,16 @@ object Voice {
 
     // An original voice with a butler's manner (not a copy of any actor or character's voice).
     private const val ATLAS_STYLE = "a composed, impeccably polite British assistant: Received Pronunciation, crisp consonants, low and even pitch, unhurried and precise, quietly warm with understated dry wit; never theatrical, never sing-song"
+    /** How Atlas delivers a line with Gemini (Google asks for delivery only here: accent and timbre belong to the voice itself). */
+    private const val ATLAS_DELIVERY = "composed and unhurried, crisp and precise, quietly warm with understated dry wit; never theatrical, never sing-song"
+    /**
+     * The voice itself, designed once from a description (Gemini's voice design) and kept: Atlas's own voice, made up
+     * fresh rather than copied from anyone. Kept to traits; the description names no real person or character.
+     */
+    internal const val ATLAS_DESIGN = "A composed, impeccably polite British assistant in his forties with a crisp Received Pronunciation accent and a low, " +
+        "smooth, even baritone; unhurried and precise, quietly warm, with an understated dry wit."
     val geminiChoices = listOf(
-        Choice("atlas", "Atlas", "British, calm, refined", "Charon", ATLAS_STYLE),
+        Choice("atlas", "Atlas", "British, calm, refined", "Charon", ATLAS_DELIVERY),
         Choice("charon", "Charon", "deep, informative", "Charon", "clear and steady, informative, relaxed"),
         Choice("algenib", "Algenib", "gravelly, low", "Algenib", "low and gravelly, unhurried, quietly confident"),
         Choice("gacrux", "Gacrux", "mature, assured", "Gacrux", "mature and assured, measured pace"),
@@ -214,12 +222,14 @@ object Voice {
     private fun geminiSpeech(ctx: Context, text: String): File {
         val key = Providers.key(ctx, "gemini")!!
         val c = current(ctx, "gemini")
-        // "Atlas" uses a real British voice from Google's voice library when one can be found; otherwise Charon
-        val voice = if (c.id == "atlas") britishVoice(ctx, key) ?: c.voice else c.voice
+        // "Atlas": its own designed voice; else a calm British man's voice from Google's library; else Charon
+        val designed = if (c.id == "atlas") designedVoice(ctx, key) else null
+        val voice = if (c.id == "atlas") designed ?: britishVoice(ctx, key) ?: c.voice else c.voice
         val style = c.style + Speech.pace(speed(ctx)).let { if (it.isEmpty()) "" else "; $it" }
         val r = try { geminiCall(key, text, voice, style) } catch (e: Exception) {
             if (voice == c.voice) throw e
-            Store.putString(ctx, "atlas_voice_id", "-")   // that library voice didn't work: don't try it again
+            // that voice didn't work: don't try it again (a designed one falls back to the library's, then Charon)
+            Store.putString(ctx, if (voice == designed) "atlas_voice_designed" else "atlas_voice_id", "-")
             geminiCall(key, text, c.voice, style)
         }
         val b64 = findAudio(r) ?: throw IllegalStateException("Gemini sent no audio")
@@ -237,13 +247,58 @@ object Voice {
         return Providers.post("https://generativelanguage.googleapis.com/v1beta/interactions", mapOf("x-goog-api-key" to key), body, "Gemini voice")
     }
 
+    /**
+     * Atlas's own voice, designed once on this Gemini key from [ATLAS_DESIGN] and remembered (Google keeps a designed
+     * voice for a year after it was last used). Null if it can't be made; a refusal is remembered so it isn't asked again.
+     */
+    private fun designedVoice(ctx: Context, key: String): String? {
+        val keyTag = key.takeLast(6)
+        Store.getString(ctx, "atlas_voice_designed")?.let { saved ->
+            if (saved == "-") return null
+            val (tag, id) = saved.split("|", limit = 2).let { if (it.size == 2) it[0] to it[1] else "" to saved }
+            if (tag == keyTag && id.isNotBlank()) return id   // a designed voice belongs to the project of the key that made it
+        }
+        val body = JSONObject().put("store", true).put("voice", JSONObject()
+            .put("model", "gemini-3.8-flash-tts").put("type", "prompted").put("display_name", "Atlas")
+            .put("gender", "male").put("language_code", "en-GB")
+            .put("prompted", JSONObject().put("input", ATLAS_DESIGN)))
+        return try {
+            val r = Providers.post("https://generativelanguage.googleapis.com/v1beta/voices", mapOf("x-goog-api-key" to key), body, "Gemini voice design")
+            val id = voiceId(r)
+            Store.putString(ctx, "atlas_voice_designed", if (id != null) "$keyTag|$id" else "-")
+            id
+        } catch (e: Gemini.Failure) {
+            Log.w(TAG, "voice design", e)
+            // turned down (no access, bad request): don't ask again; a dropped connection or a busy server tries again next time
+            if (!e.offline && e.code in 400..499 && e.code != 429 && e.code != 408) Store.putString(ctx, "atlas_voice_designed", "-")
+            null
+        } catch (e: Exception) { Log.w(TAG, "voice design", e); null }
+    }
+
+    /** The `voice_…` id in a voice-design answer (it may come as "id" or as a resource name ending in it). */
+    internal fun voiceId(o: Any?): String? {
+        var found: String? = null
+        fun walk(x: Any?) {
+            if (found != null) return
+            when (x) {
+                is JSONObject -> {
+                    for (k in listOf("id", "name", "voice")) { val v = x.opt(k); if (v is String && v.substringAfterLast('/').startsWith("voice_")) { found = v.substringAfterLast('/'); return } }
+                    x.keys().forEach { k -> if (k != "sample_audio") walk(x.opt(k)) }
+                }
+                is JSONArray -> for (i in 0 until x.length()) walk(x.opt(i))
+            }
+        }
+        walk(o)
+        return found
+    }
+
     /** A calm British male voice from Google's voice library, looked up once and remembered. Null if none. */
     private fun britishVoice(ctx: Context, key: String): String? {
         Store.getString(ctx, "atlas_voice_id")?.let { return it.takeIf { it != "-" } }
         // "-" (don't look again) only once the library has actually answered; a dropped connection tries again next time
         var answered = false
         val found = try {
-            val q = "language_code=en-GB&gender=male&page_size=50"
+            val q = "language_code=en-GB&gender=male&type=prebuilt&page_size=50"
             val con = java.net.URL("https://generativelanguage.googleapis.com/v1beta/voices?$q").openConnection() as java.net.HttpURLConnection
             try {
                 con.connectTimeout = 10_000; con.readTimeout = 15_000; con.setRequestProperty("x-goog-api-key", key)

@@ -96,8 +96,7 @@ object Hear {
             try {
                 val t = when (id) {
                     "groq" -> whisper("https://api.groq.com/openai/v1/audio/transcriptions", key, "whisper-large-v3-turbo", wav, hint, language(ctx), "Groq")
-                    "openai" -> try { whisper("https://api.openai.com/v1/audio/transcriptions", key, "gpt-4o-mini-transcribe", wav, hint, language(ctx), "OpenAI") }
-                        catch (e: Gemini.Failure) { if (e.code == 404 || e.code == 400) whisper("https://api.openai.com/v1/audio/transcriptions", key, "whisper-1", wav, hint, language(ctx), "OpenAI") else throw e }
+                    "openai" -> openAi(key, wav, hint, language(ctx))
                     else -> gemini(ctx, key, wav, hint)
                 }
                 Providers.worked(ctx, id, key)
@@ -111,14 +110,43 @@ object Hear {
         throw last ?: IllegalStateException("no speech model has a key")
     }
 
-    /** The OpenAI-style transcription endpoint (OpenAI, Groq): a multipart form with the sound file. */
-    private fun whisper(url: String, key: String, model: String, wav: ByteArray, hint: String, lang: String?, service: String): String {
+    /**
+     * OpenAI's newest speech model (gpt-transcribe: takes the names as keywords and the language as a list), then the
+     * older ones its account may still have. A model OpenAI turns down is skipped from then on, until Atlas restarts.
+     */
+    private val OPENAI_MODELS = listOf("gpt-transcribe", "gpt-4o-mini-transcribe", "whisper-1")
+    @Volatile private var openAiSkip = 0
+    private fun openAi(key: String, wav: ByteArray, hint: String, lang: String?): String {
+        var i = openAiSkip.coerceAtMost(OPENAI_MODELS.lastIndex)
+        while (true) {
+            val model = OPENAI_MODELS[i]
+            try {
+                return whisper("https://api.openai.com/v1/audio/transcriptions", key, model, wav, hint, lang, "OpenAI", newer = model == "gpt-transcribe")
+            } catch (e: Gemini.Failure) {
+                if ((e.code == 404 || e.code == 400) && i < OPENAI_MODELS.lastIndex) { i++; openAiSkip = i; continue }
+                throw e
+            }
+        }
+    }
+
+    /** The two-letter language code to tell a speech model, or null. */
+    internal fun iso(lang: String?): String? = lang?.take(2)?.lowercase()?.takeIf { it.length == 2 && it.all { c -> c.isLetter() } }
+
+    /**
+     * The OpenAI-style transcription endpoint (OpenAI, Groq): a multipart form with the sound file. [newer]: OpenAI's
+     * gpt-transcribe, which takes the expected names as `keywords` and the language as `languages` (a list).
+     */
+    private fun whisper(url: String, key: String, model: String, wav: ByteArray, hint: String, lang: String?, service: String, newer: Boolean = false): String {
         val boundary = "atlas" + System.nanoTime()
         val out = ByteArrayOutputStream()
         fun field(name: String, value: String) = out.write("--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n".toByteArray())
-        field("model", model); field("response_format", "json"); field("temperature", "0")
+        field("model", model); field("response_format", "json")
+        if (!newer) field("temperature", "0")
         if (hint.isNotBlank()) field("prompt", hint)
-        lang?.take(2)?.lowercase()?.takeIf { it.length == 2 && it.all { c -> c.isLetter() } }?.let { field("language", it) }
+        if (newer) {
+            hint.split(", ").map { it.trim() }.filter { it.isNotEmpty() }.take(30).forEach { field("keywords[]", it) }
+            iso(lang)?.let { field("languages[]", it) }
+        } else iso(lang)?.let { field("language", it) }
         out.write("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n".toByteArray())
         out.write(wav); out.write("\r\n--$boundary--\r\n".toByteArray())
         val con = try { java.net.URL(url).openConnection() as java.net.HttpURLConnection } catch (e: Exception) { throw Gemini.Failure("Couldn't reach $service.", offline = true) }
