@@ -743,7 +743,12 @@ ${Tools.logContext(ctx)}
 
     // ---------------------------------------------------------------- notifications
 
+    @Volatile private var channelsReady = false
+
+    /** Set up once per run of the app: each call is a slow round trip to Android (see Reminders.channels). */
     fun channels(ctx: Context) {
+        if (channelsReady) return
+        channelsReady = true
         val nm = ctx.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CH_BOT, "Atlas Bot working", NotificationManager.IMPORTANCE_LOW).apply { description = "Shown while Atlas Bot works on a job" })
         nm.createNotificationChannel(NotificationChannel(CH_BOT_ALERT, "Atlas Bot", NotificationManager.IMPORTANCE_HIGH).apply { description = "When a bot finishes, has a question or needs your OK" })
