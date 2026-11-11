@@ -338,9 +338,17 @@ object Connections {
      * Runs a connection tool. [approved]: the user already said yes (a bot's approval); otherwise anything that needs
      * an OK is asked on screen first.
      */
-    suspend fun run(ctx: Context, c: Gemini.Call, approved: Boolean): Tools.Result {
+    suspend fun run(ctx: Context, c: Gemini.Call, approved: Boolean, who: String = "chat"): Tools.Result {
         load(ctx)
         val a = c.args
+        // only what [who] may use: a server or API the user kept from the chat (or from bots) is refused here too,
+        // not just left out of the list (a model can still name a tool it saw in the instructions)
+        if (c.name == McpWire.CALL_API) {
+            val api = synchronized(lock) { apis.firstOrNull { it.name == a.optString("connection") } }
+            if (api != null && !(if (who == "bots") api.bots else api.chat)) return Tools.Result("Error: ${api.name} isn't allowed for ${if (who == "bots") "bots" else "the chat"} (the user can change that in Me → Connections).")
+        } else if (c.name !in index(who)) {
+            return Tools.Result(if (entry(c.name) != null) "Error: that service isn't allowed for ${if (who == "bots") "bots" else "the chat"} (the user can change that in Me → Connections)." else "Error: there's no tool called ${c.name}. The connection may have been removed or switched off.")
+        }
         if (!approved) approval(c.name, a)?.let { need ->
             val ask = asker ?: return Tools.Result("Not done: this needs the user's OK ($need), and Atlas isn't open on screen to ask. Tell them what you'd do, and ask them to open Atlas and ask again.")
             val yes = withTimeoutOrNull(120_000) { ask(need) } ?: false

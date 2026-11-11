@@ -447,7 +447,7 @@ object Bots {
         val what = label(c)
         j.current = what; j.pending = what; persistNow(); changed()
         // a connection tool reaching here was already cleared by the bot's approval rules
-        val r = if (Connections.owns(c.name)) Connections.run(app, c, approved = true) else Tools.run(app, c)
+        val r = if (Connections.owns(c.name)) Connections.run(app, c, approved = true, who = "bots") else Tools.run(app, c)
         // pictures the bot made go into its job folder (listed on the job page)
         r.media.forEach { m -> try { val d = BotBrowser.jobDir(app, j.id).apply { mkdirs() }; m.file.copyTo(java.io.File(d, m.file.name), overwrite = true) } catch (e: Exception) { Log.w(TAG, "picture", e) } }
         j.pending = null; j.toolCalls++

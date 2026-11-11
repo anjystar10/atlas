@@ -350,8 +350,17 @@ object PhoneData {
         return ArrayList(out.distinct().sorted())
     }
 
+    /**
+     * Whether Android lets Atlas open another app right now. From the background it silently drops the request
+     * (no error comes back), so without this a bot would report an alarm or timer that was never set. Allowed while
+     * one of Atlas's screens is in front, or while Atlas floats on screen with its overlay permission.
+     */
+    private fun mayOpenApps(ctx: Context): Boolean =
+        onScreen() || (android.provider.Settings.canDrawOverlays(ctx) && AvatarService.running)
+
     private fun clock(ctx: Context, i: Intent, done: String, step: String): Tools.Result {
         if (i.resolveActivity(ctx.packageManager) == null) return Tools.Result("Error: there's no clock app on the phone that takes this.")
+        if (!mayOpenApps(ctx)) return Tools.Result("Error: Android doesn't let Atlas reach the Clock app while it's in the background, so nothing was set. Use set_reminder instead (Atlas's own alarm works in the background), or tell them to open Atlas and ask again.")
         return try {
             ctx.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             Tools.Result(done, step)
