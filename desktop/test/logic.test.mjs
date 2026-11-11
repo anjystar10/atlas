@@ -343,3 +343,60 @@ test('spoken text reads cleanly: no addresses, table bars or doubled marks', () 
   assert.ok(!/http|\||\?\.|---/.test(s), s);
   assert.ok(s.includes('the guide') && s.includes('Mon, Gym') && s.endsWith('Done?'), s);
 });
+
+// ---- this PC: will a local model fit? (renderer/fit.js) ----
+import * as fitR from '../renderer/fit.js';
+// the user's laptop: 16 GB, an NVIDIA card (size measured, here an 8 GB card with 7 GB free), ~9 GB of memory free
+const msi = { totalRamMb: 16_000, freeRamMb: 9_000, physicalCores: 8, logicalCores: 16, cpu: 'Intel Core i7', gpus: [{ name: 'NVIDIA GeForce RTX 4060 Laptop GPU', vramTotalMb: 8188, vramFreeMb: 7200, source: 'nvidia-smi' }] };
+
+test('fit: a 7B model runs on the laptop card, a 14B splits, a 70B is refused', () => {
+  const m7 = fitR.fit(msi, { id: 'qwen2.5:7b', sizeMb: 4_700 });
+  assert.equal(m7.place, 'split', 'a 4.7 GB file plus its cache and workspace is over 6.9 GB of card');
+  const m3 = fitR.fit(msi, { id: 'llama3.2:3b', sizeMb: 2_000 });
+  assert.equal(m3.place, 'gpu');
+  const m14 = fitR.fit(msi, { id: 'qwen2.5:14b', sizeMb: 9_000 });
+  assert.equal(m14.place, 'split');
+  const m70 = fitR.fit(msi, { id: 'llama3.3:70b', sizeMb: 42_000 });
+  assert.equal(m70.place, 'no'); assert.equal(m70.ok, false); assert.match(m70.reason, /freeze/);
+});
+
+test('fit: a model the server already holds counts its own memory as free', () => {
+  const busy = { ...msi, freeRamMb: 3_000, gpus: [{ ...msi.gpus[0], vramFreeMb: 1_000 }] };
+  assert.equal(fitR.fit(busy, { id: 'qwen2.5:7b', sizeMb: 4_700 }).ok, false);
+  assert.equal(fitR.fit(busy, { id: 'qwen2.5:7b', sizeMb: 4_700, loaded: true, vramMb: 4_700 }).ok, true);
+});
+
+test('fit: no card, or a card whose free memory isn\'t reported', () => {
+  const cpuOnly = { ...msi, gpus: [] };
+  assert.equal(fitR.fit(cpuOnly, { id: 'llama3.2:3b', sizeMb: 2_000 }).place, 'cpu');
+  const unknownFree = { ...msi, gpus: [{ name: 'NVIDIA GeForce RTX 4060', vramTotalMb: 8188, vramFreeMb: -1 }] };
+  assert.equal(fitR.cardFreeMb(unknownFree), Math.round(8188 * 0.85) - fitR.VRAM_SPARE_MB);
+  assert.equal(fitR.fit(msi, { id: 'mystery', sizeMb: -1 }).place, 'unknown');
+});
+
+test('fit: size from a model name when the server doesn\'t say', () => {
+  assert.ok(Math.abs(fitR.sizeFromName('qwen2.5-7b-instruct-q4_k_m') - 4005) < 50);
+  assert.ok(fitR.sizeFromName('llama3.1:8b') > 4000);
+  assert.ok(fitR.sizeFromName('gemma-2-9b-it-Q8_0') > 9000);
+  assert.equal(fitR.sizeFromName('phi4'), -1);
+});
+
+test('fit: ranking puts card-sized models first, refused ones last', () => {
+  const r = fitR.rank(msi, [{ id: 'big:70b', sizeMb: 42_000 }, { id: 'small:3b', sizeMb: 2_000 }, { id: 'mid:14b', sizeMb: 9_000 }]);
+  assert.deepEqual(r.map((m) => m.id), ['small:3b', 'mid:14b', 'big:70b']);
+});
+
+test('fit: bots run one at a time when memory is short', () => {
+  assert.equal(fitR.botSlots(msi), 2);
+  assert.equal(fitR.botSlots({ ...msi, freeRamMb: 1_800 }), 1);
+  assert.equal(fitR.botSlots({ ...msi, physicalCores: 2 }), 1);
+  assert.equal(fitR.botSlots(null), 2);
+  assert.match(fitR.line(msi), /RTX 4060/);
+});
+
+test('fit: the profile cache reads once, then reuses', async () => {
+  let reads = 0; const c = fitR.profileCache(async () => { reads++; return { freeRamMb: reads }; }, 60000);
+  await Promise.all([c.get(), c.get()]);
+  assert.equal(reads, 1); assert.equal(c.now().freeRamMb, 1);
+  await c.get(true); assert.equal(reads, 2);
+});

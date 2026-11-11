@@ -185,6 +185,9 @@ ipcMain.handle('app:autostart', (e, on) => {
   return app.getLoginItemSettings().openAtLogin;
 });
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, data: DATA() }));
+// ---- this PC's hardware, measured (device.js): for picking local models that fit and pacing bots ----
+ipcMain.handle('device:profile', async (e) => { if (!fromMain(e)) return null; try { return await require('./device').profile(DATA()); } catch { return null; } });
+// ---- end hardware ----
 ipcMain.handle('open:external', (e, url) => { if (fromMain(e)) openSafe(url); });
 
 // ------------------------------------------------------------------ files the user picks or drops (attachments)

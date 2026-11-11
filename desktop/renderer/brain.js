@@ -2,7 +2,30 @@
 // one runs out, and the tools: the Log, the web, its own settings, and the PC itself.
 import { db, pref, setPref, saveChat, changed, OPEN, findTask, createTask, updateTask, respond, cancelTask, deleteTask, remember, forget } from './store.js';
 import { plainReply, plainMemory } from './plain.js';
+import * as fitRules from './fit.js';
 const host = window.atlasHost;
+
+// ---- this PC, measured: a local model is checked against free memory before it's used (see fit.js) ----
+export const device = fitRules.profileCache(() => (host.device ? host.device() : null), 30000);
+/** The local model in use and where it would run now, or null when it isn't a local model. */
+export async function localVerdict(p, fresh = true) {
+  if (!p || !p.local) return null;
+  const prof = await device.get(fresh);
+  if (!prof) return null;
+  const id = modelOf(p), base = baseOf(p);
+  const rt = (prof.runtimes || []).find((r) => r.base === base);
+  const m = (rt && rt.models.find((x) => x.id === id)) || { id, sizeMb: -1 };
+  return fitRules.fit(prof, m);
+}
+/** Before a local model answers: if it would freeze this PC right now, use a cloud service instead (unless Don't Switch), or say why not. */
+async function guardLocal(p) {
+  const v = await localVerdict(p).catch(() => null);
+  if (!v || v.ok) return p;
+  const other = !dontSwitch() && PROVIDERS.find((x) => !x.local && readyKey(x.id));
+  if (other) { convo.status = `${modelOf(p)} is too big for this PC right now: using ${other.name}`; changed('chat'); return other; }
+  throw new Failure(v.reason + (dontSwitch() ? ' (Don\'t Switch Services is on, so I stayed with it.)' : ''));
+}
+// ---- end hardware ----
 
 export const PROVIDERS = [
   { id: 'gemini', name: 'Gemini', style: 'gemini', base: 'https://generativelanguage.googleapis.com/v1beta/models/', model: 'gemini-3.8-flash', keyUrl: 'https://aistudio.google.com/apikey', hint: 'AIza…' },
@@ -403,6 +426,9 @@ Using the PC:
 - Before anything that sends a message, posts, buys, deletes, or changes an account, say exactly what you're about to do and wait for their go-ahead, unless they already asked for that exact action.
 - Never type passwords or payment details unless they give them to you in this chat for that purpose.
 
+Where you're running (so you can say why something is held back; don't bring it up otherwise):
+- ${fitRules.line(device.now())}
+
 Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of PC actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
@@ -434,6 +460,7 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
       const g = byId('gemini'); if (readyKey('gemini')) p = g; else throw new Failure(`${p.name} can't watch videos. Gemini can: add a Gemini key, or send a picture instead.`);
     }
     const full = q + attachments.filter((x) => x.kind === 'text').map((x) => `\n\n[File: ${x.name}]\n${x.text}\n[End of ${x.name}]`).join('');
+    p = await guardLocal(p);
     reply.source = p.name;
     let sess = session(p, keyFor(p.id), hist, full, media);
     const tried = new Set([p.id]);
@@ -446,7 +473,7 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
       catch (e) {
         if (!(e instanceof Switch)) throw e;
         if (tried.has(e.to.id)) throw new Failure(e.message);
-        tried.add(e.to.id); p = e.to; reply.source = p.name; convo.status = 'Switching to ' + p.name; changed('chat');
+        tried.add(e.to.id); p = await guardLocal(e.to); tried.add(p.id); reply.source = p.name; convo.status = 'Switching to ' + p.name; changed('chat');
         const done = reply.steps.length ? `\n\n(Note for you, Atlas: you already did these steps for this request before the service changed, don't repeat them: ${reply.steps.join('; ')}. Continue from there.)` : '';
         sess = session(p, keyFor(p.id), hist, full + done, media); steps--; continue;
       }

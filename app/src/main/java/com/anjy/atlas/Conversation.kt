@@ -273,6 +273,9 @@ Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of phone actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
 
+Where you're running (so you can say why something is held back; don't bring it up otherwise):
+- ${try { DeviceGuard.line(ctx) } catch (e: Exception) { "this phone" }}
+
 Your own settings (change_setting, when they ask, e.g. "talk to me", "use a deeper voice", "dark mode", "get off my screen"):
 ${Self.describe(ctx)}
 

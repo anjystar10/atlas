@@ -199,8 +199,10 @@ export function createBots(deps) {
   function pump() {
     if (!loaded) return;
     const t = now();
-    for (const j of toStart(jobs.filter((x) => !workers.has(x.id) && x.state !== S.RUNNING), t, MAX_RUNNING - workers.size)) {
-      if (workers.size >= MAX_RUNNING) break;
+    // how many may work at once depends on the device right now (deps.slots), never more than MAX_RUNNING
+    const cap = Math.max(1, Math.min(MAX_RUNNING, (deps.slots && deps.slots()) || MAX_RUNNING));
+    for (const j of toStart(jobs.filter((x) => !workers.has(x.id) && x.state !== S.RUNNING), t, cap - workers.size)) {
+      if (workers.size >= cap) break;
       if (j.state === S.WAITING_RETRY) move(j, S.QUEUED, t);
       if (!move(j, S.RUNNING, t)) continue;
       const token = {};
