@@ -113,8 +113,16 @@ object BrowserRules {
      * Browser actions that need the user's OK, as a sentence saying what would happen; null when the bot can go ahead.
      * [label] is what the target element says; [inForm] whether it sits in a form (Enter would submit it); [site] the page's host.
      */
-    fun approval(tool: String, args: JSONObject, label: String?, inForm: Boolean, site: String): String? {
+    fun approval(tool: String, args: JSONObject, label: String?, inForm: Boolean, site: String, signals: Signals = Signals()): String? {
         val where = if (site.isNotBlank()) " on $site" else ""
+        // money first: on a payment page, or where the element or its form says buy/pay/order, every action asks
+        if (moneyRisk(tool, signals)) return when (tool) {
+            "browser_click" -> "Click “${(label ?: args.optString("target")).take(60)}” on a payment page$where"
+            "browser_type" -> "Type into a payment page$where" + (if (args.optBoolean("submit", false)) " and submit it" else "")
+            "browser_select" -> "Choose “${args.optString("option").take(40)}” on a payment page$where"
+            "browser_press" -> "Press ${args.optString("key").take(20)} on a payment page$where"
+            else -> "Sign in on a payment page$where with your saved sign-in “${args.optString("entry").take(40)}”"
+        }
         return when (tool) {
             "browser_click" -> if (risky(label)) "Click “${label!!.take(60)}”$where" else null
             "browser_fill_login" -> "Sign in$where with your saved sign-in “${args.optString("entry").take(40)}”"
@@ -124,6 +132,32 @@ object BrowserRules {
             else -> null
         }
     }
+
+    // ---------------------------------------------------------------- money: actions that must always ask
+
+    /**
+     * What the page says about the action, read by BotBrowser right before it: the page address, whether it has
+     * payment or card fields (cc-* autocomplete, card number, CVV/CVC, expiry, IBAN, a payment provider's frame),
+     * the words of the target element beyond its visible text (aria-label, title, name, id, value), and its form
+     * (the form's address and its submit buttons). A page can make its button *say* anything, so these count too.
+     */
+    class Signals(val url: String = "", val payFields: Boolean = false, val elementText: String = "", val formText: String = "")
+
+    /** The browser actions the money rule covers. */
+    val moneyTools = setOf("browser_click", "browser_type", "browser_press", "browser_select", "browser_fill_login")
+    private val payPath = Regex("(check-?out|/pay(ment)?s?(\\b|/|\\?|$)|/billing|/purchase|/place-?order|/order/(confirm|review|pay)|/cart/pay|/donate|/subscribe)", RegexOption.IGNORE_CASE)
+    private val moneyWords = Regex("\\b(buy|purchase|pay|payment|checkout|check ?out|place ?order|order now|complete order|confirm order|subscribe|donate|book now|card number|cvv|cvc|iban)\\b", RegexOption.IGNORE_CASE)
+
+    /** A page where money changes hands: payment fields on it, or an address that reads like checkout/payment. */
+    fun paymentPage(s: Signals): Boolean = s.payFields || payPath.containsMatchIn("/" + s.url.substringAfter("://").substringAfter('/', ""))
+
+    /** True when [tool] on this page must always wait for a tap: no standing rule and no "allow on this site" skips it. */
+    fun moneyRisk(tool: String, s: Signals): Boolean =
+        tool in moneyTools && (paymentPage(s) || moneyWords.containsMatchIn(s.elementText) || moneyWords.containsMatchIn(s.formText))
+
+    /** The text the action's kind is judged by: everything it says, so the strongest risk wins (BotExtras.Rules.guessCategory). */
+    fun riskText(label: String?, s: Signals): String =
+        listOfNotNull(label, s.elementText, s.formText, if (paymentPage(s)) "payment" else null).joinToString(" ")
 
     /** The host of a URL, for messages ("amazon.com"). */
     fun host(url: String): String = try { java.net.URI(url).host?.removePrefix("www.") ?: "" } catch (_: Exception) { "" }

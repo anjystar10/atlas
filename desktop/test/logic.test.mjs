@@ -80,7 +80,7 @@ class Busy extends Error { constructor() { super('Busy.'); this.code = 503; } }
 class Sw extends Error { constructor(to) { super('Keys out.'); this.to = to; } }
 
 /** A bot world with a scripted model: each call takes the next turn from [script] (a function of the brief, or a turn). */
-function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false, tools = null, extraApproval = null } = {}) {
+function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false, tools = null, extraApproval = null, checkApproval = null } = {}) {
   const w = { saved: journal, notes: [], posts: [], ran: [], briefs: [], tools: [], timers: [], calls: 0, prov: providers, made: 0 };
   let n = 0, clock = 1000;
   w.bots = B.createBots({
@@ -90,7 +90,7 @@ function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gem
       const i = n++; const s = script[i]; if (!s) throw new Error('script ran out at ' + i); return typeof s === 'function' ? s(brief) : s; }, results: (list) => w.notes.push(list.map((x) => x.out)) }; },
     callWithKeys: async (p, sess, call) => { const k = w.calls++; if (k === switchAt) throw new Sw(w.prov[1]); if (k === failAt) throw new Busy(); return call(); },
     isSwitch: (e) => e instanceof Sw, isRetryable: (e) => e instanceof Busy,
-    tools: tools || [{ name: 'web_search' }, { name: 'read_page' }, { name: 'run_command' }, { name: 'change_setting' }, { name: 'deploy_bot' }], extraApproval,
+    tools: tools || [{ name: 'web_search' }, { name: 'read_page' }, { name: 'run_command' }, { name: 'change_setting' }, { name: 'deploy_bot' }], extraApproval, ...(checkApproval ? { checkApproval } : {}),
     runTool: async (c, o) => { w.ran.push([c.name, !!(o && o.approved)]); return { out: `${c.name} result`, step: `Did ${c.name}` }; },
     systemPrompt: (j) => { w.sysFor = (w.sysFor || []).concat([j && j.id]); return 'sys'; }, notify: (t, b, tag) => w.notes.push(['notify', t, tag]), post: (m) => w.posts.push(m),
     plainReply: (s) => String(s).trim(), plainMemory: (s) => String(s).trim(),
@@ -788,5 +788,51 @@ test('connections in a bot: tools appear while the bot runs; read-only ones go a
   assert.equal(j.state, B.S.AWAITING_APPROVAL);
   w.bots.approve(j.id, true); await settle(w);
   assert.deepEqual(w.ran, [['mcp__notes__add', false], ['mcp__notes__save_note', true]]);
+  assert.equal(j.state, B.S.COMPLETED);
+});
+
+// ---- money: "Always allow" must never auto-run a bot browser action on a payment page (or one that says buy/pay/order)
+test('bot browser: payment pages and disguised pay buttons always ask, and their kind is the strongest risk', async () => {
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url);
+  req.cache[req.resolve('electron')] = { id: 'electron', filename: 'electron', loaded: true, exports: { app: { on() {}, getPath: () => '/tmp' }, session: {}, BrowserWindow: class {} } };
+  const B = req('../botbrowser.js');
+  const X = await import('../renderer/botx.js');
+  // the address
+  assert.ok(B.paymentPage({ url: 'https://shop.example/checkout/step-2' }));
+  assert.ok(B.paymentPage({ url: 'https://shop.example/payment?id=4' }));
+  assert.ok(B.paymentPage({ url: 'https://shop.example/cart/pay' }));
+  assert.ok(!B.paymentPage({ url: 'https://news.example/paying-for-college' }));
+  assert.ok(!B.paymentPage({ url: 'https://payments.example/' }));          // the host alone doesn't count
+  assert.ok(B.paymentPage({ url: 'https://news.example/a', pay: true }));   // card fields on the page
+  // a pay button dressed up as "Reply": its form submits to /orders/pay
+  const disguised = { url: 'https://mail.example/inbox', pay: false, el: 'reply-btn', form: '/orders/pay Place order' };
+  assert.ok(B.moneyRisk('browser_click', disguised));
+  assert.equal(X.strongestCategory(B.riskText('Reply', disguised) + ' ' + B.moneyAsk('browser_click', { target: '12' }, disguised, 'mail.example'), 'browser_click'), 'purchase');
+  assert.ok(B.moneyRisk('browser_click', { url: 'https://x.example/', el: 'Continue checkout-submit', form: '' }));
+  // every listed action on a payment page asks; reading and scrolling never count
+  const pay = { url: 'https://shop.example/checkout', pay: false, el: '', form: '' };
+  for (const t of ['browser_click', 'browser_type', 'browser_press', 'browser_select', 'browser_fill_login']) assert.ok(B.moneyRisk(t, pay), t);
+  assert.ok(!B.moneyRisk('browser_read', pay)); assert.ok(!B.moneyRisk('browser_scroll', pay));
+  assert.ok(!B.moneyRisk('browser_click', { url: 'https://news.example/a', el: 'next', form: 'Search' }));
+  // the strongest risk wins: the label says message, the form says delete
+  assert.equal(X.strongestCategory(B.riskText('Send', null, { formSubmit: 'Delete account', formAction: '/x' }), 'browser_click'), 'delete');
+});
+
+test('Always Allow never auto-runs a money action: it waits for a tap', async () => {
+  const e = extrasFor(); await e.ex.init();
+  e.ex.setMode('purchase', 'allow'); e.ex.setMode('message', 'allow');   // the user always allows purchases and messages
+  // the page check (botbrowser.check) says: this "Reply" button is on a payment page
+  const checkApproval = async (c) => (c.name === 'browser_click' ? { what: 'Click “Reply” on a payment page on shop.example', mustAsk: true, riskText: 'Reply /orders/pay payment' } : null);
+  const w = world([
+    turn(call('browser_click', { target: '7' })),
+    turn(call('finish', { report: 'Paid.' })),
+  ], { extras: e.ex, tools: [{ name: 'browser_click' }], checkApproval });
+  await w.bots.init(); const j = w.bots.deploy('Reply to the seller', ''); await settle(w);
+  assert.equal(j.state, B.S.AWAITING_APPROVAL, 'it waits for a tap despite Always Allow');
+  assert.equal(j.approval.category, 'purchase', 'its kind is the strongest risk: money, not "message"');
+  assert.deepEqual(w.ran, [], 'nothing clicked yet');
+  w.bots.approve(j.id, true); await settle(w);
+  assert.deepEqual(w.ran, [['browser_click', true]], 'clicked once, after the tap');
   assert.equal(j.state, B.S.COMPLETED);
 });

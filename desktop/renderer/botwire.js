@@ -104,7 +104,7 @@ extras.onChange(() => changed('bots'));
 async function runBrowser(call, { approved, job, approvedWhat } = {}) {
   if (!host.botBrowser || !job) return { out: "Error: the browser isn't available here." };
   if (approved && approvedWhat && ['browser_click', 'browser_type', 'browser_press'].includes(call.name)) {
-    const now = await host.botBrowser.check(job.id, job.goal, call.name, call.args || {});
+    const got = await host.botBrowser.check(job.id, job.goal, call.name, call.args || {}); const now = got && typeof got === 'object' ? got.what : got;   // check() may say more than a sentence
     if (now !== approvedWhat) return { out: "The page changed since the user said yes, so nothing was clicked. Read the page again (browser_read); if it's still needed, the OK will be asked again." };
   }
   return host.botBrowser.run(job.id, job.goal, call.name, call.args || {});

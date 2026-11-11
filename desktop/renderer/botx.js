@@ -32,6 +32,8 @@ export function guessCategory(text) {
   return 'other';
 }
 /** The kind of risky action a tool call is (only asked for calls that need an OK). */
+/** The kind of an action from all it says (its label, its form, the page around it): the strongest risk in the text wins. */
+export function strongestCategory(text, tool, a = {}) { const g = guessCategory(text); return g !== 'other' || !tool ? g : categoryFor(tool, a || {}); }
 export function categoryFor(tool, a = {}) {
   switch (tool) {
     case 'run_command': return 'command';
@@ -369,6 +371,8 @@ export function createExtras(deps) {
     allows: (sp, tool) => toolAllowed(sp, tool),
     /** The kind of a risky action: from its wording first (what it would do), else from the tool. */
     categoryOf: (tool, args, what) => { if (tool === 'browser_fill_login') return 'account'; const cc = connectionCategory(tool, args || {}); if (cc) return cc; const g = guessCategory(what); return g !== 'other' || !tool ? g : categoryFor(tool, args || {}); },
+    /** The kind from everything an action says (label, form, page): the strongest risk wins. */
+    guess: (text, tool, args) => { if (tool === 'browser_fill_login' && !/payment/i.test(text)) return 'account'; return strongestCategory(text, tool, args); },
     label: categoryLabel, skillText, draftSkill,
     onChange: (f) => { listeners.add(f); return () => listeners.delete(f); },
     idle: () => saving,
