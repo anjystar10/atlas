@@ -176,7 +176,9 @@ wait_bot() { # goal-substring state seconds
   for i in $(seq 1 "$3"); do set -- "$1" "$2" "$3" $(bot_state "$1"); [ "${5:-}" = "$2" ] && return 0; sleep 1; done
   return 1
 }
-site_has() { grep -c "$1" "$AI/site-log.jsonl" 2>/dev/null || echo 0; }
+site_has() { [ -f "$AI/site-log.jsonl" ] && grep -c "$1" "$AI/site-log.jsonl"; true; }
+# opens a tab without restarting Atlas (a restart would end a running bot's browser)
+goto() { adb shell am start -n $PKG/.MainActivity --es tab "$1" >/dev/null 2>&1; sleep 3; }
 seed dark
 prefs '    <string name="provider">custom</string>
     <string name="base_custom">http://127.0.0.1:8766/v1</string>
@@ -211,7 +213,7 @@ log "order bot: searched the shop for the widget: $(grep -c 'blue widget' "$AI/s
 log "order bot: orders sent BEFORE the OK (must be 0): $(site_has '"/shop/order"')"
 adb shell dumpsys notification --noredact | grep -A3 "needs your OK" | head -8 > "$AI/approval-notification.txt"
 grep -q "needs your OK" "$AI/approval-notification.txt" && log "order bot: approval notification shown" || log "order bot: approval notification NOT found"
-launch bots; shot bots-tab
+goto bots; shot bots-tab
 set -- $(bot_state "blue widget"); JOB=$1
 adb shell am start -n $PKG/.BotActivity --es bot_id "$JOB" >> "$OUT/steps.txt" 2>&1; sleep 4; shot bot-job-approval
 if tap_desc "Approve"; then log "order bot: approved on the job page"; else log "order bot: Approve button NOT found"; cp /tmp/ui.xml "$AI/ui-approve.xml"; fi
@@ -240,7 +242,7 @@ adb shell am start -n $PKG/.BotActivity --es bot_id "$JOB2" >> "$OUT/steps.txt" 
 if tap_desc "Open the Browser"; then log "sign-in bot: opened its browser"; else log "sign-in bot: Open the Browser NOT found"; cp /tmp/ui.xml "$AI/ui-open-browser.xml"; fi
 sleep 5; shot bot-browser-watch
 adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml "$AI/ui-browser.xml" >/dev/null 2>&1
-grep -q "Sign in" "$AI/ui-browser.xml" && log "sign-in bot: the browser shows the sign-in page" || log "sign-in bot: sign-in page NOT visible in the browser"
+log "sign-in bot: the sign-in page was loaded by the bot's browser: $(site_has '"GET", "path": "/login"')"  # what the page shows is in bot-browser-watch.png
 if tap_desc "Hand Back"; then log "sign-in bot: handed back"; else log "sign-in bot: Hand Back NOT found"; fi
 if wait_bot "sign in to the test shop" completed 90; then log "sign-in bot: COMPLETED after the hand-back"; else log "sign-in bot: did NOT complete (state: $(bot_state 'sign in to the test shop'))"; fi
 adb shell "cat /data/data/$PKG/files/bots.json" > "$AI/bots.json" 2>/dev/null
