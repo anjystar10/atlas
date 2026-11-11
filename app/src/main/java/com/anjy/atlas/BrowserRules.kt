@@ -129,6 +129,18 @@ object BrowserRules {
         }
     }
 
+    /**
+     * The user said yes to a browser action: may it still be done? Null means go ahead. Otherwise the note for the bot
+     * saying why it was NOT done and what to do next, so an approved job always moves on instead of waiting forever.
+     * [live]: the bot's page is still open (it's gone after Atlas was closed or restarted, or after a long wait).
+     * [expected]: what the element said when the user was asked; [now]: what it says at this moment (null if not found).
+     */
+    fun afterApproval(what: String, expected: String?, now: String?, live: Boolean): String? = when {
+        !live -> "The user approved: $what, but your browser page was closed in the meantime (Atlas was restarted or the wait was long), so it was NOT done. Open the page again, get back to the same step, and ask for the OK again before doing it."
+        expected != null && now != expected -> "The user approved: $what, but the page changed before it could be done, so it was NOT done. Read the page again; ask again if it's still needed."
+        else -> null
+    }
+
     /** The host of a URL, for messages ("amazon.com"). */
     fun host(url: String): String = try { java.net.URI(url).host?.removePrefix("www.") ?: "" } catch (_: Exception) { "" }
 }

@@ -215,8 +215,29 @@ adb shell dumpsys notification --noredact | grep -A3 "needs your OK" | head -8 >
 grep -q "needs your OK" "$AI/approval-notification.txt" && log "order bot: approval notification shown" || log "order bot: approval notification NOT found"
 goto bots; shot bots-tab
 set -- $(bot_state "blue widget"); JOB=$1
-adb shell am start -n $PKG/.BotActivity --es bot_id "$JOB" >> "$OUT/steps.txt" 2>&1; sleep 4; shot bot-job-approval
-if tap_desc "Approve"; then log "order bot: approved on the job page"; else log "order bot: Approve button NOT found"; cp /tmp/ui.xml "$AI/ui-approve.xml"; fi
+asks() { # how many times the order bot has asked for the OK so far
+  adb shell "cat /data/data/$PKG/files/bots.json" 2>/dev/null | python3 -c "
+import json,sys
+try: d=json.load(sys.stdin)
+except Exception: print(0); sys.exit()
+jobs=d.get('jobs',d) if isinstance(d,dict) else d
+print(sum(str(s).count('Waiting for your OK') for j in jobs if 'blue widget' in j.get('goal','').lower() for s in j.get('steps',[])))"
+}
+allow() { adb shell am start -n $PKG/.BotActivity --es bot_id "$JOB" >> "$OUT/steps.txt" 2>&1; sleep 4; tap_desc "Allow Once" || tap_desc "Approve"; }
+# First, the hard case: Atlas is closed and reopened while the bot waits. Its page is gone, so saying yes must not
+# click anything blind and must not leave the job hanging: the bot goes back to the page and asks again.
+adb shell am force-stop $PKG; sleep 2
+adb shell am start -W -n $PKG/.MainActivity --es tab bots >> "$OUT/steps.txt" 2>&1; sleep 6
+set -- $(bot_state "blue widget"); log "order bot: after Atlas was closed and reopened it is: ${2:-?}"
+shot bot-job-approval-after-restart
+if allow; then log "order bot: allowed after the restart"; else log "order bot: allow button NOT found after the restart"; cp /tmp/ui.xml "$AI/ui-approve-1.xml"; fi
+for i in $(seq 1 150); do [ "$(asks)" -ge 2 ] && break; sleep 1; done
+log "order bot: times it has asked for the OK (should be 2: it went back to the page and asked again): $(asks)"
+set -- $(bot_state "blue widget"); log "order bot: state after the restart and the yes: ${2:-?}"
+log "order bot: orders sent so far (must still be 0): $(site_has '"/shop/order"')"
+# Then the normal case: Atlas stays open, the page is still there, yes places the order
+sleep 2; shot bot-job-approval
+if allow; then log "order bot: allowed on the job page"; else log "order bot: allow button NOT found"; cp /tmp/ui.xml "$AI/ui-approve-2.xml"; fi
 if wait_bot "blue widget" completed 120; then log "order bot: COMPLETED"; else log "order bot: did NOT complete (state: $(bot_state 'blue widget'))"; fi
 python3 - "$AI" >> "$OUT/steps.txt" <<'PY'
 import json, sys
@@ -224,6 +245,7 @@ rows = [json.loads(l) for l in open(sys.argv[1] + "/site-log.jsonl")]
 orders = [r for r in rows if r["path"] == "/shop/order"]
 print("== order bot: order reached the shop: %s" % (json.dumps(orders[0]["form"]) if orders else "NO"))
 print("== order bot: the shop got size Large: %s" % ("yes" if orders and orders[0]["form"].get("size") == ["Large"] else "NO"))
+print("== order bot: orders the shop received (must be exactly 1): %d" % len(orders))
 PY
 sleep 3; shot bot-job-done
 adb shell "cat /data/data/$PKG/files/chat.json" | grep -q "Ordered" && log "order bot: report posted in the chat" || log "order bot: report NOT in the chat"

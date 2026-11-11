@@ -100,4 +100,18 @@ class BrowserRulesTest {
         assertEquals("amazon.com", BrowserRules.host("https://www.amazon.com/dp/1"))
         assertEquals("", BrowserRules.host("not a url"))
     }
+
+    @Test fun anApprovedActionIsOnlyDoneOnTheSamePage() {
+        // same page, same button: go ahead
+        assertNull(BrowserRules.afterApproval("Click “Place order”", "Place order", "Place order", live = true))
+        // an action with no element to compare (e.g. a key press) goes ahead while the page is open
+        assertNull(BrowserRules.afterApproval("Press Enter", null, null, live = true))
+        // the page changed: not done, the bot is told to read again
+        assertTrue(BrowserRules.afterApproval("Click “Place order”", "Place order", "Cancel order", live = true)!!.contains("NOT done"))
+        assertTrue(BrowserRules.afterApproval("Click “Place order”", "Place order", null, live = true)!!.contains("NOT done"))
+        // Atlas was restarted while the job waited: the page is gone, so nothing is clicked blind and the bot is sent back to it
+        val gone = BrowserRules.afterApproval("Click “Place order”", "Place order", null, live = false)!!
+        assertTrue(gone.contains("NOT done")); assertTrue(gone.contains("Open the page again"))
+        assertNotNull(BrowserRules.afterApproval("Press Enter", null, null, live = false))
+    }
 }

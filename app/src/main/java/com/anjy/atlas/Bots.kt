@@ -486,8 +486,11 @@ object Bots {
         if (a.tool == null || a.args == null) { j.notes.add("The user approved: ${a.what}. Go ahead with exactly that."); persist(); return }
         if (a.tool in browserTools) {
             // a browser action: check the page still shows the same thing, then do it
-            if (a.elementLabel != null && BotBrowser.inspect(app, j.id, a.tool, a.args).first != a.elementLabel) {
-                j.notes.add("The user approved: ${a.what}, but the page changed before it could be done, so it was NOT done. Read the page again; ask again if it's still needed."); persist(); return
+            // (after Atlas was closed and reopened the page is gone: the bot is told to reopen it and ask again, so the job moves on)
+            val live = BotBrowser.live(j.id)
+            val now = if (live && a.elementLabel != null) BotBrowser.inspect(app, j.id, a.tool, a.args).first else null
+            BrowserRules.afterApproval(a.what, a.elementLabel, now, live)?.let { why ->
+                j.notes.add(why); j.step(if (live) "The page changed, so that wasn't done" else "The page had closed, so that wasn't done: going back to it"); persist(); return
             }
             val out = runBrowser(j, Gemini.Call(a.tool, a.args, null))
             j.notes.add("Approved and done: ${a.what}. Result: ${out.text.lineSequence().firstOrNull()?.take(300) ?: ""}")
