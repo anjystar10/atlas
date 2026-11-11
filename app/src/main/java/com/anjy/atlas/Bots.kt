@@ -406,6 +406,8 @@ object Bots {
                             val what = Plain.reply(c.args.optString("action")).ifBlank { "Go ahead with the next step" }
                             askApproval(j, Approval(what.take(300), null, null, null)); return
                         }
+                        // ---- files (BotFiles): only inside this job's folder, so nothing to approve
+                        in BotFiles.names -> results.add(c to runFiles(j, c))
                         // ---- the bot's web browser (BotBrowser): act on websites, with risky clicks and submits waiting for an OK
                         in browserTools -> {
                             val (label, inForm) = BotBrowser.inspect(app, j.id, c.name, c.args)
@@ -447,6 +449,19 @@ object Bots {
         j.addRecent("$what:\n${r.out.take(if (c.name == "read_page" || c.name == "web_search") 2500 else 1200)}")
         persist()
         return r.out
+    }
+
+    /** Runs one file tool for the bot (BotFiles), with the same "doing it now" mark as [runTool]. */
+    private suspend fun runFiles(j: BotJob, c: Gemini.Call): String {
+        val what = BotFiles.label(c.name, c.args)
+        j.current = what; j.pending = what; persistNow(); changed()
+        val r = try { BotFiles.run(app, j.id, j.goal, c.name, c.args) } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { Log.w(TAG, "files", e); BotFiles.Out("Error: that didn't work (${e.message ?: e.javaClass.simpleName}).", "A file step failed") }
+        j.pending = null; j.toolCalls++
+        j.step(r.step)
+        j.addRecent("$what:\n${r.text.take(1200)}")
+        persist()
+        return r.text
     }
 
     /** Runs one browser action for the bot, with the same "doing it now" mark as [runTool]. */
@@ -540,7 +555,7 @@ object Bots {
 
     private fun complete(j: BotJob, report: String) {
         val now = System.currentTimeMillis()
-        j.report = Plain.reply(report).ifBlank { compiled(j) }
+        j.report = Plain.reply(report).ifBlank { compiled(j) } + BotFileRules.footer(BotFiles.madeBy(app, j.id))   // the files it made, and where
         j.plan.forEach { it.done = true }
         j.current = null; j.error = null
         j.move(BotRules.COMPLETED, now)
@@ -601,6 +616,9 @@ object Bots {
                 JSONObject().put("seconds", JSONObject().put("type", "number").put("description", "1 to 15 seconds"))))
             put(fn("browser_download", "Download a file: a link's number from the page, or a web address. It's kept with this job (the user can save it to Downloads).",
                 JSONObject().put("target", str("The link's number or the file's web address")), listOf("target")))
+            // >>> files the bot hands over (BotFiles): its job folder, a PDF document, an Excel spreadsheet, an interactive page
+            BotFiles.declarations.forEach { put(it) }
+            // <<< files
             put(fn("update_plan", "Write or update your plan for this job: 3 to 8 short steps, one per line, in order. Start a line with [x] when that step is done.",
                 JSONObject().put("plan", str("The steps, one per line, e.g. \"[x] Search for reviews\\n[ ] Compare prices\"")), listOf("plan")))
             put(fn("note", "Save something you'll need later: a fact, figure, name or link you found, with where it came from. Older tool results are dropped as you go, but notes are kept for the whole job.",
@@ -674,6 +692,11 @@ Doing things on websites (your own browser):
 - Clicking things that send, post, buy, pay, book, sign up, accept terms or delete waits for the user's OK automatically; say clearly in your report what you did and what's left for them.
 - Report evidence: the confirmation text, order or reference numbers, the final page's address.
 
+Files you hand over (kept in this job's folder on the phone):
+- When the job calls for something the user will keep, make the real file: make_document for a report, brief, letter or plan (a typeset PDF); make_spreadsheet for data, comparisons, budgets or trackers (Excel, with formulas where they help); make_page for an interactive view with tables to sort and filter and charts.
+- workspace_write / workspace_read / workspace_list keep drafts, notes and data in the job folder; downloads land there too.
+- The report still gives the answer itself (the key findings), then names the files you made. They show in Bots › Library.
+
 Using the phone (only when the job needs it):
 - open_app, then work from the numbered elements on the screen. Every action returns the new screen; check it. Numbers change after each action, so use numbers from the latest screen only.
 - If an approach fails twice, try another; after a few tries, note what blocked you and move on or finish.
@@ -738,7 +761,7 @@ ${Tools.logContext(ctx)}
         "forget" -> "Deleting a memory"
         "read_log" -> "Checking your Log"
         "open_link" -> "Opening a link"
-        else -> if (c.name in browserTools) BotBrowser.label(c.name, c.args) else "Working"
+        else -> if (c.name in browserTools) BotBrowser.label(c.name, c.args) else if (c.name in BotFiles.names) BotFiles.label(c.name, c.args) else "Working"
     }
 
     // ---------------------------------------------------------------- notifications

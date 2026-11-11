@@ -1720,6 +1720,14 @@ class MainActivity : Activity() {
         }.apply { alpha = if (botDraft.isBlank()) 0.5f else 1f }
         sc.addView(send, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
         body.add(sc, 20)
+        // >>> library: everything bots made (LibraryActivity)
+        body.add(card().apply {
+            isClickable = true; pressFx(); contentDescription = "Library: documents, spreadsheets, pages and downloads your bots made"
+            setOnClickListener { startActivity(LibraryActivity.intent(this@MainActivity)) }
+            addView(text("Library  ›", 17f, FG, HEAD))
+            add(text("Documents, spreadsheets, pages and downloads your bots made", 13f, MUTED, MED), 4)
+        }, 12)
+        // <<< library
         // routines, skills and the specialist team (BotExtrasActivity)
         val ex = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         listOf("Routines" to "routines", "Skills" to "skills", "Team" to "team").forEachIndexed { i, (l, pg) ->

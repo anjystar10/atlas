@@ -648,3 +648,20 @@ test('this PC: a mixture-of-experts name (8x7b) counts all its experts, so it is
   assert.ok(moe > 30000 && moe < 34000, String(moe));   // ≈ 56 billion × 4.8 bits
   assert.ok(Math.abs(fitR.sizeFromName('qwen2.5-7b-instruct-q4_k_m') - 4005) < 50);
 });
+
+// ---- Atlas Bot's files: the page template is one file on both apps
+test('the phone and the PC draw pages from the same template', async () => {
+  const fs = await import('node:fs');
+  const pc = fs.readFileSync(new URL('../renderer/templates/page.html', import.meta.url), 'utf8');
+  const phone = fs.readFileSync(new URL('../../app/src/main/assets/page.html', import.meta.url), 'utf8');
+  assert.equal(phone, pc);
+  assert.ok(pc.includes('/*ATLAS_PAGE_DATA*/null') && pc.includes("default-src 'none'"));
+});
+test("a bot's files: the report footer lists what it made", async () => {
+  globalThis.window = globalThis.window || {};
+  const { filesFooter, FILE_TOOLS, FILES } = await import('../renderer/botfiles.js');
+  assert.equal(filesFooter({ made: [] }), '');
+  assert.match(filesFooter({ made: ['a.pdf', 'b.xlsx'] }), /^\n\n\*\*Files:\*\* a\.pdf, b\.xlsx \(open them in Atlas Bot › Library\)\.$/);
+  assert.deepEqual([...FILES], ['workspace_list', 'workspace_read', 'workspace_write', 'make_document', 'make_spreadsheet', 'make_page']);
+  for (const t of FILE_TOOLS) assert.ok(t.description.length > 20 && /^[a-z_]+$/.test(t.name));
+});

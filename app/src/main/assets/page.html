@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:">
+<title>Atlas Page</title>
+<!-- An interactive page made by Atlas Bot. This one file is the whole page: its text, tables (sort by a heading, filter
+     with the box) and charts are drawn from the data below by the script at the end. It loads nothing from anywhere. -->
+<style>
+:root{--bg:#F6F6FC;--card:#FFFFFF;--line:#DDDFF5;--text:#0A0B1F;--muted:#4B4F7A;--accent:#4A32C8;--accent2:#8B6CFF;--sky:#1F45B5;--warm:#B86A00;
+  --serif:Newsreader,Georgia,"Iowan Old Style","Times New Roman",serif;--sans:Geist,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#05050F;--card:#0E0F22;--line:#26284A;--text:#EEF0FF;--muted:#9BA1C9;--accent:#A594FF;--accent2:#8B6CFF;--sky:#6FA8FF;--warm:#F2B866}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:400 17px/1.55 var(--serif)}
+main{max-width:980px;margin:0 auto;padding:28px 16px 64px}
+.kicker{font:600 11px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
+h1{font:500 34px/1.1 var(--serif);margin:6px 0 18px}
+h2{font:500 22px/1.25 var(--serif);margin:0 0 10px}
+h3{font:500 18px/1.3 var(--serif);margin:14px 0 6px}
+p{margin:0 0 10px} a{color:var(--accent)} ul{margin:0 0 10px;padding-left:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin:16px 0;overflow:hidden}
+.tools{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.tools input{flex:1;min-width:160px;font:400 14px var(--sans);padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--text)}
+.count{font:400 12px var(--sans);color:var(--muted)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font:400 14px/1.4 var(--sans)}
+th{position:sticky;top:0;text-align:left;font-weight:600;background:var(--card);border-bottom:2px solid var(--accent);padding:8px 10px;cursor:pointer;white-space:nowrap;user-select:none}
+th .arrow{color:var(--accent);margin-left:4px}
+td{border-bottom:1px solid var(--line);padding:8px 10px;vertical-align:top}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+tr:hover td{background:color-mix(in srgb,var(--accent2) 8%,transparent)}
+svg text{font:12px var(--sans);fill:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font:400 13px var(--sans);color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.empty{color:var(--muted);font:400 14px var(--sans)}
+footer{font:400 12px var(--sans);color:var(--muted);margin-top:28px}
+</style>
+</head>
+<body>
+<main id="page"></main>
+<script id="atlas-data" type="application/json">/*ATLAS_PAGE_DATA*/null</script>
+<script>
+(function () {
+  'use strict';
+  var data = null;
+  try { data = JSON.parse(document.getElementById('atlas-data').textContent); } catch (e) { data = null; }
+  if (!data || typeof data !== 'object') data = { title: 'Atlas Page', intro: '', sections: [] };
+  var COLORS = ['#6C5CE7', '#2F7DE1', '#E0A030', '#22A57A', '#D9486B', '#8E44AD', '#16A2B8', '#7F8C8D'];
+  var page = document.getElementById('page');
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function svgEl(tag, attrs) { var e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (var k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  var isNum = function (v) { return typeof v === 'number' || (typeof v === 'string' && /^\s*-?[\d,]*\.?\d+\s*%?\s*$/.test(v) && v.trim() !== ''); };
+  var toNum = function (v) { return typeof v === 'number' ? v : parseFloat(String(v).replace(/[,%\s]/g, '')); };
+
+  // Markdown-lite for the intro: headings, bullets, paragraphs, **bold**, *italic*, [links](https://...). All text is escaped.
+  function inline(parent, s) {
+    var re = /\*\*([^*]+)\*\*|\*([^*]+)\*|\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, last = 0, m;
+    while ((m = re.exec(s))) {
+      if (m.index > last) parent.appendChild(document.createTextNode(s.slice(last, m.index)));
+      if (m[1]) parent.appendChild(el('strong', null, m[1]));
+      else if (m[2]) parent.appendChild(el('em', null, m[2]));
+      else { var a = el('a', null, m[3]); a.href = m[4]; a.target = '_blank'; a.rel = 'noopener'; parent.appendChild(a); }
+      last = re.lastIndex;
+    }
+    if (last < s.length) parent.appendChild(document.createTextNode(s.slice(last)));
+  }
+  function prose(parent, text) {
+    var lines = String(text || '').split(/\r?\n/), list = null, para = [];
+    function flush() { if (para.length) { var p = el('p'); inline(p, para.join(' ')); parent.appendChild(p); para = []; } }
+    lines.forEach(function (l) {
+      var t = l.trim(), h = /^(#{1,3})\s+(.*)$/.exec(t), b = /^[-*•]\s+(.*)$/.exec(t);
+      if (!t) { flush(); list = null; return; }
+      if (h) { flush(); list = null; var e = el(h[1].length === 1 ? 'h2' : 'h3'); inline(e, h[2]); parent.appendChild(e); return; }
+      if (b) { flush(); if (!list) { list = el('ul'); parent.appendChild(list); } var li = el('li'); inline(li, b[1]); list.appendChild(li); return; }
+      list = null; para.push(t);
+    });
+    flush();
+  }
+
+  function table(sec) {
+    var card = el('section', 'card');
+    if (sec.title) card.appendChild(el('h2', null, sec.title));
+    var cols = sec.columns && sec.columns.length ? sec.columns : (sec.rows[0] || []).map(function (_, i) { return 'Column ' + (i + 1); });
+    var rows = sec.rows.slice(), sortCol = -1, asc = true, query = '';
+    var tools = el('div', 'tools'), box = el('input'); box.type = 'search'; box.placeholder = 'Filter'; box.setAttribute('aria-label', 'Filter ' + (sec.title || 'the table'));
+    var count = el('span', 'count'); tools.appendChild(box); tools.appendChild(count); card.appendChild(tools);
+    var wrap = el('div', 'scroll'), t = el('table'), head = el('thead'), hr = el('tr'), body = el('tbody');
+    var numeric = cols.map(function (_, i) { var vals = rows.map(function (r) { return r[i]; }).filter(function (v) { return v !== '' && v != null; }); return vals.length > 0 && vals.every(isNum); });
+    cols.forEach(function (c, i) {
+      var th = el('th', null, c); var arrow = el('span', 'arrow'); th.appendChild(arrow);
+      th.onclick = function () { if (sortCol === i) asc = !asc; else { sortCol = i; asc = true; } draw(); };
+      hr.appendChild(th);
+    });
+    head.appendChild(hr); t.appendChild(head); t.appendChild(body); wrap.appendChild(t); card.appendChild(wrap);
+    function draw() {
+      var q = query.toLowerCase();
+      var shown = rows.filter(function (r) { return !q || r.some(function (v) { return String(v == null ? '' : v).toLowerCase().indexOf(q) >= 0; }); });
+      if (sortCol >= 0) shown.sort(function (a, b) {
+        var x = a[sortCol], y = b[sortCol], r;
+        if (numeric[sortCol]) r = (toNum(x) || 0) - (toNum(y) || 0); else r = String(x == null ? '' : x).localeCompare(String(y == null ? '' : y), undefined, { numeric: true, sensitivity: 'base' });
+        return asc ? r : -r;
+      });
+      hr.querySelectorAll('.arrow').forEach(function (a, i) { a.textContent = i === sortCol ? (asc ? '▲' : '▼') : ''; });
+      body.textContent = '';
+      shown.forEach(function (r) {
+        var tr = el('tr');
+        cols.forEach(function (_, i) { var v = r[i]; tr.appendChild(el('td', numeric[i] ? 'num' : null, v == null ? '' : String(v))); });
+        body.appendChild(tr);
+      });
+      count.textContent = shown.length === rows.length ? rows.length + ' rows' : shown.length + ' of ' + rows.length + ' rows';
+    }
+    box.oninput = function () { query = box.value; draw(); };
+    draw();
+    return card;
+  }
+
+  function chart(sec) {
+    var card = el('section', 'card');
+    if (sec.title) card.appendChild(el('h2', null, sec.title));
+    var labels = sec.labels || [], series = (sec.series || []).filter(function (s) { return s.values && s.values.length; });
+    if (!series.length) { card.appendChild(el('p', 'empty', 'No data for this chart.')); return card; }
+    var W = 900, H = 340, L = 56, R = 16, T = 14, B = 54;
+    var svg = svgEl('svg', { viewBox: '0 0 ' + W + ' ' + H, width: '100%', role: 'img', 'aria-label': sec.title || 'Chart' });
+    if (sec.kind === 'pie') {
+      var vals = series[0].values.map(function (v) { return Math.max(0, +v || 0); }), total = vals.reduce(function (a, b) { return a + b; }, 0) || 1;
+      var cx = W / 2, cy = H / 2, r = Math.min(W, H) / 2 - 20, a0 = -Math.PI / 2;
+      vals.forEach(function (v, i) {
+        var a1 = a0 + (v / total) * Math.PI * 2, large = a1 - a0 > Math.PI ? 1 : 0;
+        var d = vals.length === 1 || v === total ? 'M' + (cx - r) + ',' + cy + 'a' + r + ',' + r + ' 0 1,0 ' + (2 * r) + ',0a' + r + ',' + r + ' 0 1,0 ' + (-2 * r) + ',0'
+          : 'M' + cx + ',' + cy + 'L' + (cx + r * Math.cos(a0)) + ',' + (cy + r * Math.sin(a0)) + 'A' + r + ',' + r + ' 0 ' + large + ',1 ' + (cx + r * Math.cos(a1)) + ',' + (cy + r * Math.sin(a1)) + 'Z';
+        var p = svgEl('path', { d: d, fill: COLORS[i % COLORS.length], stroke: 'var(--card)', 'stroke-width': 2 });
+        var tt = svgEl('title', {}); tt.textContent = (labels[i] || '') + ': ' + v + ' (' + Math.round(v / total * 100) + '%)'; p.appendChild(tt);
+        svg.appendChild(p); a0 = a1;
+      });
+      card.appendChild(svg);
+      var lg = el('div', 'legend');
+      vals.forEach(function (v, i) { var s = el('span'); var sw = el('i'); sw.style.background = COLORS[i % COLORS.length]; s.appendChild(sw); s.appendChild(document.createTextNode((labels[i] || 'Item ' + (i + 1)) + ' · ' + Math.round(v / total * 100) + '%')); lg.appendChild(s); });
+      card.appendChild(lg);
+      return card;
+    }
+    var n = Math.max.apply(null, series.map(function (s) { return s.values.length; }).concat([labels.length]));
+    var all = []; series.forEach(function (s) { s.values.forEach(function (v) { all.push(+v || 0); }); });
+    var max = Math.max.apply(null, all.concat([0])), min = Math.min.apply(null, all.concat([0]));
+    if (max === min) max = min + 1;
+    var step = Math.pow(10, Math.floor(Math.log10((max - min) / 4))), nice = [1, 2, 2.5, 5, 10].map(function (m) { return m * step; }).find(function (s) { return (max - min) / s <= 5; }) || step * 10;
+    var lo = Math.floor(min / nice) * nice, hi = Math.ceil(max / nice) * nice;
+    var y = function (v) { return T + (H - T - B) * (1 - (v - lo) / (hi - lo)); }, pw = (W - L - R) / Math.max(1, n);
+    for (var g = lo; g <= hi + 1e-9; g += nice) {
+      svg.appendChild(svgEl('line', { x1: L, x2: W - R, y1: y(g), y2: y(g), stroke: 'var(--line)', 'stroke-width': 1 }));
+      var gt = svgEl('text', { x: L - 8, y: y(g) + 4, 'text-anchor': 'end' }); gt.textContent = Math.abs(g) >= 1000 ? (g / 1000).toFixed(g % 1000 ? 1 : 0) + 'k' : +g.toFixed(4); svg.appendChild(gt);
+    }
+    var every = Math.ceil(n / 12);
+    for (var i = 0; i < n; i++) if (i % every === 0 && labels[i] != null) {
+      var lt = svgEl('text', { x: L + pw * i + pw / 2, y: H - B + 18, 'text-anchor': 'middle' }); lt.textContent = String(labels[i]).slice(0, 14); svg.appendChild(lt);
+    }
+    if (sec.kind === 'line') {
+      series.forEach(function (s, si) {
+        var pts = s.values.map(function (v, i) { return (L + pw * i + pw / 2) + ',' + y(+v || 0); });
+        svg.appendChild(svgEl('polyline', { points: pts.join(' '), fill: 'none', stroke: COLORS[si % COLORS.length], 'stroke-width': 2.5, 'stroke-linejoin': 'round' }));
+        s.values.forEach(function (v, i) { var c = svgEl('circle', { cx: L + pw * i + pw / 2, cy: y(+v || 0), r: 3.5, fill: COLORS[si % COLORS.length] }); var tt = svgEl('title', {}); tt.textContent = (s.name ? s.name + ' · ' : '') + (labels[i] || '') + ': ' + v; c.appendChild(tt); svg.appendChild(c); });
+      });
+    } else {
+      var bw = Math.max(2, (pw * 0.78) / series.length);
+      series.forEach(function (s, si) {
+        s.values.forEach(function (v, i) {
+          var x = L + pw * i + pw * 0.11 + bw * si, top = y(Math.max(0, +v || 0)), bot = y(Math.min(0, +v || 0));
+          var rc = svgEl('rect', { x: x, y: top, width: bw - 1, height: Math.max(1, bot - top), rx: 3, fill: COLORS[si % COLORS.length] });
+          var tt = svgEl('title', {}); tt.textContent = (s.name ? s.name + ' · ' : '') + (labels[i] || '') + ': ' + v; rc.appendChild(tt); svg.appendChild(rc);
+        });
+      });
+    }
+    card.appendChild(svg);
+    if (series.length > 1 || series[0].name) {
+      var lg2 = el('div', 'legend');
+      series.forEach(function (s, si) { var sp = el('span'); var sw = el('i'); sw.style.background = COLORS[si % COLORS.length]; sp.appendChild(sw); sp.appendChild(document.createTextNode(s.name || 'Series ' + (si + 1))); lg2.appendChild(sp); });
+      card.appendChild(lg2);
+    }
+    return card;
+  }
+
+  page.appendChild(el('div', 'kicker', 'Atlas Bot'));
+  page.appendChild(el('h1', null, data.title || 'Atlas Page'));
+  document.title = data.title || 'Atlas Page';
+  if (data.intro) { var intro = el('section', 'card'); prose(intro, data.intro); page.appendChild(intro); }
+  (data.sections || []).forEach(function (s) {
+    try { page.appendChild(s.type === 'chart' ? chart(s) : table(s)); }
+    catch (e) { page.appendChild(el('p', 'empty', 'This part could not be drawn.')); }
+  });
+  page.appendChild(el('footer', null, 'Made by Atlas Bot. Click a column heading to sort; type in a box to filter.'));
+})();
+</script>
+</body>
+</html>

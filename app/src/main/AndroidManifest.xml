@@ -102,6 +102,23 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
 
         <!-- Atlas Bot: its page, the service that keeps Atlas running while a bot works, and its notification keys. -->
+        <!-- Atlas Bot's files: the Library, the page viewer, and a private provider for Open / Share (not exported: each
+             Open or Share grants read access to that one file only) -->
+        <activity
+            android:name=".LibraryActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
+        <activity
+            android:name=".PageViewActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
+        <provider
+            android:name=".BotFileProvider"
+            android:authorities="com.anjy.atlas.botfiles"
+            android:exported="false"
+            android:grantUriPermissions="true" />
         <activity
             android:name=".BotExtrasActivity"
             android:exported="false"

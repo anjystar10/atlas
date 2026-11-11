@@ -282,7 +282,7 @@ class BotActivity : Activity() {
             }), 12)
         }
 
-        // files the bot downloaded: kept with the job, savable to the phone's Downloads
+        // files the bot made or downloaded: kept with the job; open, share, or save to the phone's Downloads
         val got = BotBrowser.files(this, j.id)
         if (got.isNotEmpty()) {
             add(text("FILES", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
@@ -290,6 +290,14 @@ class BotActivity : Activity() {
                 add(card().apply {
                     addView(text(f.name, 15f, FG, med).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
                     addView(text("${(f.length() / 1024).coerceAtLeast(1)} KB", 12f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
+                    addView(LinearLayout(this@BotActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        addView(button("Open", primary = true) {
+                            if (BotFileRules.ext(f.name) in setOf("html", "htm")) startActivity(PageViewActivity.intent(this@BotActivity, f))
+                            else if (!BotFileProvider.open(this@BotActivity, f)) android.widget.Toast.makeText(this@BotActivity, "No app on this phone opens that kind of file", android.widget.Toast.LENGTH_SHORT).show()
+                        }, LinearLayout.LayoutParams(0, -2, 1f))
+                        addView(button("Share") { BotFileProvider.share(this@BotActivity, f) }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(8) })
+                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
                     addView(button("Save to Downloads") {
                         // a download can be up to 50 MB: copy it off the main thread, or the screen freezes ("isn't responding")
                         val app = applicationContext
