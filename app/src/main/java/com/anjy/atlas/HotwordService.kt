@@ -104,9 +104,19 @@ class HotwordService : Service() {
 
         /** Start listening. Only works while Atlas is on screen or from its notification (Android's rule). */
         fun start(ctx: Context) {
-            try { ctx.startForegroundService(Intent(ctx, HotwordService::class.java)) } catch (e: Exception) { Log.w(TAG, "start refused", e) }
+            try { ctx.startForegroundService(Intent(ctx, HotwordService::class.java)); maybeRunning = true } catch (e: Exception) { Log.w(TAG, "start refused", e) }
         }
-        fun stop(ctx: Context) { ctx.stopService(Intent(ctx, HotwordService::class.java)) }
+        /**
+         * Whether the listener might be running. Starts true (after a restart it may still be up from before), then
+         * tracks our own start/stop, so the frequent "stop" calls don't each make a slow call into Android
+         * (the emulator test caught one freezing the screen).
+         */
+        @Volatile private var maybeRunning = true
+        fun stop(ctx: Context) {
+            if (!maybeRunning) return
+            maybeRunning = false
+            try { ctx.stopService(Intent(ctx, HotwordService::class.java)) } catch (_: Exception) {}
+        }
         /** Atlas is listening itself (or done): the listener lets go of the microphone meanwhile. */
         fun hold(ctx: Context, hold: Boolean) {
             try { ctx.startService(Intent(ctx, HotwordService::class.java).setAction(if (hold) ACTION_HOLD else ACTION_RELEASE)) } catch (_: Exception) {}
