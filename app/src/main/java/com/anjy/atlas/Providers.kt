@@ -78,7 +78,9 @@ object Providers {
     /** Adds a service of the user's own (an OpenAI-compatible address); returns it. */
     fun addCustom(ctx: Context, name: String, base: String, model: String): Provider {
         load(ctx)
-        val p = Provider("c_" + java.lang.Long.toString(System.currentTimeMillis(), 36), name.trim().take(40), "openai",
+        var id = "c_" + java.lang.Long.toString(System.currentTimeMillis(), 36)
+        while (byId(id) != null) id += java.lang.Long.toString((Math.random() * 36).toLong(), 36)
+        val p = Provider(id, name.trim().take(40), "openai",
             base.trim().trimEnd('/'), model.trim(), "", "your key", "Added by you", custom = true)
         writeCustoms(ctx, customs + p)
         return p

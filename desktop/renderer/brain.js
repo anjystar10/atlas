@@ -27,22 +27,62 @@ async function guardLocal(p) {
 }
 // ---- end hardware ----
 
-export const PROVIDERS = [
-  { id: 'gemini', name: 'Gemini', style: 'gemini', base: 'https://generativelanguage.googleapis.com/v1beta/models/', model: 'gemini-3.8-flash', keyUrl: 'https://aistudio.google.com/apikey', hint: 'AIza…' },
-  { id: 'openai', name: 'OpenAI', style: 'openai', base: 'https://api.openai.com/v1', model: 'gpt-6-sol', keyUrl: 'https://platform.openai.com/api-keys', hint: 'sk-…' },
-  { id: 'anthropic', name: 'Claude', style: 'anthropic', base: 'https://api.anthropic.com/v1', model: 'claude-sonnet-5-5', keyUrl: 'https://console.anthropic.com/settings/keys', hint: 'sk-ant-…' },
-  { id: 'openrouter', name: 'OpenRouter', style: 'openai', base: 'https://openrouter.ai/api/v1', model: 'openrouter/auto', keyUrl: 'https://openrouter.ai/keys', hint: 'sk-or-…' },
-  { id: 'groq', name: 'Groq', style: 'openai', base: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', keyUrl: 'https://console.groq.com/keys', hint: 'gsk_…' },
-  { id: 'deepseek', name: 'DeepSeek', style: 'openai', base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', keyUrl: 'https://platform.deepseek.com/api_keys', hint: 'sk-…' },
-  { id: 'xai', name: 'xAI Grok', style: 'openai', base: 'https://api.x.ai/v1', model: 'grok-4.7', keyUrl: 'https://console.x.ai', hint: 'xai-…' },
-  { id: 'local', name: 'Local model', style: 'openai', base: 'http://localhost:11434/v1', model: '', keyUrl: '', hint: '', local: true },
-  { id: 'custom', name: 'Other (OpenAI-compatible)', style: 'openai', base: '', model: '', keyUrl: '', hint: 'your key' },
+// Every base address and default model below was checked against the service's own docs (November 2026), and each
+// default model supports tool calling. Same ids, addresses and order as the phone (Providers.kt); a test compares them.
+export const BUILT_IN = [
+  { id: 'gemini', name: 'Gemini', style: 'gemini', base: 'https://generativelanguage.googleapis.com/v1beta/models/', model: 'gemini-3.8-flash', keyUrl: 'https://aistudio.google.com/apikey', hint: 'AIza…', note: 'Google. Free tier with limits; the best all-rounder for Atlas' },
+  { id: 'openai', name: 'OpenAI', style: 'openai', base: 'https://api.openai.com/v1', model: 'gpt-6-sol', keyUrl: 'https://platform.openai.com/api-keys', hint: 'sk-…', note: 'Paid' },
+  { id: 'anthropic', name: 'Claude', style: 'anthropic', base: 'https://api.anthropic.com/v1', model: 'claude-sonnet-5-5', keyUrl: 'https://console.anthropic.com/settings/keys', hint: 'sk-ant-…', note: 'Paid' },
+  { id: 'openrouter', name: 'OpenRouter', style: 'openai', base: 'https://openrouter.ai/api/v1', model: 'openrouter/auto', keyUrl: 'https://openrouter.ai/keys', hint: 'sk-or-…', note: 'Many models behind one key; some free' },
+  { id: 'groq', name: 'Groq', style: 'openai', base: 'https://api.groq.com/openai/v1', model: 'openai/gpt-oss-120b', keyUrl: 'https://console.groq.com/keys', hint: 'gsk_…', note: 'Very fast; free tier with limits' },
+  { id: 'cerebras', name: 'Cerebras', style: 'openai', base: 'https://api.cerebras.ai/v1', model: 'gpt-oss-120b', keyUrl: 'https://cloud.cerebras.ai', hint: 'your key', note: 'Very fast; $5 trial credit for 30 days, then paid' },
+  { id: 'sambanova', name: 'SambaNova', style: 'openai', base: 'https://api.sambanova.ai/v1', model: 'gpt-oss-120b', keyUrl: 'https://cloud.sambanova.ai', hint: 'your key', note: 'Fast; free tier of 20 requests a day' },
+  { id: 'cohere', name: 'Cohere', style: 'openai', base: 'https://api.cohere.ai/compatibility/v1', model: 'command-a-plus-05-2026', keyUrl: 'https://dashboard.cohere.com/api-keys', hint: 'your key', note: 'Free trial key: 1,000 calls a month' },
+  { id: 'mistral', name: 'Mistral', style: 'openai', base: 'https://api.mistral.ai/v1', model: 'mistral-large-latest', keyUrl: 'https://console.mistral.ai', hint: 'your key', note: 'Paid (the API needs billing turned on)' },
+  { id: 'zai', name: 'Z.AI (GLM)', style: 'openai', base: 'https://api.z.ai/api/paas/v4', model: 'glm-5.3', keyUrl: 'https://z.ai/model-api', hint: 'your key', note: 'GLM models; paid' },
+  { id: 'fireworks', name: 'Fireworks', style: 'openai', base: 'https://api.fireworks.ai/inference/v1', model: 'accounts/fireworks/models/kimi-k2-instruct-0905', keyUrl: 'https://fireworks.ai', hint: 'your key', note: 'Open models; paid' },
+  { id: 'ovh', name: 'OVHcloud AI', style: 'openai', base: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1', model: 'Qwen3.5-397B-A17B', keyUrl: 'https://endpoints.ai.cloud.ovh.net', hint: 'your key', note: 'European hosting; paid' },
+  { id: 'deepseek', name: 'DeepSeek', style: 'openai', base: 'https://api.deepseek.com/v1', model: 'deepseek-chat', keyUrl: 'https://platform.deepseek.com/api_keys', hint: 'sk-…', note: 'Cheap; paid' },
+  { id: 'xai', name: 'xAI Grok', style: 'openai', base: 'https://api.x.ai/v1', model: 'grok-4.7', keyUrl: 'https://console.x.ai', hint: 'xai-…', note: 'Paid' },
+  { id: 'local', name: 'Local model', style: 'openai', base: 'http://localhost:11434/v1', model: '', keyUrl: '', hint: '', local: true, note: 'A model running on this PC (Ollama or LM Studio)' },
+  { id: 'custom', name: 'Other (OpenAI-compatible)', style: 'openai', base: '', model: '', keyUrl: '', hint: 'your key', custom: true, note: 'Any service that speaks the OpenAI chat format' },
 ];
+// Every service: built in, then the user's own (as many as they like). Kept as one array so callers see both.
+export const PROVIDERS = [...BUILT_IN];
+const customFrom = (o) => ({ id: o.id, name: o.name, style: 'openai', base: (o.base || '').trim().replace(/\/+$/, ''), model: (o.model || '').trim(), keyUrl: '', hint: 'your key', custom: true, note: 'Added by you' });
+/** Re-reads the services you added (call after changing them). */
+export function loadCustoms() {
+  const list = (pref('custom_services', []) || []).filter((o) => o && typeof o.id === 'string' && o.id.startsWith('c_') && (o.name || '').trim());
+  PROVIDERS.splice(0, PROVIDERS.length, ...BUILT_IN, ...list.map(customFrom));
+}
+function saveCustoms(list) { setPref('custom_services', list.map((p) => ({ id: p.id, name: p.name, base: p.base, model: p.model }))); loadCustoms(); }
+const mineOnly = () => PROVIDERS.filter((p) => p.custom && p.id.startsWith('c_'));
+export function addCustom(name, base, model) {
+  let id = 'c_' + Date.now().toString(36); while (byId(id)) id += Math.floor(Math.random() * 36).toString(36);
+  const p = customFrom({ id, name: String(name).trim().slice(0, 40), base, model });
+  saveCustoms([...mineOnly(), p]); return byId(p.id);
+}
+export function updateCustom(id, name, base, model) {
+  saveCustoms(mineOnly().map((p) => (p.id === id ? customFrom({ id, name: String(name).trim().slice(0, 40) || p.name, base, model }) : p)));
+}
+export function removeCustom(id) {
+  if (!String(id).startsWith('c_')) return;
+  saveCustoms(mineOnly().filter((p) => p.id !== id));
+  const all = { ...pref('keys', {}) }; delete all[id]; setPref('keys', all);
+  if (pref('provider', '') === id) setPref('provider', '');
+}
 export const byId = (id) => PROVIDERS.find((p) => p.id === id);
+// Only prefixes that belong to one service; many services' keys have no telling shape (or look like OpenAI's).
 export function guess(k) {
   k = k.trim();
   if (k.startsWith('AIza')) return 'gemini'; if (k.startsWith('sk-ant-')) return 'anthropic'; if (k.startsWith('sk-or-')) return 'openrouter';
   if (k.startsWith('gsk_')) return 'groq'; if (k.startsWith('xai-')) return 'xai'; if (k.startsWith('sk-')) return 'openai'; return null;
+}
+/** Where a pasted key goes: its own service, unless it only looks like OpenAI's while another OpenAI-style service is shown. */
+export function keyTarget(k, shownId) {
+  const g = guess(k); if (!g) return shownId;
+  const shown = byId(shownId);
+  return g === 'openai' && shown && shown.id !== 'openai' && shown.style === 'openai' && !shown.local ? shownId : g;
 }
 export const modelOf = (p) => (pref('model_' + p.id, '') || p.model || '').trim();
 export const baseOf = (p) => (p.id === 'custom' || p.id === 'local' ? (pref('base_' + p.id, '') || p.base) : p.base).replace(/\/+$/, '');
@@ -81,9 +121,10 @@ function rest(id, key, code, problem) {
 }
 function worked(id, key) { if (keys(id).some((e) => e.key === key && (e.fails || e.problem))) saveKeys(id, keys(id).map((e) => (e.key === key ? { ...e, fails: 0, problem: '' } : e))); }
 export const keyExhausted = (f) => [429, 402, 401, 403].includes(f.code) || (f.code === 400 && /key/i.test(f.message || ''));
-const available = (p) => hasKeys(p.id) && (p.id !== 'custom' || baseOf(p));
-export function fallbacks(except) { return PROVIDERS.filter((p) => p.id !== except && available(p) && readyKey(p.id)); }
+const available = (p) => hasKeys(p.id) && (!p.custom || baseOf(p));
+export function fallbacks(except) { loadCustoms(); return PROVIDERS.filter((p) => p.id !== except && available(p) && readyKey(p.id)); }
 export function active() {
+  loadCustoms(); // cheap: a short list from settings, so services you added are always current
   const chosen = byId(pref('provider', ''));
   if (chosen && available(chosen)) return readyKey(chosen.id) || dontSwitch() ? chosen : fallbacks(chosen.id)[0] || chosen;
   return PROVIDERS.find((p) => available(p) && readyKey(p.id)) || PROVIDERS.find(available) || null;

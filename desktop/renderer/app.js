@@ -529,9 +529,13 @@ function renderMe(page) {
   const bc = h('<div class="card"></div>'); col.appendChild(bc);
   bc.appendChild(h(`<div style="font:400 24px var(--serif)">${esc(act ? `${act.name} · ${brain.modelOf(act)}` : 'Not set up')}</div>`));
   bc.appendChild(h(`<p class="${act ? 'ok' : 'muted'}" style="margin:4px 0 14px">${act ? `Atlas thinks with ${esc(act.name)}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on${brain.dontSwitch() ? '.' : ', then to another service.'}` : 'Add a key from any AI service, or use a model running on this PC.'}</p>`));
+  // the services you use (with keys) stay in view; the rest are one click away under More Services
   const chips = h('<div class="chips"></div>');
-  for (const p of brain.PROVIDERS) { const c = h(`<span class="chip ${p.id === shown.id ? 'on' : ''}">${esc(p.name)}</span>`); c.onclick = () => { brainShown = p.id; render(true); }; chips.appendChild(c); }
+  const mine = brain.PROVIDERS.filter((p) => p.id === shown.id || p.id === act?.id || (p.local ? !!brain.modelOf(p) : brain.keys(p.id).some((e) => !e.bad)));
+  for (const p of mine) { const c = h(`<span class="chip ${p.id === shown.id ? 'on' : ''}">${esc(p.name)}</span>`); c.onclick = () => { brainShown = p.id; render(true); }; chips.appendChild(c); }
+  const more = h('<span class="chip">More Services…</span>'); more.onclick = () => moreServices(new Set(mine.map((p) => p.id))); chips.appendChild(more);
   bc.appendChild(chips);
+  if (shown.note) bc.appendChild(h(`<p class="small muted" style="margin:8px 0 0">${esc(shown.note)}</p>`));
   if (shown.local) {
     bc.appendChild(h(`<p class="muted small" style="margin-top:14px">Models running on this PC with Ollama or LM Studio. They work offline; when you're offline, Atlas uses one automatically if it's set here.</p>`));
     const found = h('<div class="list" style="margin-top:6px"><div class="item muted">Looking for models on this PC…</div></div>'); bc.appendChild(found);
@@ -557,7 +561,7 @@ function renderMe(page) {
     bc.appendChild(kr);
     kr.querySelector('#addkey').onclick = async () => {
       const k = kr.querySelector('#newkey').value.trim(); if (k.length < 16) return toast("That doesn't look like a whole key.");
-      const g = brain.guess(k); const id = g && !(g === 'openai' && ['deepseek', 'custom', 'openrouter', 'groq', 'xai'].includes(shown.id)) ? g : shown.id;
+      const id = brain.keyTarget(k, shown.id);
       brain.addKey(id, k); setPref('provider', id); brainShown = id; render(true);
       toast('Key added. Testing it…'); const r = await brain.testKey(brain.byId(id), k); toast(r.msg, 4000); render(true);
     };
@@ -578,6 +582,12 @@ function renderMe(page) {
       if (act?.id !== shown.id) { const u = h(`<button class="btn" style="margin-top:10px">Use ${esc(shown.name)}</button>`); u.onclick = () => { setPref('provider', shown.id); render(true); }; bc.appendChild(u); }
     }
     if (shown.id === 'custom') { const a = h(`<div class="setting"><div class="grow">Address<div class="small muted">${esc(brain.baseOf(shown) || 'Not set')}</div></div><button class="btn">Change</button></div>`); a.querySelector('button').onclick = () => askText('Service Address', 'The OpenAI-compatible address, ending in /v1.', brain.baseOf(shown), (v) => setPref('base_custom', v.trim())); bc.appendChild(a); }
+    if (shown.custom && shown.id !== 'custom') {
+      const a = h(`<div class="setting"><div class="grow">Address<div class="small muted">${esc(brain.baseOf(shown) || 'Not set')}</div></div><button class="btn">Change</button><button class="btn danger">Remove</button></div>`);
+      a.querySelectorAll('button')[0].onclick = () => customService(shown);
+      a.querySelectorAll('button')[1].onclick = async () => { if (await sheet({ title: `Remove ${shown.name}?`, body: 'Its keys go too.', primary: 'Remove', danger: true })) { brain.removeCustom(shown.id); brainShown = null; render(true); } };
+      bc.appendChild(a);
+    }
   }
   if (!shown.local) { const mr = h(`<div class="setting"><div class="grow">Model<div class="small muted">${esc(brain.modelOf(shown) || 'Not set')}</div></div><button class="btn">Change</button></div>`);
     mr.querySelector('button').onclick = () => askText(`${shown.name} Model`, shown.model ? `Leave it as ${shown.model} unless you want another of ${shown.name}'s models.` : "The model's name, as your service writes it.", brain.modelOf(shown), (v) => setPref('model_' + shown.id, v.trim())); bc.appendChild(mr); }
@@ -668,6 +678,25 @@ function renderMe(page) {
   nm.querySelector('button').onclick = () => askText('Your Name', 'What Atlas calls you.', db.state.settings.name || '', (v) => { db.state.settings.name = v.trim().slice(0, 40); store.saveState(); });
   pc.appendChild(nm);
   host.info().then((i) => col.appendChild(h(`<p class="small muted" style="text-align:center;margin-top:24px">Atlas ${esc(i.version)} for Windows</p>`)));
+}
+/** Every other service with its one-line note, plus adding one of your own. */
+function moreServices(shownAlready) {
+  const rest = brain.PROVIDERS.filter((p) => !shownAlready.has(p.id));
+  const rows = rest.map((p) => `<div class="item" data-id="${esc(p.id)}" style="cursor:pointer"><div class="grow"><div class="t">${esc(p.name)}</div><div class="m">${esc(p.note || '')}</div></div></div>`).join('');
+  sheet({ title: 'More Services', primary: null, secondary: 'Close', html: `<div class="list" style="max-height:60vh;overflow:auto">${rows}<div class="item" data-id="_add" style="cursor:pointer"><div class="grow"><div class="t">Add Your Own Service…</div><div class="m">Any service that speaks the OpenAI chat format</div></div></div></div>`,
+    onOpen: (o) => o.querySelectorAll('[data-id]').forEach((r) => { r.onclick = () => { o.remove(); if (r.dataset.id === '_add') customService(null); else { brainShown = r.dataset.id; render(true); } }; }) });
+}
+/** Add (or edit) a service of your own: any OpenAI-compatible address. */
+function customService(editing) {
+  const v = editing ? { name: editing.name, base: brain.baseOf(editing), model: brain.modelOf(editing) } : { name: '', base: '', model: '' };
+  sheet({ title: editing ? editing.name : 'Add a Service', body: 'Any service that speaks the OpenAI chat format, with tool calling. Its keys work like the others: Atlas switches between them when one runs out.', primary: 'Save',
+    html: `<input class="field" id="n" placeholder="Name (e.g. My Server)" value="${esc(v.name)}"><input class="field" id="b" placeholder="Address ending in /v1" value="${esc(v.base)}" style="margin-top:8px"><input class="field" id="m" placeholder="Model name" value="${esc(v.model)}" style="margin-top:8px">`,
+    onPrimary: (o) => {
+      const name = o.querySelector('#n').value.trim(), base = o.querySelector('#b').value.trim(), model = o.querySelector('#m').value.trim();
+      if (!name || !/^https?:\/\//.test(base)) { toast('It needs a name and an address starting with https://'); return false; }
+      if (editing) brain.updateCustom(editing.id, name, base, model); else brainShown = brain.addCustom(name, base, model).id;
+      render(true); return true;
+    } });
 }
 function askText(title, body, value, save) {
   sheet({ title, body, primary: 'Save', html: `<input class="field" id="v" value="${esc(value)}">`, onPrimary: (o) => { save(o.querySelector('#v').value); render(true); return true; } });

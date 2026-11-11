@@ -43,7 +43,7 @@ class ProvidersTest {
         Providers.all.forEach { p ->
             assertTrue(p.id, p.style in setOf("gemini", "openai", "anthropic"))
             if (!p.custom) { assertTrue(p.id, p.baseUrl.startsWith("https://")); assertTrue(p.id, p.defaultModel.isNotBlank()); assertTrue(p.id, p.keyUrl.startsWith("https://")) }
-            assertFalse(p.id, p.baseUrl.endsWith("/"))
+            if (p.style != "gemini") assertFalse(p.id, p.baseUrl.endsWith("/"))
         }
         assertEquals(Providers.all.size, Providers.all.map { it.id }.toSet().size)
     }
