@@ -122,6 +122,31 @@ object Voice {
         speakParts(app, eng, Speech.chunks(say), mine, finish)
     }
 
+    /**
+     * A voice memo: [text] spoken in the chosen natural voice into one audio file in [dir] (WAV from Gemini, MP3 from
+     * OpenAI), or null when no natural voice is available. Blocking (network): call off the main thread.
+     */
+    fun memoFile(ctx: Context, text: String, dir: File): File? {
+        val app = ctx.applicationContext
+        val say = clean(text)
+        if (say.isEmpty()) return null
+        dir.mkdirs()
+        return when (engine(app)) {
+            "openai" -> openAiSpeech(app, say.take(4000)).let { f -> File(dir, "voice-memo-${System.currentTimeMillis()}.mp3").also { f.copyTo(it, overwrite = true); f.delete() } }
+            "gemini" -> {
+                // spoken in pieces (the voice service takes a few hundred words at a time), joined into one WAV
+                val pcm = java.io.ByteArrayOutputStream()
+                var rate = 24000
+                for (part in Speech.chunks(say)) {
+                    val f = geminiSpeech(app, part)
+                    try { val (r, data) = Speech.wavData(f.readBytes()); rate = r; pcm.write(data) } finally { f.delete() }
+                }
+                File(dir, "voice-memo-${System.currentTimeMillis()}.wav").apply { writeBytes(wav(pcm.toByteArray(), rate)) }
+            }
+            else -> null
+        }
+    }
+
     /** Plays a line in the chosen voice right away: the "Hear It" key in Me. */
     fun preview(ctx: Context, engine: String, id: String, onDone: (() -> Unit)? = null) {
         val app = ctx.applicationContext

@@ -142,10 +142,10 @@ object Conversation {
      * Atlas Bot finished a job: its report joins the chat as an Atlas message (and so reaches the other device too).
      * While Atlas is answering, it goes in just before the exchange in progress. Main thread.
      */
-    fun postFromBot(ctx: Context, text: String) {
+    fun postFromBot(ctx: Context, text: String, media: List<Attach.Item> = emptyList()) {
         val app = ctx.applicationContext
         load(app)
-        val m = Msg(false, Plain.reply(text), "Atlas Bot", System.currentTimeMillis())
+        val m = Msg(false, Plain.reply(text), "Atlas Bot", System.currentTimeMillis(), media = media)
         val at = inFlight?.takeIf { busy }?.let { messages.indexOf(it.first) } ?: -1
         if (at >= 0) messages.add(at, m) else messages.add(m)
         // the model hears about it next time

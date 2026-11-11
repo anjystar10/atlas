@@ -175,6 +175,8 @@ class BotJob(
     var posted = false
     /** Why this job would be better done on the laptop, once the bot has said so (null: it hasn't). */
     var suggestPc: String? = null
+    /** Also send the report as a spoken voice memo. */
+    var memo = false
 
     val final get() = state in BotRules.FINAL
 
@@ -200,7 +202,7 @@ class BotJob(
             .put("elementLabel", a.elementLabel ?: JSONObject.NULL).put("decision", a.decision ?: JSONObject.NULL) } ?: JSONObject.NULL)
         .put("question", question ?: JSONObject.NULL).put("answer", answer ?: JSONObject.NULL).put("report", report ?: JSONObject.NULL)
         .put("error", error ?: JSONObject.NULL).put("retryAt", retryAt).put("retries", retries).put("current", current ?: JSONObject.NULL).put("posted", posted)
-        .put("device", device).put("updated_ms", updatedAt).put("suggestPc", suggestPc ?: JSONObject.NULL)
+        .put("device", device).put("updated_ms", updatedAt).put("suggestPc", suggestPc ?: JSONObject.NULL).put("memo", memo)
 
     companion object {
         private fun JSONObject.str(k: String): String? = if (isNull(k)) null else optString(k).takeIf { has(k) }
@@ -217,7 +219,7 @@ class BotJob(
             approval = o.optJSONObject("approval")?.let { a -> Approval(a.optString("what"), a.str("tool"), a.optJSONObject("args"), a.str("elementLabel"), a.str("decision")) }
             question = o.str("question"); answer = o.str("answer"); report = o.str("report"); error = o.str("error")
             retryAt = o.optLong("retryAt"); retries = o.optInt("retries"); current = o.str("current"); posted = o.optBoolean("posted")
-            suggestPc = o.str("suggestPc")
+            suggestPc = o.str("suggestPc"); memo = o.optBoolean("memo")
         }
 
         fun listJson(jobs: List<BotJob>): String = JSONArray().apply { jobs.forEach { put(it.json()) } }.toString()

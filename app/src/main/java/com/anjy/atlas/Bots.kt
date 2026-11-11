@@ -114,12 +114,13 @@ object Bots {
     // ---------------------------------------------------------------- what the user (or Atlas) does
 
     /** Sends a bot to do [goal]. Returns the job. */
-    fun deploy(ctx: Context, goal: String, details: String): BotJob {
+    fun deploy(ctx: Context, goal: String, details: String, memo: Boolean = false): BotJob {
         init(ctx)
         val now = System.currentTimeMillis()
         val device = try { Store.read(ctx) { it.deviceId } } catch (_: Exception) { "" }
         val j = BotJob(UUID.randomUUID().toString(), Plain.memory(goal).ifBlank { goal.trim() }.take(300), details.trim().take(4000), now, device)
         j.history.add(now to BotRules.QUEUED)
+        j.memo = memo
         jobs.add(j)
         persist(); changed(); pump()
         return j
@@ -431,8 +432,21 @@ object Bots {
         j.current = null; j.error = null
         j.move(BotRules.COMPLETED, now)
         if (!j.posted) { j.posted = true; Conversation.postFromBot(app, "**Atlas Bot finished:** ${j.goal}\n\n${j.report}") }
+        if (j.memo) sendMemo(j)
         notifyAlert(j, "Atlas Bot is done", j.goal)
         persist(); changed()
+    }
+
+    /** The report as a spoken voice memo in the chat, in the user's chosen voice (needs a Gemini or OpenAI key). */
+    private fun sendMemo(j: BotJob) {
+        val report = j.report ?: return
+        Thread {
+            val f = try { Voice.memoFile(app, Speech.memoText(report), Attach.dir(app)) } catch (e: Exception) { Log.w(TAG, "voice memo", e); null }
+            Handler(Looper.getMainLooper()).post {
+                if (f != null) Conversation.postFromBot(app, "**Voice memo:** ${j.goal}", listOf(Attach.Item(f.path, if (f.name.endsWith(".mp3")) "audio/mpeg" else "audio/wav", "Voice memo")))
+                else Conversation.postFromBot(app, "I couldn't record the voice memo for “${j.goal}” (it needs a Gemini or OpenAI key for the natural voice). The written report is above.")
+            }
+        }.start()
     }
 
     /** A report built from the notes, when the bot ran out of budget without writing one. */
