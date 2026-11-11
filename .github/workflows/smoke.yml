@@ -63,4 +63,7 @@ jobs:
           echo "$TAG" > results/tag.txt
           git add -f results
           git commit -qm "Smoke results for $TAG"
-          git push -f origin smoke-tmp:smoke-results
+          # a run started by hand on another branch keeps its results apart from main's
+          DEST=smoke-results
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.ref_name }}" != "main" ]; then DEST="smoke-results-${{ github.ref_name }}"; fi
+          git push -f origin smoke-tmp:$DEST
