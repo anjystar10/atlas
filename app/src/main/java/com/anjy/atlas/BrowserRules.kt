@@ -118,7 +118,8 @@ object BrowserRules {
         return when (tool) {
             "browser_click" -> if (risky(label)) "Click “${label!!.take(60)}”$where" else null
             "browser_type" -> if (args.optBoolean("submit", false)) "Type “${args.optString("text").take(60)}” and submit$where" else null
-            "browser_press" -> if (args.optString("key").trim().equals("enter", true) && inForm) "Press Enter, which submits the form${label?.let { " (“${it.take(40)}”)" } ?: ""}$where" else null
+            // "return" is pressed as Enter too (BotBrowser maps both), so it needs the same OK
+            "browser_press" -> if (args.optString("key").trim().lowercase().let { it == "enter" || it == "return" } && inForm) "Press Enter, which submits the form${label?.let { " (“${it.take(40)}”)" } ?: ""}$where" else null
             else -> null
         }
     }
