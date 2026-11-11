@@ -1580,6 +1580,9 @@ class MainActivity : Activity() {
     private fun entries(s: AtlasState): List<Entry> =
         (s.tasks.map { Entry(it.createdAt, it, null) } + s.memories.map { Entry(it.createdAt, null, it) }).sortedByDescending { it.at }
 
+    /** "today 14:05" or "on Thu 12 Nov, 14:05", to follow a word like "Synced". */
+    private fun whenSaid(ms: Long) = logged(ms).let { if (it.startsWith("Today ")) "today " + it.removePrefix("Today ") else "on $it" }
+
     private fun logged(ms: Long): String {
         val d = Instant.ofEpochMilli(ms).atZone(Engine.zone)
         return if (d.toLocalDate() == LocalDate.now(Engine.zone)) "Today ${Reminders.fmt(ms)}" else d.format(DateTimeFormatter.ofPattern("EEE d MMM, HH:mm", Locale.getDefault()))
@@ -2059,7 +2062,29 @@ class MainActivity : Activity() {
             }, 8)
         } else {
             dv.addView(text("Linked", 18f, FG, HEAD))
-            dv.add(text(Sync.lastResult?.let { r -> "$r" + if (Sync.lastAt > 0) " · ${logged(Sync.lastAt)}" else "" } ?: "Syncing…", 14f, MUTED), 4)
+            // how syncing stands, in plain words: when it last worked, what's waiting, the other device, any problem and its fix
+            val ss = Sync.status(this)
+            val p = ss.problem
+            val head = when {
+                p != null && p.kind != "offline" -> p.text
+                p != null -> p.text
+                ss.running -> "Syncing…"
+                ss.lastAt > 0 -> "Synced " + whenSaid(ss.lastAt) + if (ss.pending > 0) " · ${ss.pending} change${if (ss.pending == 1) "" else "s"} waiting to go up" else ""
+                else -> Sync.lastResult ?: "Syncing…"
+            }
+            dv.add(text(head, 14f, if (p != null && p.kind != "offline") WARM else MUTED), 4)
+            if (p?.fix != null) dv.add(text(p.fix, 13f, MUTED), 4)
+            val cloudNow = System.currentTimeMillis() + Sync.cloudSkew
+            if (ss.others.isEmpty()) dv.add(text("Your other device hasn't synced yet. Enter the code below in Atlas there.", 13f, MUTED), 6)
+            ss.others.forEach { o ->
+                val who = when (o.platform) { "windows" -> "Your PC"; "android" -> "Your phone"; else -> "Your other device" }
+                val ago = cloudNow - o.seenMs
+                val seen = when { o.seenMs <= 0 -> "not seen yet"; ago < 11 * 60_000 -> "active now"; else -> "last seen " + whenSaid(System.currentTimeMillis() - ago) }
+                dv.add(text("$who · $seen" + (if (o.app.isNotBlank()) " · Atlas ${o.app}" else ""), 13f, MUTED), 6)
+                if (o.outdated) dv.add(text("Update Atlas there so everything syncs both ways.", 13f, WARM), 2)
+            }
+            if (ss.tooBig > 0) dv.add(text("${ss.tooBig} item${if (ss.tooBig == 1) " is" else "s are"} too big to sync and stay${if (ss.tooBig == 1) "s" else ""} on this phone only.", 13f, MUTED), 4)
+            if (ss.waitingKinds > 0) dv.add(text("${ss.waitingKinds} item${if (ss.waitingKinds == 1) "" else "s"} from your other device need${if (ss.waitingKinds == 1) "s" else ""} a newer Atlas here. Update Atlas to bring ${if (ss.waitingKinds == 1) "it" else "them"} in.", 13f, WARM), 4)
             dv.add(text("Your link code (keep it private; type it into Atlas on your PC):", 13f, MUTED), 12)
             dv.add(text(code, 17f, FG, MONO).apply {
                 background = rounded(if (dark) SURFACE2 else Color.parseColor(LIGHT_FIELD), 14, LINE); setPadding(dp(14), dp(12), dp(14), dp(12)); gravity = Gravity.CENTER
