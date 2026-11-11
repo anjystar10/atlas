@@ -458,3 +458,9 @@ test('bot browser (PC): Enter in a message box outside any form needs the OK; a 
   assert.equal(riskOf('browser_press', { key: 'Enter' }, { found: true, kind: 'field', label: 'Search', inForm: true, formAction: '/search', formSubmit: 'Go' }), null);
   assert.match(riskOf('browser_press', { key: 'Return' }, { found: true, kind: 'field', label: 'Qty', inForm: true, formAction: '/checkout', formSubmit: 'Place order' }), /Submit the form/);
 });
+
+test('this PC: a mixture-of-experts name (8x7b) counts all its experts, so it is not judged a small model', () => {
+  const moe = fitR.sizeFromName('mixtral-8x7b-instruct-v0.1-q4_k_m');
+  assert.ok(moe > 30000 && moe < 34000, String(moe));   // ≈ 56 billion × 4.8 bits
+  assert.ok(Math.abs(fitR.sizeFromName('qwen2.5-7b-instruct-q4_k_m') - 4005) < 50);
+});
