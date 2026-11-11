@@ -7,6 +7,7 @@ import android.provider.OpenableColumns
 import com.anjy.atlas.core.AtlasState
 import com.anjy.atlas.core.Engine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -24,7 +25,25 @@ object ModelManager {
     private fun prefs(ctx: Context) = ctx.getSharedPreferences("model", Context.MODE_PRIVATE)
     fun modelName(ctx: Context): String? = prefs(ctx).getString("name", null)?.takeIf { modelFile(ctx).exists() }
     /** Called when the model's process died. */
-    internal fun onProcessDied() { ready = false; status = ModelLink.died ?: "The offline model stopped." }
+    internal fun onProcessDied() {
+        ready = false; status = ModelLink.died ?: "The offline model stopped."
+        val ctx = appCtx; val m = current
+        if (ctx != null && m != null) Thread { try { DeviceGuard.died(ctx, m) } catch (_: Exception) {} }.start()
+    }
+
+    // --- the device director: checks the model fits before loading, lets it go when idle or memory runs short ---
+    /** True while the model is loading or answering (it isn't put away mid-answer). */
+    @Volatile var busy = false; private set
+    /** Why the last load was turned down by the device check, for Me. */
+    @Volatile var heldBack: String? = null; private set
+    @Volatile private var appCtx: Context? = null
+    @Volatile private var current: ModelSpec? = null
+    private val loadLock = kotlinx.coroutines.sync.Mutex()
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+    /** An offline model nobody has used for this long is put away, freeing its memory; it loads again on the next message. */
+    private const val IDLE_MS = 10 * 60_000L
+    private val idle = Runnable { val c = appCtx; if (c != null && ready && !busy) unload(c, "Offline model put away after 10 minutes unused. It loads again when you need it.") }
+    private fun touch() { main.removeCallbacks(idle); main.postDelayed(idle, IDLE_MS) }
 
     /** Copy a .gguf file the user picked into Atlas's private storage. */
     suspend fun import(ctx: Context, uri: Uri, onProgress: (Long, Long) -> Unit): String = withContext(Dispatchers.IO) {
@@ -90,10 +109,26 @@ object ModelManager {
     }
 
     /** Loads the model in its own process (see [ModelService]). A crash or out-of-memory there can't close Atlas. */
-    suspend fun load(ctx: Context): Boolean {
+    suspend fun load(ctx: Context): Boolean = loadLock.withLock {
+        val app = ctx.applicationContext
+        appCtx = app; DeviceGuard.install(app)
         val f = modelFile(ctx)
-        if (!f.exists()) { status = "No model file. Choose one in Me."; return false }
-        return try {
+        if (!f.exists()) { status = "No model file. Choose one in Me."; return@withLock false }
+        // the device check, fresh each time: does this model fit in what the phone has free right now?
+        val spec = withContext(Dispatchers.IO) { DeviceGuard.spec(app, f, modelName(app) ?: "model") }
+        current = spec
+        val verdict = withContext(Dispatchers.IO) { ModelDirector.decide(DeviceProfiler.read(app), spec, DeviceGuard.record(app, spec), DeviceGuard.force(app)) }
+        if (!verdict.allowed) {
+            if (ready) unload(app)
+            heldBack = verdict.reason; status = verdict.reason
+            return@withLock false
+        }
+        heldBack = null
+        val what = "Loading the offline model"
+        if (!DeviceGuard.begin(what)) { status = "${DeviceGuard.heavy ?: "Something heavy"} is still under way. Try again in a moment."; return@withLock false }
+        busy = true
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        try {
             status = "Loading ${modelName(ctx) ?: "model"}…"
             ModelLink.died = null
             val system = withContext(Dispatchers.IO) { Brain.systemPrompt(ctx) }
@@ -101,18 +136,24 @@ object ModelManager {
             usedChars = 0; stale = false
             ready = true
             status = "${modelName(ctx) ?: "Model"} ready, running on this phone"
+            val ms = android.os.SystemClock.elapsedRealtime() - t0
+            withContext(Dispatchers.IO) { DeviceGuard.loaded(app, spec, ms) }
+            touch()
             true
         } catch (e: kotlinx.coroutines.CancellationException) { throw e
         } catch (t: Throwable) {
             ready = false
             status = ModelLink.died ?: "Model failed to load: ${t.message ?: t.javaClass.simpleName}"
+            // a lost process is counted in onProcessDied; anything else is a plain failure
+            if (ModelLink.died == null) withContext(Dispatchers.IO) { DeviceGuard.loadFailed(app, spec) }
             false
-        }
+        } finally { busy = false; DeviceGuard.end(what) }
     }
 
-    fun unload(ctx: Context? = null) {
+    fun unload(ctx: Context? = null, why: String? = null) {
         ready = false
-        status = "Model unloaded"
+        status = why ?: "Model unloaded"
+        main.removeCallbacks(idle)
         // ending the model's process frees all of its memory at once
         ctx?.let { ModelLink.disconnect(it) }
     }
@@ -137,10 +178,29 @@ object ModelManager {
         if (!ready || stale || usedChars + text.length > CHAR_BUDGET) {
             if (!load(ctx)) throw IllegalStateException(status)
         }
+        // memory ran short since it was loaded: put the model away rather than have the phone close things
+        val app = ctx.applicationContext
+        val now = withContext(Dispatchers.IO) { DeviceProfiler.read(app) }
+        if (now.lowMemory || now.thermal >= ModelDirector.TOO_HOT) {
+            val why = if (now.lowMemory) "The phone is short of memory right now, so I've put the offline model away. Close a few apps and ask again."
+                else "The phone is hot, so I've put the offline model away until it cools down."
+            unload(app, why); throw IllegalStateException(why)
+        }
+        busy = true
+        val t0 = android.os.SystemClock.elapsedRealtime(); var first = 0L
         val out = try {
-            ModelLink.request(ctx, ModelService.GENERATE, android.os.Bundle().apply { putString("text", text); putInt("max", 320) }, onToken)
+            ModelLink.request(ctx, ModelService.GENERATE, android.os.Bundle().apply { putString("text", text); putInt("max", 320) }) { soFar ->
+                if (first == 0L) first = android.os.SystemClock.elapsedRealtime() - t0
+                onToken(soFar)
+            }
         } catch (e: kotlinx.coroutines.CancellationException) { throw e
-        } catch (t: Throwable) { ready = ready && ModelLink.died == null; throw IllegalStateException(ModelLink.died ?: t.message ?: "The model failed.") }
+        } catch (t: Throwable) { ready = ready && ModelLink.died == null; throw IllegalStateException(ModelLink.died ?: t.message ?: "The model failed.")
+        } finally { busy = false; touch() }
+        current?.let { m ->
+            val ms = android.os.SystemClock.elapsedRealtime() - t0
+            // speed is measured from the first word, so the wait before it doesn't count against the model
+            if (out.isNotBlank()) withContext(Dispatchers.IO) { DeviceGuard.answered(app, m, first, out.length, (ms - first).coerceAtLeast(1), now.availRamMb) }
+        }
         usedChars += text.length + out.length + 40
         // An empty answer means the runtime refused the prompt; start fresh next time.
         if (out.isBlank()) stale = true

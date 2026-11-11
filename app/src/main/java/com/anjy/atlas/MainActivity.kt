@@ -1638,6 +1638,54 @@ class MainActivity : Activity() {
         if (!logFull) body.add(secondary(if (all.size > LOG_RECENT) "Full History (${all.size})" else "Full History") { logFull = true; render() }, 12)
     }
 
+    // ================================================================ THIS DEVICE
+
+    /** What this phone has right now, and what Atlas will (and won't) run on it because of that. */
+    private fun deviceCard() {
+        val d = try { DeviceProfiler.read(this) } catch (e: Exception) { return }
+        fun gb(mb: Long) = if (mb < 0) "?" else "%.1f GB".format(mb / 1024.0)
+        body.add(eyebrow("This Device"), 16)
+        val c = card()
+        c.addView(text(d.model.ifBlank { "This phone" }, 18f, FG, HEAD, keepEmoji = true))
+        val chip = listOfNotNull(d.chip.ifBlank { null }, if (d.cores > 0) "${d.cores} cores" + (if (d.bigCores in 1 until d.cores) " (${d.bigCores} fast)" else "") else null).joinToString(" · ")
+        val lines = listOfNotNull(
+            "Memory: ${gb(d.availRamMb)} free of ${gb(d.totalRamMb)}",
+            if (chip.isNotEmpty()) "Chip: $chip" else null,
+            if (d.graphics.isNotBlank()) "Graphics: ${d.graphics}" else null,
+            "Heat: ${ModelDirector.thermalWord(d.thermal)}",
+            "Battery: " + (if (d.batteryPct < 0) "unknown" else "${d.batteryPct}%") + (if (d.charging) ", charging" else "") + (if (d.powerSave) ", Battery Saver on" else ""),
+            if (d.freeStorageMb >= 0) "Storage: ${gb(d.freeStorageMb)} free" else null)
+        c.add(text(lines.joinToString("\n"), 14f, MUTED), 6)
+        ModelDirector.holdingBack(d)?.let { c.add(text(it, 14f, WARM, MED), 10) }
+
+        val name = ModelManager.modelName(this)
+        if (name == null) c.add(text("No offline model yet. When you add one, Atlas checks it fits this phone's free memory before every load.", 14f, MUTED), 10)
+        else {
+            val f = ModelManager.modelFile(this)
+            val spec = DeviceGuard.cachedSpec(this, f, name)
+            if (spec == null) {
+                // first time for this file: read what it needs in the background, then show it
+                c.add(text("Offline model: checking what $name needs…", 14f, MUTED, keepEmoji = true), 10)
+                scope.launch(Dispatchers.IO) { DeviceGuard.spec(applicationContext, f, name); withContext(Dispatchers.Main) { if (tab == 2) render(keepScroll = true) } }
+            } else {
+                val rec = DeviceGuard.record(this, spec)
+                val v = ModelDirector.decide(d, spec, rec, DeviceGuard.force(this))
+                c.add(text("Offline model", 15f, FG, MED), 12)
+                c.add(text((if (v.allowed) "Will run here. " else "Held back. ") + v.reason, 14f, if (v.allowed) MUTED else WARM, keepEmoji = true), 4)
+                c.add(text("Needs about ${gb(v.peakMb)} at its peak (the file, plus memory for an 8,192-token conversation, plus working space)." +
+                    (if (!spec.known) " The file didn't state its layout, so this is an estimate." else ""), 13f, MUTED), 4)
+                if (rec != null && rec.tokensPerSec > 0) c.add(text("Last ran here at about ${"%.0f".format(rec.tokensPerSec)} tokens a second" +
+                    (if (rec.firstTokenMs > 0) ", first word after ${"%.1f".format(rec.firstTokenMs / 1000.0)} s" else "") +
+                    (if (rec.loadMs > 0) ", loaded in ${"%.0f".format(rec.loadMs / 1000.0)} s" else "") + ".", 13f, MUTED), 4)
+                if (rec != null && rec.died > 0) c.add(text("It has stopped ${rec.died} time${if (rec.died == 1) "" else "s"} on this phone.", 13f, MUTED), 4)
+                c.add(switchRow(null, "Run It Anyway", DeviceGuard.force(this)) { on -> DeviceGuard.setForce(this, on); render(keepScroll = true) }, 12)
+                c.add(text("On: Atlas loads the model even when memory is tight or Battery Saver is on. It still won't when the phone is hot or the model can't fit at all. The model runs apart from Atlas, so the worst case is the model stopping, not Atlas.", 13f, MUTED), 6)
+            }
+        }
+        c.add(text("The offline model is put away after 10 minutes unused, or when Android says memory is short, and loads again when needed. These checks stay on this phone.", 13f, MUTED), 10)
+        body.add(c, 8)
+    }
+
     // ================================================================ BOTS
 
     private var botDraft = ""
@@ -1793,6 +1841,7 @@ class MainActivity : Activity() {
             off.add(br, 8)
         }
         body.add(off, 8)
+        deviceCard()
 
         // Phone control
         body.add(eyebrow("Phone Control"), 16)

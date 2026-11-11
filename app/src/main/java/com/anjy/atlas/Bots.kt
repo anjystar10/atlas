@@ -183,9 +183,11 @@ object Bots {
     fun pump() {
         if (!loaded) return
         val now = System.currentTimeMillis()
-        BotRules.toStart(jobs.filter { it.id !in workers && it.state != BotRules.RUNNING }, now, BotRules.MAX_RUNNING - workers.size)
+        // how many may work at once depends on the phone right now: one when it's hot, short of memory or saving battery
+        val slots = try { minOf(BotRules.MAX_RUNNING, ModelDirector.botSlots(DeviceProfiler.read(app))) } catch (_: Exception) { 1 }
+        BotRules.toStart(jobs.filter { it.id !in workers && it.state != BotRules.RUNNING }, now, slots - workers.size)
             .forEach { j ->
-                if (workers.size >= BotRules.MAX_RUNNING) return@forEach
+                if (workers.size >= slots) return@forEach
                 if (j.state == BotRules.WAITING_RETRY) j.move(BotRules.QUEUED, now)
                 if (!j.move(BotRules.RUNNING, now)) return@forEach
                 workers[j.id] = scope.launch {
