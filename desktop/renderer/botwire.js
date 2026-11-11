@@ -9,6 +9,7 @@ import { createExtras, skillsIndex, teamIndex, specialistPrompt, rulesPrompt, de
 import * as sync from './sync.js';
 import { BROWSER_TOOLS, BROWSER, VAULT_TOOLS, browserLabel } from './botbrowse.js';
 import { FILE_TOOLS, FILES, filesLabel, runFiles, filesFooter } from './botfiles.js';
+import * as conn from './connect.js';   // connections: MCP servers and web APIs
 const host = window.atlasHost;
 
 function systemPrompt(j = {}) {
@@ -53,6 +54,7 @@ Budget: up to ${j.id ? callsOf(j) : MAX_TOOL_CALLS} tool steps and ${Math.round(
 ${teamPart(j)}
 
 Now: ${new Date().toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
+${conn.promptLine()}
 ${brain.logContext()}`;
 }
 
@@ -116,9 +118,10 @@ export const bots = createBots({
   callWithKeys: (p, sess, call, opts) => brain.callWithKeys(p, sess, call, null, opts),
   isSwitch: (e) => e instanceof brain.Switch,
   isRetryable: (e) => e instanceof brain.Failure && (e.offline || [429, 500, 502, 503, 504].includes(e.code)),
-  tools: brain.TOOLS,
+  tools: () => [...brain.TOOLS, ...conn.declarations('bots')],   // connections come and go while Atlas runs
+  extraApproval: (name, args) => conn.approvalFor(name, args),
   extraTools: [...(host.botBrowser ? BROWSER_TOOLS : []), ...(host.vault ? VAULT_TOOLS : []), ...(host.botFiles ? FILE_TOOLS : [])],
-  labelFor: (c) => browserLabel(c) || filesLabel(c),
+  labelFor: (c) => browserLabel(c) || filesLabel(c) || conn.label(c.name, c.args || {}),
   runTool: (call, opts) => (call.name === 'vault_list' ? (host.vault ? host.vault.model().then((out) => ({ out, step: 'Checked your saved sign-ins' })) : Promise.resolve({ out: "Error: the vault isn't available here." }))
     : BROWSER.has(call.name) ? runBrowser(call, opts) : FILES.has(call.name) ? runFiles(call, opts && opts.job) : brain.runTool(call, opts)),
   reportFooter: filesFooter,

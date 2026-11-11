@@ -3,7 +3,7 @@
 // This process only does what a web page can't: files on disk, the network without browser limits, notifications,
 // the floating orb, and controlling the PC (see pc.js).
 'use strict';
-const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, shell, screen, globalShortcut, session, nativeImage, desktopCapturer, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, Tray, Menu, Notification, shell, screen, globalShortcut, session, nativeImage, desktopCapturer, dialog, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const pc = require('./pc');
@@ -254,6 +254,51 @@ ipcMain.handle('vault:remove', (e, id) => (fromMain(e) && typeof id === 'string'
 ipcMain.handle('vault:reveal', (e, id) => (fromMain(e) && typeof id === 'string' ? vault.reveal(id, BrowserWindow.fromWebContents(e.sender)) : null));
 // <<< vault
 
+// ------------------------------------------------------------------ connections (MCP servers and web APIs; see mcp.js)
+
+let connections = null;
+function conns() {
+  if (connections) return connections;
+  // secrets (tokens, environment values) are encrypted with Windows' own protection for this user; they never sync
+  const can = () => { try { return safeStorage.isEncryptionAvailable(); } catch { return false; } };
+  connections = require('./mcp').createConnections({
+    load: () => { try { return fs.readFileSync(file('connections.json'), 'utf8'); } catch { return null; } },
+    save: (text) => writeAtomic('connections.json', text),
+    encrypt: (t) => (can() ? 'enc:' + safeStorage.encryptString(t).toString('base64') : 'raw:' + Buffer.from(t, 'utf8').toString('base64')),
+    decrypt: (v) => (String(v).startsWith('enc:') ? safeStorage.decryptString(Buffer.from(String(v).slice(4), 'base64')) : Buffer.from(String(v).slice(4), 'base64').toString('utf8')),
+    changed: () => { if (win && !win.isDestroyed()) win.webContents.send('connections-changed'); },
+  });
+  return connections;
+}
+ipcMain.handle('conn', async (e, op, ...a) => {
+  if (!fromMain(e)) return { error: 'not allowed' };
+  const c = conns();
+  try {
+    switch (op) {
+      case 'list': return c.list();
+      case 'saveServer': {
+        const cfg = a[0] || {};
+        // a server that is a program on this PC gets run: the user says yes here, outside the page
+        if (cfg.kind !== 'http' && !cfg.url) {
+          const r = await dialog.showMessageBox(win, { type: 'warning', buttons: ['Add It', 'Cancel'], defaultId: 1, cancelId: 1, title: 'Atlas', message: 'Add this connection?',
+            detail: `It runs this program on your PC whenever Atlas connects:\n\n${[cfg.command, ...(cfg.args || [])].join(' ').slice(0, 400)}\n\nOnly add connections from sources you trust.` });
+          if (r.response !== 0) return { error: 'Not added.' };
+        }
+        const name = await c.saveServer(cfg); c.connect(name); return { ok: true, name };
+      }
+      case 'setServer': c.setServer(String(a[0]), a[1] || {}); return { ok: true };
+      case 'removeServer': await c.removeServer(String(a[0])); return { ok: true };
+      case 'connect': await c.connect(String(a[0])); return { ok: true };
+      case 'disconnect': await c.disconnect(String(a[0])); return { ok: true };
+      case 'call': return await c.call(String(a[0]), String(a[1]), a[2]);
+      case 'saveApi': return { ok: true, name: await c.saveApi(a[0] || {}) };
+      case 'removeApi': c.removeApi(String(a[0])); return { ok: true };
+      case 'api': return await c.callApi(String(a[0]), a[1], a[2], a[3]);
+    }
+    return { error: 'unknown' };
+  } catch (err) { return { error: err.message || String(err) }; }
+});
+
 // ------------------------------------------------------------------ start
 
 app.whenReady().then(() => {
@@ -273,9 +318,10 @@ app.whenReady().then(() => {
   tray.on('click', showMain);
   // Ctrl+Shift+Space from anywhere: Atlas listens
   try { globalShortcut.register('CommandOrControl+Shift+Space', () => { showMain(); win.webContents.send('orb-clicked'); }); } catch {}
+  conns().connectAll();   // connections that were on come back on
   // a screen unplugged or rearranged: bring the orb back where it can be seen
   screen.on('display-removed', keepOrbOnScreen); screen.on('display-metrics-changed', keepOrbOnScreen);
 });
 app.on('before-quit', () => { quitting = true; });
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => { globalShortcut.unregisterAll(); if (connections) connections.close(); });
 app.on('window-all-closed', (e) => { if (!quitting) e.preventDefault && e.preventDefault(); });

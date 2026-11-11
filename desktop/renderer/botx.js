@@ -39,8 +39,24 @@ export function categoryFor(tool, a = {}) {
     case 'update_reminder': return 'delete';
     case 'open_link': return 'message';
     case 'press_keys': case 'type_text': case 'tap': case 'click': return guessCategory(a.label || a.text || '') === 'other' ? 'message' : guessCategory(a.label || a.text || '');
-    default: return 'other';
+    default: return connectionCategory(tool, a) || 'other';
   }
+}
+/**
+ * >>> connections: the kind of an MCP tool (mcp__server__tool) or web API call (call_api), from the tool's own name
+ * or the HTTP method and path, so the user's ask / always / never choices cover them too. null when it isn't one.
+ */
+export function connectionCategory(tool, a = {}) {
+  if (tool === 'call_api') {
+    const m = String(a.method || 'GET').toUpperCase();
+    if (m === 'DELETE') return 'delete';
+    const words = String(a.path || '').replace(/[/_.?=&-]+/g, ' ');
+    const g = guessCategory(words + ' ' + words.replace(/(\w{3,})s\b/g, '$1'));   // "/orders" counts as "order"
+    return g === 'command' ? 'other' : g;
+  }
+  if (!String(tool).startsWith('mcp__')) return null;
+  const g = guessCategory(String(tool).split('__').slice(2).join(' ').replace(/_+/g, ' '));
+  return g === 'command' ? 'other' : g;
 }
 /** 'ask' (the default), 'allow' (always allowed by the user) or 'deny' (never). */
 export function modeFor(policy, category) {
@@ -352,7 +368,7 @@ export function createExtras(deps) {
     mode: (category) => modeFor(data.policy, category),
     allows: (sp, tool) => toolAllowed(sp, tool),
     /** The kind of a risky action: from its wording first (what it would do), else from the tool. */
-    categoryOf: (tool, args, what) => { if (tool === 'browser_fill_login') return 'account'; const g = guessCategory(what); return g !== 'other' || !tool ? g : categoryFor(tool, args || {}); },
+    categoryOf: (tool, args, what) => { if (tool === 'browser_fill_login') return 'account'; const cc = connectionCategory(tool, args || {}); if (cc) return cc; const g = guessCategory(what); return g !== 'other' || !tool ? g : categoryFor(tool, args || {}); },
     label: categoryLabel, skillText, draftSkill,
     onChange: (f) => { listeners.add(f); return () => listeners.delete(f); },
     idle: () => saving,

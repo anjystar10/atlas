@@ -182,15 +182,17 @@ export function createBots(deps) {
   const listeners = new Set();
   let loaded = false, timer = null, saving = Promise.resolve();
   const extra = deps.extraTools || [];
-  const myTools = [...deps.tools.filter((t) => !NOT_FOR_BOTS.has(t.name)), ...extra, ...BOT_TOOLS];
-  const toolNames = new Set([...deps.tools.map((t) => t.name).filter((n) => !NOT_FOR_BOTS.has(n)), ...extra.map((t) => t.name)]);
+  // deps.tools may be a function: connections (MCP servers) come and go while the app runs
+  const baseTools = () => (typeof deps.tools === 'function' ? deps.tools() : deps.tools).filter((t) => !NOT_FOR_BOTS.has(t.name));
+  const myTools = () => [...baseTools(), ...extra, ...BOT_TOOLS];
+  const toolNames = { has: (n) => extra.some((t) => t.name === n) || baseTools().some((t) => t.name === n) };
   const finalHook = (j) => { if (deps.onFinal) { try { deps.onFinal(j); } catch (e) { console.error(e); } } };
   const ex = deps.extras || null;
   const specialistOf = (j) => (ex && j.specialist ? ex.data.specialists.find((s) => s.id === j.specialist) || null : null);
   /** The tools this job's bot gets: a specialist only its own kinds; helpers only at the allowed depth. */
   function toolsFor(j) {
     const sp = specialistOf(j);
-    const list = myTools.filter((t) => !sp || ex.allows(sp, t.name));
+    const list = myTools().filter((t) => !sp || ex.allows(sp, t.name));
     if (!ex) return list;
     const more = [EXTRA_TOOLS.use_skill];
     if (j.depth < MAX_DEPTH && ex.data.specialists.length) more.push(EXTRA_TOOLS.delegate, EXTRA_TOOLS.wait_for_helpers);
@@ -521,7 +523,7 @@ export function createBots(deps) {
           }
           if (c.name === 'request_approval') { await askApproval(j, { what: (deps.plainReply(String(a.action || '')) || 'Go ahead with the next step').slice(0, 300), tool: null, args: null, decision: null }); return; }
           if (!toolNames.has(c.name)) { results.push({ call: c, out: `Error: there's no tool called ${c.name}.` }); continue; }
-          const need = approvalFor(c.name, a) || (deps.checkApproval ? await deps.checkApproval(c, j) : null);
+          const need = approvalFor(c.name, a) || (deps.extraApproval ? deps.extraApproval(c.name, a) : null) || (deps.checkApproval ? await deps.checkApproval(c, j) : null);
           if (!mine()) return;
           if (need) { await askApproval(j, { what: need, tool: c.name, args: JSON.parse(JSON.stringify(a)), decision: null }); return; }
           const r = await runTool(j, c);

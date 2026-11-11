@@ -68,6 +68,19 @@ object BotExtras {
             }
         }
         /** From the tool when the wording says nothing. */
+        /**
+         * The kind of an MCP tool (mcp__server__tool) or web API call (call_api), from the tool's own name or the method
+         * and path, so the user's ask / always / never choices cover them too; null when it isn't one. (PC: botx.js.)
+         */
+        fun connectionCategory(tool: String?, args: JSONObject?): String? {
+            if (tool == McpWire.CALL_API) {
+                if (args?.optString("method").orEmpty().uppercase() == "DELETE") return "delete"
+                val words = args?.optString("path").orEmpty().replace(Regex("[/_.?=&-]+"), " ")
+                return guessCategory(words + " " + words.replace(Regex("(\\w{3,})s\\b"), "$1")).let { if (it == "command") "other" else it }
+            }
+            if (tool == null || !tool.startsWith("mcp__")) return null
+            return guessCategory(tool.split("__").drop(2).joinToString(" ").replace(Regex("_+"), " ")).let { if (it == "command") "other" else it }
+        }
         fun categoryFor(tool: String?, args: JSONObject?): String = when (tool) {
             "run_command" -> "command"
             "write_file", "forget", "update_reminder", "calendar_change" -> "delete"
@@ -77,6 +90,7 @@ object BotExtras {
         }
         fun categoryOf(tool: String?, args: JSONObject?, what: String): String {
             if (tool == "browser_fill_login") return "account"   // a saved sign-in (vault): always the account kind, whatever the site is called
+            connectionCategory(tool, args)?.let { return it }   // connections: MCP tools and web API calls
             val g = guessCategory(what)
             return if (g != "other" || tool == null) g else categoryFor(tool, args)
         }
