@@ -12,6 +12,7 @@
     "test": "node --no-warnings --test test/logic.test.mjs test/link.test.mjs",
     "test:browser": "electron --no-sandbox test/browser.e2e.js && electron --no-sandbox test/botjob.e2e.js && electron --no-sandbox test/files.e2e.js",
     "test:mcp": "node --no-warnings test/mcp.e2e.js",
+    "test:link": "node --no-warnings test/link.e2e.mjs",
     "dist": "electron-builder --win nsis --x64 --publish never"
   },
   "dependencies": {
@@ -26,7 +27,7 @@
     "productName": "Atlas",
     "artifactName": "Atlas-Setup.${ext}",
     "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "pc.js", "botbrowser.js", "botfiles.js", "sheets.js", "device.js", "vault.js", "mcp.js", "renderer/**/*", "build/icon.png", "!node_modules/@modelcontextprotocol/sdk/dist/esm/**", "!**/*.map", "!**/*.d.ts"],
+    "files": ["main.js", "preload.js", "pc.js", "botbrowser.js", "botfiles.js", "sheets.js", "device.js", "vault.js", "mcp.js", "remote.js", "renderer/**/*", "build/icon.png", "!node_modules/@modelcontextprotocol/sdk/dist/esm/**", "!**/*.map", "!**/*.d.ts"],
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },
     "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "Atlas", "runAfterFinish": true }
   }

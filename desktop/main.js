@@ -13,6 +13,8 @@ const file = (name) => path.join(DATA(), name);
 let win = null, orbWin = null, tray = null, quitting = false;
 
 // only one Atlas: a second start just brings the first one forward (and this copy stops before making any windows)
+// test hook (only with ATLAS_DATA set): keep this run's data in its own folder
+if (process.env.ATLAS_DATA) app.setPath('userData', process.env.ATLAS_DATA);
 const firstInstance = app.requestSingleInstanceLock();
 if (!firstInstance) app.exit(0);
 app.on('second-instance', () => showMain());
@@ -123,6 +125,8 @@ ipcMain.handle('store:write', (e, name, text) => {
 
 ipcMain.handle('net:fetch', async (e, url, opts = {}) => {
   if (!fromMain(e) || !/^https?:\/\//i.test(String(url))) return { status: 0, ok: false, error: 'not allowed' };
+  // test hook (only with ATLAS_LINK_RELAY set): the Device Link and sync talk to a local stand-in for the cloud
+  if (process.env.ATLAS_LINK_RELAY && /\/rest\/v1\/rpc\/(link_|sync_claim)/.test(String(url))) url = process.env.ATLAS_LINK_RELAY + String(url).replace(/^.*\/rpc\//, '/rpc/');
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), opts.timeout || 120000);
   try {
@@ -253,6 +257,19 @@ ipcMain.handle('vault:save', (e, entry) => { if (!fromMain(e) || !entry || typeo
 ipcMain.handle('vault:remove', (e, id) => (fromMain(e) && typeof id === 'string' ? vault.remove(id) : false));
 ipcMain.handle('vault:reveal', (e, id) => (fromMain(e) && typeof id === 'string' ? vault.reveal(id, BrowserWindow.fromWebContents(e.sender)) : null));
 // <<< vault
+
+// >>> device link: your phone controlling this PC (remote.js). Only the main window may ask.
+const remote = require('./remote');
+ipcMain.handle('remote:frame', async (e, maxW, q) => { if (!fromMain(e)) return { error: 'not allowed' }; try { return await remote.frame({ screen, desktopCapturer }, maxW, q); } catch (err) { return { error: err.message }; } });
+ipcMain.handle('remote:input', async (e, plan) => { if (!fromMain(e)) return 'not allowed'; return remote.input(plan); });
+ipcMain.handle('remote:banner', (e, text) => {
+  if (!fromMain(e)) return false;
+  remote.showBanner(BrowserWindow, screen, text ? String(text).slice(0, 120) : '', () => { if (win && !win.isDestroyed()) win.webContents.send('remote-stop'); });
+  return true;
+});
+ipcMain.handle('remote:done', (e) => { if (fromMain(e)) remote.stopInput(); return true; });
+app.on('will-quit', () => { try { remote.stopInput(); } catch {} });
+// <<< device link
 
 // ------------------------------------------------------------------ connections (MCP servers and web APIs; see mcp.js)
 
