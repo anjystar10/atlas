@@ -102,6 +102,80 @@ export function stamp(sent, dirty, local, gone, now, first, skip = [], extraImpl
   }
 }
 
+// ------------------------------------------------------------------ the pull position (as SyncPlan.kt)
+
+/**
+ * Two devices sending at the same moment can have their records numbered out of order, so the position kept is the
+ * newest one at least this old; each pull looks back over the last few seconds again (records already taken in are skipped).
+ */
+export const OVERLAP_MS = 30000;
+/** Where to pull from next time. recent: [[when, highest number seen], ...]. Returns [cursor, recent]. */
+export function advance(cursor, recent, now) {
+  let c = cursor; const keep = [];
+  for (const [t, rev] of recent) { if (t <= now - OVERLAP_MS || t > now + 60000) c = Math.max(c, rev); else keep.push([t, rev]); }
+  return [c, keep.slice(-20)];
+}
+/** A record already taken in at this number or later (the overlap pulls it again): skip it. */
+export const alreadyTaken = (seenRev, rev) => rev > 0 && seenRev >= rev;
+
+// ------------------------------------------------------------------ sending
+export const MAX_RECORD = 1400000, MAX_BATCH = 400, MAX_BATCH_CHARS = 1800000;
+/** Splits records of these sizes into sends: at most MAX_BATCH records and about MAX_BATCH_CHARS characters each (indices). */
+export function batches(sizes) {
+  const out = []; let cur = [], chars = 0;
+  sizes.forEach((n, i) => {
+    if (cur.length && (cur.length >= MAX_BATCH || chars + n > MAX_BATCH_CHARS)) { out.push(cur); cur = []; chars = 0; }
+    cur.push(i); chars += n;
+  });
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+// ------------------------------------------------------------------ problems, in plain words
+/** What went wrong, from the cloud's answer (status 0: no answer at all). */
+export function problem(status, body) {
+  const b = String(body || '').toLowerCase();
+  if (status === 0) return { kind: 'offline', text: "Offline. Changes wait here and go up as soon as you're back online.", fix: null };
+  if (status === 540 || b.includes('paused') || (b.includes('restore') && b.includes('project')))
+    return { kind: 'paused', text: 'The sync cloud is asleep: Supabase pauses free projects after a week without use.',
+      fix: 'Open supabase.com, sign in, open the project “Atlas” and choose Restore project. Then tap Sync Now.' };
+  if (status === 401 || status === 403) return { kind: 'refused', text: 'The sync cloud turned Atlas away.', fix: 'Update Atlas on both devices.' };
+  if (status === 404 || b.includes('could not find the function'))
+    return { kind: 'outdated', text: "The sync cloud doesn't have something this version of Atlas needs.", fix: 'Update Atlas on both devices.' };
+  if (status >= 500 && status <= 599) return { kind: 'cloud', text: 'The sync cloud is having trouble right now. Atlas keeps trying by itself.', fix: null };
+  return { kind: 'other', text: `Couldn't sync (the cloud answered ${status}).`, fix: null };
+}
+
+// ------------------------------------------------------------------ settings that are the same on both devices
+/** Your name and how reminders behave are shared; the look, speaking aloud, the orb and Hey Atlas stay each device's own. */
+export function profileOf(s) {
+  const o = {};
+  const name = String(s.name || '').trim(); if (name) o.name = name;
+  o.tone = s.tone == null ? 'firm' : String(s.tone); o.quietStart = s.quietStart == null ? '22:30' : String(s.quietStart);
+  o.quietEnd = s.quietEnd == null ? '06:30' : String(s.quietEnd);
+  o.graceMin = Number.isFinite(+s.graceMin) && s.graceMin !== '' && s.graceMin != null ? Math.trunc(+s.graceMin) : 15;
+  o.followUps = Number.isFinite(+s.followUps) && s.followUps !== '' && s.followUps != null ? Math.trunc(+s.followUps) : 1;
+  return o;
+}
+/** The fields of a profile from the other device that may be taken in (an older Atlas sends only the name). */
+export function profileFields(rec) {
+  const out = {}; if (!rec || typeof rec !== 'object') return out;
+  const name = typeof rec.name === 'string' ? rec.name.trim() : '';
+  if (name && name.length <= 60) out.name = name;
+  if (typeof rec.tone === 'string' && rec.tone.trim() && rec.tone.length <= 20) out.tone = rec.tone;
+  const hm = /^\d{1,2}:\d{2}$/;
+  if (typeof rec.quietStart === 'string' && hm.test(rec.quietStart)) out.quietStart = rec.quietStart;
+  if (typeof rec.quietEnd === 'string' && hm.test(rec.quietEnd)) out.quietEnd = rec.quietEnd;
+  if (Number.isInteger(rec.graceMin) && rec.graceMin >= 0 && rec.graceMin <= 240) out.graceMin = rec.graceMin;
+  if (Number.isInteger(rec.followUps) && rec.followUps >= 0 && rec.followUps <= 10) out.followUps = rec.followUps;
+  return out;
+}
+
+// ------------------------------------------------------------------ the devices
+export const PROTOCOL = 3;
+export const PRESENCE_EVERY_MS = 10 * 60000;
+export const presenceDue = (lastSaid, now) => lastSaid <= 0 || now - lastSaid >= PRESENCE_EVERY_MS || now < lastSaid;
+
 /** This PC's data has a different device id from the one the last sync saw: it was made anew since (the file was lost). */
 export const freshStart = (lastDevice, me) => !!lastDevice && lastDevice !== me;
 

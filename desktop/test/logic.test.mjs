@@ -306,6 +306,17 @@ test('sync: the same fingerprints, encryption and merge rules as the phone', asy
     assert.deepEqual(sent, c.expectSent, c.name); assert.deepEqual(dirty, c.expectDirty, c.name);
   }
 });
+test('sync, round two: pull position, batches, problems, shared settings and presence agree with the phone', async () => {
+  const { readFileSync } = await import('node:fs');
+  const fx = JSON.parse(readFileSync(new URL('../../tools/sync-fixtures.json', import.meta.url), 'utf8'));
+  for (const c of fx.advance) assert.deepEqual(sync.advance(c.cursor, c.recent, c.now), [c.expectCursor, c.expectRecent], c.name);
+  for (const c of fx.alreadyTaken) assert.equal(sync.alreadyTaken(c.seen, c.rev), c.want);
+  for (const c of fx.batches) assert.deepEqual(sync.batches(c.sizes), c.expect, c.name);
+  for (const c of fx.problem) assert.deepEqual(sync.problem(c.status, c.body), c.expect);
+  for (const c of fx.profileOf) assert.equal(sync.canonical(sync.profileOf(c.settings)), sync.canonical(c.expect));
+  for (const c of fx.profileFields) assert.deepEqual(sync.profileFields(c.rec), c.expect);
+  for (const c of fx.presenceDue) assert.equal(sync.presenceDue(c.last, c.now), c.want);
+});
 test('sync: an older edit from the other device never beats a newer one made here offline', () => {
   // made here at 2000 while offline, the phone's copy says 1000: ours stays and goes up; a later phone edit at 3000 wins
   assert.equal(sync.mineWins(2000, 'pc', 1000, 'phone'), true);
