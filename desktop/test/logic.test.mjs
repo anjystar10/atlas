@@ -80,8 +80,8 @@ class Busy extends Error { constructor() { super('Busy.'); this.code = 503; } }
 class Sw extends Error { constructor(to) { super('Keys out.'); this.to = to; } }
 
 /** A bot world with a scripted model: each call takes the next turn from [script] (a function of the brief, or a turn). */
-function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1 } = {}) {
-  const w = { saved: journal, notes: [], posts: [], ran: [], briefs: [], tools: [], timers: [], calls: 0, prov: providers };
+function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false } = {}) {
+  const w = { saved: journal, notes: [], posts: [], ran: [], briefs: [], tools: [], timers: [], calls: 0, prov: providers, made: 0 };
   let n = 0, clock = 1000;
   w.bots = B.createBots({
     load: async () => w.saved, save: async (t) => { w.saved = t; },
@@ -92,9 +92,9 @@ function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gem
     isSwitch: (e) => e instanceof Sw, isRetryable: (e) => e instanceof Busy,
     tools: [{ name: 'web_search' }, { name: 'read_page' }, { name: 'run_command' }, { name: 'change_setting' }, { name: 'deploy_bot' }],
     runTool: async (c, o) => { w.ran.push([c.name, !!(o && o.approved)]); return { out: `${c.name} result`, step: `Did ${c.name}` }; },
-    systemPrompt: () => 'sys', notify: (t, b, tag) => w.notes.push(['notify', t, tag]), post: (m) => w.posts.push(m),
+    systemPrompt: (j) => { w.sysFor = (w.sysFor || []).concat([j && j.id]); return 'sys'; }, notify: (t, b, tag) => w.notes.push(['notify', t, tag]), post: (m) => w.posts.push(m),
     plainReply: (s) => String(s).trim(), plainMemory: (s) => String(s).trim(),
-    now: () => (clock += 10), uid: () => 'job1', deviceId: () => 'pc-1',
+    now: () => (clock += 10), uid: ids ? (() => 'job' + (++w.made)) : () => 'job1', deviceId: () => 'pc-1', extras,
     setTimer: (f, ms) => { if (ms <= 0) { setTimeout(f, 0); return 0; } w.timers.push(ms); return w.timers.length; }, clearTimer: () => {},
   });
   return w;
@@ -453,4 +453,218 @@ test('vault: the model sees names and sites only; values are quoted safely for t
   assert.equal(vaultRules.find(entries, 'my gmail').id, '1');
   assert.equal(vaultRules.find(entries, 'accounts.google.com').id, '1');
   assert.ok(vaultRules.fillScript('u', entries[0].password).includes(JSON.stringify(entries[0].password)));
+});
+
+// ---------------------------------------------------------------- Atlas Bot extras: approvals, steering, routines, skills, specialists
+import * as X from '../renderer/botx.js';
+function extrasFor(opts = {}) {
+  const st = { saved: null, fired: [], timers: [] };
+  let clock = opts.clock || Date.UTC(2026, 10, 9, 7, 0);   // Monday
+  st.ex = X.createExtras({
+    load: async () => st.saved, save: async (t) => { st.saved = t; }, now: () => clock, uid: (() => { let n = 0; return () => 'x' + (++n); })(), deviceId: () => opts.device || 'pc-1',
+    setTimer: (f, ms) => { st.timers.push(ms); return st.timers.length; }, clearTimer: () => {},
+    fire: (r) => { st.fired.push(r.id); return { id: 'job-' + r.id }; }, claim: opts.claim, changed: (k) => (st.lastChanged = k),
+  });
+  st.tick = (ms) => { clock += ms; return st.ex.tick(); };
+  st.at = (ms) => { clock = ms; };
+  return st;
+}
+
+test('approvals: "always allow" runs that kind without asking; "never" refuses it; others still ask', async () => {
+  const e = extrasFor(); await e.ex.init();
+  e.ex.setMode('command', 'allow'); e.ex.setMode('purchase', 'deny');
+  const w = world([
+    turn(call('run_command', { command: 'Stop-Process -Name notepad' })),
+    (brief) => { assert.ok(brief.includes('Approved and done'), 'allowed by the rule, then done'); return turn(call('request_approval', { action: 'Buy the blue case for $20' })); },
+    (brief) => { assert.ok(brief.includes('never allows'), 'the bot is told the user never allows it'); return turn(call('request_approval', { action: 'Send the summary to Sam by email' })); },
+    turn(call('finish', { report: 'Done what I could.' })),
+  ], { extras: e.ex });
+  await w.bots.init(); const j = w.bots.deploy('Tidy and shop', ''); await settle(w);
+  assert.deepEqual(w.ran, [['run_command', true]], 'the allowed command ran without a tap, as approved');
+  assert.equal(j.state, B.S.AWAITING_APPROVAL, 'an email still asks');
+  assert.equal(j.approval.category, 'message');
+  assert.ok(!w.notes.some((x) => Array.isArray(x) && x[1] === 'Atlas Bot needs your OK' && /Stop-Process|Buy/.test(x[2] || '')), 'no OK asked for the allowed or never kinds');
+  w.bots.approve(j.id, true, true);   // Always allow this kind
+  assert.equal(e.ex.mode('message'), 'allow', 'Always allow sets the standing choice');
+  await settle(w);
+  assert.equal(j.state, B.S.COMPLETED);
+});
+
+test('approval kinds come from what the action does, including browser clicks', () => {
+  const e = extrasFor();
+  assert.equal(e.ex.categoryOf('browser_click', { target: '12' }, 'Click “Place order”'), 'purchase');
+  assert.equal(e.ex.categoryOf('browser_click', {}, 'Click “Delete account”'), 'delete');
+  assert.equal(e.ex.categoryOf('browser_click', {}, 'Click “Post”'), 'publish');
+  assert.equal(e.ex.categoryOf('browser_type', {}, 'Type “hi” into Message and send it'), 'message');
+  assert.equal(e.ex.categoryOf('run_command', {}, 'Run this command on your PC: Stop-Process x'), 'command');
+  assert.equal(e.ex.categoryOf('write_file', {}, 'Write the file C:\\a.txt'), 'delete');
+  assert.equal(e.ex.categoryOf(null, null, 'Accept the terms and sign up'), 'terms');
+});
+
+test('steering: a message reaches the working bot at its next step; wrap up finishes with what it has', async () => {
+  let w;
+  w = world([
+    (brief) => { w.bots.steer(w.bots.jobs[0].id, 'Only look at phones under $250'); return turn(call('web_search', { query: 'phones' })); },
+    (brief) => { assert.ok(brief.includes('NEW INSTRUCTION FROM THE USER') && brief.includes('under $250')); w.bots.wrapUp(w.bots.jobs[0].id); return turn(call('web_search', { query: 'cheap phones' })); },
+    (brief) => { assert.ok(brief.includes('wrap up now')); return turn(call('finish', { report: 'Short report.' })); },
+  ]);
+  await w.bots.init(); const j = w.bots.deploy('Phones', ''); await settle(w);
+  assert.equal(j.state, B.S.COMPLETED);
+  assert.ok(j.steps.includes('You said: Only look at phones under $250') && j.steps.includes('You asked it to wrap up'));
+  assert.deepEqual(w.tools[w.tools.length - 1], ['finish'], 'wrapping up offers only finish');
+});
+
+test('routines: schedules in plain words', () => {
+  const now = new Date(2026, 10, 9, 7, 0).getTime();   // Monday 07:00 local
+  assert.deepEqual(X.parseSchedule('every weekday at 8am', now), { kind: 'daily', time: '08:00', days: [1, 2, 3, 4, 5] });
+  assert.deepEqual(X.parseSchedule('every 2 hours', now), { kind: 'interval', everyMin: 120 });
+  assert.deepEqual(X.parseSchedule('every Sunday evening', now), { kind: 'daily', time: '18:00', days: [7] });
+  assert.deepEqual(X.parseSchedule('every month on the 1st at 9:30', now), { kind: 'monthly', day: 1, time: '09:30' });
+  assert.ok(X.parseSchedule('every 2 minutes', now).error, 'too often is refused');
+  assert.equal(X.parseSchedule('buy milk', now), null);
+  const s = X.parseSchedule('every weekday at 8am', now);
+  assert.equal(new Date(X.nextRun(s, now)).getHours(), 8);
+  const fri = new Date(2026, 10, 13, 9, 0).getTime();   // Friday after 8: next is Monday
+  assert.equal(new Date(X.nextRun(s, fri)).getDay(), 1);
+  assert.equal(X.describeSchedule(s), 'Every weekday at 08:00');
+  const m = X.parseSchedule('every month on the 31st at 9am', now);
+  assert.equal(new Date(X.nextRun(m, new Date(2027, 1, 1).getTime())).getDate(), 28, 'a short month uses its last day');
+});
+
+test('routines: fire once when due, even after a long sleep; only the device the cloud picks runs it', async () => {
+  const e = extrasFor({ claim: async (r, due) => due % 2 === 0 }); await e.ex.init();
+  const base = new Date(2026, 10, 9, 7, 0).getTime(); e.at(base);
+  const { routine } = e.ex.saveRoutine({ goal: 'News summary', scheduleText: 'every day at 8am' });
+  assert.ok(routine && routine.nextAt > base);
+  e.at(routine.nextAt + 3 * 86400000);   // Atlas was closed for three days
+  await e.ex.tick();
+  assert.equal(e.fired.length, 1, 'missed runs fire once, not three times');
+  assert.ok(routine.nextAt > routine.nextAt - 1 && routine.nextAt > Date.now() - 1e12);
+  const e2 = extrasFor({ claim: async () => false }); await e2.ex.init(); e2.at(base);
+  const r2 = e2.ex.saveRoutine({ goal: 'x', scheduleText: 'every hour' }).routine;
+  e2.at(r2.nextAt + 1); await e2.ex.tick();
+  assert.equal(e2.fired.length, 0, 'the other device holds this firing');
+  assert.ok(r2.nextAt > base + 3600000, 'and this device moves on to the next one');
+  const e3 = extrasFor({ device: 'phone-1', claim: async () => { throw new Error('offline'); } }); await e3.ex.init(); e3.at(base);
+  const r3 = e3.ex.saveRoutine({ goal: 'x', scheduleText: 'every hour' }).routine;
+  e3.at(r3.nextAt + 1); await e3.ex.tick();
+  assert.equal(e3.fired.length, 1, 'offline: the device that made it runs it');
+});
+
+test('skills: saved, found by name, drafted from a finished job, offered to bots', async () => {
+  const e = extrasFor(); await e.ex.init();
+  const sk = e.ex.saveSkill({ name: 'Weekly money check', when: 'When asked about spending', steps: '1. Read the Log\n2. Sum it' });
+  assert.equal(e.ex.skill('weekly money check').id, sk.id);
+  assert.equal(e.ex.saveSkill({ name: 'Weekly money check', when: 'x', steps: 'y' }).id, sk.id, 'same name updates');
+  assert.ok(X.skillsIndex(e.ex.data.skills).includes('Weekly money check'));
+  const d = X.draftSkill({ goal: 'Find a gift', details: 'for mum', plan: [{ text: 'Search shops' }, { text: 'Compare' }], steps: ['You approved: Buy it'], report: '## Gift\n## Sources' });
+  assert.ok(d.steps.startsWith('1. Search shops') && d.permissions.includes('Buy it') && d.output.includes('Gift'));
+  const w = world([
+    turn(call('use_skill', { name: 'weekly money' })),
+    (brief) => turn(call('finish', { report: 'ok' })),
+  ], { extras: e.ex });
+  await w.bots.init(); w.bots.deploy('Money', ''); await settle(w);
+  assert.ok(w.notes.some((x) => Array.isArray(x) && String(x[0]).startsWith('Skill: Weekly money check')), 'the skill text reaches the bot');
+  assert.ok(w.tools[0].includes('use_skill'));
+});
+
+test('specialists: a bot hands parts to helpers, waits without holding a slot, and gets their reports', async () => {
+  const e = extrasFor(); await e.ex.init();
+  const w = world([
+    turn(call('delegate', { specialist: 'Research Bot', task: 'Find three laptops' }), call('delegate', { specialist: 'Finance Bot', task: 'Check prices' })),
+    turn(call('wait_for_helpers')),
+    // the two helpers run (each its own fresh session)
+    turn(call('finish', { report: 'Laptops: A, B, C' })),
+    turn(call('finish', { report: 'Prices: 500, 600' })),
+    (brief) => { assert.ok(brief.includes('Laptops: A, B, C') && brief.includes('Prices: 500, 600'), 'helper reports are in the notes'); return turn(call('finish', { report: 'Final.' })); },
+  ], { extras: e.ex, ids: true });
+  await w.bots.init(); const j = w.bots.deploy('Laptop plan', ''); await settle(w);
+  assert.equal(j.state, B.S.COMPLETED, j.state);
+  assert.equal(j.children.length, 2);
+  const kids = j.children.map((id) => w.bots.job(id));
+  assert.ok(kids.every((k) => k.state === B.S.COMPLETED && k.parent === j.id && k.depth === 1 && k.maxCalls > 0));
+  assert.equal(w.posts.length, 1, 'only the main bot posts in the chat');
+  assert.deepEqual(w.bots.visible().map((x) => x.id), [j.id], 'helpers show inside their bot, not in the list');
+  assert.ok(w.tools[0].includes('delegate') && !w.tools[0].includes('bot_remember'), 'the main bot can delegate; only specialists keep notes');
+  assert.ok(!w.tools[1].includes('run_command') && w.tools[1].includes('web_search') && w.tools[1].includes('bot_remember'), 'Research Bot only gets its own kinds of tools');
+});
+
+test('helpers: no deeper than two levels, at most four, and stopping a bot stops its helpers', async () => {
+  const e = extrasFor(); await e.ex.init();
+  const p = { toolCalls: 70, workMs: 0 };
+  assert.equal(B.childBudget(p).maxCalls, 8, 'a helper gets a share of what is left (never less than 8)');
+  const w = world([
+    turn(...[1, 2, 3, 4, 5].map((i) => call('delegate', { specialist: 'Research Bot', task: 'Part ' + i }))),
+    (brief) => { return turn(call('ask_user', { question: 'hold on' })); },
+  ], { extras: e.ex, ids: true });
+  await w.bots.init(); const j = w.bots.deploy('Big', '');
+  await settle(w);
+  assert.equal(j.children.length, 4, 'the fifth is refused');
+  assert.ok(w.notes.some((x) => Array.isArray(x) && x.some((o) => String(o).includes("that's the limit"))));
+  w.bots.stop(j.id); await settle(w);
+  assert.ok(j.children.map((id) => w.bots.job(id)).every((k) => B.FINAL.has(k.state)), 'helpers stop with it');
+  assert.equal(B.MAX_DEPTH, 2);
+});
+
+test('specialist notes and the synced copies of skills, routines, team and rules', async () => {
+  const e = extrasFor(); await e.ex.init();
+  const sp = e.ex.specialist('Research Bot');
+  assert.equal(e.ex.specialistNote(sp.id, 'User prefers UK sources'), 'Noted for next time.');
+  assert.ok(X.specialistPrompt(sp).includes('UK sources'));
+  e.ex.specialistNote(sp.id, 'UK sources', true); assert.equal(sp.notes.length, 0);
+  e.ex.addRule('Never book anything on a Sunday');
+  assert.ok(X.rulesPrompt(e.ex.data.policy).includes('Sunday'));
+  const kinds = new Set(e.ex.synced().map((x) => x.kind));
+  assert.ok(['specialist', 'botpolicy'].every((k) => kinds.has(k)));
+  // another device's newer copy wins; an older one doesn't
+  const other = extrasFor({ device: 'phone-1' }); await other.ex.init();
+  const sk = e.ex.saveSkill({ name: 'A', when: 'w', steps: 's' });
+  other.ex.applySynced('skill', sk.id, { ...sk });
+  assert.equal(other.ex.skill('A').id, sk.id);
+  other.ex.applySynced('skill', sk.id, { ...sk, name: 'Old', updatedAt: sk.updatedAt - 1 });
+  assert.equal(other.ex.skill('A').name, 'A', 'an older copy does not win');
+  other.ex.applySynced('skill', sk.id, null);
+  assert.equal(other.ex.data.skills.length, 0, 'deleted there, deleted here');
+  // a routine made on the PC keeps the phone's own run times when the phone runs it
+  for (const x of e.ex.synced()) assert.ok(!/api.?key|secret|password|"code"/i.test(JSON.stringify(x.json)), 'nothing secret syncs');
+});
+
+test('a command is only read-only when nothing can hide a second command in it', () => {
+  for (const c of ['Get-Date\nRemove-Item -Recurse X', 'Get-Date\r\nRemove-Item X', 'echo $(Remove-Item X)', 'echo `Remove-Item X`', 'Get-ChildItem; Remove-Item X',
+    'dir | Remove-Item', 'echo hi > C:\\x.txt', 'type x < y', 'Get-Date & del x', 'Get-Item {Remove-Item X}', 'echo (Remove-Item X)'])
+    assert.ok(B.approvalFor('run_command', { command: c }), 'needs an OK: ' + JSON.stringify(c));
+  for (const c of ['Get-Date', 'dir C:\\Users', 'Get-ChildItem C:\\temp', 'whoami', 'ipconfig'])
+    assert.equal(B.approvalFor('run_command', { command: c }), null, 'read-only: ' + c);
+  assert.ok(B.approvalFor('type_text', { text: 'hello\n' }), 'typing a new line presses Enter, so it needs an OK');
+  assert.equal(B.approvalFor('type_text', { text: 'hello' }), null);
+});
+
+test('voice: only Gemini refusing the designed voice forgets it (not the network, a busy server or a limit)', () => {
+  assert.equal(vo.refusedVoice(400), true);
+  assert.equal(vo.refusedVoice(404), true);
+  assert.equal(vo.refusedVoice(0), false);      // no connection
+  assert.equal(vo.refusedVoice(429), false);
+  assert.equal(vo.refusedVoice(408), false);
+  assert.equal(vo.refusedVoice(503), false);
+});
+
+test('bot browser (PC): Enter in a message box outside any form needs the OK; a site search does not', async () => {
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url);
+  // botbrowser.js needs Electron only for its windows; riskOf is plain logic
+  req.cache[req.resolve('electron')] = { id: 'electron', filename: 'electron', loaded: true, exports: { app: { on() {}, getPath: () => '/tmp' }, session: {}, BrowserWindow: class {} } };
+  const { riskOf } = req('../botbrowser.js');
+  const composer = { found: true, kind: 'text box', label: 'Message', inForm: false, host: 'chat.example.com' };
+  assert.match(riskOf('browser_press', { key: 'Enter' }, composer), /Press Enter in “Message”, which may send it on chat\.example\.com/);
+  assert.match(riskOf('browser_type', { target: '3', text: 'hi', submit: true }, composer), /may send it/);
+  assert.equal(riskOf('browser_type', { target: '3', text: 'hi', submit: false }, composer), null);
+  assert.equal(riskOf('browser_press', { key: 'Enter' }, { found: true, kind: 'search field', label: 'Search', inForm: false }), null);
+  assert.equal(riskOf('browser_press', { key: 'Enter' }, { found: true, kind: 'field', label: 'Search', inForm: true, formAction: '/search', formSubmit: 'Go' }), null);
+  assert.match(riskOf('browser_press', { key: 'Return' }, { found: true, kind: 'field', label: 'Qty', inForm: true, formAction: '/checkout', formSubmit: 'Place order' }), /Submit the form/);
+});
+
+test('this PC: a mixture-of-experts name (8x7b) counts all its experts, so it is not judged a small model', () => {
+  const moe = fitR.sizeFromName('mixtral-8x7b-instruct-v0.1-q4_k_m');
+  assert.ok(moe > 30000 && moe < 34000, String(moe));   // ≈ 56 billion × 4.8 bits
+  assert.ok(Math.abs(fitR.sizeFromName('qwen2.5-7b-instruct-q4_k_m') - 4005) < 50);
 });

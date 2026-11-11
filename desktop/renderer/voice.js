@@ -131,6 +131,8 @@ async function designedVoice(key) {
   setPref('atlasVoiceDesigned', id ? `${tag}|${id}` : '-');
   return id;
 }
+/** Gemini refused the voice itself (not the network, a busy server or a limit). */
+export const refusedVoice = (status) => status >= 400 && status < 500 && status !== 429 && status !== 408;
 async function geminiCall(key, text, voice, style) {
   const body = { model: 'gemini-3.8-flash-tts', input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style }] }] }],
     response_format: { type: 'audio' }, generation_config: { speech_config: [{ voice }] } };
@@ -142,7 +144,12 @@ async function geminiSpeech(text, v) {
   // "Atlas": its own designed voice when it can be made, else Charon
   const designed = v.id === 'atlas' ? await designedVoice(key).catch(() => null) : null;
   let r = await geminiCall(key, text, designed || v.voice, style);
-  if (!r.ok && designed) { setPref('atlasVoiceDesigned', '-'); r = await geminiCall(key, text, v.voice, style); }
+  if (!r.ok && designed) {
+    // only Gemini turning the voice down (a 4xx other than 429/408) means it's gone; a dropped connection (status 0),
+    // a busy server or a used-up limit says nothing about the voice, so it's kept for next time
+    if (refusedVoice(r.status)) setPref('atlasVoiceDesigned', '-');
+    r = await geminiCall(key, text, v.voice, style);
+  }
   if (!r.ok) throw new Error(`Gemini voice: ${r.status || r.error}`);
   let best = null;
   (function walk(x) { if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object') for (const [k, val] of Object.entries(x)) { if (k === 'data' && typeof val === 'string' && val.length > (best ? best.length : 200)) best = val; else walk(val); } })(JSON.parse(r.text));

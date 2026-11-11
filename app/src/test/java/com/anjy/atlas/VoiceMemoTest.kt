@@ -9,7 +9,12 @@ import org.junit.Test
 class VoiceMemoTest {
     @Test fun aWavFilesSoundIsFoundBehindItsHeader() {
         val pcm = ByteArray(10) { it.toByte() }
-        val (rate, data) = Speech.wavData(Voice.wav(pcm, 22050))
+        // a plain WAV header written by hand (Voice itself needs a phone to load)
+        val h = java.nio.ByteBuffer.allocate(44).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        h.put("RIFF".toByteArray()); h.putInt(36 + pcm.size); h.put("WAVE".toByteArray()); h.put("fmt ".toByteArray())
+        h.putInt(16); h.putShort(1); h.putShort(1); h.putInt(22050); h.putInt(22050 * 2); h.putShort(2); h.putShort(16)
+        h.put("data".toByteArray()); h.putInt(pcm.size)
+        val (rate, data) = Speech.wavData(h.array() + pcm)
         assertEquals(22050, rate)
         assertArrayEquals(pcm, data)
     }

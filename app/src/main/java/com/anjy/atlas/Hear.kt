@@ -215,10 +215,11 @@ object Hear {
                 // the wake word may be letting go of the microphone at this very moment: give it a few tries
                 for (attempt in 0 until 4) {
                     val r = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, frame * 2 * 10))
-                    if (r.state == AudioRecord.STATE_INITIALIZED) {
-                        r.startRecording()
-                        if (r.recordingState == AudioRecord.RECORDSTATE_RECORDING) { rec = r; break }
-                    }
+                    // startRecording throws while another app holds the microphone: let this one go before trying again,
+                    // or it keeps the microphone open until it's garbage-collected
+                    val ok = try { r.state == AudioRecord.STATE_INITIALIZED && run { r.startRecording(); r.recordingState == AudioRecord.RECORDSTATE_RECORDING } }
+                        catch (e: Exception) { Log.w(TAG, "microphone busy", e); false }
+                    if (ok) { rec = r; break }
                     try { r.release() } catch (_: Exception) {}
                     if (cancelled) return
                     Thread.sleep(250)

@@ -279,6 +279,8 @@ The internet:
 Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of phone actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
+- When they teach you how they want a kind of job done, save it with save_skill. When they want a bot on a schedule ("every morning…"), use set_routine (one-off reminders stay set_reminder).
+${botTeam()}
 
 Where you're running (so you can say why something is held back; don't bring it up otherwise):
 - ${try { DeviceGuard.line(ctx) } catch (e: Exception) { "this phone" }}
@@ -352,6 +354,11 @@ ${Tools.logContext(ctx)}
             KeyRouter.call(ctx, p, session, onStatus = { st -> status = st ?: was; changed() }, call = call)
         } finally { if (status != was) { status = was; changed() } }
     }
+
+    /** The skills and the specialist team, for Atlas's own instructions. */
+    private fun botTeam(): String = try {
+        listOf(BotExtras.Rules.skillsIndex(BotExtras.skills.toList()), BotExtras.Rules.teamIndex(BotExtras.specialists.toList())).filter { it.isNotEmpty() }.joinToString("\n")
+    } catch (_: Exception) { "" }
 
     private fun stepNote(steps: List<String>) = if (steps.isEmpty()) "" else "\n(What I did: ${steps.joinToString("; ")})"
 

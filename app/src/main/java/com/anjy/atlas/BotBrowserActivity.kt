@@ -49,6 +49,8 @@ class BotBrowserActivity : Activity() {
         super.onCreate(savedInstanceState)
         Bots.init(applicationContext)
         jobId = intent?.getStringExtra(EXTRA_ID) ?: BotBrowser.owner
+        // re-made after a change Android doesn't hand to the screen (split screen, font size): keep who has the page
+        savedInstanceState?.let { mine = it.getBoolean("mine"); pausedByUs = it.getBoolean("pausedByUs"); jobId = it.getString("job") ?: jobId }
         window.statusBarColor = P.bg; window.navigationBarColor = P.bg
         window.setDecorFitsSystemWindows(false)
         onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) {
@@ -101,7 +103,7 @@ class BotBrowserActivity : Activity() {
             holder.addView(web, FrameLayout.LayoutParams(-1, -1))
             holder.addView(shield, FrameLayout.LayoutParams(-1, -1))
             // the bot was waiting for the user (a sign-in, a human check): go straight to taking over
-            if (Bots.job(jobId)?.state == BotRules.AWAITING_ANSWER) takeOver()
+            if (mine || Bots.job(jobId)?.state == BotRules.AWAITING_ANSWER) takeOver()
         }
         refresh()
     }
@@ -109,9 +111,15 @@ class BotBrowserActivity : Activity() {
     override fun onResume() { super.onResume(); BotBrowser.listen(onChange); Bots.listen(onChange); refresh() }
     override fun onPause() { BotBrowser.unlisten(onChange); Bots.unlisten(onChange); super.onPause() }
 
+    override fun onSaveInstanceState(out: Bundle) {
+        super.onSaveInstanceState(out)
+        out.putBoolean("mine", mine); out.putBoolean("pausedByUs", pausedByUs); out.putString("job", jobId)
+    }
+
     override fun onDestroy() {
-        // leaving without handing back: a job we paused carries on, a job waiting for the user keeps waiting
-        if (pausedByUs) jobId?.let { Bots.resume(it) }
+        // leaving without handing back: a job we paused carries on, a job waiting for the user keeps waiting.
+        // Not when the screen is only being re-made: the user still has the page, so the bot mustn't start acting on it.
+        if (pausedByUs && !isChangingConfigurations) jobId?.let { Bots.resume(it) }
         BotBrowser.detach()
         super.onDestroy()
     }

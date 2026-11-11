@@ -21,9 +21,11 @@ export const reserveMb = (p) => Math.max(2048, Math.round((p.totalRamMb || 0) * 
 /** Model size from its name, for servers that don't say (e.g. "qwen2.5-7b-instruct-q4_k_m"): billions of parameters × bytes per weight. */
 export function sizeFromName(id) {
   const s = String(id || '').toLowerCase();
-  const b = s.match(/(\d+(?:\.\d+)?)\s*b(?![a-z])/);
+  // mixture-of-experts names ("mixtral-8x7b", "8x22b") hold all the experts: 8 × 7 billion, not 7
+  const moe = s.match(/(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*b(?![a-z])/);
+  const b = moe || s.match(/(\d+(?:\.\d+)?)\s*b(?![a-z])/);
   if (!b) return -1;
-  const params = parseFloat(b[1]);
+  const params = moe ? parseFloat(moe[1]) * parseFloat(moe[2]) : parseFloat(b[1]);
   const bits = /q8|8bit|int8/.test(s) ? 8.5 : /q6/.test(s) ? 6.6 : /q5/.test(s) ? 5.7 : /q3/.test(s) ? 3.9 : /q2/.test(s) ? 3 : /f16|fp16|bf16/.test(s) ? 16 : 4.8;
   return Math.round(params * 1e9 * bits / 8 / (1024 * 1024));
 }

@@ -84,6 +84,9 @@ class BrowserRulesTest {
         assertNotNull(BrowserRules.approval("browser_press", JSONObject().put("key", "Enter"), "Comment", true, ""))
         assertNull(BrowserRules.approval("browser_press", JSONObject().put("key", "Enter"), null, false, ""))
         assertNull(BrowserRules.approval("browser_press", JSONObject().put("key", "Tab"), null, true, ""))
+        // "Return" submits the form just like "Enter" does
+        assertNotNull(BrowserRules.approval("browser_press", JSONObject().put("key", "Return"), "Comment", true, ""))
+        assertNotNull(BrowserRules.approval("browser_press", JSONObject().put("key", " return "), null, true, ""))
         assertNull(BrowserRules.approval("browser_open", JSONObject().put("url", "https://x.com"), null, false, ""))
         assertEquals("Click “Place order” on shop.com", BrowserRules.approval("browser_click", none, "Place order", true, "shop.com"))
     }

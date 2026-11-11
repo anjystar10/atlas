@@ -131,7 +131,7 @@ object BotBrowser {
                     // short of memory: close the browser unless a bot is using it right now and the phone isn't in trouble
                     val busy = owner?.let { Bots.job(it)?.state == BotRules.RUNNING } == true
                     if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL && (!busy || level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE) && !onScreen) close("Android was short of memory")
-                    else if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND && !busy && !onScreen) close("Android was short of memory")
+                    else if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND && !busy && !onScreen && !waitingForUser()) close("Android was short of memory")
                 }
                 override fun onConfigurationChanged(newConfig: Configuration) {}
                 @Deprecated("Deprecated in Java") override fun onLowMemory() { if (!onScreen) close("Android was short of memory") }
@@ -151,11 +151,16 @@ object BotBrowser {
         v.layout(0, 0, w, h)
     }
 
+    /** A job waiting for the user's OK or answer keeps its page open longer: closing it would undo an approved click. */
+    private const val WAITING_CLOSE_MS = 2 * 3_600_000L
+    private fun waitingForUser(): Boolean = owner?.let { Bots.job(it)?.state }.let { it == BotRules.AWAITING_APPROVAL || it == BotRules.AWAITING_ANSWER }
+
     private val idleCheck = object : Runnable {
         override fun run() {
             val busy = owner?.let { Bots.job(it)?.state == BotRules.RUNNING } == true
             if (web == null) return
-            if (!busy && !onScreen && SystemClock.elapsedRealtime() - lastUse >= IDLE_CLOSE_MS) close("unused for a while")
+            val limit = if (waitingForUser()) WAITING_CLOSE_MS else IDLE_CLOSE_MS
+            if (!busy && !onScreen && SystemClock.elapsedRealtime() - lastUse >= limit) close("unused for a while")
             else main.postDelayed(this, 60_000)
         }
     }

@@ -37,6 +37,8 @@ function riskOf(name, args, d) {
   if ((name === 'browser_type' && args.submit) || name === 'browser_press') {
     if (name === 'browser_press' && !/^(enter|return)$/i.test(String(args.key || '').trim())) return null;
     if (d.inForm && (RISKY_WORDS.test(d.formSubmit || '') || RISKY_PATHS.test(d.formAction || ''))) return `Submit the form${d.formSubmit ? ' ' + said(d.formSubmit) : ''}${site}`;
+    // a message box outside any form (a chat, a DM, a comment composer): Enter there usually sends what's in it
+    if (!d.inForm && d.kind === 'text box') return `Press Enter in ${said(d.label || 'the message box')}, which may send it${site}`;
     return null;
   }
   return null;
@@ -161,7 +163,7 @@ const FOCUSED_JS = `(() => { ${PRELUDE}
   if (!el.getAttribute('data-atlas-id')) el.setAttribute('data-atlas-id', 'f');
   const form = el.form || el.closest('form'); let formSubmit = '';
   if (form) { const b = form.querySelector('button[type=submit],input[type=submit],button:not([type])'); if (b) formSubmit = labelOf(b); }
-  return { found: true, label: labelOf(el), inForm: !!form, formAction: form ? (form.getAttribute('action') || location.pathname) : '', formSubmit, host: location.host };
+  return { found: true, label: labelOf(el), kind: kindOf(el), inForm: !!form, formAction: form ? (form.getAttribute('action') || location.pathname) : '', formSubmit, host: location.host };
 })()`;
 
 // ---------------------------------------------------------------- windows, one per job
@@ -186,7 +188,10 @@ function botSession() {
     const entry = [...jobs.values()].find((j) => j.win && !j.win.isDestroyed() && j.win.webContents === wc);
     if (!entry) { item.cancel(); return; }
     fs.mkdirSync(entry.folder, { recursive: true });
-    let name = safeName(item.getFilename()).slice(0, 80) || 'download';
+    // keep the extension when a long name is shortened, so the file still opens with the right app
+    const raw = String(item.getFilename() || ''), ext = path.extname(raw).replace(/[^\w.]/g, '').slice(0, 12);
+    const base = path.basename(raw, path.extname(raw));
+    let name = (base.trim() ? safeName(base) : 'download') + ext;
     let file = path.join(entry.folder, name), k = 1;
     while (fs.existsSync(file)) { const ext = path.extname(name); file = path.join(entry.folder, `${path.basename(name, ext)} (${++k})${ext}`); }
     item.setSavePath(file);
@@ -464,7 +469,9 @@ async function check(jobId, title, name, args = {}) {
   if (name === 'browser_press' && !/^(enter|return)$/i.test(String(args.key || '').trim())) return null;
   const e = jobs.get(jobId); if (!e || !e.win || e.win.isDestroyed()) return name === 'browser_upload' ? riskOf(name, args, null) : null;
   let d;
-  try { d = await js(e.win.webContents, name === 'browser_press' ? FOCUSED_JS : DESCRIBE(args.target, false)); } catch { return null; }
+  // if the page can't be asked (it's mid-load, or the script failed), ask the user rather than go ahead unchecked
+  try { d = await js(e.win.webContents, name === 'browser_press' ? FOCUSED_JS : DESCRIBE(args.target, false)); }
+  catch { return `${name === 'browser_click' ? 'Click' : 'Press Enter'} on ${e.win.webContents.getURL().replace(/^https?:\/\//, '').slice(0, 60) || 'this page'} (I couldn't check what it is)`; }
   return riskOf(name, args, d);
 }
 

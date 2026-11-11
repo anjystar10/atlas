@@ -229,8 +229,9 @@ object Voice {
     }
 
     private fun play(app: Context, file: File, mine: Int, onEnd: () -> Unit, fallback: () -> Unit) {
+        var mp: MediaPlayer? = null
         try {
-            val mp = MediaPlayer()
+            mp = MediaPlayer()
             mp.setAudioAttributes(speechAttrs)
             mp.setDataSource(file.absolutePath)
             mp.setOnCompletionListener { it.release(); if (player === it) player = null; file.delete(); speaking = false; if (mine == gen) onEnd() }
@@ -240,7 +241,7 @@ object Voice {
             if (rate != 1f) try { mp.playbackParams = mp.playbackParams.setSpeed(rate) } catch (e: Exception) { Log.w(TAG, "speed", e) }
             mp.start(); speaking = true
             player = mp
-        } catch (e: Exception) { Log.w(TAG, "playback", e); file.delete(); speaking = false; fallback() }
+        } catch (e: Exception) { Log.w(TAG, "playback", e); try { mp?.release() } catch (_: Exception) {}; file.delete(); speaking = false; fallback() }
     }
 
     // ---- Gemini's speech model (Interactions API), returns 24 kHz WAV ----
@@ -253,8 +254,10 @@ object Voice {
         val style = c.style + Speech.pace(speed(ctx)).let { if (it.isEmpty()) "" else "; $it" }
         val r = try { geminiCall(key, text, voice, style) } catch (e: Exception) {
             if (voice == c.voice) throw e
-            // that voice didn't work: don't try it again (a designed one falls back to the library's, then Charon)
-            Store.putString(ctx, if (voice == designed) "atlas_voice_designed" else "atlas_voice_id", "-")
+            // Gemini turned that voice down: don't try it again (a designed one falls back to the library's, then Charon).
+            // A dropped connection, a busy server or a used-up limit says nothing about the voice, so it is kept.
+            val refused = e is Gemini.Failure && !e.offline && e.code in 400..499 && e.code != 429 && e.code != 408
+            if (refused) Store.putString(ctx, if (voice == designed) "atlas_voice_designed" else "atlas_voice_id", "-")
             geminiCall(key, text, c.voice, style)
         }
         val b64 = findAudio(r) ?: throw IllegalStateException("Gemini sent no audio")
