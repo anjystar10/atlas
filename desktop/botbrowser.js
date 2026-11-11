@@ -264,8 +264,9 @@ async function summary(e, note = '') {
   if (dl.length) lines.push(`Downloads in the job folder: ${dl.join(', ')}`);
   if (r.captcha) lines.push('THIS PAGE HAS A CAPTCHA / "are you human" check. Never try to solve it: call browser_handover so the user does it.');
   if (r.password) lines.push('This page asks for a password. Never type passwords: call browser_handover so the user signs in themselves.');
-  lines.push('', 'Text on the page:', r.text || '(none)');
+  // the things to use come first, so a short excerpt of this result (as a bot keeps between rounds) still has them
   lines.push('', `Things you can use (${r.items.length}${r.items.length >= ITEMS_MAX ? ', the first ' + ITEMS_MAX : ''}; use the number as target):`, ...(r.items.length ? r.items : ['(none)']));
+  lines.push('', 'Text on the page:', r.text || '(none)');
   if (r.more) lines.push('', '(There is more below: browser_scroll down to see it.)');
   return { out: lines.join('\n'), url: r.url, title: r.title };
 }

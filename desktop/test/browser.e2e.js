@@ -13,6 +13,7 @@ const results = [];
 async function check(name, f) { try { await f(); results.push(['ok', name]); console.log('ok  ', name); } catch (e) { results.push(['FAIL', name, e.message]); console.log('FAIL', name, '\n     ', e.message.split('\n').slice(0, 6).join('\n      ')); } }
 const num = (out, re) => { const m = out.match(re); assert.ok(m, 'no element matching ' + re + ' in:\n' + out.slice(-1500)); return m[1]; };
 
+app.on('window-all-closed', () => {});   // the test decides when to quit
 app.whenReady().then(async () => {
   const bb = require('../botbrowser.js');
   const { server, got, base } = await site.start();

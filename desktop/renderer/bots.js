@@ -276,7 +276,7 @@ export function createBots(deps) {
     const url = String((c.name === 'read_page' ? (c.args || {}).url : r.url) || '').trim();
     if (/^https?:/.test(url) && !/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url) && !j.sources.includes(url)) { j.sources.push(url); if (j.sources.length > 40) j.sources.shift(); }
     const long = ['read_page', 'web_search', 'browser_open', 'browser_read', 'browser_click', 'browser_type', 'browser_select', 'browser_press', 'browser_scroll', 'browser_back', 'browser_wait'].includes(c.name);
-    addRecent(j, `${what}:\n${String(r.out || '').slice(0, long ? 3500 : 1200)}`);
+    addRecent(j, `${what}:\n${String(r.out || '').slice(0, long ? 5000 : 1200)}`);
     persist();
     return r;
   }
