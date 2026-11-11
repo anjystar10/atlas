@@ -103,6 +103,12 @@
 
         <!-- Atlas Bot: its page, the service that keeps Atlas running while a bot works, and its notification keys. -->
         <activity
+            android:name=".BotExtrasActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
+        <activity
             android:name=".BotActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize"
