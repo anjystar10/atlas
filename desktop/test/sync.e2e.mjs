@@ -207,4 +207,30 @@ test('the kept pull position moves on once the look-back time has passed', async
   assert.ok(Object.keys(st.seen).length < 50, 'the list of records taken in is pruned');
 });
 
+test('shared AI keys: off by default (nothing sent); on, the phone’s key arrives and this PC’s goes up, encrypted', async () => {
+  const ks = await import('../renderer/keyshare.js');
+  const brain = await import('../renderer/brain.js');
+  ks.register();
+  brain.addKey('groq', 'gsk_pc_key');
+  await sync.runOnce();
+  assert.equal(await cloudHas('keys', 'groq'), null, 'off: no keys leave this PC');
+  const phoneRec = await ks.observe({}, [], ['gsk_phone_key'], now());
+  await phoneSends('keys', 'groq', phoneRec);
+  await sync.runOnce();
+  assert.deepEqual(brain.keys('groq').map((e) => e.key), ['gsk_pc_key'], 'off: the phone’s key waits unused');
+  await ks.set(true);
+  assert.deepEqual(brain.keys('groq').map((e) => e.key).sort(), ['gsk_pc_key', 'gsk_phone_key'], 'on: the waiting key is taken in');
+  await sync.runOnce(); await sync.runOnce();
+  assert.deepEqual(await ks.present(await cloudHas('keys', 'groq')), ['gsk_pc_key', 'gsk_phone_key'], 'both keys are in the cloud record');
+  const raw = cloud.rows.get(OWNER + '|keys|groq').payload;
+  assert.ok(!raw.includes('gsk_'), 'the cloud holds only scrambled text');
+  // removed on this PC: removed on the phone too (the record keeps only its fingerprint)
+  brain.removeKey('groq', 'gsk_pc_key');
+  await sync.runOnce();
+  const rec = await cloudHas('keys', 'groq');
+  assert.deepEqual(await ks.present(rec), ['gsk_phone_key']);
+  assert.ok(!JSON.stringify(rec).includes('gsk_pc_key'));
+  await ks.set(false);
+});
+
 after(async () => { await sync.unlink(); });

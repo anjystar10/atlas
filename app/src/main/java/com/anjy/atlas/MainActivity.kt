@@ -2090,6 +2090,8 @@ class MainActivity : Activity() {
                 background = rounded(if (dark) SURFACE2 else Color.parseColor(LIGHT_FIELD), 14, LINE); setPadding(dp(14), dp(12), dp(14), dp(12)); gravity = Gravity.CENTER
                 setTextIsSelectable(true)
             }, 6)
+            dv.add(switchRow(null, "Share My AI Keys", KeyShare.on(this)) { on -> KeyShare.set(applicationContext, on) }, 12)
+            dv.add(text("Your AI keys go to your PC too, inside the encrypted sync (scrambled with your link code; the cloud can't read them). Turn it on on both devices.", 13f, MUTED), 4)
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             row.addView(secondary("Copy Code") { getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas link code", code)); showBanner("Copied") }, LinearLayout.LayoutParams(0, WRAP, 1f))
             row.addView(secondary("Sync Now") { scope.launch(Dispatchers.IO) { Sync.runOnce(applicationContext) } ; showBanner("Syncing…") }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })

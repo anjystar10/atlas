@@ -3,6 +3,7 @@ import * as store from './store.js';
 import { db, pref, setPref, onChange } from './store.js';
 import * as brain from './brain.js';
 import * as sync from './sync.js';
+import * as keyshare from './keyshare.js';
 import * as voice from './voice.js';
 import { endsTalk } from './speech.js';
 import { Orb } from './orb.js';
@@ -673,7 +674,9 @@ function renderMe(page) {
     dc.appendChild(h(`<div style="margin-bottom:10px">${lines.join('')}</div>`));
     dc.appendChild(h(`<div class="small muted">Your link code (keep it private):</div>`));
     dc.appendChild(h(`<div class="field mono" style="margin:6px 0 10px;text-align:center;font-size:17px;user-select:all">${esc(code)}</div>`));
-    const r = h('<div class="row"><button class="btn">Copy Code</button><button class="btn">Sync Now</button><button class="btn danger">Unlink This PC</button></div>'); dc.appendChild(r);
+    dc.appendChild(settingRow('Share My AI Keys', keyshare.on(), (on) => keyshare.set(on),
+      'Your AI keys go to your phone too, inside the encrypted sync (scrambled with your link code; the cloud can’t read them). Turn it on on both devices.'));
+    const r = h('<div class="row" style="margin-top:10px"><button class="btn">Copy Code</button><button class="btn">Sync Now</button><button class="btn danger">Unlink This PC</button></div>'); dc.appendChild(r);
     r.children[0].onclick = () => { navigator.clipboard.writeText(code); toast('Copied'); };
     r.children[1].onclick = async () => { toast('Syncing…'); toast(await sync.runOnce()); render(true); };
     r.children[2].onclick = async () => { if (await sheet({ title: 'Unlink This PC?', body: 'It stops syncing. Everything stays on this PC; the phone keeps its copy.', primary: 'Unlink', danger: true })) { await sync.unlink(); render(true); } };
@@ -875,6 +878,6 @@ async function main() {
   host.showOrb(pref('onScreen', true));
   if (pref(F)) showFocus();
   checkDue(); setInterval(checkDue, 15000);
-  sync.loadStatus(); sync.syncSoon(800); sync.keepFresh();
+  keyshare.register(); sync.loadStatus(); sync.syncSoon(800); sync.keepFresh();
 }
 main();

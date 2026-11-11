@@ -115,5 +115,20 @@ class SyncPlanTest {
     @Test fun presenceLikeThePc() {
         for (c in fx.arr("presenceDue")) assertEquals(c.getBoolean("want"), SyncPlan.presenceDue(c.getLong("last"), c.getLong("now")))
     }
+
+    @Test fun keySharingMergesLikeThePc() {
+        val ks = fx.getJSONObject("keyshare")
+        ks.getJSONArray("fingerprints").let { a -> for (i in 0 until a.length()) a.getJSONArray(i).let { assertEquals(it.getString(1), KeyShare.fingerprint(it.getString(0))) } }
+        for (c in ks.arr("merge")) assertEquals(c.getString("name"), Sync.canonical(c.getJSONObject("expect")), Sync.canonical(KeyShare.merge(c.getJSONObject("a"), c.getJSONObject("b"))))
+        for (c in ks.arr("present")) {
+            val want = c.getJSONArray("expect").let { a -> (0 until a.length()).map { a.getString(it) } }
+            assertEquals(c.getString("name"), want, KeyShare.present(c.getJSONObject("rec")))
+        }
+        for (c in ks.arr("observe")) {
+            fun strs(k: String) = c.getJSONArray(k).let { a -> (0 until a.length()).map { a.getString(it) } }
+            val got = KeyShare.observe(JSONObject(c.getJSONObject("rec").toString()), strs("seen"), strs("now"), c.getLong("at"))
+            assertEquals(c.getString("name"), Sync.canonical(c.getJSONObject("expect")), Sync.canonical(got))
+        }
+    }
 }
 

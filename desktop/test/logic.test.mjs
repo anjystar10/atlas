@@ -317,6 +317,22 @@ test('sync, round two: pull position, batches, problems, shared settings and pre
   for (const c of fx.profileFields) assert.deepEqual(sync.profileFields(c.rec), c.expect);
   for (const c of fx.presenceDue) assert.equal(sync.presenceDue(c.last, c.now), c.want);
 });
+test('sharing AI keys: the same merge rules as the phone, and a key is never lost to the other device', async () => {
+  const { readFileSync } = await import('node:fs');
+  const ks = await import('../renderer/keyshare.js');
+  const fx = JSON.parse(readFileSync(new URL('../../tools/sync-fixtures.json', import.meta.url), 'utf8')).keyshare;
+  for (const [k, f] of fx.fingerprints) assert.equal(await ks.fingerprint(k), f);
+  for (const c of fx.merge) assert.deepEqual(ks.merge(c.a, c.b), c.expect, c.name);
+  for (const c of fx.present) assert.deepEqual(await ks.present(c.rec), c.expect, c.name);
+  for (const c of fx.observe) assert.deepEqual(await ks.observe(c.rec, c.seen, c.now, c.at), c.expect, c.name);
+  // both devices add a different key at once: after merging both ways, both have both keys
+  const phone = await ks.observe({}, [], ['AIza-phone'], 100), pc = await ks.observe({}, [], ['AIza-pc'], 101);
+  assert.deepEqual(await ks.present(ks.merge(phone, pc)), ['AIza-pc', 'AIza-phone']);
+  assert.deepEqual(await ks.present(ks.merge(pc, phone)), ['AIza-pc', 'AIza-phone']);
+  // the record holds no removed key itself, only its fingerprint
+  const gone = await ks.observe(pc, ['AIza-pc'], [], 200);
+  assert.ok(!JSON.stringify(gone).includes('AIza-pc'));
+});
 test('sync: an older edit from the other device never beats a newer one made here offline', () => {
   // made here at 2000 while offline, the phone's copy says 1000: ours stays and goes up; a later phone edit at 3000 wins
   assert.equal(sync.mineWins(2000, 'pc', 1000, 'phone'), true);

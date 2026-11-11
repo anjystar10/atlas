@@ -1586,5 +1586,199 @@
    "now": 1800000000000,
    "want": true
   }
- ]
+ ],
+ "keyshare": {
+  "fingerprints": [
+   [
+    "AIzaSyA-test-key-one",
+    "ef0f31ed10f8d1c041b9d8a8147f3b92"
+   ],
+   [
+    "AIzaSyB-test-key-two",
+    "8be65ea635bbe0c61309ebc43999533d"
+   ]
+  ],
+  "merge": [
+   {
+    "name": "newest time of each add and remove",
+    "a": {
+     "added": {
+      "AIzaSyA-test-key-one": 10,
+      "AIzaSyB-test-key-two": 5
+     },
+     "removed": {}
+    },
+    "b": {
+     "added": {
+      "AIzaSyB-test-key-two": 7
+     },
+     "removed": {
+      "ef0f31ed10f8d1c041b9d8a8147f3b92": 12
+     }
+    },
+    "expect": {
+     "added": {
+      "AIzaSyA-test-key-one": 10,
+      "AIzaSyB-test-key-two": 7
+     },
+     "removed": {
+      "ef0f31ed10f8d1c041b9d8a8147f3b92": 12
+     }
+    }
+   },
+   {
+    "name": "empty sides",
+    "a": {},
+    "b": {
+     "added": {
+      "gsk_test_three": 1
+     }
+    },
+    "expect": {
+     "added": {
+      "gsk_test_three": 1
+     },
+     "removed": {}
+    }
+   }
+  ],
+  "present": [
+   {
+    "name": "removed after added: gone",
+    "rec": {
+     "added": {
+      "AIzaSyA-test-key-one": 10,
+      "AIzaSyB-test-key-two": 5
+     },
+     "removed": {
+      "ef0f31ed10f8d1c041b9d8a8147f3b92": 12
+     }
+    },
+    "expect": [
+     "AIzaSyB-test-key-two"
+    ]
+   },
+   {
+    "name": "added again after a removal: back",
+    "rec": {
+     "added": {
+      "AIzaSyA-test-key-one": 20
+     },
+     "removed": {
+      "ef0f31ed10f8d1c041b9d8a8147f3b92": 12
+     }
+    },
+    "expect": [
+     "AIzaSyA-test-key-one"
+    ]
+   },
+   {
+    "name": "same moment: removal wins",
+    "rec": {
+     "added": {
+      "AIzaSyA-test-key-one": 12
+     },
+     "removed": {
+      "ef0f31ed10f8d1c041b9d8a8147f3b92": 12
+     }
+    },
+    "expect": []
+   }
+  ],
+  "observe": [
+   {
+    "name": "first look: every key in the pool is added now",
+    "rec": {},
+    "seen": [],
+    "now": [
+     "AIzaSyA-test-key-one",
+     "AIzaSyB-test-key-two"
+    ],
+    "at": 100,
+    "expect": {
+     "added": {
+      "AIzaSyA-test-key-one": 100,
+      "AIzaSyB-test-key-two": 100
+     },
+     "removed": {}
+    }
+   },
+   {
+    "name": "a key gone from the pool is removed (fingerprint only)",
+    "rec": {
+     "added": {
+      "AIzaSyA-test-key-one": 1,
+      "AIzaSyB-test-key-two": 1
+     },
+     "removed": {}
+    },
+    "seen": [
+     "AIzaSyA-test-key-one",
+     "AIzaSyB-test-key-two"
+    ],
+    "now": [
+     "AIzaSyA-test-key-one"
+    ],
+    "at": 200,
+    "expect": {
+     "added": {
+      "AIzaSyA-test-key-one": 1
+     },
+     "removed": {
+      "8be65ea635bbe0c61309ebc43999533d": 200
+     }
+    }
+   },
+   {
+    "name": "a key added again later",
+    "rec": {
+     "added": {
+      "AIzaSyA-test-key-one": 1
+     },
+     "removed": {
+      "8be65ea635bbe0c61309ebc43999533d": 200
+     }
+    },
+    "seen": [
+     "AIzaSyA-test-key-one"
+    ],
+    "now": [
+     "AIzaSyA-test-key-one",
+     "AIzaSyB-test-key-two"
+    ],
+    "at": 300,
+    "expect": {
+     "added": {
+      "AIzaSyA-test-key-one": 1,
+      "AIzaSyB-test-key-two": 300
+     },
+     "removed": {
+      "8be65ea635bbe0c61309ebc43999533d": 200
+     }
+    }
+   },
+   {
+    "name": "nothing changed",
+    "rec": {
+     "added": {
+      "AIzaSyA-test-key-one": 1
+     },
+     "removed": {}
+    },
+    "seen": [
+     "AIzaSyA-test-key-one"
+    ],
+    "now": [
+     "AIzaSyA-test-key-one"
+    ],
+    "at": 400,
+    "expect": {
+     "added": {
+      "AIzaSyA-test-key-one": 1
+     },
+     "removed": {}
+    }
+   }
+  ]
+ }
 }
