@@ -70,12 +70,13 @@ object BotExtras {
         /** From the tool when the wording says nothing. */
         fun categoryFor(tool: String?, args: JSONObject?): String = when (tool) {
             "run_command" -> "command"
-            "write_file", "forget", "update_reminder" -> "delete"
+            "write_file", "forget", "update_reminder", "calendar_change" -> "delete"
             "open_link" -> "message"
             "press_keys", "type_text", "tap", "click", "long_press" -> guessCategory(args?.optString("label") ?: args?.optString("text")).let { if (it == "other") "message" else it }
             else -> "other"
         }
         fun categoryOf(tool: String?, args: JSONObject?, what: String): String {
+            if (tool == "browser_fill_login") return "account"   // a saved sign-in (vault): always the account kind, whatever the site is called
             val g = guessCategory(what)
             return if (g != "other" || tool == null) g else categoryFor(tool, args)
         }

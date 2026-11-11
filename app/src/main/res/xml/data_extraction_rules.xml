@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The vault (saved sign-ins) never leaves this phone: not in a cloud backup (off for Atlas anyway) and not in a
+     phone-to-phone transfer. Its key lives in this phone's Keystore, so a copy would be unreadable elsewhere too. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="vault.enc" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="vault.enc" />
+    </device-transfer>
+</data-extraction-rules>

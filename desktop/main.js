@@ -234,6 +234,15 @@ ipcMain.handle('bot:browser-close', (e, jobId) => { if (fromMain(e) && okJob(job
 ipcMain.handle('bot:browser-info', (e, jobId) => (fromMain(e) && okJob(jobId) ? botBrowser.info(jobId) : { open: false }));
 // <<< bot browser
 
+// >>> vault (see vault.js): sign-ins for Atlas Bot, encrypted by Windows for this user; passwords stay in this process
+const vault = require('./vault');
+ipcMain.handle('vault:list', (e) => (fromMain(e) ? vault.list() : []));
+ipcMain.handle('vault:model', (e) => (fromMain(e) ? vault.forModelNow() : ''));
+ipcMain.handle('vault:save', (e, entry) => { if (!fromMain(e) || !entry || typeof entry !== 'object') return { error: 'not allowed' }; try { return { ok: vault.save(entry) }; } catch (err) { return { error: err.message } } });
+ipcMain.handle('vault:remove', (e, id) => (fromMain(e) && typeof id === 'string' ? vault.remove(id) : false));
+ipcMain.handle('vault:reveal', (e, id) => (fromMain(e) && typeof id === 'string' ? vault.reveal(id, BrowserWindow.fromWebContents(e.sender)) : null));
+// <<< vault
+
 // ------------------------------------------------------------------ start
 
 app.whenReady().then(() => {

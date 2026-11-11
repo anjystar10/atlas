@@ -37,7 +37,8 @@ function start(port = 0) {
     if (u.pathname === '/files/report.csv') { res.writeHead(200, { 'content-type': 'text/csv', 'content-disposition': 'attachment; filename="price list.csv"' }); return res.end('item,price\nBlue Kettle,25\nRed Kettle,30\n'); }
     if (u.pathname === '/shop') return send(page('Shop', `<h1>Blue Kettle</h1><p>$25</p><form action="/order" method="post"><label for="qty">Quantity</label><input id="qty" name="qty" value="1"><button type="submit">Place order</button></form>`));
     if (u.pathname === '/order' && req.method === 'POST') { got.orders++; return send(page('Ordered', '<h1>Order placed</h1><p>Order number 1001.</p>')); }
-    if (u.pathname === '/login') return send(page('Sign in', `<h1>Sign in</h1><form action="/" method="post"><label for="email">Email</label><input id="email" name="email"><label for="pw">Password</label><input id="pw" name="pw" type="password"><button type="submit">Sign in</button></form>`));
+    if (u.pathname === '/login' && req.method === 'POST') { const b = new URLSearchParams((await readBody(req)).toString()); got.login = { email: b.get('email'), pw: b.get('pw') }; return send(page('Welcome', '<h1>Welcome back</h1><p>You are signed in.</p>')); }
+    if (u.pathname === '/login') return send(page('Sign in', `<h1>Sign in</h1><form action="/login" method="post"><label for="email">Email</label><input id="email" name="email"><label for="pw">Password</label><input id="pw" name="pw" type="password"><button type="submit">Sign in</button></form>`));
     send(page('Not found', '<h1>Not found</h1>'), 404);
   });
   return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve({ server, got, base: `http://127.0.0.1:${server.address().port}` })));

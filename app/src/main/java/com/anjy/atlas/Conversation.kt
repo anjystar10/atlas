@@ -32,7 +32,7 @@ object Conversation {
     private const val KEEP_TURNS = 24
 
     class Msg(val fromUser: Boolean, var text: String, var source: String, val at: Long, val steps: MutableList<String> = mutableListOf(),
-              val media: List<Attach.Item> = emptyList(), val id: String = java.util.UUID.randomUUID().toString())
+              var media: List<Attach.Item> = emptyList(), val id: String = java.util.UUID.randomUUID().toString())
 
     val messages = mutableListOf<Msg>()
     var busy = false; private set
@@ -142,10 +142,10 @@ object Conversation {
      * Atlas Bot finished a job: its report joins the chat as an Atlas message (and so reaches the other device too).
      * While Atlas is answering, it goes in just before the exchange in progress. Main thread.
      */
-    fun postFromBot(ctx: Context, text: String) {
+    fun postFromBot(ctx: Context, text: String, media: List<Attach.Item> = emptyList()) {
         val app = ctx.applicationContext
         load(app)
-        val m = Msg(false, Plain.reply(text), "Atlas Bot", System.currentTimeMillis())
+        val m = Msg(false, Plain.reply(text), "Atlas Bot", System.currentTimeMillis(), media = media)
         val at = inFlight?.takeIf { busy }?.let { messages.indexOf(it.first) } ?: -1
         if (at >= 0) messages.add(at, m) else messages.add(m)
         // the model hears about it next time
@@ -185,6 +185,9 @@ object Conversation {
         gen++
         if (busy) { busy = false; status = null; usingPhone = false; changed() }
     }
+
+    /** The pictures in the user's latest message that has any (for generate_image to work from). */
+    fun latestUserImages(): List<java.io.File> = messages.lastOrNull { it.fromUser && it.media.any { m -> m.image } }?.media?.filter { it.image && it.file.exists() }?.map { it.file } ?: emptyList()
 
     /** Send [text] as the user. [spoken]: it came by voice, so the answer is read out too. */
     fun send(ctx: Context, text: String, spoken: Boolean = false, onSpoken: (() -> Unit)? = null, media: List<Attach.Item> = emptyList()) {
@@ -331,6 +334,7 @@ ${Tools.logContext(ctx)}
                 val r = Tools.run(ctx, c)
                 if (r.phone && !usingPhone) usingPhone = true
                 r.step?.let { reply.steps.add(it) }
+                if (r.media.isNotEmpty()) reply.media = reply.media + r.media   // pictures Atlas made, shown with its reply
                 results.add(c to r.out)
                 changed()
             }

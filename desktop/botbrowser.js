@@ -268,7 +268,7 @@ async function summary(e, note = '') {
   const dl = e.downloads.slice(-3).map((d) => `${d.name} (${d.state === 'completed' ? 'saved' : d.state})`);
   if (dl.length) lines.push(`Downloads in the job folder: ${dl.join(', ')}`);
   if (r.captcha) lines.push('THIS PAGE HAS A CAPTCHA / "are you human" check. Never try to solve it: call browser_handover so the user does it.');
-  if (r.password) lines.push('This page asks for a password. Never type passwords: call browser_handover so the user signs in themselves.');
+  if (r.password) lines.push('This page asks for a password. Never type passwords: if the user saved a sign-in for this site (vault_list), use browser_fill_login; otherwise call browser_handover so they sign in themselves.');
   // the things to use come first, so a short excerpt of this result (as a bot keeps between rounds) still has them
   lines.push('', `Things you can use (${r.items.length}${r.items.length >= ITEMS_MAX ? ', the first ' + ITEMS_MAX : ''}; use the number as target):`, ...(r.items.length ? r.items : ['(none)']));
   lines.push('', 'Text on the page:', r.text || '(none)');
@@ -323,6 +323,15 @@ async function run(jobId, title, name, args = {}) {
       return { ...s, step: 'Opened ' + url.replace(/^https?:\/\//, '').slice(0, 60) };
     }
     case 'browser_read': return { ...(await summary(e)), step: null };
+    // >>> vault: a saved sign-in goes straight into the page (vault.js); the bot never sees it
+    case 'browser_fill_login': {
+      const r = await require('./vault').fillLogin(wc, args.entry);
+      if (/^Error/.test(r.out)) return r;
+      await sleep(250);
+      const s = await summary(e);
+      return { ...s, out: r.out + '\n\n' + s.out, step: r.step };
+    }
+    // <<< vault
     case 'browser_click': {
       const d = await js(wc, DESCRIBE(target, true)); if (!d.found) return notFound();
       if (d.file) return { out: `[${d.id}] is a file upload: use browser_upload with a file from the job folder.` };
@@ -450,6 +459,11 @@ async function run(jobId, title, name, args = {}) {
 
 /** Whether [name] with [args] needs the user's OK first (a sentence), or null. Looks at the actual element on the page. */
 async function check(jobId, title, name, args = {}) {
+  if (name === 'browser_fill_login') {   // vault: asks unless the user allowed this sign-in on this site
+    const e = jobs.get(jobId); let host = '';
+    try { host = new URL(e && e.win && !e.win.isDestroyed() ? e.win.webContents.getURL() : '').hostname; } catch {}
+    return require('./vault').needsOk(args.entry, host);
+  }
   if (!['browser_click', 'browser_type', 'browser_press', 'browser_upload'].includes(name)) return null;
   if (name === 'browser_type' && !args.submit) return null;
   if (name === 'browser_press' && !/^(enter|return)$/i.test(String(args.key || '').trim())) return null;

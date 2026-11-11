@@ -194,4 +194,38 @@ object Speech {
     fun rate(speed: String): Float = when (speed) { "slow" -> 0.88f; "fast" -> 1.15f; else -> 1f }
     /** The same as words, for engines that are directed in plain language. */
     fun pace(speed: String): String = when (speed) { "slow" -> "speaking slowly and clearly"; "fast" -> "speaking briskly"; else -> "" }
+
+    // ---------------------------------------------------------------- voice memos
+
+    /**
+     * The sample rate and sound data of a WAV file (its "data" chunk), so several pieces can be joined into one
+     * memo. Anything that isn't a RIFF/WAVE file is taken as raw 16-bit sound at 24 kHz (what Gemini sends).
+     */
+    fun wavData(b: ByteArray): Pair<Int, ByteArray> {
+        fun tag(at: Int, t: String) = at + 4 <= b.size && String(b, at, 4, Charsets.US_ASCII) == t
+        fun le32(at: Int) = (b[at].toInt() and 0xff) or ((b[at + 1].toInt() and 0xff) shl 8) or ((b[at + 2].toInt() and 0xff) shl 16) or ((b[at + 3].toInt() and 0xff) shl 24)
+        if (!(tag(0, "RIFF") && tag(8, "WAVE"))) return 24000 to b
+        var rate = 24000
+        var at = 12
+        while (at + 8 <= b.size) {
+            val len = le32(at + 4).coerceAtLeast(0)
+            if (tag(at, "fmt ") && at + 16 <= b.size) rate = le32(at + 12)
+            if (tag(at, "data")) return rate to b.copyOfRange(at + 8, minOf(b.size, at + 8 + len))
+            at += 8 + len + (len and 1)
+        }
+        return rate to ByteArray(0)
+    }
+
+    /**
+     * What a bot's voice memo says: the report as speech, without its Sources list, cut at a sentence end after about
+     * [max] characters (a minute or so), with a pointer to the full report when it was cut.
+     */
+    fun memoText(report: String, max: Int = 1100): String {
+        val body = report.lines().takeWhile { !Regex("^\\s*(#+\\s*|\\*\\*)?sources\\b", RegexOption.IGNORE_CASE).containsMatchIn(it) }.joinToString("\n")
+        val said = Plain.spoken(body).trim()
+        if (said.length <= max) return said
+        val cut = said.take(max)
+        val end = maxOf(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "))
+        return (if (end > max / 3) cut.take(end + 1) else cut.substringBeforeLast(' ') + "…") + " The full report is in the chat."
+    }
 }
