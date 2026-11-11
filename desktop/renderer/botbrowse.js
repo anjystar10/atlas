@@ -21,13 +21,16 @@ export const BROWSER_TOOLS = [
   fn('browser_upload', "Attach a file from this job's folder to an upload field on the page.", { target, file: str("The file's name in the job folder") }, ['target', 'file']),
   fn('browser_handover', 'Give the browser window to the user when they must do something themselves: sign in, a password, a code, a CAPTCHA or "are you human" check, a passkey, or a payment detail. The job waits until they tap Hand Back.',
     { reason: str('What they need to do, in one sentence') }, ['reason']),
+  fn('browser_fill_login', "On a sign-in page, fill in a sign-in the user saved in Atlas's vault (username and password) without seeing it. Only works on that entry's own site; waits for the user's OK unless they allowed it there. Then click the sign-in button yourself.",
+    { entry: str("The saved sign-in's name, from vault_list") }, ['entry']),
 ];
+export const VAULT_TOOLS = [fn('vault_list', "List the sign-ins the user saved in Atlas's vault (names and sites only; you never see usernames or passwords).")];
 export const BROWSER = new Set(BROWSER_TOOLS.map((t) => t.name));
 const short = (u) => String(u || '').replace(/^https?:\/\/(www\.)?/, '').slice(0, 50);
 const LABELS = {
   browser_open: (a) => 'Opening ' + short(a.url), browser_read: () => 'Reading the page', browser_click: (a) => `Clicking ${/^\d+$/.test(String(a.target)) ? 'on the page' : '“' + String(a.target).slice(0, 40) + '”'}`,
   browser_type: () => 'Typing on the page', browser_select: (a) => 'Choosing ' + String(a.option || '').slice(0, 40), browser_press: (a) => 'Pressing ' + (a.key || ''),
   browser_scroll: () => 'Scrolling the page', browser_back: () => 'Going back', browser_screenshot: () => 'Looking at the page', browser_wait: () => 'Waiting for the page',
-  browser_download: () => 'Downloading a file', browser_upload: () => 'Attaching a file', browser_handover: () => 'Handing the browser to you',
+  browser_download: () => 'Downloading a file', browser_upload: () => 'Attaching a file', browser_handover: () => 'Handing the browser to you', browser_fill_login: () => 'Filling in a saved sign-in', vault_list: () => 'Checking your saved sign-ins',
 };
 export const browserLabel = (c) => (LABELS[c.name] ? LABELS[c.name](c.args || {}) : null);

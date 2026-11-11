@@ -434,3 +434,23 @@ test('designed voice id is found in either answer shape, and the description nam
   assert.equal(vo.voiceId({ error: { message: 'no' } }), null);
   for (const w of ['jarvis', 'bettany', 'stark', 'iron man', 'marvel']) assert.ok(!vo.ATLAS_DESIGN.toLowerCase().includes(w));
 });
+
+// ---- the vault's rules (desktop/vault.js): which site a sign-in belongs to, and what the model may see
+import { createRequire as vaultRequire } from 'node:module';
+const vaultRules = vaultRequire(import.meta.url)('../vault.js');
+test('vault: a sign-in only works on its own site, never a look-alike', () => {
+  assert.equal(vaultRules.siteOf('https://www.Accounts.Google.com/signin?x=1'), 'accounts.google.com');
+  assert.ok(vaultRules.siteMatches('google.com', 'accounts.google.com'));
+  assert.ok(!vaultRules.siteMatches('google.com', 'google.com.evil.example'));
+  assert.ok(!vaultRules.siteMatches('google.com', 'notgoogle.com'));
+  assert.ok(!vaultRules.siteMatches('', 'google.com'));
+});
+test('vault: the model sees names and sites only; values are quoted safely for the page', () => {
+  const entries = [{ id: '1', name: 'My Gmail', site: 'accounts.google.com', username: 'king@example.com', password: 'p"w\\</script>', trusted: false }];
+  const text = vaultRules.forModel(entries);
+  assert.ok(text.includes('My Gmail') && text.includes('accounts.google.com'));
+  assert.ok(!text.includes('king@example.com') && !text.includes('p"w'));
+  assert.equal(vaultRules.find(entries, 'my gmail').id, '1');
+  assert.equal(vaultRules.find(entries, 'accounts.google.com').id, '1');
+  assert.ok(vaultRules.fillScript('u', entries[0].password).includes(JSON.stringify(entries[0].password)));
+});
