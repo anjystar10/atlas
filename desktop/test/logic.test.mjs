@@ -618,3 +618,12 @@ test('a command is only read-only when nothing can hide a second command in it',
   assert.ok(B.approvalFor('type_text', { text: 'hello\n' }), 'typing a new line presses Enter, so it needs an OK');
   assert.equal(B.approvalFor('type_text', { text: 'hello' }), null);
 });
+
+test('voice: only Gemini refusing the designed voice forgets it (not the network, a busy server or a limit)', () => {
+  assert.equal(vo.refusedVoice(400), true);
+  assert.equal(vo.refusedVoice(404), true);
+  assert.equal(vo.refusedVoice(0), false);      // no connection
+  assert.equal(vo.refusedVoice(429), false);
+  assert.equal(vo.refusedVoice(408), false);
+  assert.equal(vo.refusedVoice(503), false);
+});

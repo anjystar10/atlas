@@ -184,7 +184,14 @@ function renderBots(page) {
   col.appendChild(h(`<div class="${botColor(j.state)}" style="font-weight:500">${esc(now)}</div>`));
   col.appendChild(h(`<div class="small muted" style="margin-top:2px">${j.toolCalls} steps · ${Math.floor(j.workMs / 60000)} min${j.provider ? ' · ' + esc(j.provider) : ''}</div>`));
   if (j.state === BOT.AWAITING_APPROVAL && j.approval) BX.approvalCard(col, j, kit());
-  if (j.state === BOT.AWAITING_ANSWER) {
+  const bb = window.atlasHost.botBrowser;
+  if (j.state === BOT.AWAITING_ANSWER && j.handover) {
+    const c = h(`<div class="card" style="margin-top:14px"><div class="small warn" style="font-weight:600">It needs you in its browser:</div><div style="font:400 19px var(--serif);margin-top:4px">${esc(j.question || '')}</div>
+      <div class="row" style="margin-top:12px"><button class="btn grow" id="bshow">Open the Browser</button><button class="btn primary grow" id="bback">Hand Back</button></div></div>`);
+    c.querySelector('#bshow').onclick = () => bb && bb.show(j.id, j.goal);
+    c.querySelector('#bback').onclick = () => bots.handBack(j.id);
+    col.appendChild(c);
+  } else if (j.state === BOT.AWAITING_ANSWER) {
     const c = h(`<div class="card" style="margin-top:14px"><div class="small warn" style="font-weight:600">It asks:</div><div style="font:400 19px var(--serif);margin-top:4px">${esc(j.question || '')}</div>
       <textarea class="field" id="botask" rows="2" placeholder="Your answer" style="margin-top:12px"></textarea><div class="row" style="margin-top:10px"><div class="grow"></div><button class="btn primary" id="bans">Send</button></div></div>`);
     const ta = c.querySelector('#botask'); ta.value = botDraft; ta.oninput = () => (botDraft = ta.value);
@@ -203,6 +210,16 @@ function renderBots(page) {
   if (j.state === BOT.PAUSED) { key('Stop', () => bots.stop(j.id)); key('Resume', () => bots.resume(j.id), true); }
   else if (!BOT_FINAL.has(j.state) && j.state !== BOT.NEEDS_REVIEW) { key('Pause', () => bots.pause(j.id)); key('Stop', () => bots.stop(j.id)); }
   if (keys.children.length) col.appendChild(keys);
+  // its browser: watch it work, take over (the bot pauses), hand it back
+  if (bb && j.browser && !BOT_FINAL.has(j.state) && !(j.state === BOT.AWAITING_ANSWER && j.handover)) {
+    const wk = h('<div class="row" style="margin-top:10px"></div>');
+    const k2 = (label, f, primary) => wk.appendChild(Object.assign(h(`<button class="btn ${primary ? 'primary ' : ''}grow">${label}</button>`), { onclick: f }));
+    k2('Watch', () => bb.show(j.id, j.goal));
+    if (j.state === BOT.PAUSED) k2('Hand Back', () => bots.handBack(j.id), true);
+    else k2('Take Over', () => { bots.pause(j.id); bb.show(j.id, j.goal); toast('The bot is paused: the browser is yours. Tap Hand Back when you’re done.'); });
+    col.appendChild(wk);
+    col.appendChild(h('<div class="small muted" style="margin-top:6px">Its browser keeps its own sign-ins. Files it downloads go to Documents › Atlas Bot.</div>'));
+  }
   BX.steerCard(col, j, kit());
   BX.helpersList(col, j, kit(), (id) => { botView = id; render(); });
   if (j.report) {

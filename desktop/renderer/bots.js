@@ -110,12 +110,12 @@ const LABEL = { web_search: (a) => `Searching for “${String(a.query || '').sli
   read_file: () => 'Reading a file', write_file: () => 'Writing a file', run_command: () => 'Running a command', look_at_screen: () => 'Looking at the screen', click: () => 'Clicking',
   type_text: () => 'Typing', press_keys: (a) => 'Pressing ' + (a.keys || ''), scroll: () => 'Scrolling', set_reminder: () => 'Logging a reminder', update_reminder: () => 'Changing a reminder',
   remember: () => 'Saving to memory', forget: () => 'Deleting a memory', read_log: () => 'Checking your Log' };
-const label = (c) => (LABEL[c.name] || (() => 'Working'))(c.args || {});
+const label = (c, extra) => (LABEL[c.name] ? LABEL[c.name](c.args || {}) : (extra && extra(c)) || 'Working');
 
 /** One job: plain JSON with no secrets, an id, updated_ms and the owning device, so it can later sync like the Log. */
 export function newJob(goal, details, now, id, device = '') {
   return { id, goal, details: details || '', createdAt: now, device, state: S.QUEUED, updatedAt: now, updated_ms: now, history: [{ at: now, state: S.QUEUED }], plan: [], notes: [], steps: [], sources: [], recent: [],
-    toolCalls: 0, workMs: 0, provider: null, pending: null, approval: null, question: null, answer: null, report: null, error: null, retryAt: 0, retries: 0, current: null, posted: false,
+    toolCalls: 0, workMs: 0, provider: null, pending: null, approval: null, question: null, answer: null, handover: false, browser: false, report: null, error: null, retryAt: 0, retries: 0, current: null, posted: false,
     // extras: messages from the user while it works, "wrap up now", the specialist it works as, its place in a team, the routine that sent it
     inbox: [], wrapUp: false, specialist: null, parent: null, depth: 0, children: [], routine: null, maxCalls: 0, maxMs: 0 };
 }
@@ -165,7 +165,10 @@ export function parsePlan(text) {
  *  callWithKeys(p, sess, () => sess.call(system), {onStatus, cancelled})  with the key pool behind it
  *  isSwitch(e) → e.to is the next service;  isRetryable(e) → busy / offline / limit
  *  tools: Atlas's tool declarations (bots get these minus NOT_FOR_BOTS, plus BOT_TOOLS)
- *  runTool(call, {approved}) → {out, step, image}
+ *  runTool(call, {approved, job}) → {out, step, image, url?, handover?}   handover: a sentence; the job waits for the user to tap Hand Back
+ *  extraTools?: more tool declarations only bots get (e.g. the PC's browser);  labelFor?(call) → a short label for them
+ *  checkApproval?(call, job) → Promise<sentence|null>: a look at the real thing (e.g. the button on the page) before it runs
+ *  onFinal?(job): a job finished, was stopped or removed (e.g. close its browser window)
  *  systemPrompt(job): string;  notify(title, body, tag);  post(markdown): the report into the chat
  *  extras?: skills, specialists and approval rules (botx.js createExtras): enables use_skill, delegate, bot_remember and
  *           the user's always-allow / never rules
@@ -177,8 +180,10 @@ export function createBots(deps) {
   const workers = new Map();   // job id → token of the loop running it
   const listeners = new Set();
   let loaded = false, timer = null, saving = Promise.resolve();
-  const myTools = [...deps.tools.filter((t) => !NOT_FOR_BOTS.has(t.name)), ...BOT_TOOLS];
-  const toolNames = new Set(deps.tools.map((t) => t.name).filter((n) => !NOT_FOR_BOTS.has(n)));
+  const extra = deps.extraTools || [];
+  const myTools = [...deps.tools.filter((t) => !NOT_FOR_BOTS.has(t.name)), ...extra, ...BOT_TOOLS];
+  const toolNames = new Set([...deps.tools.map((t) => t.name).filter((n) => !NOT_FOR_BOTS.has(n)), ...extra.map((t) => t.name)]);
+  const finalHook = (j) => { if (deps.onFinal) { try { deps.onFinal(j); } catch (e) { console.error(e); } } };
   const ex = deps.extras || null;
   const specialistOf = (j) => (ex && j.specialist ? ex.data.specialists.find((s) => s.id === j.specialist) || null : null);
   /** The tools this job's bot gets: a specialist only its own kinds; helpers only at the allowed depth. */
@@ -186,10 +191,10 @@ export function createBots(deps) {
     const sp = specialistOf(j);
     const list = myTools.filter((t) => !sp || ex.allows(sp, t.name));
     if (!ex) return list;
-    const extra = [EXTRA_TOOLS.use_skill];
-    if (j.depth < MAX_DEPTH && ex.data.specialists.length) extra.push(EXTRA_TOOLS.delegate, EXTRA_TOOLS.wait_for_helpers);
-    if (sp) extra.push(EXTRA_TOOLS.bot_remember, EXTRA_TOOLS.bot_forget);
-    return [...list.filter((t) => t.name !== 'finish'), ...extra, FINISH];
+    const more = [EXTRA_TOOLS.use_skill];
+    if (j.depth < MAX_DEPTH && ex.data.specialists.length) more.push(EXTRA_TOOLS.delegate, EXTRA_TOOLS.wait_for_helpers);
+    if (sp) more.push(EXTRA_TOOLS.bot_remember, EXTRA_TOOLS.bot_forget);
+    return [...list.filter((t) => t.name !== 'finish'), ...more, FINISH];
   }
 
   const changed = () => { for (const f of [...listeners]) { try { f(); } catch (e) { console.error(e); } } };
@@ -253,9 +258,9 @@ export function createBots(deps) {
   function resume(id) { const j = job(id); if (j && j.state === S.PAUSED && move(j, S.QUEUED, now())) { persist(); changed(); pump(); } }
   function stop(id) {
     const j = job(id); if (!j || FINAL.has(j.state)) return;
-    workers.delete(id); move(j, S.CANCELLED, now()); j.current = null;
+    workers.delete(id); move(j, S.CANCELLED, now()); j.current = null; j.handover = false;
     for (const c of j.children || []) stop(c);   // its helpers stop with it
-    persist(); changed(); pump();
+    persist(); changed(); finalHook(j); pump();
   }
   /** [always]: also allow this kind of action from now on (the user's standing choice, in Me). */
   function approve(id, yes, always = false) {
@@ -264,13 +269,19 @@ export function createBots(deps) {
     if (yes && always && ex && j.approval.category) ex.setMode(j.approval.category, 'allow');
     move(j, S.QUEUED, now()); persist(); changed(); pump();
   }
-  function answer(id, text) { const j = job(id); if (!j || j.state !== S.AWAITING_ANSWER || !String(text || '').trim()) return; j.answer = String(text).trim().slice(0, 2000); move(j, S.QUEUED, now()); persist(); changed(); pump(); }
+  function answer(id, text) { const j = job(id); if (!j || j.state !== S.AWAITING_ANSWER || !String(text || '').trim()) return; j.answer = String(text).trim().slice(0, 2000); j.handover = false; move(j, S.QUEUED, now()); persist(); changed(); pump(); }
+  /** The user took the browser (Take Over, or the bot handed it over) and gives it back: the bot looks again before going on. */
+  function handBack(id) {
+    const j = job(id); if (!j) return;
+    if (j.state === S.AWAITING_ANSWER && j.handover) return answer(id, 'Done: I finished it in the browser window and handed it back to you. Read the page again before going on.');
+    if (j.state === S.PAUSED) { j.notes.push('The user took over the browser and handed it back. Read the page again (browser_read) before doing anything else: it may have changed.'); step(j, 'You handed the browser back'); resume(id); }
+  }
   function carryOn(id) {
     const j = job(id); if (!j || j.state !== S.NEEDS_REVIEW) return;
     if (j.pending) j.notes.push(`Atlas was interrupted while you were doing: ${j.pending}. It may or may not have happened: check before doing it again.`);
     j.pending = null; move(j, S.QUEUED, now()); persist(); changed(); pump();
   }
-  function remove(id) { const j = job(id); if (!j || !FINAL.has(j.state)) return; jobs.splice(jobs.indexOf(j), 1); persist(); changed(); }
+  function remove(id) { const j = job(id); if (!j || !FINAL.has(j.state)) return; jobs.splice(jobs.indexOf(j), 1); persist(); changed(); finalHook(j); }
 
   /** A bot waiting on helpers carries on once they've all finished (their reports go into its notes). */
   function wakeParents() {
@@ -321,7 +332,7 @@ export function createBots(deps) {
     changed();
   }
 
-  function fail(j, why) { j.error = why; j.current = null; if (move(j, S.FAILED, now())) deps.notify("Atlas Bot couldn't finish", why, 'bot:' + j.id); persist(); }
+  function fail(j, why) { j.error = why; j.current = null; if (move(j, S.FAILED, now())) { deps.notify("Atlas Bot couldn't finish", why, 'bot:' + j.id); finalHook(j); } persist(); }
 
   function waitAndRetry(j, why) {
     j.retries++;
@@ -338,10 +349,10 @@ export function createBots(deps) {
     j.current = null; j.error = null;
     move(j, S.COMPLETED, now());
     // a helper's report goes back to the bot that sent it, not into the chat
-    if (j.parent) { persist(); changed(); deps.setTimer(pump, 0); return; }
+    if (j.parent) { persist(); changed(); finalHook(j); deps.setTimer(pump, 0); return; }
     if (!j.posted) { j.posted = true; deps.post(`**Atlas Bot finished:** ${j.goal}\n\n${j.report}`); }
     deps.notify('Atlas Bot is done', j.goal, 'bot:' + j.id);
-    persist(); changed();
+    persist(); changed(); finalHook(j);
   }
 
   async function askApproval(j, a) {
@@ -363,15 +374,23 @@ export function createBots(deps) {
     await persist(); deps.notify('Atlas Bot needs your OK', a.what, 'bot:' + j.id); changed();
   }
 
-  async function runTool(j, c, approved = false) {
-    const what = label(c);
+  async function handOver(j, why) {
+    j.question = (deps.plainReply(String(why)) || String(why)).slice(0, 600); j.handover = true; j.current = null;
+    move(j, S.AWAITING_ANSWER, now());
+    await persist(); deps.notify('Atlas Bot needs you in the browser', j.question, 'bot:' + j.id); changed();
+  }
+
+  async function runTool(j, c, approved = false, approvedWhat = null) {
+    const what = label(c, deps.labelFor);
     j.current = what; j.pending = what; await persist(); changed();
-    const r = await deps.runTool(c, { approved });
+    const r = (await deps.runTool(c, { approved, job: j, approvedWhat })) || { out: '' };
     j.pending = null; j.toolCalls++;
-    step(j, r.step || what);
-    const url = String((c.args || {}).url || '').trim();
-    if (c.name === 'read_page' && /^https?:/.test(url) && !j.sources.includes(url)) { j.sources.push(url); if (j.sources.length > 40) j.sources.shift(); }
-    addRecent(j, `${what}:\n${String(r.out || '').slice(0, c.name === 'read_page' || c.name === 'web_search' ? 2500 : 1200)}`);
+    if (String(c.name).startsWith('browser_')) j.browser = true;
+    if (r.step !== null) step(j, r.step || what);
+    const url = String((c.name === 'read_page' ? (c.args || {}).url : r.url) || '').trim();
+    if (/^https?:/.test(url) && !/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url) && !j.sources.includes(url)) { j.sources.push(url); if (j.sources.length > 40) j.sources.shift(); }
+    const long = ['read_page', 'web_search', 'browser_open', 'browser_read', 'browser_click', 'browser_type', 'browser_select', 'browser_press', 'browser_scroll', 'browser_back', 'browser_wait'].includes(c.name);
+    addRecent(j, `${what}:\n${String(r.out || '').slice(0, long ? 5000 : 1200)}`);
     persist();
     return r;
   }
@@ -388,9 +407,10 @@ export function createBots(deps) {
     }
     if (!a.auto) step(j, 'You approved: ' + a.what);
     if (!a.tool) { j.notes.push(`The user approved: ${a.what}. Go ahead with exactly that.`); persist(); return; }
-    const r = await runTool(j, { name: a.tool, args: a.args || {}, id: null }, true);
+    const r = await runTool(j, { name: a.tool, args: a.args || {}, id: null }, true, a.what);
     j.notes.push(`Approved and done: ${a.what}. Result: ${String(r.out || '').split('\n')[0].slice(0, 300)}`);
     persist();
+    if (r.handover) await handOver(j, r.handover);
   }
 
   async function work(j, token) {
@@ -500,9 +520,11 @@ export function createBots(deps) {
           }
           if (c.name === 'request_approval') { await askApproval(j, { what: (deps.plainReply(String(a.action || '')) || 'Go ahead with the next step').slice(0, 300), tool: null, args: null, decision: null }); return; }
           if (!toolNames.has(c.name)) { results.push({ call: c, out: `Error: there's no tool called ${c.name}.` }); continue; }
-          const need = approvalFor(c.name, a);
+          const need = approvalFor(c.name, a) || (deps.checkApproval ? await deps.checkApproval(c, j) : null);
+          if (!mine()) return;
           if (need) { await askApproval(j, { what: need, tool: c.name, args: JSON.parse(JSON.stringify(a)), decision: null }); return; }
           const r = await runTool(j, c);
+          if (r.handover) { await handOver(j, r.handover); return; }
           results.push({ call: c, out: r.out, image: r.image || null });
         }
         if (!mine()) return;
@@ -515,7 +537,7 @@ export function createBots(deps) {
   }
 
   return {
-    jobs, init, deploy, pause, resume, stop, approve, answer, carryOn, remove, pump, job, active, steer, wrapUp,
+    jobs, init, deploy, pause, resume, stop, approve, answer, handBack, carryOn, remove, pump, job, active, steer, wrapUp,
     // helpers show inside their bot's page, not in the list
     visible: () => jobs.filter((j) => !j.parent && (!FINAL.has(j.state) || now() - j.updatedAt < 7 * 86400000)).sort((a, b) => b.createdAt - a.createdAt),
     helpers: (id) => ((job(id) || {}).children || []).map(job).filter(Boolean),

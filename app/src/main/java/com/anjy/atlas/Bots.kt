@@ -105,15 +105,21 @@ object Bots {
         return BotJob.listJson(jobs).toByteArray(Charsets.UTF_8)
     }
 
-    private fun write(bytes: ByteArray) = synchronized(this) {
-        val f = file(); val out = f.startWrite()
-        try { out.write(bytes); f.finishWrite(out) } catch (e: Exception) { f.failWrite(out); Log.w(TAG, "save failed", e) }
+    /** Saves run on background threads in any order: each carries a number, and an older one never overwrites a newer. */
+    private var saveSeq = 0L
+    private var savedSeq = 0L
+    private fun write(seq: Long, bytes: ByteArray) {
+        synchronized(this) {
+            if (seq <= savedSeq) return
+            val f = file(); val out = f.startWrite()
+            try { out.write(bytes); f.finishWrite(out); savedSeq = seq } catch (e: Exception) { f.failWrite(out); Log.w(TAG, "save failed", e) }
+        }
     }
 
     /** Saves in the background. */
-    private fun persist() { val b = snapshot(); scope.launch(Dispatchers.IO) { write(b) } }
+    private fun persist() { val b = snapshot(); val n = ++saveSeq; scope.launch(Dispatchers.IO) { write(n, b) } }
     /** Saves and waits until it's on disk (before an action runs, so a crash can't lose the "doing it now" mark). */
-    private suspend fun persistNow() { val b = snapshot(); withContext(Dispatchers.IO) { write(b) } }
+    private suspend fun persistNow() { val b = snapshot(); val n = ++saveSeq; withContext(Dispatchers.IO) { write(n, b) } }
 
     // ---------------------------------------------------------------- what the user (or Atlas) does
 

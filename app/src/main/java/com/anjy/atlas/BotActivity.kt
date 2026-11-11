@@ -291,8 +291,12 @@ class BotActivity : Activity() {
                     addView(text(f.name, 15f, FG, med).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
                     addView(text("${(f.length() / 1024).coerceAtLeast(1)} KB", 12f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
                     addView(button("Save to Downloads") {
-                        val where = BotBrowser.saveToDownloads(this@BotActivity, f)
-                        android.widget.Toast.makeText(this@BotActivity, where?.let { "Saved to $it" } ?: "Couldn't save it", android.widget.Toast.LENGTH_SHORT).show()
+                        // a download can be up to 50 MB: copy it off the main thread, or the screen freezes ("isn't responding")
+                        val app = applicationContext
+                        Thread {
+                            val where = BotBrowser.saveToDownloads(app, f)
+                            runOnUiThread { android.widget.Toast.makeText(app, where?.let { "Saved to $it" } ?: "Couldn't save it", android.widget.Toast.LENGTH_SHORT).show() }
+                        }.start()
                     }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
                 }, 8)
             }
