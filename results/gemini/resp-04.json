@@ -1,0 +1,15 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "role": "model",
+    "parts": [
+     {
+      "text": "Done. I opened Settings, tapped into it and came back."
+     }
+    ]
+   },
+   "finishReason": "STOP"
+  }
+ ]
+}

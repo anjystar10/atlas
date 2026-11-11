@@ -1,0 +1,25 @@
+{
+ "id": "x",
+ "object": "chat.completion",
+ "model": "mock",
+ "choices": [
+  {
+   "index": 0,
+   "finish_reason": "tool_calls",
+   "message": {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423851937_0",
+      "type": "function",
+      "function": {
+       "name": "update_plan",
+       "arguments": "{\"plan\": \"1. Open the test shop\\n2. Search for the blue widget\\n3. Open it and pick size Large\\n4. Place the order (with the user's OK)\\n5. Report the confirmation\"}"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

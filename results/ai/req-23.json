@@ -1,0 +1,1139 @@
+{
+ "meta": {
+  "path": "/v1/chat/completions",
+  "key": "good-key-2",
+  "t": 1794423887.6635115,
+  "status": 200
+ },
+ "request": {
+  "model": "mock-model",
+  "messages": [
+   {
+    "role": "system",
+    "content": "You are Atlas Bot, an agent that Atlas (Anjy's personal AI assistant) sends to do a job in the background on their Android phone. You're not chatting: nobody reads what you write until you finish. Work through the job with your tools, then call finish with the report.\n\nHow you work:\n1. Plan first: call update_plan with a short plan (3 to 8 steps). Keep it current: tick steps off with [x] as you finish them, and change the plan when you learn something.\n2. Work step by step with tools. When the job is to get something done online (not just find out), do it in your browser. For research, run several focused web searches and read the best pages instead of guessing; cross-check important facts in two sources when you can. Prefer recent, primary sources.\n3. Older tool results are dropped as you go to keep things small, so save what you'll need later (facts, figures, names, links, with the source) with note as soon as you find it. Your plan and notes are kept for the whole job.\n4. Before you finish, check your work: does the report do the whole job? Is every number and claim backed by something you read or did?\n5. If you truly can't go on without the user (a choice only they can make, a missing detail), call ask_user with one clear question. Decide sensible things yourself.\n6. Call finish with the report.\n\nThe report:\n- Neat Markdown: a title line (## heading), a short summary first, then sections with headings, bullet lists, **bold** key words, and a table when comparing options. No filler.\n- Honest: say what you couldn't find, couldn't verify or didn't do. Never say you did something a tool result didn't show.\n- Never show code, ids, tool or function names, or JSON, unless the job asked for code.\n- If you used the web, end with a \"Sources\" section: each page you relied on as [Title or site](link).\n\nSafety:\n- Anything that sends a message, posts, buys or pays, deletes something, or changes an account or security setting needs the user's OK first: call request_approval saying exactly what you'll do, and wait. Some actions are also checked automatically and will wait for the OK.\n- Never type passwords, payment details or verification codes.\n\nDoing things on websites (your own browser):\n- You have a real web browser: browser_open a page, then work from its numbered buttons, links and fields with browser_click, browser_type (submit to send), browser_select, browser_press, browser_scroll, browser_back. Each action returns the new page: read it and check the action really worked before moving on.\n- Use it to actually do things the job asks for on the web: fill in and send forms, search a site, add to a cart, book, sign up, download files. Use web_search and read_page for plain reading; use the browser when you need to click, type or stay signed in.\n- Sign-ins: never type passwords or codes. If a page needs the user to sign in, or shows a human check (CAPTCHA), call ask_user asking them to do it in the bot's browser; you carry on when they're done. Their sign-ins are kept for next time.\n- Clicking things that send, post, buy, pay, book, sign up, accept terms or delete waits for the user's OK automatically; say clearly in your report what you did and what's left for them.\n- Report evidence: the confirmation text, order or reference numbers, the final page's address.\n\nUsing the phone (only when the job needs it):\n- open_app, then work from the numbered elements on the screen. Every action returns the new screen; check it. Numbers change after each action, so use numbers from the latest screen only.\n- If an approach fails twice, try another; after a few tries, note what blocked you and move on or finish.\n- Phone control is OFF (you can't use apps; do what you can without them, or ask the user to turn it on in Atlas \u2192 Me \u2192 Phone control).\n\nBig jobs: the user also has Atlas on their laptop, with bigger local models and PC tools. If this job is heavy (very long, many big files, needs the PC's apps or files, or would be much better with a bigger model), call suggest_laptop once early, then keep doing what you can here.\n\nBudget: up to 80 tool steps and 30 minutes for the job. When it's nearly used up, finish with what you have.\n\nSpecialist bots you can hand part of the work to (delegate):\n- Research Bot: Finds things out and backs them with sources\n- Planner Bot: Turns goals into schedules and step-by-step plans\n- Developer Bot: Programming, debugging and technical work\n- Finance Bot: Numbers, budgets, prices and comparisons\nHand a part to one with delegate when it fits their speciality and the job is big enough to split; small jobs you do yourself.\n\nNow: Wednesday 11 November 2026, 19:04 (Etc/UTC).\nOpen reminders:\n- [7c0e152d-86d8-4fe6-8f94-f514c0ca8b70] Read 20 pages \u2014 2026-11-11 18:12 (awaiting)\n- [f63776cf-5afd-4618-979c-fa996c69833b] Code Atlas \u2014 2026-11-11 18:52 (active)\n- [c6ec1847-1dc7-49fc-a490-6b390ad32aaa] Gym \u2014 2026-11-11 21:02, repeats daily\n- [f4cad144-743b-4ebd-b326-f61bfa5f6a0e] Call mum \u2014 2026-11-12 21:02\n- [53c0ff8d-3235-4282-96e1-a29b0f2fe0cb] Water the plants \u2014 2031-01-16 18:00\n- [3689821a-07a9-4b5a-8895-290fd14b3f78] Plan the week \u2014 no time\n- [2a9af85d-f8f7-4953-9e2c-1aae446df40f] Fix bike \u2014 no time (blocked)\nSaved memories:\n- [6bff6a67-e3f1-4745-a183-8a24363ae927] My chess goal is 1500"
+   },
+   {
+    "role": "user",
+    "content": "Your job: Order a blue widget (size Large) from the test shop\nDetails: The shop is at http://127.0.0.1:8766/shop. One widget, size Large.\n(Tool steps used: 5 of 80. Time left: about 29 min.)\n\nYour plan:\n1. [ ] Open the test shop\n2. [ ] Search for the blue widget\n3. [ ] Open it and pick size Large\n4. [ ] Place the order (with the user's OK)\n5. [ ] Report the confirmation\n\nYour notes so far:\n- The user approved: Click \u201cPlace order\u201d on 127.0.0.1, but the page changed before it could be done, so it was NOT done. Read the page again; ask again if it's still needed.\n\nPages you've read:\n- http://127.0.0.1:8766/shop\n\nWhat you've done so far (latest last):\n- Made a plan\n- Opened 127.0.0.1\n- Typed into \u201cSearch the shop\u201d\n- Clicked \u201cSearch\u201d\n- Clicked \u201cBlue Widget\u201d\n- Chose \u201cLarge\u201d\n- Waiting for your OK: Click \u201cPlace order\u201d on 127.0.0.1\n- You approved: Click \u201cPlace order\u201d on 127.0.0.1\n\nLatest results:\n---\nClicking \u201cSearch\u201d:\nClicked \u201cSearch\u201d.\n\nPage: Results\nURL: http://127.0.0.1:8766/shop/search?q=blue+widget\n\nWhat you can use (by number):\n[1] link \u201cBlue Widget\u201d \u2192 /shop/item/blue-widget\n[2] link \u201cBack to the shop\u201d \u2192 /shop\n\nText on the page:\nResults\n\nResults for \u201cblue widget\u201d\n\nBlue Widget \u2014 $12\n\nBack to the shop\n---\nClicking \u201cBlue Widget\u201d:\nClicked \u201cBlue Widget\u201d.\n\nPage: Blue Widget\nURL: http://127.0.0.1:8766/shop/item/blue-widget\n\nWhat you can use (by number):\n[1] dropdown \u201cSize\u201d = \u201cSmall\u201d\n[2] button \u201cPlace order\u201d\n\nText on the page:\nBlue Widget\nSize \nSmall\nMedium\nLarge\n\nPlace order\n---\nChoosing \u201cLarge\u201d:\nChose \u201cLarge\u201d.\n\nPage: Blue Widget\nURL: http://127.0.0.1:8766/shop/item/blue-widget\n\nWhat you can use (by number):\n[1] dropdown \u201cSize\u201d = \u201cLarge\u201d\n[2] button \u201cPlace order\u201d\n\nText on the page:\nBlue Widget\nSize \nSmall\nMedium\nLarge\n\nPlace order\n---\n\nCarry on from here."
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423881581_0",
+      "type": "function",
+      "function": {
+       "name": "update_plan",
+       "arguments": "{\"plan\": \"1. Open the test shop\\n2. Search for the blue widget\\n3. Open it and pick size Large\\n4. Place the order (with the user's OK)\\n5. Report the confirmation\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_1794423881581_0",
+    "content": "Plan saved."
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423881711_0",
+      "type": "function",
+      "function": {
+       "name": "browser_open",
+       "arguments": "{\"url\": \"http://127.0.0.1:8766/shop\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_1794423881711_0",
+    "content": "Page: Test Shop\nURL: http://127.0.0.1:8766/shop\n\nWhat you can use (by number):\n[1] field \u201cSearch the shop\u201d (empty)\n[2] button \u201cSearch\u201d\n[3] link \u201cCatalogue (PDF)\u201d \u2192 /files/catalogue.pdf\n\nText on the page:\nTest Shop\nSearch\n\nCatalogue (PDF)"
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423883179_0",
+      "type": "function",
+      "function": {
+       "name": "browser_type",
+       "arguments": "{\"target\": \"Search the shop\", \"text\": \"blue widget\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_1794423883179_0",
+    "content": "Typed into \u201cSearch the shop\u201d.\n\nPage: Test Shop\nURL: http://127.0.0.1:8766/shop\n\nWhat you can use (by number):\n[1] field \u201cSearch the shop\u201d = \u201cblue widget\u201d\n[2] button \u201cSearch\u201d\n[3] link \u201cCatalogue (PDF)\u201d \u2192 /files/catalogue.pdf\n\nText on the page:\nTest Shop\nSearch\n\nCatalogue (PDF)"
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423884019_0",
+      "type": "function",
+      "function": {
+       "name": "browser_click",
+       "arguments": "{\"target\": \"Search\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_1794423884019_0",
+    "content": "Clicked \u201cSearch\u201d.\n\nPage: Results\nURL: http://127.0.0.1:8766/shop/search?q=blue+widget\n\nWhat you can use (by number):\n[1] link \u201cBlue Widget\u201d \u2192 /shop/item/blue-widget\n[2] link \u201cBack to the shop\u201d \u2192 /shop\n\nText on the page:\nResults\n\nResults for \u201cblue widget\u201d\n\nBlue Widget \u2014 $12\n\nBack to the shop"
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423885431_0",
+      "type": "function",
+      "function": {
+       "name": "browser_click",
+       "arguments": "{\"target\": \"Blue Widget\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_1794423885431_0",
+    "content": "Clicked \u201cBlue Widget\u201d.\n\nPage: Blue Widget\nURL: http://127.0.0.1:8766/shop/item/blue-widget\n\nWhat you can use (by number):\n[1] dropdown \u201cSize\u201d = \u201cSmall\u201d\n[2] button \u201cPlace order\u201d\n\nText on the page:\nBlue Widget\nSize \nSmall\nMedium\nLarge\n\nPlace order"
+   },
+   {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423886823_0",
+      "type": "function",
+      "function": {
+       "name": "browser_select",
+       "arguments": "{\"target\": \"Size\", \"option\": \"Large\"}"
+      }
+     }
+    ]
+   },
+   {
+    "role": "tool",
+    "tool_call_id": "call_1794423886823_0",
+    "content": "Chose \u201cLarge\u201d.\n\nPage: Blue Widget\nURL: http://127.0.0.1:8766/shop/item/blue-widget\n\nWhat you can use (by number):\n[1] dropdown \u201cSize\u201d = \u201cLarge\u201d\n[2] button \u201cPlace order\u201d\n\nText on the page:\nBlue Widget\nSize \nSmall\nMedium\nLarge\n\nPlace order"
+   }
+  ],
+  "tools": [
+   {
+    "type": "function",
+    "function": {
+     "name": "set_reminder",
+     "description": "Log a reminder. At its time Atlas either rings an alarm (important things) or sends a notification with a sound (lighter things), and asks if they'll do it.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "title": {
+        "type": "string",
+        "description": "Short title, e.g. 'Pick up my sister'"
+       },
+       "alert": {
+        "type": "string",
+        "description": "alarm: important or time-critical (picking someone up, appointments, medicine, leaving for something, waking up). notification: lighter things (drink water, stretch, read, small chores). If the user says which, do that.",
+        "enum": [
+         "alarm",
+         "notification"
+        ]
+       },
+       "when": {
+        "type": "string",
+        "description": "Local date and time as 'YYYY-MM-DD HH:MM' (24h). Leave out only if the user gave no time at all."
+       },
+       "duration_min": {
+        "type": "integer",
+        "description": "How long it takes, in minutes (default 30)"
+       },
+       "repeat": {
+        "type": "string",
+        "description": "How it repeats",
+        "enum": [
+         "none",
+         "daily",
+         "weekdays",
+         "weekly"
+        ]
+       },
+       "notes": {
+        "type": "string",
+        "description": "Optional details"
+       }
+      },
+      "required": [
+       "title"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "update_reminder",
+     "description": "Change a logged reminder: mark it done, cancel it, delete it, rename it, move it, or make it ring as an alarm or a notification.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "description": "The reminder's id from the list in your instructions"
+       },
+       "action": {
+        "type": "string",
+        "description": "What to do",
+        "enum": [
+         "done",
+         "cancel",
+         "delete",
+         "move",
+         "rename",
+         "make_alarm",
+         "make_notification"
+        ]
+       },
+       "when": {
+        "type": "string",
+        "description": "For move: new local date and time 'YYYY-MM-DD HH:MM'"
+       },
+       "title": {
+        "type": "string",
+        "description": "For rename: the new title"
+       }
+      },
+      "required": [
+       "id",
+       "action"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "remember",
+     "description": "Save a lasting fact or preference the user wants Atlas to keep (shown in the Log).",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string",
+        "description": "The fact, in a short sentence"
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "read_log",
+     "description": "Look things up in the user's Log: reminders (upcoming, done, snoozed, skipped, missed), things they asked you to remember, and what happened when. Newest first.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "query": {
+        "type": "string",
+        "description": "Words to search for; leave out to get the latest entries"
+       },
+       "limit": {
+        "type": "integer",
+        "description": "How many entries at most (default 30)"
+       }
+      }
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "forget",
+     "description": "Delete a saved memory.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "id": {
+        "type": "string",
+        "description": "The memory's id from your instructions"
+       }
+      },
+      "required": [
+       "id"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "open_app",
+     "description": "Open an installed app by name. Returns the screen once it has opened.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string",
+        "description": "The app's name as it appears on the phone, e.g. 'ChatGPT', 'Instagram', 'Settings'"
+       }
+      },
+      "required": [
+       "name"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "open_link",
+     "description": "Open a web link or app link (https://, tel:, mailto:, geo:).",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "url": {
+        "type": "string",
+        "description": "The link"
+       }
+      },
+      "required": [
+       "url"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "read_screen",
+     "description": "Read what's on the phone's screen now: the app, and numbered elements (buttons, text, fields).",
+     "parameters": {
+      "type": "object",
+      "properties": {}
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "tap",
+     "description": "Tap a numbered element from the most recent screen. Returns the new screen.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "element": {
+        "type": "integer",
+        "description": "Element number from the latest read_screen"
+       }
+      },
+      "required": [
+       "element"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "long_press",
+     "description": "Press and hold a numbered element. Returns the new screen.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "element": {
+        "type": "integer",
+        "description": "Element number from the latest screen"
+       }
+      },
+      "required": [
+       "element"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "type_text",
+     "description": "Type text into a text field (replacing what's in it). Returns the new screen.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "element": {
+        "type": "integer",
+        "description": "The field's element number; leave out to use the field that has focus"
+       },
+       "text": {
+        "type": "string",
+        "description": "What to type"
+       },
+       "press_enter": {
+        "type": "boolean",
+        "description": "Press the keyboard's enter/send key afterwards"
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "scroll",
+     "description": "Scroll the screen or a list. Returns the new screen.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "direction": {
+        "type": "string",
+        "description": "Which way the content should move into view",
+        "enum": [
+         "down",
+         "up",
+         "left",
+         "right"
+        ]
+       },
+       "element": {
+        "type": "integer",
+        "description": "A scrollable element's number; leave out for the main list"
+       }
+      },
+      "required": [
+       "direction"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "press_key",
+     "description": "Press a phone key. Returns the new screen.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "key": {
+        "type": "string",
+        "description": "The key",
+        "enum": [
+         "back",
+         "home",
+         "recents",
+         "notifications",
+         "enter"
+        ]
+       }
+      },
+      "required": [
+       "key"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "web_search",
+     "description": "Search the internet directly (no need to open a browser on the phone). Use it for anything current or that you're unsure of: news, prices, opening hours, facts, how-tos. Returns results with sources.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "query": {
+        "type": "string",
+        "description": "What to search for"
+       }
+      },
+      "required": [
+       "query"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "read_page",
+     "description": "Read a web page directly and get its text (from a search result or a link the user gave).",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "url": {
+        "type": "string",
+        "description": "The page's address"
+       }
+      },
+      "required": [
+       "url"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "wait",
+     "description": "Wait for something to load (an answer being written, a page loading). Returns the new screen.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "seconds": {
+        "type": "integer",
+        "description": "1 to 15"
+       }
+      },
+      "required": [
+       "seconds"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "calendar_events",
+     "description": "Read events from the phone's calendar (Google Calendar etc.) between two times. Includes each event's id for calendar_change.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "from": {
+        "type": "string",
+        "description": "Start, local 'YYYY-MM-DD HH:MM' (default: now)"
+       },
+       "to": {
+        "type": "string",
+        "description": "End, local 'YYYY-MM-DD HH:MM' (default: 7 days after from)"
+       },
+       "query": {
+        "type": "string",
+        "description": "Only events whose title, place or notes contain these words"
+       }
+      }
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "calendar_add",
+     "description": "Add an event to the phone's calendar. For things Atlas should remind them about, use set_reminder instead, unless they ask for their calendar.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "title": {
+        "type": "string",
+        "description": "Event title"
+       },
+       "start": {
+        "type": "string",
+        "description": "Local 'YYYY-MM-DD HH:MM'; for an all-day event 'YYYY-MM-DD'"
+       },
+       "end": {
+        "type": "string",
+        "description": "Local 'YYYY-MM-DD HH:MM' (default: start + duration_min)"
+       },
+       "duration_min": {
+        "type": "integer",
+        "description": "Length in minutes if no end (default 60)"
+       },
+       "all_day": {
+        "type": "boolean",
+        "description": "An all-day event"
+       },
+       "location": {
+        "type": "string",
+        "description": "Where"
+       },
+       "notes": {
+        "type": "string",
+        "description": "Details"
+       }
+      },
+      "required": [
+       "title",
+       "start"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "calendar_change",
+     "description": "Change or delete one event in the phone's calendar by its id from calendar_events. Repeating events can't be changed here.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "event_id": {
+        "type": "string",
+        "description": "The event's id"
+       },
+       "action": {
+        "type": "string",
+        "description": "What to do",
+        "enum": [
+         "update",
+         "delete"
+        ]
+       },
+       "title": {
+        "type": "string",
+        "description": "New title"
+       },
+       "start": {
+        "type": "string",
+        "description": "New start 'YYYY-MM-DD HH:MM'"
+       },
+       "end": {
+        "type": "string",
+        "description": "New end 'YYYY-MM-DD HH:MM'"
+       },
+       "location": {
+        "type": "string",
+        "description": "New place"
+       },
+       "notes": {
+        "type": "string",
+        "description": "New details"
+       }
+      },
+      "required": [
+       "event_id",
+       "action"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "find_contact",
+     "description": "Look up someone in the phone's contacts by name: their numbers and email addresses.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string",
+        "description": "The name, or part of it"
+       }
+      },
+      "required": [
+       "name"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "get_location",
+     "description": "Where the phone is now: coordinates, accuracy and the nearest address.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "precise": {
+        "type": "boolean",
+        "description": "Ask for a precise fix (GPS) instead of an approximate one. Only when it matters, e.g. directions."
+       }
+      }
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "phone_alarm",
+     "description": "Set an alarm in the phone's own Clock app (only when they ask for the phone's alarm; Atlas's set_reminder is the usual way). It can't list or cancel alarms.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "time": {
+        "type": "string",
+        "description": "Local time 'HH:MM' (24h)"
+       },
+       "label": {
+        "type": "string",
+        "description": "What it's for"
+       },
+       "days": {
+        "type": "string",
+        "description": "Repeat on these days, e.g. 'mon,tue,wed,thu,fri' (leave out for once)"
+       }
+      },
+      "required": [
+       "time"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "phone_timer",
+     "description": "Start a countdown timer in the phone's Clock app.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "seconds": {
+        "type": "integer",
+        "description": "Length in seconds"
+       },
+       "label": {
+        "type": "string",
+        "description": "What it's for"
+       }
+      },
+      "required": [
+       "seconds"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "generate_image",
+     "description": "Make a picture from a description (and optionally from the pictures the user just sent, e.g. to edit or restyle them). The picture appears in the chat with Save and Share; don't describe how you made it.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "prompt": {
+        "type": "string",
+        "description": "A full description of the picture: subject, setting, style, light, mood, any text to show in it"
+       },
+       "aspect": {
+        "type": "string",
+        "description": "Shape of the picture (default 1:1)",
+        "enum": [
+         "1:1",
+         "3:2",
+         "2:3",
+         "3:4",
+         "4:3",
+         "4:5",
+         "5:4",
+         "9:16",
+         "16:9",
+         "21:9"
+        ]
+       },
+       "use_my_pictures": {
+        "type": "boolean",
+        "description": "Base it on the pictures in the user's latest message (to edit, combine or restyle them)"
+       }
+      },
+      "required": [
+       "prompt"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "vault_list",
+     "description": "List the sign-ins the user saved in Atlas's vault (names and sites only; you never see usernames or passwords).",
+     "parameters": {
+      "type": "object",
+      "properties": {}
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_open",
+     "description": "Open a web page in your own browser (it keeps sign-ins between jobs). Returns the page: its text and numbered buttons, links and fields.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "url": {
+        "type": "string",
+        "description": "The web address, e.g. https://www.example.com/page"
+       }
+      },
+      "required": [
+       "url"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_read",
+     "description": "Read the open page again: its text and numbered buttons, links and fields. Numbers change after every action, so use the latest list.",
+     "parameters": {
+      "type": "object",
+      "properties": {}
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_click",
+     "description": "Click a button, link or other element on the open page, by its number from the latest list (or its exact words). Returns the new page.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "target": {
+        "type": "string",
+        "description": "The element's number, e.g. \"12\", or its words, e.g. \"Add to cart\""
+       }
+      },
+      "required": [
+       "target"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_type",
+     "description": "Type into a field on the open page (replacing what's in it). Set submit to true to press Enter afterwards (searching, sending a form). Never for passwords. Returns the new page.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "target": {
+        "type": "string",
+        "description": "The field's number or label"
+       },
+       "text": {
+        "type": "string",
+        "description": "What to type"
+       },
+       "submit": {
+        "type": "boolean",
+        "description": "Press Enter after typing"
+       }
+      },
+      "required": [
+       "target",
+       "text"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_select",
+     "description": "Choose an option in a dropdown on the open page. Returns the new page.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "target": {
+        "type": "string",
+        "description": "The dropdown's number or label"
+       },
+       "option": {
+        "type": "string",
+        "description": "The option's words"
+       }
+      },
+      "required": [
+       "target",
+       "option"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_press",
+     "description": "Press a key on the open page: Enter, Tab, Escape, Backspace, Space, Up, Down, Left or Right. Returns the new page.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "key": {
+        "type": "string",
+        "description": "The key"
+       }
+      },
+      "required": [
+       "key"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_scroll",
+     "description": "Scroll the open page. Returns what's now visible.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "direction": {
+        "type": "string",
+        "enum": [
+         "down",
+         "up",
+         "top",
+         "bottom"
+        ]
+       }
+      },
+      "required": [
+       "direction"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_back",
+     "description": "Go back to the previous page.",
+     "parameters": {
+      "type": "object",
+      "properties": {}
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_wait",
+     "description": "Wait for the page to finish loading or updating, then read it.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "seconds": {
+        "type": "number",
+        "description": "1 to 15 seconds"
+       }
+      }
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_fill_login",
+     "description": "On a sign-in page in your browser, fill in a saved sign-in from the vault (username and password) without seeing it. It only works on that entry's own site, and waits for the user's OK unless they allowed it for that site. Then click the sign-in button yourself.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "entry": {
+        "type": "string",
+        "description": "The saved sign-in's name from vault_list"
+       }
+      },
+      "required": [
+       "entry"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "browser_download",
+     "description": "Download a file: a link's number from the page, or a web address. It's kept with this job (the user can save it to Downloads).",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "target": {
+        "type": "string",
+        "description": "The link's number or the file's web address"
+       }
+      },
+      "required": [
+       "target"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "update_plan",
+     "description": "Write or update your plan for this job: 3 to 8 short steps, one per line, in order. Start a line with [x] when that step is done.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "plan": {
+        "type": "string",
+        "description": "The steps, one per line, e.g. \"[x] Search for reviews\\n[ ] Compare prices\""
+       }
+      },
+      "required": [
+       "plan"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "note",
+     "description": "Save something you'll need later: a fact, figure, name or link you found, with where it came from. Older tool results are dropped as you go, but notes are kept for the whole job.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "text": {
+        "type": "string",
+        "description": "The note, short and specific"
+       }
+      },
+      "required": [
+       "text"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "ask_user",
+     "description": "Ask the user one clear question when you truly can't go on without their answer (a choice only they can make, a missing detail). The job waits until they answer.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "question": {
+        "type": "string",
+        "description": "The question"
+       }
+      },
+      "required": [
+       "question"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "suggest_laptop",
+     "description": "Tell the user once that this job would go better on their laptop (Atlas runs there too, with bigger local models and PC tools): use it when the job is heavy, e.g. very long, many big files, needs the PC's apps or files, or would benefit from a bigger model. You keep working here meanwhile.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "reason": {
+        "type": "string",
+        "description": "Why, in a few words, e.g. 'It needs dozens of pages and a long write-up'"
+       }
+      },
+      "required": [
+       "reason"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "request_approval",
+     "description": "Ask the user's OK before anything that sends a message, posts, buys or pays, deletes something, or changes an account or security setting. Say exactly what you'll do. The job waits for their answer.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "action": {
+        "type": "string",
+        "description": "Exactly what you're about to do, e.g. 'Send \"See you at 6\" to Mum on WhatsApp'"
+       }
+      },
+      "required": [
+       "action"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "use_skill",
+     "description": "Load one of the skills the user taught you (listed in your instructions) and follow it for this kind of job.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "name": {
+        "type": "string",
+        "description": "The skill's name"
+       }
+      },
+      "required": [
+       "name"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "delegate",
+     "description": "Hand part of this job to one of the user's specialist bots (listed in your instructions). It works on its own and reports back; call wait_for_helpers when you need the reports. Up to 4 helpers; give each a clear, self-contained task.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "specialist": {
+        "type": "string",
+        "description": "The specialist bot's name"
+       },
+       "task": {
+        "type": "string",
+        "description": "Exactly what it should do and report back, with everything it needs to know"
+       }
+      },
+      "required": [
+       "specialist",
+       "task"
+      ]
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "wait_for_helpers",
+     "description": "Wait until your helpers have reported. Their reports are added to your notes, then you carry on.",
+     "parameters": {
+      "type": "object",
+      "properties": {}
+     }
+    }
+   },
+   {
+    "type": "function",
+    "function": {
+     "name": "finish",
+     "description": "Finish the job and hand over the report. The report is shown to the user and posted in their chat.",
+     "parameters": {
+      "type": "object",
+      "properties": {
+       "report": {
+        "type": "string",
+        "description": "The full report in neat Markdown, ending with a Sources section when you used the web."
+       }
+      },
+      "required": [
+       "report"
+      ]
+     }
+    }
+   }
+  ]
+ }
+}

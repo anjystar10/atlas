@@ -1,0 +1,20 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "role": "model",
+    "parts": [
+     {
+      "functionCall": {
+       "name": "press_key",
+       "args": {
+        "key": "back"
+       }
+      }
+     }
+    ]
+   },
+   "finishReason": "STOP"
+  }
+ ]
+}

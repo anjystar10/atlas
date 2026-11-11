@@ -1,0 +1,15 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "role": "model",
+    "parts": [
+     {
+      "text": "Logged it: Logged reminder [023d750e-e946-4948-bcf7-820d4f2c6229] 'Pick up my sister' Thu 16 Jan at 16:00; at its time: a notification with a sound."
+     }
+    ]
+   },
+   "finishReason": "STOP"
+  }
+ ]
+}

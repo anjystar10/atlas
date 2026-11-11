@@ -1,0 +1,4 @@
+  AudioPlaybackConfiguration piid:167 deviceId:2 type:android.media.MediaPlayer u/pid:10192/8897 state:started attr:AudioAttributes: usage=USAGE_ALARM content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null sessionId:177 mutedState:none  FormatInfo{isSpatialized=false, channelMask=0x3, sampleRate=44100}
+11-11 19:05:48:370 player piid:159 new AudioAttributes:AudioAttributes: usage=USAGE_ALARM content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null
+11-11 19:05:48:482 player piid:167 new AudioAttributes:AudioAttributes: usage=USAGE_ALARM content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null
+	AudioAttributes: usage=USAGE_ALARM content=CONTENT_TYPE_UNKNOWN flags=0x800 tags= bundle=null forVolume: true stream: STREAM_ALARM(4)

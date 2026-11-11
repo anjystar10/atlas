@@ -1,0 +1,25 @@
+{
+ "id": "x",
+ "object": "chat.completion",
+ "model": "mock",
+ "choices": [
+  {
+   "index": 0,
+   "finish_reason": "tool_calls",
+   "message": {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423898692_0",
+      "type": "function",
+      "function": {
+       "name": "finish",
+       "arguments": "{\"report\": \"## Ordered\\n\\nI ordered **one blue widget, size Large** from the test shop. The shop showed: *Order confirmed*.\\n\\nSources:\\n- http://127.0.0.1:8766/shop\"}"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

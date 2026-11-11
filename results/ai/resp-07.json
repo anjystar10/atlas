@@ -1,0 +1,15 @@
+{
+ "id": "x",
+ "object": "chat.completion",
+ "model": "mock",
+ "choices": [
+  {
+   "index": 0,
+   "finish_reason": "stop",
+   "message": {
+    "role": "assistant",
+    "content": "**Logged it.** I'll remind you to water the plants."
+   }
+  }
+ ]
+}

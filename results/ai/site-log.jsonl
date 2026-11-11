@@ -1,0 +1,11 @@
+{"method": "GET", "path": "/shop", "query": {}, "ua": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36", "t": 1794423852.6973302}
+{"method": "GET", "path": "/favicon.ico", "query": {}, "ua": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36", "t": 1794423852.9746742}
+{"method": "GET", "path": "/shop/search", "query": {"q": ["blue widget"]}, "ua": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36", "t": 1794423854.98463}
+{"method": "GET", "path": "/shop/item/blue-widget", "query": {}, "ua": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36", "t": 1794423856.3077853}
+{"method": "GET", "path": "/shop", "query": {}, "ua": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36", "t": 1794423882.018014}
+{"method": "GET", "path": "/favicon.ico", "query": {}, "ua": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36", "t": 1794423882.162738}
+{"method": "GET", "path": "/shop/search", "query": {"q": ["blue widget"]}, "ua": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36", "t": 1794423884.2272706}
+{"method": "GET", "path": "/shop/item/blue-widget", "query": {}, "ua": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36", "t": 1794423885.6393669}
+{"method": "POST", "path": "/shop/order", "form": {"item": ["blue-widget"], "size": ["Large"]}, "t": 1794423897.5359306}
+{"method": "GET", "path": "/login", "query": {}, "ua": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36", "t": 1794423916.8412716}
+{"method": "GET", "path": "/favicon.ico", "query": {}, "ua": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36", "t": 1794423916.9951963}

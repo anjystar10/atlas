@@ -1,0 +1,25 @@
+{
+ "id": "x",
+ "object": "chat.completion",
+ "model": "mock",
+ "choices": [
+  {
+   "index": 0,
+   "finish_reason": "tool_calls",
+   "message": {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423835970_0",
+      "type": "function",
+      "function": {
+       "name": "set_reminder",
+       "arguments": "{\"title\": \"Water the plants\", \"when\": \"2031-01-16 18:00\", \"duration_min\": 10}"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

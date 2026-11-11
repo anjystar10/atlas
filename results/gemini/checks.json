@@ -1,0 +1,26 @@
+[
+ {
+  "after": "open_app",
+  "signature_returned": [
+   "SIG-open"
+  ]
+ },
+ {
+  "after": "tap",
+  "signature_returned": [
+   "SIG-tap"
+  ]
+ },
+ {
+  "after": "press_key",
+  "signature_returned": [
+   null
+  ]
+ },
+ {
+  "after": "set_reminder",
+  "signature_returned": [
+   "SIG-rem"
+  ]
+ }
+]

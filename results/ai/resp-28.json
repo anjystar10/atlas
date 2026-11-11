@@ -1,0 +1,25 @@
+{
+ "id": "x",
+ "object": "chat.completion",
+ "model": "mock",
+ "choices": [
+  {
+   "index": 0,
+   "finish_reason": "tool_calls",
+   "message": {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423940572_0",
+      "type": "function",
+      "function": {
+       "name": "finish",
+       "arguments": "{\"report\": \"You signed in yourself in my browser, so the sign-in step is done. I never typed your password.\"}"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

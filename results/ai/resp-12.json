@@ -1,0 +1,25 @@
+{
+ "id": "x",
+ "object": "chat.completion",
+ "model": "mock",
+ "choices": [
+  {
+   "index": 0,
+   "finish_reason": "tool_calls",
+   "message": {
+    "role": "assistant",
+    "content": null,
+    "tool_calls": [
+     {
+      "id": "call_1794423854020_0",
+      "type": "function",
+      "function": {
+       "name": "browser_type",
+       "arguments": "{\"target\": \"Search the shop\", \"text\": \"blue widget\"}"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

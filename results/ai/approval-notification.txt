@@ -1,0 +1,4 @@
+                android.title=String (Atlas Bot needs your OK)
+                android.reduced.images=Boolean (true)
+                android.template=String (android.app.Notification$BigTextStyle)
+                android.text=String (Click “Place order” on 127.0.0.1)

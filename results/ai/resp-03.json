@@ -1,0 +1,6 @@
+{
+ "error": {
+  "message": "Rate limit reached. Please try again in 2s.",
+  "type": "rate_limit"
+ }
+}
