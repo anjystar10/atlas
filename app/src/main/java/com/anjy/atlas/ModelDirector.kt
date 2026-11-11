@@ -151,6 +151,11 @@ object ModelDirector {
         }
     }
 
+    /** The device as it will be once [loaded] (the model in memory now, if any) has been put away to make room. */
+    fun afterUnloading(d: DeviceProfile, loaded: ModelSpec?): DeviceProfile =
+        if (loaded == null || d.availRamMb < 0) d
+        else d.copy(availRamMb = (d.availRamMb + peakMb(loaded)).coerceAtMost(if (d.totalRamMb > 0) d.totalRamMb else Long.MAX_VALUE), lowMemory = false)
+
     /** How many bots may work at once: one on a strained phone, two otherwise. */
     fun botSlots(d: DeviceProfile): Int =
         if (d.lowMemory || (d.availRamMb in 0 until 1500) || d.thermal >= TOO_HOT || d.powerSave || (d.batteryPct in 0 until 15 && !d.charging)) 1 else 2

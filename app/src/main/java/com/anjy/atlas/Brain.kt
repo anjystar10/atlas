@@ -116,14 +116,17 @@ object ModelManager {
         if (!f.exists()) { status = "No model file. Choose one in Me."; return@withLock false }
         // the device check, fresh each time: does this model fit in what the phone has free right now?
         val spec = withContext(Dispatchers.IO) { DeviceGuard.spec(app, f, modelName(app) ?: "model") }
-        current = spec
-        val verdict = withContext(Dispatchers.IO) { ModelDirector.decide(DeviceProfiler.read(app), spec, DeviceGuard.record(app, spec), DeviceGuard.force(app)) }
+        // a reload (fresh conversation, or a new file) replaces the model already in memory: what it holds now is freed
+        // first, so it counts as free here; otherwise a model that is running fine could be turned away by its own size
+        val was = if (ready) current else null
+        val verdict = withContext(Dispatchers.IO) { ModelDirector.decide(ModelDirector.afterUnloading(DeviceProfiler.read(app), was), spec, DeviceGuard.record(app, spec), DeviceGuard.force(app)) }
         if (!verdict.allowed) {
             if (ready) unload(app)
             heldBack = verdict.reason; status = verdict.reason
             return@withLock false
         }
         heldBack = null
+        current = spec
         val what = "Loading the offline model"
         if (!DeviceGuard.begin(what)) { status = "${DeviceGuard.heavy ?: "Something heavy"} is still under way. Try again in a moment."; return@withLock false }
         busy = true
