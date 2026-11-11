@@ -53,6 +53,8 @@ object Bots {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val workers = mutableMapOf<String, Job>()
     private val main = Handler(Looper.getMainLooper())
+    /** For helpers (the bot browser's downloads) that need Atlas Bot's own background work. */
+    fun scopeLaunch(block: suspend () -> Unit) = scope.launch { block() }
 
     private val listeners = mutableListOf<() -> Unit>()
     fun listen(l: () -> Unit) { if (l !in listeners) listeners.add(l) }
@@ -138,6 +140,7 @@ object Bots {
         if (j.final) return
         workers.remove(id)?.cancel()
         j.move(BotRules.CANCELLED, System.currentTimeMillis()); j.current = null
+        BotBrowser.release(id)
         cancelAlert(j)
         persist(); changed(); pump()
     }
@@ -198,6 +201,7 @@ object Bots {
                         if (workers[j.id] === kotlinx.coroutines.currentCoroutineContext()[Job]) workers.remove(j.id)
                         if (j.state == BotRules.RUNNING) { j.move(BotRules.QUEUED, System.currentTimeMillis()) }
                         j.current = null
+                        if (j.final) BotBrowser.release(j.id)
                         persist(); changed()
                         main.post { pump() }
                     }
@@ -287,7 +291,9 @@ object Bots {
                             val q = Plain.reply(c.args.optString("question")).ifBlank { "Could you tell me more about what you want?" }
                             j.question = q.take(600); j.current = null
                             j.move(BotRules.AWAITING_ANSWER, System.currentTimeMillis()); j.step("Asked you: ${q.take(120)}")
-                            persistNow(); notifyAlert(j, "Atlas Bot has a question", q); changed()
+                            // a question about the bot's browser (sign in, a human check): the alert opens the browser
+                            val forBrowser = BotBrowser.live(j.id) && Regex("browser|sign ?in|log ?in|captcha|human check|verif", RegexOption.IGNORE_CASE).containsMatchIn(q)
+                            persistNow(); notifyAlert(j, "Atlas Bot has a question", q, browser = forBrowser); changed()
                             return
                         }
                         "suggest_laptop" -> {
@@ -297,6 +303,16 @@ object Bots {
                         "request_approval" -> {
                             val what = Plain.reply(c.args.optString("action")).ifBlank { "Go ahead with the next step" }
                             askApproval(j, Approval(what.take(300), null, null, null)); return
+                        }
+                        // ---- the bot's web browser (BotBrowser): act on websites, with risky clicks and submits waiting for an OK
+                        in browserTools -> {
+                            val (label, inForm) = BotBrowser.inspect(app, j.id, c.name, c.args)
+                            BrowserRules.approval(c.name, c.args, label, inForm, BotBrowser.site())?.let { what ->
+                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label)); return
+                            }
+                            val out = runBrowser(j, c)
+                            if (out.waitForUser != null) { waitForUser(j, out.waitForUser); return }
+                            results.add(c to out.text)
                         }
                         else -> {
                             if (c.name !in toolNames) { results.add(c to "Error: there's no tool called ${c.name}."); continue }
@@ -330,6 +346,27 @@ object Bots {
         return r.out
     }
 
+    /** Runs one browser action for the bot, with the same "doing it now" mark as [runTool]. */
+    private suspend fun runBrowser(j: BotJob, c: Gemini.Call): BotBrowser.Out {
+        val what = BotBrowser.label(c.name, c.args)
+        j.current = what; j.pending = what; persistNow(); changed()
+        val r = try { BotBrowser.run(app, j.id, c.name, c.args) } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { Log.w(TAG, "browser", e); BotBrowser.Out("Error: the browser failed (${e.message ?: e.javaClass.simpleName}). Try again or another way.", "The browser failed") }
+        j.pending = null; j.toolCalls++
+        j.step(r.step)
+        r.url?.takeIf { it.startsWith("http") && it !in j.sources }?.let { j.sources.add(it); if (j.sources.size > 40) j.sources.removeAt(0) }
+        j.addRecent("$what:\n${r.text.take(1500)}")
+        persist()
+        return r
+    }
+
+    /** The bot needs the user in its browser (a sign-in, a human check): the job waits, and the alert opens the browser. */
+    private suspend fun waitForUser(j: BotJob, what: String) {
+        j.question = what.take(600); j.current = null
+        j.move(BotRules.AWAITING_ANSWER, System.currentTimeMillis()); j.step(what.take(120))
+        persistNow(); notifyAlert(j, "Atlas Bot needs you in its browser", what, browser = true); changed()
+    }
+
     /** The user decided on an approval, or answered a question: act on it before the bot carries on. */
     private suspend fun takeDecisions(j: BotJob) {
         j.question?.let { q -> j.answer?.let { a -> j.notes.add("You asked the user: $q. They answered: $a"); j.step("You answered: ${a.take(120)}") } }
@@ -340,6 +377,15 @@ object Bots {
         if (d == "denied") { j.notes.add("The user said NO to: ${a.what}. Don't do it; find another way or finish without it."); j.step("You said no to: ${a.what}"); persist(); return }
         j.step("You approved: ${a.what}")
         if (a.tool == null || a.args == null) { j.notes.add("The user approved: ${a.what}. Go ahead with exactly that."); persist(); return }
+        if (a.tool in browserTools) {
+            // a browser action: check the page still shows the same thing, then do it
+            if (a.elementLabel != null && BotBrowser.inspect(app, j.id, a.tool, a.args).first != a.elementLabel) {
+                j.notes.add("The user approved: ${a.what}, but the page changed before it could be done, so it was NOT done. Read the page again; ask again if it's still needed."); persist(); return
+            }
+            val out = runBrowser(j, Gemini.Call(a.tool, a.args, null))
+            j.notes.add("Approved and done: ${a.what}. Result: ${out.text.lineSequence().firstOrNull()?.take(300) ?: ""}")
+            persist(); return
+        }
         if (a.elementLabel != null) {
             val now = withContext(Dispatchers.Default) { PhoneControl.labelOf(a.args.optInt("element", -1)) }
             if (now != a.elementLabel) { j.notes.add("The user approved: ${a.what}, but the screen changed before it could be done, so it was NOT done. Read the screen again; ask again if it's still needed."); persist(); return }
@@ -407,6 +453,7 @@ object Bots {
 
     /** Atlas's own tools that bots don't get: settings, focus sessions, and sending more bots. */
     private val notForBots = setOf("change_setting", "start_focus", "deploy_bot")
+    private val browserTools = setOf("browser_open", "browser_read", "browser_click", "browser_type", "browser_select", "browser_press", "browser_scroll", "browser_back", "browser_wait", "browser_download")
 
     private val declarations: JSONArray by lazy {
         JSONArray().apply {
@@ -414,6 +461,25 @@ object Bots {
                 val d = Tools.declarations.getJSONObject(i)
                 if (d.optString("name") !in notForBots) put(d)
             }
+            // the bot's own web browser: for doing things on websites (signing up, filling forms, booking, buying with an OK)
+            put(fn("browser_open", "Open a web page in your own browser (it keeps sign-ins between jobs). Returns the page: its text and numbered buttons, links and fields.",
+                JSONObject().put("url", str("The web address, e.g. https://www.example.com/page")), listOf("url")))
+            put(fn("browser_read", "Read the open page again: its text and numbered buttons, links and fields. Numbers change after every action, so use the latest list."))
+            put(fn("browser_click", "Click a button, link or other element on the open page, by its number from the latest list (or its exact words). Returns the new page.",
+                JSONObject().put("target", str("The element's number, e.g. \"12\", or its words, e.g. \"Add to cart\"")), listOf("target")))
+            put(fn("browser_type", "Type into a field on the open page (replacing what's in it). Set submit to true to press Enter afterwards (searching, sending a form). Never for passwords. Returns the new page.",
+                JSONObject().put("target", str("The field's number or label")).put("text", str("What to type")).put("submit", JSONObject().put("type", "boolean").put("description", "Press Enter after typing")), listOf("target", "text")))
+            put(fn("browser_select", "Choose an option in a dropdown on the open page. Returns the new page.",
+                JSONObject().put("target", str("The dropdown's number or label")).put("option", str("The option's words")), listOf("target", "option")))
+            put(fn("browser_press", "Press a key on the open page: Enter, Tab, Escape, Backspace, Space, Up, Down, Left or Right. Returns the new page.",
+                JSONObject().put("key", str("The key")), listOf("key")))
+            put(fn("browser_scroll", "Scroll the open page. Returns what's now visible.",
+                JSONObject().put("direction", JSONObject().put("type", "string").put("enum", JSONArray(listOf("down", "up", "top", "bottom")))), listOf("direction")))
+            put(fn("browser_back", "Go back to the previous page."))
+            put(fn("browser_wait", "Wait for the page to finish loading or updating, then read it.",
+                JSONObject().put("seconds", JSONObject().put("type", "number").put("description", "1 to 15 seconds"))))
+            put(fn("browser_download", "Download a file: a link's number from the page, or a web address. It's kept with this job (the user can save it to Downloads).",
+                JSONObject().put("target", str("The link's number or the file's web address")), listOf("target")))
             put(fn("update_plan", "Write or update your plan for this job: 3 to 8 short steps, one per line, in order. Start a line with [x] when that step is done.",
                 JSONObject().put("plan", str("The steps, one per line, e.g. \"[x] Search for reviews\\n[ ] Compare prices\"")), listOf("plan")))
             put(fn("note", "Save something you'll need later: a fact, figure, name or link you found, with where it came from. Older tool results are dropped as you go, but notes are kept for the whole job.",
@@ -440,7 +506,7 @@ You are Atlas Bot, an agent that Atlas ($name's personal AI assistant) sends to 
 
 How you work:
 1. Plan first: call update_plan with a short plan (3 to 8 steps). Keep it current: tick steps off with [x] as you finish them, and change the plan when you learn something.
-2. Work step by step with tools. For research, run several focused web searches and read the best pages instead of guessing; cross-check important facts in two sources when you can. Prefer recent, primary sources.
+2. Work step by step with tools. When the job is to get something done online (not just find out), do it in your browser. For research, run several focused web searches and read the best pages instead of guessing; cross-check important facts in two sources when you can. Prefer recent, primary sources.
 3. Older tool results are dropped as you go to keep things small, so save what you'll need later (facts, figures, names, links, with the source) with note as soon as you find it. Your plan and notes are kept for the whole job.
 4. Before you finish, check your work: does the report do the whole job? Is every number and claim backed by something you read or did?
 5. If you truly can't go on without the user (a choice only they can make, a missing detail), call ask_user with one clear question. Decide sensible things yourself.
@@ -455,6 +521,13 @@ The report:
 Safety:
 - Anything that sends a message, posts, buys or pays, deletes something, or changes an account or security setting needs the user's OK first: call request_approval saying exactly what you'll do, and wait. Some actions are also checked automatically and will wait for the OK.
 - Never type passwords, payment details or verification codes.
+
+Doing things on websites (your own browser):
+- You have a real web browser: browser_open a page, then work from its numbered buttons, links and fields with browser_click, browser_type (submit to send), browser_select, browser_press, browser_scroll, browser_back. Each action returns the new page: read it and check the action really worked before moving on.
+- Use it to actually do things the job asks for on the web: fill in and send forms, search a site, add to a cart, book, sign up, download files. Use web_search and read_page for plain reading; use the browser when you need to click, type or stay signed in.
+- Sign-ins: never type passwords or codes. If a page needs the user to sign in, or shows a human check (CAPTCHA), call ask_user asking them to do it in the bot's browser; you carry on when they're done. Their sign-ins are kept for next time.
+- Clicking things that send, post, buy, pay, book, sign up, accept terms or delete waits for the user's OK automatically; say clearly in your report what you did and what's left for them.
+- Report evidence: the confirmation text, order or reference numbers, the final page's address.
 
 Using the phone (only when the job needs it):
 - open_app, then work from the numbered elements on the screen. Every action returns the new screen; check it. Numbers change after each action, so use numbers from the latest screen only.
@@ -503,7 +576,7 @@ ${Tools.logContext(ctx)}
         "forget" -> "Deleting a memory"
         "read_log" -> "Checking your Log"
         "open_link" -> "Opening a link"
-        else -> "Working"
+        else -> if (c.name in browserTools) BotBrowser.label(c.name, c.args) else "Working"
     }
 
     // ---------------------------------------------------------------- notifications
@@ -524,12 +597,12 @@ ${Tools.logContext(ctx)}
         PendingIntent.getBroadcast(ctx, notifId(j) * 8 + action.hashCode() % 7, Intent(ctx, BotReceiver::class.java).setAction(action).putExtra(BotActivity.EXTRA_ID, j.id),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
-    private fun notifyAlert(j: BotJob, title: String, text: String, approval: Boolean = false) {
+    private fun notifyAlert(j: BotJob, title: String, text: String, approval: Boolean = false, browser: Boolean = false) {
         if (!::app.isInitialized) return
         channels(app)
         val b = Notification.Builder(app, CH_BOT_ALERT).setSmallIcon(R.drawable.ic_stat).setContentTitle(title)
             .setContentText(Plain.reply(text).take(200)).setStyle(Notification.BigTextStyle().bigText(Plain.reply(text).take(600)))
-            .setContentIntent(openIntent(app, j, notifId(j))).setAutoCancel(true)
+            .setContentIntent(if (browser && BotBrowser.live(j.id)) BotBrowserActivity.openIntent(app, j.id, notifId(j)) else openIntent(app, j, notifId(j))).setAutoCancel(true)
         if (approval) {
             b.addAction(Notification.Action.Builder(null, "Approve", actionIntent(app, j, BotReceiver.ACTION_APPROVE)).build())
             b.addAction(Notification.Action.Builder(null, "Deny", actionIntent(app, j, BotReceiver.ACTION_DENY)).build())
