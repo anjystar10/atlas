@@ -84,6 +84,8 @@ object Tools {
                     .put("details", str("Everything the bot should know: what the user wants, preferences, limits, what to include in the report")), listOf("goal")))
             put(fn("wait", "Wait for something to load (an answer being written, a page loading). Returns the new screen.",
                 JSONObject().put("seconds", int("1 to 15")), listOf("seconds")))
+            // calendar, contacts, location and the Clock app (PhoneData.kt)
+            PhoneData.declarations.forEach { put(it) }
         }
     }
 
@@ -256,6 +258,7 @@ object Tools {
                     Result("Atlas Bot is on it: '${j.goal}'. It works in the background; its report will appear in this chat when it's done, and the user can follow it from the Atlas Bot strip at the top of the chat. Tell them briefly, in your own words.",
                         "Sent Atlas Bot: ${j.goal}")
                 }
+                in PhoneData.names -> PhoneData.run(ctx, c.name, a)
                 else -> Result("Error: there's no tool called ${c.name}.")
             }
         } catch (e: AtlasException) { Result("Error: ${e.message}")

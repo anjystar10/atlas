@@ -18,6 +18,13 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- the phone's calendar, contacts, location and Clock app (asked for only when first used) -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
 
     <!-- Lets Atlas see launchable apps so "open whatsapp" works. -->
     <queries>
@@ -34,6 +41,13 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
+        </intent>
+        <!-- the Clock app, for phone_alarm and phone_timer -->
+        <intent>
+            <action android:name="android.intent.action.SET_ALARM" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SET_TIMER" />
         </intent>
     </queries>
 
@@ -129,6 +143,12 @@
                 android:value="Atlas Bot: finishes a multi-step job the user asked the assistant to do (research, writing, phone actions) while they use other apps" />
         </service>
         <receiver android:name=".BotReceiver" android:exported="false" />
+        <activity
+            android:name=".PermissionActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- "Hey Atlas" listens in its own process, so a crash in the speech engine can't close Atlas. -->
         <service
