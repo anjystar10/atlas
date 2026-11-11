@@ -255,6 +255,7 @@ object Sync {
         // skills, routines, the bot team and approval rules sync too: their kinds must be known before anything is pulled
         try { BotExtras.init(ctx) } catch (e: Exception) { Log.w(TAG, "bot extras", e) }
         KeyShare.register()                      // "Share My AI Keys" (does nothing unless it's on)
+        BotMirror.register()                     // each device's bot jobs, shown (read-only) on the other
         if (running) return "Already syncing."
         running = true
         lastTry = System.currentTimeMillis()

@@ -1803,11 +1803,13 @@ class MainActivity : Activity() {
         }
         body.add(ex, 12)
         val all = Bots.visible()
+        val elsewhere = try { BotMirror.others(this) } catch (_: Exception) { emptyList() }
         if (all.isEmpty()) {
             body.add(card().apply {
                 addView(text("No bots yet", 18f, FG, HEAD))
                 add(text("Ask Atlas for something bigger, like “research the best phone under $300 for photos and send me a report”, or say “send a bot to…”.", 15f, MUTED), 6)
             }, 22)
+            renderBotsElsewhere(elsewhere)
             return
         }
         body.add(eyebrow("Jobs"), 22)
@@ -1820,6 +1822,36 @@ class MainActivity : Activity() {
             val line = listOfNotNull(BotRules.label(j.state), if (j.state == BotRules.RUNNING) j.current else null,
                 if (j.plan.isNotEmpty()) "plan ${j.plan.count { it.done }}/${j.plan.size}" else null).joinToString(" · ")
             c.add(text(line, 13f, MUTED, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, 6)
+            body.add(c, 10)
+        }
+        renderBotsElsewhere(elsewhere)
+    }
+
+    /** Bots working on the other device (read-only here: each job runs where it was started). Tap one for its report. */
+    private fun renderBotsElsewhere(list: List<org.json.JSONObject>) {
+        if (list.isEmpty()) return
+        val where = if (list.any { it.optString("platform") == "windows" }) "On Your PC" else "On Your Other Device"
+        body.add(eyebrow(where), 22)
+        list.take(20).forEach { v ->
+            val c = card()
+            c.addView(text(v.optString("goal"), 17f, FG, HEAD).apply { maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END })
+            val total = v.optInt("total"); val cur = v.optString("current")
+            val line = listOfNotNull(v.optString("label").ifBlank { null }, if (v.optString("state") == BotRules.RUNNING && cur.isNotBlank()) cur else null,
+                if (total > 0) "plan ${v.optInt("done")}/$total" else null).joinToString(" · ")
+            c.add(text(line, 13f, MUTED, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, 6)
+            val report = v.optString("report")
+            if (report.isNotBlank()) {
+                c.isClickable = true; c.pressFx()
+                c.setOnClickListener {
+                    val tv = TextView(this).apply { text = Plain.reply(report); setTextColor(FG); textSize = 15f; setTextIsSelectable(true) }
+                    // a long report scrolls inside the sheet
+                    val sv = android.widget.ScrollView(this).apply {
+                        addView(tv)
+                        layoutParams = LinearLayout.LayoutParams(MATCH, (resources.displayMetrics.heightPixels * 0.55f).toInt())
+                    }
+                    sheet(null, v.optString("goal").take(80), "Its report, from your other device.", content = sv, primaryLabel = "Close", onPrimary = {})
+                }
+            }
             body.add(c, 10)
         }
     }
