@@ -108,6 +108,13 @@
             android:windowSoftInputMode="adjustResize"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
+        <!-- The bot's web browser on screen: watch it, or take over to sign in, then hand back. -->
+        <activity
+            android:name=".BotBrowserActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
         <service
             android:name=".BotService"
             android:exported="false"

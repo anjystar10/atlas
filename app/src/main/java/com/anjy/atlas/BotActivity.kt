@@ -243,6 +243,30 @@ class BotActivity : Activity() {
             j.state == BotRules.AWAITING_APPROVAL || j.state == BotRules.AWAITING_ANSWER -> add(row(button("Pause") { Bots.pause(j.id) }, button("Stop") { Bots.stop(j.id) }), 10)
         }
 
+        // the bot's web browser: watch it work, or take over (sign in, pass a human check)
+        if (BotBrowser.live(j.id)) {
+            val waiting = j.state == BotRules.AWAITING_ANSWER
+            add(row(button(if (waiting) "Open the Browser" else "Watch the Browser", primary = waiting) {
+                startActivity(BotBrowserActivity.intent(this, j.id))
+            }), 12)
+        }
+
+        // files the bot downloaded: kept with the job, savable to the phone's Downloads
+        val got = BotBrowser.files(this, j.id)
+        if (got.isNotEmpty()) {
+            add(text("FILES", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
+            got.forEach { f ->
+                add(card().apply {
+                    addView(text(f.name, 15f, FG, med).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
+                    addView(text("${(f.length() / 1024).coerceAtLeast(1)} KB", 12f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(2) })
+                    addView(button("Save to Downloads") {
+                        val where = BotBrowser.saveToDownloads(this@BotActivity, f)
+                        android.widget.Toast.makeText(this@BotActivity, where?.let { "Saved to $it" } ?: "Couldn't save it", android.widget.Toast.LENGTH_SHORT).show()
+                    }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+                }, 8)
+            }
+        }
+
         // the report
         j.report?.let { r ->
             add(text("REPORT", 12f, MUTED, semi).apply { letterSpacing = 0.14f }, 22)
