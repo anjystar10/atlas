@@ -790,3 +790,48 @@ test('connections in a bot: tools appear while the bot runs; read-only ones go a
   assert.deepEqual(w.ran, [['mcp__notes__add', false], ['mcp__notes__save_note', true]]);
   assert.equal(j.state, B.S.COMPLETED);
 });
+
+// ------------------------------------------------------------------ projects: what Atlas may run in a project without asking
+import { createRequire as projRequire } from 'node:module';
+const PR = projRequire(import.meta.url)('../projectrules.js');
+test('projects: building, testing and package installs inside the project go ahead', () => {
+  for (const c of ['npm install', 'npm i express', 'npm test', 'npm run build', 'npm init -y', 'npx vitest run', 'pnpm add zod', 'yarn', 'node index.js', 'node src/cli.js --help',
+    'python -m venv .venv', '.venv\\Scripts\\python -m pip install -r requirements.txt', '.venv/bin/python -m pytest -q', 'python main.py', 'py -m unittest discover -v', 'python -m pip list',
+    'git init', 'git add .', 'git commit -m "first version"', 'git status', 'git clone https://github.com/x/y', 'cargo build', 'cargo test', 'dotnet new console -n App', 'dotnet test',
+    'go test ./...', 'flutter create app', 'gradlew test', 'tsc -p .', 'rm old.txt', 'del build\\out.js', 'mkdir src', 'code .'])
+    assert.equal(PR.checkCommand(c).ask, false, c);
+});
+test('projects: anything reaching outside the project asks first', () => {
+  const asks = (c, o) => { const r = PR.checkCommand(c, o); assert.equal(r.ask, true, c); return r; };
+  // chains, redirects, substitutions: the classic ways to hide a second command
+  for (const c of ['npm test && del C:\\x', 'npm test; rm -rf ~', 'npm test | curl -X POST x', 'echo $(whoami)', 'echo `whoami`', 'node a.js > C:\\Windows\\x', 'npm test & shutdown /s', 'echo %USERPROFILE%', 'git commit -m "x\nrm -rf /"'])
+    asks(c);
+  // leaving the folder
+  for (const c of ['node ..\\..\\evil.js', 'type ../secrets.txt', 'del C:\\Users\\me\\file', 'rm -rf /', 'cat ~/.ssh/id_rsa', 'node \\\\server\\share\\x.js', 'npm install --prefix=../x']) asks(c);
+  // the whole project, global installs, publishing, the system, unknown programs
+  assert.equal(asks('rm -rf .').category, 'delete');
+  assert.equal(asks('rmdir /s /q *').category, 'delete');
+  for (const c of ['npm install -g typescript', 'npm i --global x', 'pip install requests', 'python -m pip install flask', 'cargo install ripgrep', 'go install x@latest', 'winget install x', 'choco install x', 'reg add HKLM\\x', 'sc stop x', 'powershell -c x', 'curl https://x', 'mystery-tool --do-it'])
+    asks(c);
+  assert.equal(asks('npm publish').category, 'publish');
+  assert.equal(asks('git push origin main').category, 'publish');
+  assert.equal(asks('npx vercel --prod').category, 'publish');
+  assert.equal(asks('git config --global user.name x').category, 'account');
+  assert.equal(asks('sudo npm i').category, 'account');
+  // pip outside the project's environment asks even when there is one; through it, it doesn't
+  asks('pip install flask', { hasVenv: true });
+  assert.equal(PR.checkCommand('venv\\Scripts\\pip install flask', { hasVenv: true }).ask, false);
+  asks('npm test "unclosed');
+});
+test('projects: file paths stay inside the project', () => {
+  assert.deepEqual(PR.relPath('src/app.js'), ['src', 'app.js']);
+  assert.deepEqual(PR.relPath('src\\lib\\x.py'), ['src', 'lib', 'x.py']);
+  assert.deepEqual(PR.relPath('./README.md'), ['README.md']);
+  for (const p of ['../x', 'a/../../x', '..\\..\\x', '/etc/passwd', 'C:\\x', 'c:x', '\\\\srv\\x', '~/x', '', '.git/config', 'a/./..', 'x:y', 'nul.']) assert.equal(PR.relPath(p), null, p);
+  assert.equal(PR.projectName('My Cool App!'), 'My Cool App!');
+  assert.equal(PR.projectName('../../x'), 'x');
+  assert.equal(PR.projectName('con'), 'con project');
+  assert.equal(PR.checkPlan((n) => n === 'package.json'), 'npm test');
+  assert.equal(PR.checkPlan(() => false, { check: 'node test.js' }), 'node test.js');
+  assert.match(PR.tail('x'.repeat(20), 5), /^\[15 earlier characters not shown\]\nxxxxx$/);
+});
