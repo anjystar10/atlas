@@ -398,7 +398,7 @@ ${Tools.logContext(ctx)}
         "set_reminder" -> "Logging a reminder"
         "remember" -> "Saving to memory"
         "open_link" -> "Opening a link"
-        else -> "Working"
+        else -> Email.label(c.name, c.args) ?: "Working"   // >>> email
     }
 
     // ---------------------------------------------------------------- offline: fixed commands, then the local model

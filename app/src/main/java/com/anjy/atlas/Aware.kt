@@ -40,6 +40,7 @@ object Capabilities {
         // ---- built in: managing bots, answering approvals and quick web actions from the chat (AwareTools below)
         register(AwareTools.cap)
         // ---- new subsystems register here, one line each (e.g. register(Email.cap))
+        register(Email.cap)   // >>> email (Email.kt)
     }
 
     fun all(): List<Cap> = caps.toList()

@@ -2100,6 +2100,11 @@ class MainActivity : Activity() {
         vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.", 13f, MUTED), 6)
         body.add(vc, 8)
 
+        // >>> email (EmailUi.kt)
+        body.add(eyebrow("Email"), 16)
+        body.add(emailCard(), 8)
+        // <<< email
+
         // >>> connections: MCP servers and web APIs (ConnectionsUi.kt)
         body.add(eyebrow("Connections"), 16)
         body.add(connectionsCard(), 8)

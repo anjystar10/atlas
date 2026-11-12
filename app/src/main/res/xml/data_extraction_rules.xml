@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The vault (saved sign-ins) never leaves this phone: not in a cloud backup (off for Atlas anyway) and not in a
+<!-- The vault (saved sign-ins) and the email account never leaves this phone: not in a cloud backup (off for Atlas anyway) and not in a
      phone-to-phone transfer. Its key lives in this phone's Keystore, so a copy would be unreadable elsewhere too. -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="file" path="vault.enc" />
+        <exclude domain="file" path="email.json" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="vault.enc" />
+        <exclude domain="file" path="email.json" />
     </device-transfer>
 </data-extraction-rules>

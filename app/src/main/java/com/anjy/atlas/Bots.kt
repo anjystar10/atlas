@@ -467,7 +467,9 @@ object Bots {
         val what = label(c)
         j.current = what; j.pending = what; persistNow(); changed()
         // a connection tool reaching here was already cleared by the bot's approval rules
-        val r = if (Connections.owns(c.name)) Connections.run(app, c, approved = true, who = "bots") else Tools.run(app, c)
+        val r = if (Connections.owns(c.name)) Connections.run(app, c, approved = true, who = "bots")
+            else if (c.name in Email.names) Email.run(app, c, approved = true)   // >>> email: the bot's approval (if one was needed) is already given
+            else Tools.run(app, c)
         // pictures the bot made go into its job folder (listed on the job page)
         r.media.forEach { m -> try { val d = BotBrowser.jobDir(app, j.id).apply { mkdirs() }; m.file.copyTo(java.io.File(d, m.file.name), overwrite = true) } catch (e: Exception) { Log.w(TAG, "picture", e) } }
         j.pending = null; j.toolCalls++
@@ -809,7 +811,7 @@ ${Tools.logContext(ctx)}
         "forget" -> "Deleting a memory"
         "read_log" -> "Checking your Log"
         "open_link" -> "Opening a link"
-        else -> if (c.name in browserTools) BotBrowser.label(c.name, c.args) else if (c.name in BotFiles.names) BotFiles.label(c.name, c.args) else Connections.label(c.name, c.args) ?: "Working"
+        else -> if (c.name in browserTools) BotBrowser.label(c.name, c.args) else if (c.name in BotFiles.names) BotFiles.label(c.name, c.args) else Connections.label(c.name, c.args) ?: Email.label(c.name, c.args) ?: "Working"
     }
 
     // ---------------------------------------------------------------- notifications

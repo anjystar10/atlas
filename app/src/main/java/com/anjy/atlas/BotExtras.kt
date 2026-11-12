@@ -83,7 +83,8 @@ object BotExtras {
         }
         fun categoryFor(tool: String?, args: JSONObject?): String = when (tool) {
             "run_command" -> "command"
-            "write_file", "forget", "update_reminder", "calendar_change" -> "delete"
+            "write_file", "forget", "update_reminder", "calendar_change", "email_delete" -> "delete"
+            "email_send" -> "message"   // >>> email
             "open_link" -> "message"
             "press_keys", "type_text", "tap", "click", "long_press" -> guessCategory(args?.optString("label") ?: args?.optString("text")).let { if (it == "other") "message" else it }
             else -> "other"
