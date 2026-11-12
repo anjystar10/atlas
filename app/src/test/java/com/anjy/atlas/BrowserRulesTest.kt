@@ -95,4 +95,44 @@ class BrowserRulesTest {
         assertEquals("amazon.com", BrowserRules.host("https://www.amazon.com/dp/1"))
         assertEquals("", BrowserRules.host("not a url"))
     }
+
+    // ---- money: "Always allow" must never cover a payment page or a buy/pay/order action
+
+    @Test fun paymentPagesAreSpotted() {
+        val S = BrowserRules::Signals
+        assertTrue(BrowserRules.paymentPage(BrowserRules.Signals(url = "https://shop.example/checkout/step-2")))
+        assertTrue(BrowserRules.paymentPage(BrowserRules.Signals(url = "https://shop.example/payment?id=4")))
+        assertTrue(BrowserRules.paymentPage(BrowserRules.Signals(url = "https://shop.example/cart/pay")))
+        assertTrue(BrowserRules.paymentPage(BrowserRules.Signals(url = "https://news.example/a", payFields = true)))
+        assertFalse(BrowserRules.paymentPage(BrowserRules.Signals(url = "https://news.example/paying-for-college")))
+        assertFalse(BrowserRules.paymentPage(BrowserRules.Signals(url = "https://payments.example/")))   // only the path counts, not the host
+        assertFalse(BrowserRules.paymentPage(S("https://shop.example/search?q=shoes", false, "", "")))
+    }
+
+    @Test fun moneyAlwaysAsksEvenWhenTheButtonSaysSomethingElse() {
+        val args = JSONObject().put("target", "12")
+        // a pay button dressed up as "Reply": its form submits to /orders/pay, so it asks, as a purchase
+        val disguised = BrowserRules.Signals(url = "https://mail.example/inbox", elementText = "reply-btn", formText = "/orders/pay Place order")
+        assertTrue(BrowserRules.moneyRisk("browser_click", disguised))
+        val what = BrowserRules.approval("browser_click", args, "Reply", false, "mail.example", disguised)
+        assertNotNull(what); assertTrue(what!!.contains("payment page"))
+        assertEquals("purchase", BotExtras.Rules.guessCategory(BrowserRules.riskText("Reply", disguised) + " " + what))
+        // hidden words on the element itself
+        assertTrue(BrowserRules.moneyRisk("browser_click", BrowserRules.Signals(elementText = "Continue checkout-submit")))
+        // typing, choosing, pressing Enter and signing in on a payment page all ask, even with no submit
+        val pay = BrowserRules.Signals(url = "https://shop.example/checkout")
+        for (t in listOf("browser_type", "browser_select", "browser_press", "browser_fill_login"))
+            assertNotNull(t, BrowserRules.approval(t, JSONObject().put("text", "x").put("key", "Tab").put("option", "Visa").put("entry", "Shop"), null, false, "shop.example", pay))
+        // reading and scrolling are never money actions
+        assertFalse(BrowserRules.moneyRisk("browser_read", pay)); assertFalse(BrowserRules.moneyRisk("browser_scroll", pay))
+        // an ordinary page: a harmless click goes ahead as before
+        assertNull(BrowserRules.approval("browser_click", args, "Next page", false, "news.example", BrowserRules.Signals(url = "https://news.example/a", formText = "Search")))
+    }
+
+    @Test fun theStrongestRiskDecidesTheKind() {
+        // the label says message, the form says delete: delete wins
+        assertEquals("delete", BotExtras.Rules.guessCategory(BrowserRules.riskText("Send", BrowserRules.Signals(formText = "Delete account"))))
+        // a payment page makes anything a purchase
+        assertEquals("purchase", BotExtras.Rules.guessCategory(BrowserRules.riskText("Send", BrowserRules.Signals(payFields = true))))
+    }
 }

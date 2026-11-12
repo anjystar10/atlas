@@ -80,7 +80,7 @@ class Busy extends Error { constructor() { super('Busy.'); this.code = 503; } }
 class Sw extends Error { constructor(to) { super('Keys out.'); this.to = to; } }
 
 /** A bot world with a scripted model: each call takes the next turn from [script] (a function of the brief, or a turn). */
-function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false, tools = null, extraApproval = null } = {}) {
+function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false, tools = null, extraApproval = null, checkApproval = null } = {}) {
   const w = { saved: journal, notes: [], posts: [], ran: [], briefs: [], tools: [], timers: [], calls: 0, prov: providers, made: 0 };
   let n = 0, clock = 1000;
   w.bots = B.createBots({
@@ -90,7 +90,7 @@ function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gem
       const i = n++; const s = script[i]; if (!s) throw new Error('script ran out at ' + i); return typeof s === 'function' ? s(brief) : s; }, results: (list) => w.notes.push(list.map((x) => x.out)) }; },
     callWithKeys: async (p, sess, call) => { const k = w.calls++; if (k === switchAt) throw new Sw(w.prov[1]); if (k === failAt) throw new Busy(); return call(); },
     isSwitch: (e) => e instanceof Sw, isRetryable: (e) => e instanceof Busy,
-    tools: tools || [{ name: 'web_search' }, { name: 'read_page' }, { name: 'run_command' }, { name: 'change_setting' }, { name: 'deploy_bot' }], extraApproval,
+    tools: tools || [{ name: 'web_search' }, { name: 'read_page' }, { name: 'run_command' }, { name: 'change_setting' }, { name: 'deploy_bot' }], extraApproval, ...(checkApproval ? { checkApproval } : {}),
     runTool: async (c, o) => { w.ran.push([c.name, !!(o && o.approved)]); return { out: `${c.name} result`, step: `Did ${c.name}` }; },
     systemPrompt: (j) => { w.sysFor = (w.sysFor || []).concat([j && j.id]); return 'sys'; }, notify: (t, b, tag) => w.notes.push(['notify', t, tag]), post: (m) => w.posts.push(m),
     plainReply: (s) => String(s).trim(), plainMemory: (s) => String(s).trim(),
@@ -305,6 +305,33 @@ test('sync: the same fingerprints, encryption and merge rules as the phone', asy
     sync.stamp(sent, dirty, c.local, c.gone, c.now, c.first, c.skip, c.extraImplicit);
     assert.deepEqual(sent, c.expectSent, c.name); assert.deepEqual(dirty, c.expectDirty, c.name);
   }
+});
+test('sync, round two: pull position, batches, problems, shared settings and presence agree with the phone', async () => {
+  const { readFileSync } = await import('node:fs');
+  const fx = JSON.parse(readFileSync(new URL('../../tools/sync-fixtures.json', import.meta.url), 'utf8'));
+  for (const c of fx.advance) assert.deepEqual(sync.advance(c.cursor, c.recent, c.now), [c.expectCursor, c.expectRecent], c.name);
+  for (const c of fx.alreadyTaken) assert.equal(sync.alreadyTaken(c.seen, c.rev), c.want);
+  for (const c of fx.batches) assert.deepEqual(sync.batches(c.sizes), c.expect, c.name);
+  for (const c of fx.problem) assert.deepEqual(sync.problem(c.status, c.body), c.expect);
+  for (const c of fx.profileOf) assert.equal(sync.canonical(sync.profileOf(c.settings)), sync.canonical(c.expect));
+  for (const c of fx.profileFields) assert.deepEqual(sync.profileFields(c.rec), c.expect);
+  for (const c of fx.presenceDue) assert.equal(sync.presenceDue(c.last, c.now), c.want);
+});
+test('sharing AI keys: the same merge rules as the phone, and a key is never lost to the other device', async () => {
+  const { readFileSync } = await import('node:fs');
+  const ks = await import('../renderer/keyshare.js');
+  const fx = JSON.parse(readFileSync(new URL('../../tools/sync-fixtures.json', import.meta.url), 'utf8')).keyshare;
+  for (const [k, f] of fx.fingerprints) assert.equal(await ks.fingerprint(k), f);
+  for (const c of fx.merge) assert.deepEqual(ks.merge(c.a, c.b), c.expect, c.name);
+  for (const c of fx.present) assert.deepEqual(await ks.present(c.rec), c.expect, c.name);
+  for (const c of fx.observe) assert.deepEqual(await ks.observe(c.rec, c.seen, c.now, c.at), c.expect, c.name);
+  // both devices add a different key at once: after merging both ways, both have both keys
+  const phone = await ks.observe({}, [], ['AIza-phone'], 100), pc = await ks.observe({}, [], ['AIza-pc'], 101);
+  assert.deepEqual(await ks.present(ks.merge(phone, pc)), ['AIza-pc', 'AIza-phone']);
+  assert.deepEqual(await ks.present(ks.merge(pc, phone)), ['AIza-pc', 'AIza-phone']);
+  // the record holds no removed key itself, only its fingerprint
+  const gone = await ks.observe(pc, ['AIza-pc'], [], 200);
+  assert.ok(!JSON.stringify(gone).includes('AIza-pc'));
 });
 test('sync: an older edit from the other device never beats a newer one made here offline', () => {
   // made here at 2000 while offline, the phone's copy says 1000: ours stays and goes up; a later phone edit at 3000 wins
@@ -834,4 +861,72 @@ test('projects: file paths stay inside the project', () => {
   assert.equal(PR.checkPlan((n) => n === 'package.json'), 'npm test');
   assert.equal(PR.checkPlan(() => false, { check: 'node test.js' }), 'node test.js');
   assert.match(PR.tail('x'.repeat(20), 5), /^\[15 earlier characters not shown\]\nxxxxx$/);
+});
+
+// ---- money: "Always allow" must never auto-run a bot browser action on a payment page (or one that says buy/pay/order)
+test('bot browser: payment pages and disguised pay buttons always ask, and their kind is the strongest risk', async () => {
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url);
+  req.cache[req.resolve('electron')] = { id: 'electron', filename: 'electron', loaded: true, exports: { app: { on() {}, getPath: () => '/tmp' }, session: {}, BrowserWindow: class {} } };
+  const B = req('../botbrowser.js');
+  const X = await import('../renderer/botx.js');
+  // the address
+  assert.ok(B.paymentPage({ url: 'https://shop.example/checkout/step-2' }));
+  assert.ok(B.paymentPage({ url: 'https://shop.example/payment?id=4' }));
+  assert.ok(B.paymentPage({ url: 'https://shop.example/cart/pay' }));
+  assert.ok(!B.paymentPage({ url: 'https://news.example/paying-for-college' }));
+  assert.ok(!B.paymentPage({ url: 'https://payments.example/' }));          // the host alone doesn't count
+  assert.ok(B.paymentPage({ url: 'https://news.example/a', pay: true }));   // card fields on the page
+  // a pay button dressed up as "Reply": its form submits to /orders/pay
+  const disguised = { url: 'https://mail.example/inbox', pay: false, el: 'reply-btn', form: '/orders/pay Place order' };
+  assert.ok(B.moneyRisk('browser_click', disguised));
+  assert.equal(X.strongestCategory(B.riskText('Reply', disguised) + ' ' + B.moneyAsk('browser_click', { target: '12' }, disguised, 'mail.example'), 'browser_click'), 'purchase');
+  assert.ok(B.moneyRisk('browser_click', { url: 'https://x.example/', el: 'Continue checkout-submit', form: '' }));
+  // every listed action on a payment page asks; reading and scrolling never count
+  const pay = { url: 'https://shop.example/checkout', pay: false, el: '', form: '' };
+  for (const t of ['browser_click', 'browser_type', 'browser_press', 'browser_select', 'browser_fill_login']) assert.ok(B.moneyRisk(t, pay), t);
+  assert.ok(!B.moneyRisk('browser_read', pay)); assert.ok(!B.moneyRisk('browser_scroll', pay));
+  assert.ok(!B.moneyRisk('browser_click', { url: 'https://news.example/a', el: 'next', form: 'Search' }));
+  // the strongest risk wins: the label says message, the form says delete
+  assert.equal(X.strongestCategory(B.riskText('Send', null, { formSubmit: 'Delete account', formAction: '/x' }), 'browser_click'), 'delete');
+});
+
+test('Always Allow never auto-runs a money action: it waits for a tap', async () => {
+  const e = extrasFor(); await e.ex.init();
+  e.ex.setMode('purchase', 'allow'); e.ex.setMode('message', 'allow');   // the user always allows purchases and messages
+  // the page check (botbrowser.check) says: this "Reply" button is on a payment page
+  const checkApproval = async (c) => (c.name === 'browser_click' ? { what: 'Click “Reply” on a payment page on shop.example', mustAsk: true, riskText: 'Reply /orders/pay payment' } : null);
+  const w = world([
+    turn(call('browser_click', { target: '7' })),
+    turn(call('finish', { report: 'Paid.' })),
+  ], { extras: e.ex, tools: [{ name: 'browser_click' }], checkApproval });
+  await w.bots.init(); const j = w.bots.deploy('Reply to the seller', ''); await settle(w);
+  assert.equal(j.state, B.S.AWAITING_APPROVAL, 'it waits for a tap despite Always Allow');
+  assert.equal(j.approval.category, 'purchase', 'its kind is the strongest risk: money, not "message"');
+  assert.deepEqual(w.ran, [], 'nothing clicked yet');
+  w.bots.approve(j.id, true); await settle(w);
+  assert.deepEqual(w.ran, [['browser_click', true]], 'clicked once, after the tap');
+  assert.equal(j.state, B.S.COMPLETED);
+});
+test('projects in the chat: through the capability registry, a risky step waits for the yes; a safe one just runs', async () => {
+  const calls = [];
+  globalThis.window.atlasHost.projects = {
+    run: async (name, args, approved) => { calls.push([name, args.command, approved]); return /push/.test(args.command || '') && !approved ? { needs: 'Run this in the project "X" (it sends your code out (push)): git push', category: 'publish', out: '' } : { out: 'ran ' + args.command }; },
+    check: async () => null, list: async () => [{ name: 'X', status: 'checks pass' }],
+  };
+  const aware = await import('../renderer/aware.js');
+  const P = await import('../renderer/projects.js');
+  P.registerProjects(aware);
+  assert.ok(aware.chatTools().some((t) => t.name === 'project_run') && aware.botTools().some((t) => t.name === 'project_check'));
+  assert.equal((await aware.run({ name: 'project_run', args: { project: 'X', command: 'npm test' } })).out, 'ran npm test');
+  const r = await aware.run({ name: 'project_run', args: { project: 'X', command: 'git push' } });
+  const ref = (r.out.match(/\[(chat\d+)\]/) || [])[1];
+  assert.ok(ref, r.out); assert.deepEqual(calls.at(-1), ['project_run', 'git push', false]);
+  const yes = await aware.run({ name: 'answer_approval', args: { ref, yes: true } });
+  assert.equal(yes.out, 'ran git push'); assert.deepEqual(calls.at(-1), ['project_run', 'git push', true]);
+  // the user's standing choice "always allow" runs it straight away
+  aware.use({ mode: () => 'allow' });
+  assert.equal((await aware.run({ name: 'project_run', args: { project: 'X', command: 'git push' } })).out, 'ran git push');
+  aware.use({ mode: () => 'ask' });
+  delete globalThis.window.atlasHost.projects;
 });

@@ -44,6 +44,42 @@ function riskOf(name, args, d) {
   return null;
 }
 
+// ---------------------------------------------------------------- money: actions that must always ask
+// A page can make its button *say* anything ("Reply" on a pay button), so the page around the action counts too: its
+// address, payment or card fields on it, the element's hidden words (aria-label, name, id…) and its form. When money is
+// involved the action always waits for a tap: no standing "always allow" rule and no "allow on this site" skips it.
+
+const MONEY_TOOLS = new Set(['browser_click', 'browser_type', 'browser_press', 'browser_select', 'browser_fill_login']);
+const PAY_PATH = /(check-?out|\/pay(ment)?s?(\b|\/|\?|$)|\/billing|\/purchase|\/place-?order|\/order\/(confirm|review|pay)|\/cart\/pay|\/donate|\/subscribe)/i;
+const MONEY_WORDS = /\b(buy|purchase|pay|payment|checkout|check ?out|place ?order|order now|complete order|confirm order|subscribe|donate|book now|card number|cvv|cvc|iban)\b/i;
+
+/** Pure: a page where money changes hands (payment fields, or an address that reads like checkout/payment; not the host). */
+function paymentPage(s) {
+  if (!s) return false;
+  let p = ''; try { const u = new URL(s.url || ''); p = u.pathname + u.search; } catch { p = ''; }
+  return !!s.pay || PAY_PATH.test(p);
+}
+/** Pure: [name] on this page must always ask. [s] = { url, pay, el, form } from PAGE_SIGNALS. */
+function moneyRisk(name, s) {
+  return MONEY_TOOLS.has(name) && !!s && (paymentPage(s) || MONEY_WORDS.test(s.el || '') || MONEY_WORDS.test(s.form || ''));
+}
+/** Pure: everything the action says, so its kind is the strongest risk among the label, its form and the page. */
+function riskText(label, s, d) {
+  return [label, d && d.formSubmit, d && d.formAction, s && s.el, s && s.form, paymentPage(s) ? 'payment' : ''].filter(Boolean).join(' ');
+}
+/** Pure: the sentence for a money action. */
+function moneyAsk(name, args, s, host) {
+  const site = host ? ` on ${host}` : '';
+  const said = (x) => `“${String(x).slice(0, 60)}”`;
+  switch (name) {
+    case 'browser_click': return `Click ${said((s && s.label) || args.target || 'it')} on a payment page${site}`;
+    case 'browser_type': return `Type into a payment page${site}${args.submit ? ' and submit it' : ''}`;
+    case 'browser_select': return `Choose ${said(args.option || 'an option')} on a payment page${site}`;
+    case 'browser_press': return `Press ${String(args.key || 'a key').slice(0, 20)} on a payment page${site}`;
+    default: return `Sign in on a payment page${site} with your saved sign-in ${said(args.entry || '')}`;
+  }
+}
+
 // ---------------------------------------------------------------- scripts run inside the page
 
 // Shared helpers: what an element is called, whether it can be seen, finding one by number or by its words.
@@ -164,6 +200,28 @@ const FOCUSED_JS = `(() => { ${PRELUDE}
   const form = el.form || el.closest('form'); let formSubmit = '';
   if (form) { const b = form.querySelector('button[type=submit],input[type=submit],button:not([type])'); if (b) formSubmit = labelOf(b); }
   return { found: true, label: labelOf(el), kind: kindOf(el), inForm: !!form, formAction: form ? (form.getAttribute('action') || location.pathname) : '', formSubmit, host: location.host };
+})()`;
+
+// What the page says around an action: its address, payment/card fields, the element's hidden words, its form.
+const PAGE_SIGNALS = (target, focused) => `(() => { ${PRELUDE}
+  const attr = (x, n) => (x && x.getAttribute && x.getAttribute(n)) || '';
+  const words = (x) => { if (!x || x === document.body) return ''; const t = [attr(x, 'aria-label'), attr(x, 'title'), attr(x, 'name'), x.id || '', attr(x, 'data-testid'), attr(x, 'formaction')];
+    const ty = (x.type || '').toLowerCase(); if (x.tagName === 'BUTTON' || ['submit', 'button', 'image'].includes(ty)) t.push(x.value || '', x.innerText || '');
+    return clean(t.join(' ')).slice(0, 400); };
+  const el = ${focused ? 'document.activeElement' : (target == null ? 'null' : `find(${JSON.stringify(target)})`)};
+  const form = el && (el.form || (el.closest && el.closest('form')));
+  let ft = '';
+  if (form) { ft = [attr(form, 'action'), attr(form, 'aria-label'), attr(form, 'name'), form.id || ''].join(' ');
+    [...form.querySelectorAll('button:not([type]),button[type=submit],input[type=submit],input[type=image]')].slice(0, 6).forEach((b) => { ft += ' ' + words(b); }); }
+  const rx = /card.?num|cc-?(num|number|csc|exp)|\\bcvv|\\bcvc|\\bcsc\\b|security.?code|expir|\\biban\\b|payment|checkout|\\bpay\\b/i;
+  let pay = false;
+  for (const x of document.querySelectorAll('input,select')) {
+    if (attr(x, 'autocomplete').toLowerCase().startsWith('cc-')) { pay = true; break; }
+    const lab = x.labels ? [...x.labels].map((l) => l.innerText).join(' ') : '';
+    if (rx.test([attr(x, 'name'), x.id || '', attr(x, 'placeholder'), attr(x, 'aria-label'), lab].join(' '))) { pay = true; break; }
+  }
+  if (!pay) for (const f of document.querySelectorAll('iframe')) if (/stripe|braintree|adyen|paypal|klarna|checkout|payment|card/i.test((f.src || '') + ' ' + attr(f, 'name') + ' ' + attr(f, 'title'))) { pay = true; break; }
+  return { url: location.href, pay, el: words(el), form: clean(ft).slice(0, 600), label: el && el !== document.body ? labelOf(el) : '' };
 })()`;
 
 // ---------------------------------------------------------------- windows, one per job
@@ -459,9 +517,16 @@ async function run(jobId, title, name, args = {}) {
 
 /** Whether [name] with [args] needs the user's OK first (a sentence), or null. Looks at the actual element on the page. */
 async function check(jobId, title, name, args = {}) {
+  const live = jobs.get(jobId); const wc = live && live.win && !live.win.isDestroyed() ? live.win.webContents : null;
+  // money first: a payment page, or an element/form that says buy/pay/order, always asks (and no rule may skip it)
+  let sig = null;
+  if (wc && MONEY_TOOLS.has(name)) {
+    try { sig = await js(wc, PAGE_SIGNALS(['browser_press', 'browser_fill_login'].includes(name) ? null : args.target, name === 'browser_press')); } catch { sig = null; }
+    if (moneyRisk(name, sig)) { let host = ''; try { host = new URL(wc.getURL()).host; } catch {} return { what: moneyAsk(name, args, sig, host), mustAsk: true, riskText: riskText(null, sig) }; }
+  }
   if (name === 'browser_fill_login') {   // vault: asks unless the user allowed this sign-in on this site
-    const e = jobs.get(jobId); let host = '';
-    try { host = new URL(e && e.win && !e.win.isDestroyed() ? e.win.webContents.getURL() : '').hostname; } catch {}
+    let host = '';
+    try { host = new URL(wc ? wc.getURL() : '').hostname; } catch {}
     return require('./vault').needsOk(args.entry, host);
   }
   if (!['browser_click', 'browser_type', 'browser_press', 'browser_upload'].includes(name)) return null;
@@ -472,7 +537,9 @@ async function check(jobId, title, name, args = {}) {
   // if the page can't be asked (it's mid-load, or the script failed), ask the user rather than go ahead unchecked
   try { d = await js(e.win.webContents, name === 'browser_press' ? FOCUSED_JS : DESCRIBE(args.target, false)); }
   catch { return `${name === 'browser_click' ? 'Click' : 'Press Enter'} on ${e.win.webContents.getURL().replace(/^https?:\/\//, '').slice(0, 60) || 'this page'} (I couldn't check what it is)`; }
-  return riskOf(name, args, d);
+  const what = riskOf(name, args, d);
+  // its kind is judged by everything it says (label, its form's submit and address, the page), so the strongest risk wins
+  return what ? { what, riskText: riskText(d && d.label, sig, d) } : null;
 }
 
 function info(jobId) {
@@ -480,4 +547,4 @@ function info(jobId) {
   return e && e.win && !e.win.isDestroyed() ? { open: true, visible: e.win.isVisible(), url: e.win.webContents.getURL(), folder: e.folder } : { open: false };
 }
 
-module.exports = { run, check, show, close, info, riskOf, safeName, PARTITION, jobs };
+module.exports = { run, check, show, close, info, riskOf, safeName, PARTITION, jobs, paymentPage, moneyRisk, riskText, moneyAsk, MONEY_TOOLS };

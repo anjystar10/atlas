@@ -67,3 +67,42 @@ export const PROJECTS_PROMPT = `Building software (projects): when the user asks
 4. Run it and its tests (project_run / project_check), read the errors, fix with project_patch, and repeat until project_check passes. Don't stop at code that was never run.
 5. Hand it over: project_zip to the Library; say what it does, how to run it, and what you checked. Offer project_open (folder, VS Code, or start the app).
 Inside the project folder everything just runs. Anything outside it (other folders, global installs, git push, publishing, deploying, system settings) needs the user's OK and is asked automatically.`;
+
+// ------------------------------------------------------------------ the capability registry (aware.js)
+
+let briefCache = '', briefAt = 0;
+function refreshBrief() {
+  const host = window.atlasHost;
+  if (!host.projects || Date.now() - briefAt < 20000) return;
+  briefAt = Date.now();
+  host.projects.list().then((l) => {
+    const list = Array.isArray(l) ? l.slice(0, 5) : [];
+    briefCache = list.length ? 'Projects on this PC (project_* tools): ' + list.map((p) => `${p.name}${p.status ? ` (${p.status})` : ''}`).join(', ') : '';
+  }).catch(() => {});
+}
+
+/**
+ * Offers the project tools through the capability registry: in the chat (a risky step waits for the user's yes in
+ * the chat, through answer_approval, or follows their standing choice) and to bots (whose own approval step asks).
+ * The main Atlas's brief names the latest projects.
+ */
+export function registerProjects(aware) {
+  aware.register({
+    id: 'projects', forChat: true, forBots: true,
+    tools: () => (window.atlasHost.projects ? PROJECT_TOOLS : []),
+    brief: () => { refreshBrief(); return briefCache || null; },
+    run: async (call) => {
+      if (!PROJECTS.has(call.name)) return null;
+      const host = window.atlasHost;
+      if (!host.projects) return { out: "Error: projects aren't available here." };
+      const r = await host.projects.run(call.name, call.args || {}, false);
+      briefAt = 0;
+      if (!r || !r.needs) return r || { out: 'Error: no answer.' };
+      const mode = aware.src.mode ? aware.src.mode(r.needs, call.name, call.args || {}) : 'ask';
+      if (mode === 'deny') return { out: `Error: the user's standing choice is never to allow this kind of action (${r.needs.slice(0, 100)}). Tell them; they can change it in Me → Bot Permissions.` };
+      if (mode === 'allow') return host.projects.run(call.name, call.args || {}, true);
+      const ref = aware.addAsk(r.needs, () => host.projects.run(call.name, call.args || {}, true));
+      return { out: `Needs the user's OK first [${ref}]: ${r.needs}. Ask them in one short line; when they say yes, call answer_approval with ref ${ref}.`, step: 'Waiting for your OK: ' + r.needs.slice(0, 60) };
+    },
+  });
+}
