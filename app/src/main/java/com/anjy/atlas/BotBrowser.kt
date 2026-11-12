@@ -402,6 +402,43 @@ object BotBrowser {
 
     fun site(): String = web?.url?.let { BrowserRules.host(it) } ?: ""
 
+    /**
+     * What the page says around the action (BrowserRules.Signals): its address, whether it has payment or card fields,
+     * the target element's hidden words and its form. Read right before a risky-looking action, for the money rule.
+     */
+    suspend fun signals(ctx: Context, jobId: String, name: String, args: JSONObject): BrowserRules.Signals {
+        val v = if (live(jobId)) web!! else return BrowserRules.Signals()
+        val id = when (name) {
+            "browser_click", "browser_type", "browser_select" -> eval(v, findJs(args.optString("target")))?.takeIf { it.optBoolean("found") }?.optString("id")
+            else -> null
+        }
+        val o = eval(v, signalsJs(id, focused = name == "browser_press")) ?: return BrowserRules.Signals(url = v.url ?: "")
+        return BrowserRules.Signals(o.optString("url", v.url ?: ""), o.optBoolean("pay"), o.optString("el"), o.optString("form"))
+    }
+
+    private fun signalsJs(id: String?, focused: Boolean) = """
+(function(id,focused){
+  function attr(x,n){ return (x&&x.getAttribute&&x.getAttribute(n))||''; }
+  function words(x){ if(!x) return ''; var t=[attr(x,'aria-label'),attr(x,'title'),attr(x,'name'),x.id||'',attr(x,'data-testid'),attr(x,'formaction')];
+    var ty=(x.type||'').toLowerCase(); if(x.tagName=='BUTTON'||ty=='submit'||ty=='button'||ty=='image') t.push(x.value||'', x.innerText||'');
+    return t.join(' ').replace(/\s+/g,' ').slice(0,400); }
+  var e=id?document.querySelector('[data-atlas-id="'+id+'"]'):(focused?document.activeElement:null);
+  var form=e&&(e.form||(e.closest&&e.closest('form')));
+  var ft='';
+  if(form){ ft=attr(form,'action')+' '+attr(form,'aria-label')+' '+attr(form,'name')+' '+(form.id||'');
+    var subs=form.querySelectorAll('button:not([type]),button[type=submit],input[type=submit],input[type=image]');
+    for(var i=0;i<subs.length&&i<6;i++) ft+=' '+words(subs[i]); }
+  var pay=false, rx=/card.?num|cc-?(num|number|csc|exp)|\bcvv|\bcvc|\bcsc\b|security.?code|expir|\biban\b|payment|checkout|\bpay\b/i;
+  var ins=document.querySelectorAll('input,select');
+  for(var j=0;j<ins.length&&!pay;j++){ var x=ins[j], ac=(attr(x,'autocomplete')||'').toLowerCase();
+    if(ac.indexOf('cc-')==0) pay=true;
+    else { var lab=''; if(x.id){ var l=document.querySelector('label[for="'+x.id.replace(/"/g,'')+'"]'); if(l) lab=l.innerText||''; }
+      if(rx.test(attr(x,'name')+' '+(x.id||'')+' '+attr(x,'placeholder')+' '+attr(x,'aria-label')+' '+lab)) pay=true; } }
+  if(!pay){ var fr=document.querySelectorAll('iframe'); for(var k=0;k<fr.length;k++){ if(/stripe|braintree|adyen|paypal|klarna|checkout|payment|card/i.test((fr[k].src||'')+' '+attr(fr[k],'name')+' '+attr(fr[k],'title'))){ pay=true; break; } } }
+  return JSON.stringify({url:location.href,pay:pay,el:words(e),form:ft.replace(/\s+/g,' ').slice(0,600)});
+})(${if (id == null) "null" else JSONObject.quote(id)},$focused)
+""".trimIndent()
+
     /** Runs one browser tool for job [jobId]. Main thread (suspends while pages load). */
     suspend fun run(ctx: Context, jobId: String, name: String, args: JSONObject): Out {
         if (name != "browser_open" && !live(jobId)) {

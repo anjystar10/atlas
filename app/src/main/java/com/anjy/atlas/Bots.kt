@@ -412,11 +412,16 @@ object Bots {
                         // ---- the bot's web browser (BotBrowser): act on websites, with risky clicks and submits waiting for an OK
                         in browserTools -> {
                             val (label, inForm) = BotBrowser.inspect(app, j.id, c.name, c.args)
-                            // a saved sign-in the user allowed on this site goes ahead without asking (Vault.kt)
-                            val trusted = c.name == "browser_fill_login" && withContext(Dispatchers.IO) { Vault.find(Vault.all(app), c.args.optString("entry")) }
+                            // the page around it (payment fields, the form, the element's hidden words): money always asks
+                            val sig = if (c.name in BrowserRules.moneyTools) BotBrowser.signals(app, j.id, c.name, c.args) else BrowserRules.Signals()
+                            val money = BrowserRules.moneyRisk(c.name, sig)
+                            // a saved sign-in the user allowed on this site goes ahead without asking (Vault.kt), but never on a payment page
+                            val trusted = !money && c.name == "browser_fill_login" && withContext(Dispatchers.IO) { Vault.find(Vault.all(app), c.args.optString("entry")) }
                                 ?.let { it.trusted && Vault.siteMatches(it.site, BotBrowser.site()) } == true
-                            if (!trusted) BrowserRules.approval(c.name, c.args, label, inForm, BotBrowser.site())?.let { what ->
-                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label)); return
+                            if (!trusted) BrowserRules.approval(c.name, c.args, label, inForm, BotBrowser.site(), sig)?.let { what ->
+                                // its kind is the strongest risk in everything the page says, not just the button's words
+                                val kind = if (c.name == "browser_fill_login" && !money) "account" else BotExtras.Rules.guessCategory(BrowserRules.riskText(label, sig) + " " + what)
+                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label, category = kind, mustAsk = money)); return
                             }
                             val out = runBrowser(j, c)
                             if (out.waitForUser != null) { waitForUser(j, out.waitForUser); return }
@@ -536,7 +541,8 @@ object Bots {
     private suspend fun askApproval(j: BotJob, a: Approval) {
         // the user's standing choice for this kind of action: always allowed, never allowed, or ask (BotExtras)
         a.category = a.category ?: BotExtras.Rules.categoryOf(a.tool, a.args, a.what)
-        val mode = BotExtras.mode(a.category!!)
+        // "Always allow" never covers money: a payment page, or a buy/pay/order action, always waits for a tap
+        val mode = BotExtras.mode(a.category!!).let { if (it == "allow" && a.mustAsk) "ask" else it }
         if (mode != "ask") {
             a.decision = if (mode == "allow") "approved" else "denied"; a.auto = true
             j.approval = a; j.current = null

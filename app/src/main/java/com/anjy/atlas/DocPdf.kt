@@ -72,7 +72,7 @@ object DocPdf {
             when (part) {
                 is BotFileRules.Part.Table -> {
                     p.y += 4f
-                    table(part.rows, sans, sansSemi, { h -> ensure(h) }, { p })
+                    table(part.rows, sans, sansSemi, { h -> ensure(h) }, { p }, { newPage() })
                     p.y += 10f
                 }
                 is BotFileRules.Part.Text -> for (b in Markdown.parse(part.md, st)) {
@@ -110,7 +110,7 @@ object DocPdf {
     // ---------------------------------------------------------------- tables
 
     /** A real grid: header row tinted and bold, cells wrapped, rows kept whole (a new page starts before a row that doesn't fit). */
-    private fun table(rows: List<List<String>>, sans: Typeface, semi: Typeface, ensure: (Float) -> Unit, page: () -> Page) {
+    private fun table(rows: List<List<String>>, sans: Typeface, semi: Typeface, ensure: (Float) -> Unit, page: () -> Page, newPage: () -> Unit) {
         if (rows.isEmpty()) return
         val n = rows.maxOf { it.size }
         // column widths by content, every column at least a fair share
@@ -123,6 +123,8 @@ object DocPdf {
             val paint = paint(if (ri == 0) semi else sans, 9f, INK)
             val cells = (0 until n).map { c -> layout(clean(r.getOrNull(c) ?: ""), paint, widths[c] - 2 * pad, 1.3f) }
             val h = cells.maxOf { it.height } + 2 * pad
+            val room = H - M_TOP - M_BOTTOM
+            if (h > room) { tallRow(cells, widths, pad, ri == 0, border, fill, sans, page, newPage); return@forEachIndexed }
             ensure(h)
             val p = page()
             var x = M_X
@@ -135,6 +137,38 @@ object DocPdf {
             p.y += h
         }
     }
+    /**
+     * A row taller than a whole page: drawn in slices across pages, each slice ending on a line of its tallest cell,
+     * with "continued" under each slice that goes on, so nothing runs off the bottom of the paper.
+     */
+    private fun tallRow(cells: List<StaticLayout>, widths: List<Float>, pad: Float, head: Boolean, border: Paint, fill: Paint, sans: Typeface, page: () -> Page, newPage: () -> Unit) {
+        val tall = cells.maxByOrNull { it.height } ?: return
+        val total = tall.height.toFloat()
+        val mark = paint(sans, 7.5f, MUTED).apply { textAlign = Paint.Align.RIGHT }
+        var from = 0f
+        while (from < total) {
+            var p = page()
+            var avail = H - M_BOTTOM - p.y - 2 * pad - 12f
+            if (avail < 40f) { newPage(); p = page(); avail = H - M_BOTTOM - p.y - 2 * pad - 12f }
+            // end the slice on a line boundary of the tallest cell (at least one line, so it always moves on)
+            var to = from
+            for (i in 0 until tall.lineCount) { val b = tall.getLineBottom(i).toFloat(); if (b <= from) continue; if (b - from <= avail || to == from) to = b else break }
+            if (to <= from) to = minOf(total, from + avail)
+            val sliceH = to - from + 2 * pad
+            if (head) p.canvas.drawRect(M_X, p.y, M_X + CW, p.y + sliceH, fill)
+            var x = M_X
+            cells.forEachIndexed { c, l ->
+                p.canvas.drawRect(x, p.y, x + widths[c], p.y + sliceH, border)
+                p.canvas.save(); p.canvas.clipRect(x, p.y, x + widths[c], p.y + sliceH)
+                p.canvas.translate(x + pad, p.y + pad - from); l.draw(p.canvas); p.canvas.restore()
+                x += widths[c]
+            }
+            p.y += sliceH
+            from = to
+            if (from < total) { p.canvas.drawText("continued", M_X + CW, p.y + 9f, mark); newPage() }
+        }
+    }
+
     /** Table cells keep their words, without Markdown marks. */
     private fun clean(s: String) = SpannableStringBuilder(s.replace(Regex("\\*\\*(.+?)\\*\\*"), "$1").replace(Regex("(?<!\\*)\\*(?!\\*)(.+?)\\*"), "$1")
         .replace(Regex("`([^`]+)`"), "$1").replace(Regex("\\[([^\\]]+)]\\((https?://[^)]+)\\)"), "$1"))
