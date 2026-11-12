@@ -1,7 +1,7 @@
 // The Library on the PC: everything Atlas Bot made or downloaded, from its folders in Documents/Atlas Bot.
 // Open (pages in Atlas's own viewer, the rest in their usual app), Show in Folder, Delete. Files stay on this PC.
-const KIND = { document: 'Document', spreadsheet: 'Spreadsheet', page: 'Page', file: 'File', text: 'Text', download: 'Download' };
-const ICON = { document: '▤', spreadsheet: '▦', page: '◫', file: '▢', text: '▢', download: '↓' };
+const KIND = { document: 'Document', spreadsheet: 'Spreadsheet', page: 'Page', file: 'File', text: 'Text', download: 'Download', project: 'Project' };
+const ICON = { document: '▤', spreadsheet: '▦', page: '◫', file: '▢', text: '▢', download: '↓', project: '❖' };
 const size = (n) => (n < 1024 ? `${n} B` : n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
 const when = (ms) => new Date(ms).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -19,7 +19,7 @@ export function renderLibrary(col, k, back) {
     if (!loading) { loading = true; host.botFiles.library().then((l) => { cache = Array.isArray(l) ? l : []; }).catch(() => { cache = []; }).finally(() => { loading = false; k.render(true); }); }
     return;
   }
-  const kinds = ['all', ...['document', 'spreadsheet', 'page', 'download', 'file', 'text'].filter((x) => cache.some((f) => f.kind === x))];
+  const kinds = ['all', ...['document', 'spreadsheet', 'page', 'project', 'download', 'file', 'text'].filter((x) => cache.some((f) => f.kind === x))];
   if (kinds.length > 2) {
     const chips = k.h('<div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>');
     for (const x of kinds) chips.appendChild(Object.assign(k.h(`<button class="btn${filter === x ? ' primary' : ''}">${x === 'all' ? 'Everything' : KIND[x] + 's'}</button>`), { onclick: () => { filter = x; k.render(true); } }));

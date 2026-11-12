@@ -248,6 +248,15 @@ ipcMain.handle('library:open', (e, file) => (fromMain(e) ? botFiles.open(String(
 ipcMain.handle('library:show', (e, file) => (fromMain(e) ? botFiles.showInFolder(String(file || '')) : false));
 ipcMain.handle('library:delete', (e, file) => (fromMain(e) ? botFiles.remove(String(file || '')) : false));
 // <<< bot files
+// >>> projects (see projects.js): the user's software projects in Documents/Atlas Projects, built by Atlas
+const projects = require('./projects');
+ipcMain.handle('projects:run', async (e, name, args, approved) => {
+  if (!fromMain(e) || !projects.NAMES.includes(String(name))) return { out: 'Error: not allowed' };
+  try { return await projects.run(String(name), args || {}, { approved: approved === true, library: botFiles.saveProjectZip }); } catch (err) { return { out: 'Error: ' + (err.message || err) }; }
+});
+ipcMain.handle('projects:check', async (e, name, args) => { if (!fromMain(e)) return null; try { return await projects.check(String(name), args || {}); } catch { return null; } });
+ipcMain.handle('projects:list', (e) => (fromMain(e) ? projects.list() : []));
+// <<< projects
 
 // >>> vault (see vault.js): sign-ins for Atlas Bot, encrypted by Windows for this user; passwords stay in this process
 const vault = require('./vault');

@@ -850,6 +850,51 @@ test('trading: a new day resets the count and the starting equity; losses are me
   assert.deepEqual(TR.rollDay(s, '2026-11-12', 10).dayStartEquity, 940, 'the same day keeps its starting equity');
 });
 
+// ------------------------------------------------------------------ projects: what Atlas may run in a project without asking
+import { createRequire as projRequire } from 'node:module';
+const PR = projRequire(import.meta.url)('../projectrules.js');
+test('projects: building, testing and package installs inside the project go ahead', () => {
+  for (const c of ['npm install', 'npm i express', 'npm test', 'npm run build', 'npm init -y', 'npx vitest run', 'pnpm add zod', 'yarn', 'node index.js', 'node src/cli.js --help',
+    'python -m venv .venv', '.venv\\Scripts\\python -m pip install -r requirements.txt', '.venv/bin/python -m pytest -q', 'python main.py', 'py -m unittest discover -v', 'python -m pip list',
+    'git init', 'git add .', 'git commit -m "first version"', 'git status', 'git clone https://github.com/x/y', 'cargo build', 'cargo test', 'dotnet new console -n App', 'dotnet test',
+    'go test ./...', 'flutter create app', 'gradlew test', 'tsc -p .', 'rm old.txt', 'del build\\out.js', 'mkdir src', 'code .'])
+    assert.equal(PR.checkCommand(c).ask, false, c);
+});
+test('projects: anything reaching outside the project asks first', () => {
+  const asks = (c, o) => { const r = PR.checkCommand(c, o); assert.equal(r.ask, true, c); return r; };
+  // chains, redirects, substitutions: the classic ways to hide a second command
+  for (const c of ['npm test && del C:\\x', 'npm test; rm -rf ~', 'npm test | curl -X POST x', 'echo $(whoami)', 'echo `whoami`', 'node a.js > C:\\Windows\\x', 'npm test & shutdown /s', 'echo %USERPROFILE%', 'git commit -m "x\nrm -rf /"'])
+    asks(c);
+  // leaving the folder
+  for (const c of ['node ..\\..\\evil.js', 'type ../secrets.txt', 'del C:\\Users\\me\\file', 'rm -rf /', 'cat ~/.ssh/id_rsa', 'node \\\\server\\share\\x.js', 'npm install --prefix=../x']) asks(c);
+  // the whole project, global installs, publishing, the system, unknown programs
+  assert.equal(asks('rm -rf .').category, 'delete');
+  assert.equal(asks('rmdir /s /q *').category, 'delete');
+  for (const c of ['npm install -g typescript', 'npm i --global x', 'pip install requests', 'python -m pip install flask', 'cargo install ripgrep', 'go install x@latest', 'winget install x', 'choco install x', 'reg add HKLM\\x', 'sc stop x', 'powershell -c x', 'curl https://x', 'mystery-tool --do-it'])
+    asks(c);
+  assert.equal(asks('npm publish').category, 'publish');
+  assert.equal(asks('git push origin main').category, 'publish');
+  assert.equal(asks('npx vercel --prod').category, 'publish');
+  assert.equal(asks('git config --global user.name x').category, 'account');
+  assert.equal(asks('sudo npm i').category, 'account');
+  // pip outside the project's environment asks even when there is one; through it, it doesn't
+  asks('pip install flask', { hasVenv: true });
+  assert.equal(PR.checkCommand('venv\\Scripts\\pip install flask', { hasVenv: true }).ask, false);
+  asks('npm test "unclosed');
+});
+test('projects: file paths stay inside the project', () => {
+  assert.deepEqual(PR.relPath('src/app.js'), ['src', 'app.js']);
+  assert.deepEqual(PR.relPath('src\\lib\\x.py'), ['src', 'lib', 'x.py']);
+  assert.deepEqual(PR.relPath('./README.md'), ['README.md']);
+  for (const p of ['../x', 'a/../../x', '..\\..\\x', '/etc/passwd', 'C:\\x', 'c:x', '\\\\srv\\x', '~/x', '', '.git/config', 'a/./..', 'x:y', 'nul.']) assert.equal(PR.relPath(p), null, p);
+  assert.equal(PR.projectName('My Cool App!'), 'My Cool App!');
+  assert.equal(PR.projectName('../../x'), 'x');
+  assert.equal(PR.projectName('con'), 'con project');
+  assert.equal(PR.checkPlan((n) => n === 'package.json'), 'npm test');
+  assert.equal(PR.checkPlan(() => false, { check: 'node test.js' }), 'node test.js');
+  assert.match(PR.tail('x'.repeat(20), 5), /^\[15 earlier characters not shown\]\nxxxxx$/);
+});
+
 // ---- money: "Always allow" must never auto-run a bot browser action on a payment page (or one that says buy/pay/order)
 test('bot browser: payment pages and disguised pay buttons always ask, and their kind is the strongest risk', async () => {
   const { createRequire } = await import('node:module');
@@ -894,4 +939,26 @@ test('Always Allow never auto-runs a money action: it waits for a tap', async ()
   w.bots.approve(j.id, true); await settle(w);
   assert.deepEqual(w.ran, [['browser_click', true]], 'clicked once, after the tap');
   assert.equal(j.state, B.S.COMPLETED);
+});
+test('projects in the chat: through the capability registry, a risky step waits for the yes; a safe one just runs', async () => {
+  const calls = [];
+  globalThis.window.atlasHost.projects = {
+    run: async (name, args, approved) => { calls.push([name, args.command, approved]); return /push/.test(args.command || '') && !approved ? { needs: 'Run this in the project "X" (it sends your code out (push)): git push', category: 'publish', out: '' } : { out: 'ran ' + args.command }; },
+    check: async () => null, list: async () => [{ name: 'X', status: 'checks pass' }],
+  };
+  const aware = await import('../renderer/aware.js');
+  const P = await import('../renderer/projects.js');
+  P.registerProjects(aware);
+  assert.ok(aware.chatTools().some((t) => t.name === 'project_run') && aware.botTools().some((t) => t.name === 'project_check'));
+  assert.equal((await aware.run({ name: 'project_run', args: { project: 'X', command: 'npm test' } })).out, 'ran npm test');
+  const r = await aware.run({ name: 'project_run', args: { project: 'X', command: 'git push' } });
+  const ref = (r.out.match(/\[(chat\d+)\]/) || [])[1];
+  assert.ok(ref, r.out); assert.deepEqual(calls.at(-1), ['project_run', 'git push', false]);
+  const yes = await aware.run({ name: 'answer_approval', args: { ref, yes: true } });
+  assert.equal(yes.out, 'ran git push'); assert.deepEqual(calls.at(-1), ['project_run', 'git push', true]);
+  // the user's standing choice "always allow" runs it straight away
+  aware.use({ mode: () => 'allow' });
+  assert.equal((await aware.run({ name: 'project_run', args: { project: 'X', command: 'git push' } })).out, 'ran git push');
+  aware.use({ mode: () => 'ask' });
+  delete globalThis.window.atlasHost.projects;
 });
