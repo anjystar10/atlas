@@ -11,6 +11,7 @@ import { db, pref, setPref, saveChat, changed } from './store.js';
 import { bots } from './botwire.js';
 import { S as BOT, FINAL as BOT_FINAL } from './bots.js';
 import { plainReply } from './plain.js';
+import * as aware from './aware.js';
 const host = window.atlasHost;
 const URL_BASE = 'https://ggekbmptlgpjxaaejkns.supabase.co/rest/v1/rpc';
 const KEY = 'sb_publishable_C03KposFeeF3oZ3z6c554g_91mwmbTj';
@@ -169,7 +170,7 @@ function taskOutUpdate(m) {
   const o = outbox(), t = o[m.tid]; if (!t) return;
   if (m.k === 'task_ack') { t.state = 'running'; t.title = m.title || t.text; }
   if (m.k === 'task_update') { t.state = m.state; t.line = m.line || ''; }
-  if (m.k === 'task_approval') { t.state = 'awaiting_approval'; t.approval = m.what; askApproval(m.tid, m.what, m.from); }
+  if (m.k === 'task_approval') { t.state = 'awaiting_approval'; t.approval = m.what; t.from = m.from; askApproval(m.tid, m.what, m.from); }
   if (m.k === 'task_done') {
     delete o[m.tid];
     post(`**From your phone:** ${t.title || t.text}\n\n${m.report || (m.ok ? 'Done.' : "It couldn't finish.")}`);
@@ -184,6 +185,13 @@ async function askApproval(tid, what, from) {
   const o = outbox(); if (!o[tid] || o[tid].state !== 'awaiting_approval') return;   // answered on the phone already
   await link.send(from, 'task_decide', { tid, allow: !!yes });
   o[tid].state = yes ? 'running' : 'denied'; o[tid].approval = null; saveOut(o);
+}
+/** The user's answer to a phone job's approval, from the chat ("yes, go ahead"). First answer wins. */
+export async function answerTask(tid, yes) {
+  const o = outbox(), t = o[tid]; if (!t || t.state !== 'awaiting_approval' || !link) return false;
+  await link.send(t.from || t.to, 'task_decide', { tid, allow: !!yes });
+  t.state = yes ? 'running' : 'denied'; t.approval = null; saveOut(o);
+  return true;
 }
 function post(text) {
   const m = { id: uid(), user: false, text: plainReply(text), source: 'Device Link', at: Date.now(), steps: [] };
@@ -318,3 +326,7 @@ export const ago = (ms) => { const s = Math.round((ms || 0) / 1000); return s < 
 export { ONLINE_MS };
 export const outgoing = () => Object.entries(outbox()).map(([tid, t]) => ({ tid, ...t }));
 export const ping = async () => { const p = phone(); return p && link ? link.ping(p.device) : null; };
+
+// >>> awareness: the main Atlas sees the phone and can answer its approvals from the chat
+aware.use({ link: { linked, phone, outgoing, answerTask, ago } });
+// <<< awareness

@@ -316,7 +316,7 @@ object Tools {
                     Result("Made the picture with ${made.service}; it's shown with this reply (with Save and Share)." + (made.note.takeIf { it.isNotBlank() }?.let { " The image model added: ${it.take(300)}" } ?: ""),
                         "Made a picture", media = listOf(Attach.Item(made.file.path, made.mime, made.file.name)))
                 } }
-                else -> Result("Error: there's no tool called ${c.name}.")
+                else -> Capabilities.run(ctx, c) ?: Result("Error: there's no tool called ${c.name}.")
             }
         } catch (e: AtlasException) { Result("Error: ${e.message}")
         } catch (e: kotlinx.coroutines.CancellationException) { throw e

@@ -443,7 +443,7 @@ object Bots {
                             results.add(c to out.text)
                         }
                         else -> {
-                            if (c.name !in toolNames && !Connections.owns(c.name)) { results.add(c to "Error: there's no tool called ${c.name}."); continue }
+                            if (c.name !in toolNames && !Connections.owns(c.name) && c.name !in Capabilities.names(app, forBots = true)) { results.add(c to "Error: there's no tool called ${c.name}."); continue }
                             val label = if (c.name == "tap" || c.name == "long_press") withContext(Dispatchers.Default) { PhoneControl.labelOf(c.args.optInt("element", -1)) } else null
                             BotRules.phoneApproval(c.name, c.args, label)?.let { what ->
                                 askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label)); return
@@ -695,6 +695,8 @@ object Bots {
         // >>> connections (Connections.kt): the servers the user lets bots use, as they are now
         Connections.declarations(app, "bots").let { c -> for (i in 0 until c.length()) { val d = c.getJSONObject(i); if (BotExtras.Rules.toolAllowed(sp, d.optString("name"))) out.put(d) } }
         // <<< connections
+        // capabilities that say bots may use them (Aware.kt registry: email, projects, trading…)
+        Capabilities.botDeclarations(app).let { c -> for (i in 0 until c.length()) { val d = c.getJSONObject(i); if (BotExtras.Rules.toolAllowed(sp, d.optString("name"))) out.put(d) } }
         out.put(extraTools["use_skill"])
         if (j.depth < BotRules.MAX_DEPTH && BotExtras.specialists.isNotEmpty()) { out.put(extraTools["delegate"]); out.put(extraTools["wait_for_helpers"]) }
         if (sp != null) { out.put(extraTools["bot_remember"]); out.put(extraTools["bot_forget"]) }
