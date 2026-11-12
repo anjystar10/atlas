@@ -1,6 +1,5 @@
 package com.anjy.atlas
 
-import com.sun.net.httpserver.HttpServer
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -8,29 +7,58 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
-import java.net.InetSocketAddress
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.URI
 import java.net.URLDecoder
 
 /** The phone's broker clients against a local stand-in for Bybit V5 and the ProjectX Gateway (same shapes as desktop/test/fixtures/brokers.js). */
 class TradingBrokersTest {
-    private lateinit var srv: HttpServer
+    private lateinit var srv: ServerSocket
+    /** One request as the stand-in sees it, and how it answers. */
+    private class Ex(val requestMethod: String, val requestURI: URI, val headers: Map<String, String>, val body: String) {
+        var code = 200; var out = ""
+    }
     private lateinit var base: String
     private val orders = mutableListOf<JSONObject>()
     private var bracketsMode = true
     private var pxPositions = "[]"
 
     @Before fun start() {
-        srv = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        srv.createContext("/") { ex ->
-            val body = ex.requestBody.readBytes().toString(Charsets.UTF_8)
+        srv = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
+        Thread {
+            while (!srv.isClosed) {
+                val sock = try { srv.accept() } catch (_: Exception) { break }
+                sock.use { so ->
+                    val inp = so.getInputStream().buffered()
+                    fun line(): String { val b = StringBuilder(); while (true) { val c = inp.read(); if (c < 0 || c == '\n'.code) break; if (c != '\r'.code) b.append(c.toChar()) }; return b.toString() }
+                    val first = line().split(" "); if (first.size < 2) return@use
+                    val headers = mutableMapOf<String, String>()
+                    while (true) { val l = line(); if (l.isEmpty()) break; headers[l.substringBefore(":").trim().lowercase()] = l.substringAfter(":").trim() }
+                    val n = headers["content-length"]?.toIntOrNull() ?: 0
+                    val raw = ByteArray(n); var got = 0; while (got < n) { val r = inp.read(raw, got, n - got); if (r < 0) break; got += r }
+                    val ex = Ex(first[0], URI(first[1]), headers, String(raw, Charsets.UTF_8))
+                    handle(ex)
+                    val b = ex.out.toByteArray()
+                    so.getOutputStream().apply { write("HTTP/1.1 ${ex.code} X\r\nContent-Type: application/json\r\nContent-Length: ${b.size}\r\nConnection: close\r\n\r\n".toByteArray()); write(b); flush() }
+                }
+            }
+        }.apply { isDaemon = true }.start()
+        base = "http://127.0.0.1:${srv.localPort}"
+    }
+    @After fun stop() { srv.close() }
+
+    private fun handle(ex: Ex) {
+        run {
+            val body = ex.body
             val path = ex.requestURI.path; val query = ex.requestURI.rawQuery ?: ""
-            fun send(code: Int, s: String) { val b = s.toByteArray(); ex.responseHeaders.add("Content-Type", "application/json"); ex.sendResponseHeaders(code, b.size.toLong()); ex.responseBody.use { it.write(b) } }
+            fun send(code: Int, s: String) { ex.code = code; ex.out = s }
             fun ok(result: String) = send(200, """{"retCode":0,"retMsg":"OK","result":$result}""")
             if (path.startsWith("/v5/")) {
                 if (!path.startsWith("/v5/market/")) {
-                    val h = ex.requestHeaders
-                    val payload = h.getFirst("X-BAPI-TIMESTAMP") + h.getFirst("X-BAPI-API-KEY") + h.getFirst("X-BAPI-RECV-WINDOW") + (if (ex.requestMethod == "GET") query else body)
-                    if (h.getFirst("X-BAPI-API-KEY") != "k1" || h.getFirst("X-BAPI-SIGN") != TradeRules.hmacHex("s1", payload)) return@createContext send(200, """{"retCode":10004,"retMsg":"error sign!","result":{}}""")
+                    val h = ex.headers
+                    val payload = h["x-bapi-timestamp"] + h["x-bapi-api-key"] + h["x-bapi-recv-window"] + (if (ex.requestMethod == "GET") query else body)
+                    if (h["x-bapi-api-key"] != "k1" || h["x-bapi-sign"] != TradeRules.hmacHex("s1", payload)) return@run send(200, """{"retCode":10004,"retMsg":"error sign!","result":{}}""")
                 }
                 val q = query.split("&").filter { it.contains("=") }.associate { it.substringBefore("=") to URLDecoder.decode(it.substringAfter("="), "UTF-8") }
                 when (path) {
@@ -42,11 +70,11 @@ class TradingBrokersTest {
                     "/v5/order/create" -> { orders.add(JSONObject(body)); ok("""{"orderId":"by1"}""") }
                     else -> send(404, "{}")
                 }
-                return@createContext
+                return@run
             }
             val b = if (body.isEmpty()) JSONObject() else JSONObject(body)
-            if (path == "/api/Auth/loginKey") return@createContext send(200, if (b.optString("apiKey") == "pk1") """{"token":"tok","success":true,"errorCode":0}""" else """{"token":null,"success":false,"errorCode":3,"errorMessage":"bad key"}""")
-            if (ex.requestHeaders.getFirst("Authorization") != "Bearer tok") return@createContext send(401, "{}")
+            if (path == "/api/Auth/loginKey") return@run send(200, if (b.optString("apiKey") == "pk1") """{"token":"tok","success":true,"errorCode":0}""" else """{"token":null,"success":false,"errorCode":3,"errorMessage":"bad key"}""")
+            if (ex.headers["authorization"] != "Bearer tok") return@run send(401, "{}")
             val nq = """{"id":"CON.F.US.ENQ.Z26","name":"NQZ6","tickSize":0.25,"tickValue":5,"activeContract":true}"""
             when (path) {
                 "/api/Account/search" -> send(200, """{"accounts":[{"id":465,"name":"PRAC-V2-1","balance":50000,"canTrade":true}],"success":true,"errorCode":0}""")
@@ -54,15 +82,13 @@ class TradingBrokersTest {
                 "/api/Position/searchOpen" -> send(200, """{"positions":$pxPositions,"success":true,"errorCode":0}""")
                 "/api/Order/searchOpen" -> send(200, """{"orders":[],"success":true,"errorCode":0}""")
                 "/api/Order/place" -> {
-                    if ((b.has("stopLossBracket") || b.has("takeProfitBracket")) && !bracketsMode) return@createContext send(200, """{"orderId":null,"success":false,"errorCode":2,"errorMessage":"Brackets need Auto OCO"}""")
+                    if ((b.has("stopLossBracket") || b.has("takeProfitBracket")) && !bracketsMode) return@run send(200, """{"orderId":null,"success":false,"errorCode":2,"errorMessage":"Brackets need Auto OCO"}""")
                     orders.add(b); send(200, """{"orderId":${9000 + orders.size},"success":true,"errorCode":0}""")
                 }
                 else -> send(404, """{"success":false,"errorCode":404}""")
             }
         }
-        srv.start(); base = "http://127.0.0.1:${srv.address.port}"
     }
-    @After fun stop() { srv.stop(0) }
 
     @Test fun bybitSignsReadsAndPlacesPlainSpot() {
         val b = Trading.Bybit("k1", "s1", base)
