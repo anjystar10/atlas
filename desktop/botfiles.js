@@ -273,7 +273,7 @@ async function run(jobId, goal, name, args = {}) {
 
 // ---------------------------------------------------------------- the Library
 
-const KIND_BY_EXT = { '.pdf': 'document', '.xlsx': 'spreadsheet', '.csv': 'spreadsheet', '.html': 'page', '.htm': 'page', '.md': 'text', '.txt': 'text', '.json': 'text' };
+const KIND_BY_EXT = { '.zip': 'project', '.pdf': 'document', '.xlsx': 'spreadsheet', '.csv': 'spreadsheet', '.html': 'page', '.htm': 'page', '.md': 'text', '.txt': 'text', '.json': 'text' };
 /** Everything in the Atlas Bot folders, newest first, with what made it (index) where known. */
 function library() {
   const idx = new Map(readIndex().map((x) => [path.resolve(x.file), x]));
@@ -308,4 +308,15 @@ function remove(file) {
   return true;
 }
 
-module.exports = { run, library, open, showInFolder, remove, folderFor, fileName, freshPath, inside, cleanSpec, documentHtml, pageFromSpec, NAMES: ['workspace_list', 'workspace_read', 'workspace_write', 'make_document', 'make_spreadsheet', 'make_page'] };
+// >>> projects (projects.js): a finished project's zip goes in the Library, under Documents/Atlas Bot/Projects
+function saveProjectZip(projectName, buf) {
+  const dir = path.join(base(), 'Projects');
+  fs.mkdirSync(dir, { recursive: true });
+  const f = freshPath(dir, fileName(projectName, '.zip').replace(/\.[^.]+$/, '') + '.zip');
+  fs.writeFileSync(f, buf);
+  remember({ file: f, title: projectName, kind: 'project', job: null, goal: 'Projects', at: Date.now() });
+  return { file: f, name: path.basename(f) };
+}
+// <<< projects
+
+module.exports = { saveProjectZip, run, library, open, showInFolder, remove, folderFor, fileName, freshPath, inside, cleanSpec, documentHtml, pageFromSpec, NAMES: ['workspace_list', 'workspace_read', 'workspace_write', 'make_document', 'make_spreadsheet', 'make_page'] };

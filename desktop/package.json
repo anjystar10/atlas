@@ -27,7 +27,7 @@
     "productName": "Atlas",
     "artifactName": "Atlas-Setup.${ext}",
     "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "pc.js", "botbrowser.js", "botfiles.js", "sheets.js", "device.js", "vault.js", "mcp.js", "remote.js", "renderer/**/*", "build/icon.png", "!node_modules/@modelcontextprotocol/sdk/dist/esm/**", "!**/*.map", "!**/*.d.ts"],
+    "files": ["main.js", "preload.js", "pc.js", "botbrowser.js", "botfiles.js", "sheets.js", "device.js", "vault.js", "mcp.js", "remote.js", "projects.js", "projectrules.js", "renderer/**/*", "build/icon.png", "!node_modules/@modelcontextprotocol/sdk/dist/esm/**", "!**/*.map", "!**/*.d.ts"],
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },
     "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "Atlas", "runAfterFinish": true }
   }

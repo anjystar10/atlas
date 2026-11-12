@@ -40,6 +40,13 @@ contextBridge.exposeInMainWorld('atlasHost', {
     remove: (file) => ipcRenderer.invoke('library:delete', file),
   },
   // <<< bot files
+  // >>> projects
+  projects: {
+    run: (name, args, approved) => ipcRenderer.invoke('projects:run', name, args, approved === true),
+    check: (name, args) => ipcRenderer.invoke('projects:check', name, args),
+    list: () => ipcRenderer.invoke('projects:list'),
+  },
+  // <<< projects
   // >>> vault
   vault: {
     list: () => ipcRenderer.invoke('vault:list'),

@@ -58,6 +58,17 @@ export function connectionCategory(tool, a = {}) {
   const g = guessCategory(String(tool).split('__').slice(2).join(' ').replace(/_+/g, ' '));
   return g === 'command' ? 'other' : g;
 }
+/**
+ * >>> projects: the kind of a project action that needs an OK, from the tool and its command (never from names the
+ * bot chose, so a project called "Order Tracker" can't make a command count as something the user always allows).
+ */
+export function projectCategory(tool, a = {}) {
+  if (tool === 'project_delete') return 'delete';
+  const c = String(a.command || '');
+  if (/\b(git\s+push|publish|deploy|vercel|netlify|firebase|wrangler|twine|nuget\s+push|surge|gh-pages)\b/i.test(c)) return 'publish';
+  if (/\b(sudo|runas|--global)\b|config\s+--global/i.test(c)) return 'account';
+  return 'command';
+}
 /** 'ask' (the default), 'allow' (always allowed by the user) or 'deny' (never). */
 export function modeFor(policy, category) {
   const m = policy && policy.modes ? policy.modes[category] : null;
@@ -368,7 +379,7 @@ export function createExtras(deps) {
     mode: (category) => modeFor(data.policy, category),
     allows: (sp, tool) => toolAllowed(sp, tool),
     /** The kind of a risky action: from its wording first (what it would do), else from the tool. */
-    categoryOf: (tool, args, what) => { if (tool === 'browser_fill_login') return 'account'; const cc = connectionCategory(tool, args || {}); if (cc) return cc; const g = guessCategory(what); return g !== 'other' || !tool ? g : categoryFor(tool, args || {}); },
+    categoryOf: (tool, args, what) => { if (tool === 'browser_fill_login') return 'account'; if (/^project_/.test(String(tool || ''))) return projectCategory(tool, args || {}); const cc = connectionCategory(tool, args || {}); if (cc) return cc; const g = guessCategory(what); return g !== 'other' || !tool ? g : categoryFor(tool, args || {}); },
     label: categoryLabel, skillText, draftSkill,
     onChange: (f) => { listeners.add(f); return () => listeners.delete(f); },
     idle: () => saving,

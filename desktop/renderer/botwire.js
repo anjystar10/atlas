@@ -10,6 +10,7 @@ import * as sync from './sync.js';
 import { BROWSER_TOOLS, BROWSER, VAULT_TOOLS, browserLabel } from './botbrowse.js';
 import { FILE_TOOLS, FILES, filesLabel, runFiles, filesFooter } from './botfiles.js';
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
+import { PROJECTS, projectLabel, runProject, projectApproval, PROJECTS_PROMPT } from './projects.js';   // >>> projects <<<
 const host = window.atlasHost;
 
 function systemPrompt(j = {}) {
@@ -48,7 +49,7 @@ Files you hand over (your job folder, Documents/Atlas Bot):
 - workspace_write / workspace_read / workspace_list keep drafts, notes and data in the job folder; downloads land there too.
 - The report still gives the answer itself (the key findings), then names the files you made. They show in Atlas Bot › Library.
 
-Using the PC (only when the job needs it): open_app, open_path, list_files and read_file to look around; for anything on screen, look_at_screen first, then click using its coordinates, then look again to check.
+${host.projects ? PROJECTS_PROMPT + '\n\n' : ''}Using the PC (only when the job needs it): open_app, open_path, list_files and read_file to look around; for anything on screen, look_at_screen first, then click using its coordinates, then look again to check.
 
 Budget: up to ${j.id ? callsOf(j) : MAX_TOOL_CALLS} tool steps and ${Math.round((j.id ? msOf(j) : MAX_WORK_MS) / 60000)} minutes for the job. When it's nearly used up, finish with what you have.
 ${teamPart(j)}
@@ -120,12 +121,12 @@ export const bots = createBots({
   isRetryable: (e) => e instanceof brain.Failure && (e.offline || [429, 500, 502, 503, 504].includes(e.code)),
   tools: () => [...brain.TOOLS, ...conn.declarations('bots')],   // connections come and go while Atlas runs
   extraApproval: (name, args) => conn.approvalFor(name, args),
-  extraTools: [...(host.botBrowser ? BROWSER_TOOLS : []), ...(host.vault ? VAULT_TOOLS : []), ...(host.botFiles ? FILE_TOOLS : [])],
-  labelFor: (c) => browserLabel(c) || filesLabel(c) || conn.label(c.name, c.args || {}),
+  extraTools: [...(host.botBrowser ? BROWSER_TOOLS : []), ...(host.vault ? VAULT_TOOLS : []), ...(host.botFiles ? FILE_TOOLS : [])],   // project tools come with brain.TOOLS
+  labelFor: (c) => browserLabel(c) || filesLabel(c) || projectLabel(c) || conn.label(c.name, c.args || {}),
   runTool: (call, opts) => (call.name === 'vault_list' ? (host.vault ? host.vault.model().then((out) => ({ out, step: 'Checked your saved sign-ins' })) : Promise.resolve({ out: "Error: the vault isn't available here." }))
-    : BROWSER.has(call.name) ? runBrowser(call, opts) : FILES.has(call.name) ? runFiles(call, opts && opts.job) : brain.runTool(call, opts)),
+    : BROWSER.has(call.name) ? runBrowser(call, opts) : FILES.has(call.name) ? runFiles(call, opts && opts.job) : PROJECTS.has(call.name) ? runProject(call, { approved: !!(opts && opts.approved) }) : brain.runTool(call, opts)),
   reportFooter: filesFooter,
-  checkApproval: (call, job) => (BROWSER.has(call.name) && host.botBrowser ? host.botBrowser.check(job.id, job.goal, call.name, call.args || {}) : Promise.resolve(null)),
+  checkApproval: (call, job) => (BROWSER.has(call.name) && host.botBrowser ? host.botBrowser.check(job.id, job.goal, call.name, call.args || {}) : PROJECTS.has(call.name) ? projectApproval(call) : Promise.resolve(null)),
   onFinal: (job) => { if (job.browser && host.botBrowser) host.botBrowser.close(job.id); },
   systemPrompt,
   notify: (title, body, tag) => host.notify(title, String(body || '').slice(0, 240), tag),

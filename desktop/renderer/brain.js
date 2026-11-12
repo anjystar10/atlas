@@ -4,6 +4,7 @@ import { db, pref, setPref, saveChat, changed, OPEN, findTask, createTask, updat
 import { plainReply, plainMemory } from './plain.js';
 import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
+import { PROJECT_TOOLS, PROJECTS, runProject, projectLabel, PROJECTS_PROMPT } from './projects.js';   // >>> projects <<<
 const host = window.atlasHost;
 
 // ---- this PC, measured: a local model is checked against free memory before it's used (see fit.js) ----
@@ -318,6 +319,10 @@ export const TOOLS = [
     name: str('A short name (optional)'), specialist: str('A specialist bot to send (optional)') }, ['goal', 'schedule']),
 ];
 
+// >>> projects: build software in Documents/Atlas Projects (projects.js), from the chat and by bots
+if (host.projects) TOOLS.push(...PROJECT_TOOLS);
+// <<< projects
+
 const PC = new Set(['open_app', 'list_apps', 'open_link', 'open_path', 'list_files', 'read_file', 'write_file', 'run_command', 'look_at_screen', 'click', 'type_text', 'press_keys', 'scroll']);
 
 function parseWhen(s) {
@@ -456,6 +461,7 @@ export async function runTool(call, { approved = false } = {}) {
       return { out: r.out || 'Done.', step: r.step || null, image: r.image || null, pc: true };
     }
     if (conn.owns(call.name)) return await conn.run(call, { approved, confirm: ui.confirm });   // connections
+    if (PROJECTS.has(call.name)) return await runProject(call, { approved, confirm: approved ? null : ui.confirm });   // projects
     return { out: `Error: there's no tool called ${call.name}.` };
   } catch (e) { return { out: 'Error: ' + (e.message || e) }; }
 }
@@ -505,7 +511,7 @@ Where you're running (so you can say why something is held back; don't bring it 
 Your phone (on_phone):
 - The user's phone is linked to this PC. When they want something done ON THE PHONE (an app only the phone has, a text from their phone, something on its screen), use on_phone with the whole task. It runs there and the result comes back into this chat.
 
-Atlas Bot (deploy_bot):
+${host.projects ? PROJECTS_PROMPT + '\nFor a big build, send the Developer specialist (deploy_bot with specialist "Developer Bot") with the full brief, so the chat stays free; small scripts and fixes you can do yourself here.\n\n' : ''}Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of PC actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
 - When they teach you how they want a kind of job done, save it with save_skill. When they want a bot on a schedule ("every morning…"), use set_routine (for one-off reminders use set_reminder).
@@ -561,7 +567,7 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
       if (turn.text) { reply.text = plainReply(turn.text); changed('chat'); }
       const results = [];
       for (const c of turn.calls) {
-        convo.status = conn.label(c.name, c.args || {}) || (LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
+        convo.status = conn.label(c.name, c.args || {}) || projectLabel(c) || (LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
         const r = await runTool(c);
         if (r.step) reply.steps.push(r.step);
         results.push({ call: c, out: r.out, image: r.image });
