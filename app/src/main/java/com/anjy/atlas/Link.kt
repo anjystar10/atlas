@@ -161,6 +161,9 @@ object Link {
             when (k) {
                 "task", "task_decide", "task_ack", "task_update", "task_approval", "task_done" -> LinkTasks.onMessage(m)
                 "screen_start", "screen_keep", "screen_stop", "input" -> Remote.onMessage(m)
+                // >>> sync: the other device just sent changes to the cloud: fetch them now instead of at the next look
+                "sync" -> if (::app.isInitialized) Sync.syncSoon(app, 300)
+                // <<< sync
             }
         } catch (e: Exception) { Log.w(TAG, "handling $k", e) }
     }
@@ -173,6 +176,15 @@ object Link {
         rpc("link_send", JSONObject().put("p_owner", Sync.owner(c)).put("p_from", me()).put("p_to", to).put("p_payload", Sync.encrypt(c, msg.toString())))
         return msg
     }
+    // >>> sync
+    @Volatile private var lastPing = 0L
+    /** Tells the other devices "I just synced changes: fetch them now" (at most every 3 s; no-op when the link is down). */
+    fun pingSync() {
+        val now = System.currentTimeMillis(); if (now - lastPing < 3_000) return; lastPing = now
+        peers.forEach { p -> sendAsync(p.device, "sync") }
+    }
+    // <<< sync
+
     /** Sends from a background thread, in order; failures are logged (the next state change sends again). */
     fun sendAsync(to: String, k: String, fields: JSONObject = JSONObject()) { sender.execute { try { send(to, k, fields) } catch (e: Exception) { Log.w(TAG, "send $k", e) } } }
 

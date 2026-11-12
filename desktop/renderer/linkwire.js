@@ -47,6 +47,13 @@ export function start(kit) {
     link.start(); fire();
   };
   check(); setInterval(check, 5000);
+  // >>> sync: after this PC sends changes, tell the phone to fetch them now (at most every 3 s)
+  let lastPing = 0;
+  sync.onPushed(() => {
+    if (!link || Date.now() - lastPing < 3000) return; lastPing = Date.now();
+    for (const p of peers()) link.send(p.device, 'sync', {}).catch(() => {});
+  });
+  // <<< sync
 }
 
 export const linked = () => !!link;
@@ -64,6 +71,9 @@ async function onMessage(m) {
     case 'screen_stop': { if (controlled.has(m.sid)) endControlled(m.sid, 'Your phone stopped watching.'); if (viewer && viewer.sid === m.sid) viewer.end('The phone stopped sharing.'); return; }
     case 'screen_reply': return;   // picked up by waitFor
     case 'input': return inputIn(m);
+    // >>> sync: the phone just sent changes to the cloud: fetch them now instead of at the next look
+    case 'sync': return sync.syncSoon(300);
+    // <<< sync
   }
 }
 

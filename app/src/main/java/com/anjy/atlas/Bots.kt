@@ -64,6 +64,21 @@ object Bots {
         if (::app.isInitialized) BotService.sync(app)
     }
 
+    // >>> sync: the other device's jobs (BotMirror)
+    /** The journal is loaded (sync can show this device's jobs on the other one). */
+    val ready get() = loaded
+    /** A snapshot of the jobs, read on the main thread where they change (null: not ready, or busy). */
+    fun jobsForSync(): List<BotJob>? {
+        if (!loaded) return null
+        if (Looper.myLooper() == Looper.getMainLooper()) return visible()
+        val latch = java.util.concurrent.CountDownLatch(1); var out: List<BotJob>? = null
+        main.post { try { out = visible().toList() } finally { latch.countDown() } }
+        return if (latch.await(5, java.util.concurrent.TimeUnit.SECONDS)) out else null
+    }
+    /** The other device's jobs changed: the screens showing jobs refresh. */
+    fun mirrorChanged() { main.post { listeners.toList().forEach { try { it() } catch (e: Exception) { Log.w(TAG, "listener", e) } } } }
+    // <<< sync
+
     fun job(id: String?) = jobs.firstOrNull { it.id == id }
     /** True while any job is working or about to (the background service stays up for these). */
     fun active() = jobs.any { it.state == BotRules.RUNNING || it.state == BotRules.QUEUED || it.state == BotRules.WAITING_RETRY }
