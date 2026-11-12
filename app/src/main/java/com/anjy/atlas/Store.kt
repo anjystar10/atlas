@@ -89,7 +89,8 @@ object Store {
                 "memory" -> upsert("memories", id, rec)
                 "log" -> upsert("log", id, rec)
                 // a device that has no name set doesn't wipe the one this device has
-                "profile" -> rec?.optString("name")?.takeIf { it.isNotBlank() }?.let { n -> o.optJSONObject("settings")?.put("name", n) }
+                // your name and how reminders behave (an older Atlas sends only the name; a blank name never wipes this one)
+                "profile" -> if (rec != null) o.optJSONObject("settings")?.let { st -> SyncPlan.profileFields(rec).forEach { (f, v) -> st.put(f, v) } }
             }
         }
         // the log stays in time order

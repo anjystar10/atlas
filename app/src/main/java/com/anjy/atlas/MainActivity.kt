@@ -736,7 +736,8 @@ class MainActivity : Activity() {
     internal var keepSheet = false
     internal val liveAnims = mutableListOf<android.animation.Animator>()
     internal val ticker = android.os.Handler(android.os.Looper.getMainLooper())
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    /** Work tied to this screen: cancelled in onDestroy, so nothing redraws a closed screen (ConnectionsUi uses it too). */
+    internal val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var imeOpen = false
     private lateinit var composer: LinearLayout
     private lateinit var composerField: EditText
@@ -1586,6 +1587,9 @@ class MainActivity : Activity() {
     private fun entries(s: AtlasState): List<Entry> =
         (s.tasks.map { Entry(it.createdAt, it, null) } + s.memories.map { Entry(it.createdAt, null, it) }).sortedByDescending { it.at }
 
+    /** "today 14:05" or "on Thu 12 Nov, 14:05", to follow a word like "Synced". */
+    private fun whenSaid(ms: Long) = logged(ms).let { if (it.startsWith("Today ")) "today " + it.removePrefix("Today ") else "on $it" }
+
     private fun logged(ms: Long): String {
         val d = Instant.ofEpochMilli(ms).atZone(Engine.zone)
         return if (d.toLocalDate() == LocalDate.now(Engine.zone)) "Today ${Reminders.fmt(ms)}" else d.format(DateTimeFormatter.ofPattern("EEE d MMM, HH:mm", Locale.getDefault()))
@@ -1806,11 +1810,13 @@ class MainActivity : Activity() {
         }
         body.add(ex, 12)
         val all = Bots.visible()
+        val elsewhere = try { BotMirror.others(this) } catch (_: Exception) { emptyList() }
         if (all.isEmpty()) {
             body.add(card().apply {
                 addView(text("No bots yet", 18f, FG, HEAD))
                 add(text("Ask Atlas for something bigger, like “research the best phone under $300 for photos and send me a report”, or say “send a bot to…”.", 15f, MUTED), 6)
             }, 22)
+            renderBotsElsewhere(elsewhere)
             return
         }
         body.add(eyebrow("Jobs"), 22)
@@ -1823,6 +1829,36 @@ class MainActivity : Activity() {
             val line = listOfNotNull(BotRules.label(j.state), if (j.state == BotRules.RUNNING) j.current else null,
                 if (j.plan.isNotEmpty()) "plan ${j.plan.count { it.done }}/${j.plan.size}" else null).joinToString(" · ")
             c.add(text(line, 13f, MUTED, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, 6)
+            body.add(c, 10)
+        }
+        renderBotsElsewhere(elsewhere)
+    }
+
+    /** Bots working on the other device (read-only here: each job runs where it was started). Tap one for its report. */
+    private fun renderBotsElsewhere(list: List<org.json.JSONObject>) {
+        if (list.isEmpty()) return
+        val where = if (list.any { it.optString("platform") == "windows" }) "On Your PC" else "On Your Other Device"
+        body.add(eyebrow(where), 22)
+        list.take(20).forEach { v ->
+            val c = card()
+            c.addView(text(v.optString("goal"), 17f, FG, HEAD).apply { maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END })
+            val total = v.optInt("total"); val cur = v.optString("current")
+            val line = listOfNotNull(v.optString("label").ifBlank { null }, if (v.optString("state") == BotRules.RUNNING && cur.isNotBlank()) cur else null,
+                if (total > 0) "plan ${v.optInt("done")}/$total" else null).joinToString(" · ")
+            c.add(text(line, 13f, MUTED, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, 6)
+            val report = v.optString("report")
+            if (report.isNotBlank()) {
+                c.isClickable = true; c.pressFx()
+                c.setOnClickListener {
+                    val tv = TextView(this).apply { text = Plain.reply(report); setTextColor(FG); textSize = 15f; setTextIsSelectable(true) }
+                    // a long report scrolls inside the sheet
+                    val sv = android.widget.ScrollView(this).apply {
+                        addView(tv)
+                        layoutParams = LinearLayout.LayoutParams(MATCH, (resources.displayMetrics.heightPixels * 0.55f).toInt())
+                    }
+                    sheet(null, v.optString("goal").take(80), "Its report, from your other device.", content = sv, primaryLabel = "Close", onPrimary = {})
+                }
+            }
             body.add(c, 10)
         }
     }
@@ -2101,12 +2137,36 @@ class MainActivity : Activity() {
             }, 8)
         } else {
             dv.addView(text("Linked", 18f, FG, HEAD))
-            dv.add(text(Sync.lastResult?.let { r -> "$r" + if (Sync.lastAt > 0) " · ${logged(Sync.lastAt)}" else "" } ?: "Syncing…", 14f, MUTED), 4)
+            // how syncing stands, in plain words: when it last worked, what's waiting, the other device, any problem and its fix
+            val ss = Sync.status(this)
+            val p = ss.problem
+            val head = when {
+                p != null && p.kind != "offline" -> p.text
+                p != null -> p.text
+                ss.running -> "Syncing…"
+                ss.lastAt > 0 -> "Synced " + whenSaid(ss.lastAt) + if (ss.pending > 0) " · ${ss.pending} change${if (ss.pending == 1) "" else "s"} waiting to go up" else ""
+                else -> Sync.lastResult ?: "Syncing…"
+            }
+            dv.add(text(head, 14f, if (p != null && p.kind != "offline") WARM else MUTED), 4)
+            if (p?.fix != null) dv.add(text(p.fix, 13f, MUTED), 4)
+            val cloudNow = System.currentTimeMillis() + Sync.cloudSkew
+            if (ss.others.isEmpty()) dv.add(text("Your other device hasn't synced yet. Enter the code below in Atlas there.", 13f, MUTED), 6)
+            ss.others.forEach { o ->
+                val who = when (o.platform) { "windows" -> "Your PC"; "android" -> "Your phone"; else -> "Your other device" }
+                val ago = cloudNow - o.seenMs
+                val seen = when { o.seenMs <= 0 -> "not seen yet"; ago < 11 * 60_000 -> "active now"; else -> "last seen " + whenSaid(System.currentTimeMillis() - ago) }
+                dv.add(text("$who · $seen" + (if (o.app.isNotBlank()) " · Atlas ${o.app}" else ""), 13f, MUTED), 6)
+                if (o.outdated) dv.add(text("Update Atlas there so everything syncs both ways.", 13f, WARM), 2)
+            }
+            if (ss.tooBig > 0) dv.add(text("${ss.tooBig} item${if (ss.tooBig == 1) " is" else "s are"} too big to sync and stay${if (ss.tooBig == 1) "s" else ""} on this phone only.", 13f, MUTED), 4)
+            if (ss.waitingKinds > 0) dv.add(text("${ss.waitingKinds} item${if (ss.waitingKinds == 1) "" else "s"} from your other device need${if (ss.waitingKinds == 1) "s" else ""} a newer Atlas here. Update Atlas to bring ${if (ss.waitingKinds == 1) "it" else "them"} in.", 13f, WARM), 4)
             dv.add(text("Your link code (keep it private; type it into Atlas on your PC):", 13f, MUTED), 12)
             dv.add(text(code, 17f, FG, MONO).apply {
                 background = rounded(if (dark) SURFACE2 else Color.parseColor(LIGHT_FIELD), 14, LINE); setPadding(dp(14), dp(12), dp(14), dp(12)); gravity = Gravity.CENTER
                 setTextIsSelectable(true)
             }, 6)
+            dv.add(switchRow(null, "Share My AI Keys", KeyShare.on(this)) { on -> KeyShare.set(applicationContext, on) }, 12)
+            dv.add(text("Your AI keys go to your PC too, inside the encrypted sync (scrambled with your link code; the cloud can't read them). Turn it on on both devices.", 13f, MUTED), 4)
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             row.addView(secondary("Copy Code") { getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas link code", code)); showBanner("Copied") }, LinearLayout.LayoutParams(0, WRAP, 1f))
             row.addView(secondary("Sync Now") { scope.launch(Dispatchers.IO) { Sync.runOnce(applicationContext) } ; showBanner("Syncing…") }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })

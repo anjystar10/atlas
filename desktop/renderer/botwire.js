@@ -1,6 +1,6 @@
 // Connects Atlas Bot (bots.js) to the app: the key pool and services (brain.js), the chat (store.js), saving and
 // Windows notifications (the host).
-import { db, saveChat, changed, uid } from './store.js';
+import { db, saveChat, changed, uid, pref, setPref } from './store.js';
 import * as fitRules from './fit.js';
 import * as brain from './brain.js';
 import { plainReply, plainMemory } from './plain.js';
@@ -10,6 +10,8 @@ import * as sync from './sync.js';
 import { BROWSER_TOOLS, BROWSER, VAULT_TOOLS, browserLabel } from './botbrowse.js';
 import { FILE_TOOLS, FILES, filesLabel, runFiles, filesFooter } from './botfiles.js';
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
+import * as aware from './aware.js';
+import { LABELS as BOT_LABELS, FINAL as BOT_FINAL, S as BOT_S } from './bots.js';
 const host = window.atlasHost;
 
 function systemPrompt(j = {}) {
@@ -104,7 +106,7 @@ extras.onChange(() => changed('bots'));
 async function runBrowser(call, { approved, job, approvedWhat } = {}) {
   if (!host.botBrowser || !job) return { out: "Error: the browser isn't available here." };
   if (approved && approvedWhat && ['browser_click', 'browser_type', 'browser_press'].includes(call.name)) {
-    const now = await host.botBrowser.check(job.id, job.goal, call.name, call.args || {});
+    const got = await host.botBrowser.check(job.id, job.goal, call.name, call.args || {}); const now = got && typeof got === 'object' ? got.what : got;   // check() may say more than a sentence
     if (now !== approvedWhat) return { out: "The page changed since the user said yes, so nothing was clicked. Read the page again (browser_read); if it's still needed, the OK will be asked again." };
   }
   return host.botBrowser.run(job.id, job.goal, call.name, call.args || {});
@@ -118,7 +120,7 @@ export const bots = createBots({
   callWithKeys: (p, sess, call, opts) => brain.callWithKeys(p, sess, call, null, opts),
   isSwitch: (e) => e instanceof brain.Switch,
   isRetryable: (e) => e instanceof brain.Failure && (e.offline || [429, 500, 502, 503, 504].includes(e.code)),
-  tools: () => [...brain.TOOLS, ...conn.declarations('bots')],   // connections come and go while Atlas runs
+  tools: () => [...brain.TOOLS, ...conn.declarations('bots'), ...aware.botTools()],   // connections come and go while Atlas runs; capabilities marked for bots
   extraApproval: (name, args) => conn.approvalFor(name, args),
   extraTools: [...(host.botBrowser ? BROWSER_TOOLS : []), ...(host.vault ? VAULT_TOOLS : []), ...(host.botFiles ? FILE_TOOLS : [])],
   labelFor: (c) => browserLabel(c) || filesLabel(c) || conn.label(c.name, c.args || {}),
@@ -148,3 +150,23 @@ brain.ui.saveRoutine = (x) => {
   return extras.saveRoutine({ name: x.name, goal: x.goal, scheduleText: x.schedule, specialist: sp ? sp.id : null });
 };
 brain.ui.botTeam = () => [skillsIndex(extras.data.skills), teamIndex(extras.data.specialists)].filter(Boolean).join('\n');
+
+// >>> awareness (aware.js): the main Atlas sees the bots, the Library, the AI services and its own browser
+let chatBrowserTimer = null;
+aware.use({
+  bots, S: BOT_S, labels: BOT_LABELS, final: BOT_FINAL,
+  conn: () => conn.state.snapshot,
+  library: async () => { if (!host.botFiles) return []; const l = await host.botFiles.library(); return (Array.isArray(l) ? l : []).map((f) => ({ title: f.title || f.name, kind: f.kind, at: f.at || f.mtime })); },
+  services: () => ({ ready: brain.PROVIDERS.filter((p) => brain.readyKey(p.id)).map((p) => p.name), dontSwitch: brain.dontSwitch() }),
+  browser: host.botBrowser ? {
+    check: (id, goal, name, args) => host.botBrowser.check(id, goal, name, args),
+    run: async (id, goal, name, args) => {
+      // the chat's window closes itself after ten quiet minutes
+      clearTimeout(chatBrowserTimer); chatBrowserTimer = setTimeout(() => host.botBrowser.close(id).catch(() => {}), 10 * 60000);
+      return host.botBrowser.run(id, goal, name, args);
+    },
+  } : null,
+  mode: (what, tool, args) => extras.mode(extras.categoryOf(tool, args || {}, what)),
+  seen: { get: () => pref('awareSeen', []), set: (ids) => setPref('awareSeen', ids) },
+});
+// <<< awareness

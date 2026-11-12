@@ -2,6 +2,7 @@
 //   npx electron test/browser.e2e.js            the tools one by one
 // Exits 0 when every check passes.
 'use strict';
+const W = (x) => (x && typeof x === 'object' ? x.what : x);   // check() may say more than a sentence (money, everything it says)
 const { app } = require('electron');
 const path = require('path'), fs = require('fs'), os = require('os');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'atlasbb-'));
@@ -60,13 +61,13 @@ app.whenReady().then(async () => {
   await check('"Place order" needs the OK; a search does not', async () => {
     r = await run('browser_open', { url: base + '/shop' });
     const n = num(r.out, /\[(\d+)\] button "Place order"/);
-    assert.match(await bb.check(J, T, 'browser_click', { target: n }), /Click “Place order” on 127\.0\.0\.1/);
-    assert.match(await bb.check(J, T, 'browser_type', { target: num(r.out, /\[(\d+)\] (?:number )?field "Quantity"/), text: '2', submit: true }), /Submit the form “Place order”/);
+    assert.match(W(await bb.check(J, T, 'browser_click', { target: n })), /Click “Place order” on a payment page on 127\.0\.0\.1/);
+    assert.match(W(await bb.check(J, T, 'browser_type', { target: num(r.out, /\[(\d+)\] (?:number )?field "Quantity"/), text: '2', submit: true })), /Type into a payment page on 127\.0\.0\.1.* and submit it/);
     assert.equal(got.orders, 0);
     r = await run('browser_open', { url: base + '/' });
-    assert.equal(await bb.check(J, T, 'browser_type', { target: num(r.out, /\[(\d+)\] (?:search )?field "Search the shop"/), text: 'x', submit: true }), null);
-    assert.equal(await bb.check(J, T, 'browser_click', { target: 'Go to the shop' }), null);
-    assert.match(await bb.check(J, T, 'browser_upload', { target: 1, file: 'notes.txt' }), /Upload notes\.txt/);
+    assert.equal(W(await bb.check(J, T, 'browser_type', { target: num(r.out, /\[(\d+)\] (?:search )?field "Search the shop"/), text: 'x', submit: true })), null);
+    assert.equal(W(await bb.check(J, T, 'browser_click', { target: 'Go to the shop' })), null);
+    assert.match(W(await bb.check(J, T, 'browser_upload', { target: 1, file: 'notes.txt' })), /Upload notes\.txt/);
   });
   await check('approved: the order button really clicks', async () => {
     r = await run('browser_open', { url: base + '/shop' });
@@ -88,7 +89,7 @@ app.whenReady().then(async () => {
     assert.equal(vault.list()[0].password, undefined, 'the page-side list must not carry passwords');
     assert.doesNotMatch(vault.forModelNow(), /king@example|p"w/);
     r = await run('browser_open', { url: base + '/login' });
-    assert.match(await bb.check(J, T, 'browser_fill_login', { entry: 'Test site' }), /Sign in on 127\.0\.0\.1 with your saved sign-in “Test site”/);
+    assert.match(W(await bb.check(J, T, 'browser_fill_login', { entry: 'Test site' })), /Sign in on 127\.0\.0\.1 with your saved sign-in “Test site”/);
     const f = await run('browser_fill_login', { entry: 'Test site' });
     assert.match(f.out, /username filled, password filled/);
     assert.ok(!f.out.includes(pw), 'the password must not come back to the bot');
@@ -96,10 +97,10 @@ app.whenReady().then(async () => {
     assert.deepEqual(got.login, { email: 'king@example.com', pw });
     vault.save({ ...vault.list()[0], trusted: true });
     await run('browser_open', { url: base + '/login' });
-    assert.equal(await bb.check(J, T, 'browser_fill_login', { entry: 'Test site' }), null, 'allowed on this site: no OK needed');
+    assert.equal(W(await bb.check(J, T, 'browser_fill_login', { entry: 'Test site' })), null, 'allowed on this site: no OK needed');
     await run('browser_open', { url: base.replace('127.0.0.1', 'localhost') + '/login' });
     assert.match((await run('browser_fill_login', { entry: 'Test site' })).out, /is for 127\.0\.0\.1, but this page is localhost/);
-    assert.match(await bb.check(J, T, 'browser_fill_login', { entry: 'Test site' }), /Sign in on localhost/, 'another site still asks');
+    assert.match(W(await bb.check(J, T, 'browser_fill_login', { entry: 'Test site' })), /Sign in on localhost/, 'another site still asks');
   });
   await check('a screenshot comes back as a picture', async () => {
     const s = await run('browser_screenshot', {});

@@ -361,8 +361,10 @@ export function createBots(deps) {
   async function askApproval(j, a) {
     // the user's standing choice for this kind of action: always allowed, never allowed, or ask (botx.js)
     if (ex) {
-      a.category = a.category || ex.categoryOf(a.tool, a.args || {}, a.what);
-      const mode = ex.mode(a.category);
+      // its kind: the strongest risk in everything it says (the page around it too, when the browser looked)
+      a.category = a.category || (a.riskText && ex.guess ? ex.guess(a.riskText + ' ' + a.what, a.tool, a.args) : ex.categoryOf(a.tool, a.args || {}, a.what));
+      // "Always allow" never covers money: a payment page, or a buy/pay/order action, always waits for a tap
+      let mode = ex.mode(a.category); if (mode === 'allow' && a.mustAsk) mode = 'ask';
       if (mode !== 'ask') {
         j.approval = { ...a, decision: mode === 'allow' ? 'approved' : 'denied', auto: true };
         step(j, (mode === 'allow' ? 'Allowed by your rule (you always allow: ' : 'Not done: you never allow ') + ex.label(a.category).toLowerCase() + (mode === 'allow' ? ')' : '') + ': ' + a.what);
@@ -523,9 +525,11 @@ export function createBots(deps) {
           }
           if (c.name === 'request_approval') { await askApproval(j, { what: (deps.plainReply(String(a.action || '')) || 'Go ahead with the next step').slice(0, 300), tool: null, args: null, decision: null }); return; }
           if (!toolNames.has(c.name)) { results.push({ call: c, out: `Error: there's no tool called ${c.name}.` }); continue; }
-          const need = approvalFor(c.name, a) || (deps.extraApproval ? deps.extraApproval(c.name, a) : null) || (deps.checkApproval ? await deps.checkApproval(c, j) : null);
+          const raw = approvalFor(c.name, a) || (deps.extraApproval ? deps.extraApproval(c.name, a) : null) || (deps.checkApproval ? await deps.checkApproval(c, j) : null);
           if (!mine()) return;
-          if (need) { await askApproval(j, { what: need, tool: c.name, args: JSON.parse(JSON.stringify(a)), decision: null }); return; }
+          // a check of the real page may say more than a sentence: money (always ask) and everything the action says (its kind)
+          const need = raw && typeof raw === 'object' ? raw.what : raw;
+          if (need) { await askApproval(j, { what: need, tool: c.name, args: JSON.parse(JSON.stringify(a)), decision: null, mustAsk: !!(raw && raw.mustAsk), riskText: (raw && raw.riskText) || '' }); return; }
           const r = await runTool(j, c);
           if (r.handover) { await handOver(j, r.handover); return; }
           results.push({ call: c, out: r.out, image: r.image || null });

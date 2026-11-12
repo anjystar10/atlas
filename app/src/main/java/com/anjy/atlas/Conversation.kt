@@ -248,7 +248,7 @@ object Conversation {
 
     private val stampFmt = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH)
 
-    fun systemPrompt(ctx: Context, spoken: Boolean): String {
+    fun systemPrompt(ctx: Context, spoken: Boolean, brief: String = ""): String {
         val name = Store.read(ctx) { it.settings.name }.ifBlank { "the user" }
         val now = Instant.ofEpochMilli(System.currentTimeMillis()).atZone(Engine.zone)
         val phone = if (PhoneControl.on()) "on" else "OFF (the user must turn it on in Atlas → Me → Phone control before you can use apps)"
@@ -279,9 +279,13 @@ The internet:
 Your laptop (on_laptop):
 - When the user is linked to their PC and wants something done ON THE LAPTOP (a PC app or file, something on its screen, a command there), use on_laptop with the whole task. It runs there and the result comes back into this chat.
 
-Atlas Bot (deploy_bot):
-- For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of phone actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
-- Quick things (one search, one reminder, a short answer) you do yourself.
+You run the show. Decide for yourself, every time:
+- Just answer (questions, advice, writing) — no tools needed.
+- Do it yourself, now, when it takes a few steps: the web tool for a quick job on a website, the phone, the Log, files, connections, on_laptop for the laptop.
+- Send a bot (deploy_bot) for long or many-step work: deep research with sources, comparing options, long writing, many pages, long chains of actions, anything that will take more than a minute or two. Give it a clear goal and every detail it needs.
+- Say in one short line what you're doing ("On it — sending a bot to compare them"), then do it. Don't ask permission for ordinary things; only risky actions (sending, posting, buying, paying, deleting, account changes) wait for the user's OK, and the tools tell you when that's needed.
+- You can see what's happening (the brief below) and manage it: the bots tool to check, steer ("tell it to also check prices"), wrap up, pause or stop a bot, or read its report; answer_approval when the user says yes or no to something that's waiting (if exactly one thing is waiting, a plain "yes" / "go ahead" / "no" is about that one; if several are, ask which).
+- When something in the brief is marked NEW (a bot finished), mention it briefly and naturally when it fits; don't recite the brief.
 - When they teach you how they want a kind of job done, save it with save_skill. When they want a bot on a schedule ("every morning…"), use set_routine (one-off reminders stay set_reminder).
 ${botTeam()}
 
@@ -301,6 +305,7 @@ Using the phone:
 - Phone control is $phone.
 
 Now: ${now.format(stampFmt)} (${Engine.zone.id}).
+${if (brief.isBlank()) "" else "\nWhat's going on right now (for you; don't read it out):\n$brief\n"}
 ${Tools.logContext(ctx)}
 """.trim()
     }
@@ -312,7 +317,12 @@ ${Tools.logContext(ctx)}
         // text and Word files go into the message itself, so every service can read them
         val full = q + withContext(Dispatchers.IO) { media.filter { it.textFile }.joinToString("") { Attach.inlineText(it) } }
         // >>> connections: their tools are added while connected (they come and go)
-        val tools = withContext(Dispatchers.IO) { Connections.declarations(ctx, "chat").let { extra -> if (extra.length() == 0) Tools.declarations else JSONArray().apply { for (i in 0 until Tools.declarations.length()) put(Tools.declarations.get(i)); for (i in 0 until extra.length()) put(extra.get(i)) } } }
+        val tools = withContext(Dispatchers.IO) { JSONArray().apply {
+            for (i in 0 until Tools.declarations.length()) put(Tools.declarations.get(i))
+            Connections.declarations(ctx, "chat").let { extra -> for (i in 0 until extra.length()) put(extra.get(i)) }
+            // everything registered in the capability registry (Aware.kt): bots, approvals, the chat's browser, and new subsystems
+            Capabilities.chatDeclarations(ctx).let { extra -> for (i in 0 until extra.length()) put(extra.get(i)) }
+        } }
         // <<< connections
         var session = Providers.session(ctx, p, history.toList(), full, m, tools)
         var final: String? = null
@@ -320,7 +330,9 @@ ${Tools.logContext(ctx)}
         val tried = mutableSetOf(p.id)
         while (steps < MAX_STEPS) {
             steps++
-            val system = withContext(Dispatchers.IO) { systemPrompt(ctx, spoken) }
+            // what's going on right now (bots, approvals, the laptop…), fresh each step so a finished action shows
+            val brief = withContext(Dispatchers.IO) { try { Situation.brief(ctx, markSeen = steps == 1) } catch (e: Exception) { "" } }
+            val system = withContext(Dispatchers.IO) { systemPrompt(ctx, spoken, brief) }
             val turn = try { callWithKeys(ctx, p, session) { session.call(system) } } catch (sw: KeyRouter.SwitchService) {
                 // carry on with the next service; it hears what was already done so nothing is repeated
                 if (!tried.add(sw.to.id)) throw Gemini.Failure(sw.message ?: "All your keys have run out for now.")
