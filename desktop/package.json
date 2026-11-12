@@ -1,7 +1,7 @@
 {
   "name": "atlas-desktop",
   "productName": "Atlas",
-  "version": "0.9.3",
+  "version": "0.10.0",
   "description": "Atlas, King Anjy's personal AI assistant, on Windows. Synced with Atlas on the phone.",
   "main": "main.js",
   "author": "King Anjy",
@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --no-warnings --test test/logic.test.mjs test/sync.e2e.mjs test/link.test.mjs test/aware.test.mjs",
+    "test": "node --no-warnings --test test/logic.test.mjs test/sync.e2e.mjs test/link.test.mjs test/aware.test.mjs test/trade.test.mjs",
     "test:mail": "node --no-warnings test/mail.e2e.js",
     "test:browser": "electron --no-sandbox test/browser.e2e.js && electron --no-sandbox test/botjob.e2e.js && electron --no-sandbox test/files.e2e.js",
     "test:mcp": "node --no-warnings test/mcp.e2e.js",
@@ -33,7 +33,7 @@
     "productName": "Atlas",
     "artifactName": "Atlas-Setup.${ext}",
     "directories": { "output": "dist", "buildResources": "build" },
-    "files": ["main.js", "preload.js", "pc.js", "botbrowser.js", "botfiles.js", "sheets.js", "device.js", "vault.js", "mcp.js", "remote.js", "projects.js", "projectrules.js", "mail.js", "mailtext.js", "renderer/**/*", "build/icon.png", "!node_modules/@modelcontextprotocol/sdk/dist/esm/**", "!**/*.map", "!**/*.d.ts"],
+    "files": ["main.js", "preload.js", "pc.js", "botbrowser.js", "botfiles.js", "sheets.js", "device.js", "vault.js", "mcp.js", "trading.js", "tradecore.js", "traderules.js", "brokers.js", "remote.js", "projects.js", "projectrules.js", "mail.js", "mailtext.js", "renderer/**/*", "build/icon.png", "!node_modules/@modelcontextprotocol/sdk/dist/esm/**", "!**/*.map", "!**/*.d.ts"],
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },
     "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "Atlas", "runAfterFinish": true }
   }

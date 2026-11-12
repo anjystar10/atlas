@@ -11,8 +11,8 @@ android {
         applicationId = "com.anjy.atlas"
         minSdk = 33
         targetSdk = 35
-        versionCode = 17
-        versionName = "0.9.3"
+        versionCode = 18
+        versionName = "0.10.0"
         ndk {
             abiFilters += listOf("arm64-v8a")
         }

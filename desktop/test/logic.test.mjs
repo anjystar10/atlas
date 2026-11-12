@@ -858,6 +858,38 @@ test('email: sending and deleting need an OK, as a message and a delete; reading
   for (const t of M.TOOLS) assert.ok(t.description.length > 20 && t.parameters.type === 'object', t.name);
 });
 
+// ------------------------------------------------------------------ trading: the risk engine (desktop/traderules.js)
+test('trading: every fixture case gives the answer the phone must also give', async () => {
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url);
+  const TR = req('../traderules.js');
+  const fs = await import('node:fs');
+  const fx = JSON.parse(fs.readFileSync(new URL('../../tools/trade-fixtures.json', import.meta.url), 'utf8'));
+  assert.ok(fx.cases.length >= 25);
+  for (const c of fx.cases) {
+    const r = TR.check(c.order, c.inst, c.market, c.account, c.state, c.plan);
+    assert.equal(r.ok, c.expect.ok, c.name);
+    if (!r.ok) { assert.deepEqual(r.reasons.map((x) => x.code), c.expect.codes, c.name); continue; }
+    assert.deepEqual(r.order, c.expect.order, c.name);
+    assert.equal(r.needsApproval, c.expect.needsApproval, c.name);
+    assert.equal(r.summary, c.expect.summary, c.name);
+  }
+  for (const r of fx.rounding) { assert.equal(TR.floorTo(r.value, r.step), r.floor); assert.equal(TR.roundTo(r.value, r.step), r.round); }
+  for (const [h, m, d, want] of fx.hours) assert.equal(TR.inHours(h, m, d), want);
+  const crypto = await import('node:crypto');
+  assert.equal(crypto.createHmac('sha256', fx.hmac.key).update(fx.hmac.data).digest('hex'), fx.hmac.hex);
+  const b = fx.bybitPayload; assert.equal(TR.bybitPayload(b.ts, b.key, b.recv, b.query), b.expect);
+});
+test('trading: a new day resets the count and the starting equity; losses are measured from it', async () => {
+  const { createRequire } = await import('node:module');
+  const TR = createRequire(import.meta.url)('../traderules.js');
+  let s = { day: '2026-11-11', dayStartEquity: 1000, ordersToday: 2, killed: true };
+  s = TR.rollDay(s, '2026-11-12', 940);
+  assert.equal(s.ordersToday, 0); assert.equal(s.dayStartEquity, 940); assert.equal(s.killed, true, 'a new day never lifts the stop switch');
+  assert.equal(TR.lossToday(s, 900), 40); assert.equal(TR.lossToday(s, 990), 0);
+  assert.deepEqual(TR.rollDay(s, '2026-11-12', 10).dayStartEquity, 940, 'the same day keeps its starting equity');
+});
+
 // ------------------------------------------------------------------ projects: what Atlas may run in a project without asking
 import { createRequire as projRequire } from 'node:module';
 const PR = projRequire(import.meta.url)('../projectrules.js');

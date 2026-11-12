@@ -12,6 +12,7 @@ import { FILE_TOOLS, FILES, filesLabel, runFiles, filesFooter } from './botfiles
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
 import { PROJECTS, projectLabel, runProject, projectApproval, PROJECTS_PROMPT, registerProjects } from './projects.js';   // >>> projects <<<
 import * as aware from './aware.js';
+import * as trade from './trade.js';   // trading: bots' LIVE orders wait for the user's tap on the job page
 import { LABELS as BOT_LABELS, FINAL as BOT_FINAL, S as BOT_S } from './bots.js';
 import * as mail from './mail.js';   // >>> email (registered in aware.js; its approvals are here)
 const host = window.atlasHost;
@@ -122,14 +123,14 @@ export const bots = createBots({
   callWithKeys: (p, sess, call, opts) => brain.callWithKeys(p, sess, call, null, opts),
   isSwitch: (e) => e instanceof brain.Switch,
   isRetryable: (e) => e instanceof brain.Failure && (e.offline || [429, 500, 502, 503, 504].includes(e.code)),
-  tools: () => [...brain.TOOLS, ...conn.declarations('bots'), ...aware.botTools()],   // connections come and go while Atlas runs; capabilities marked for bots
+  tools: () => [...brain.TOOLS, ...conn.declarations('bots'), ...aware.botTools(), ...(host.trading ? trade.TOOLS : [])],   // connections come and go while Atlas runs; capabilities marked for bots
   extraApproval: (name, args) => conn.approvalFor(name, args) || mail.approvalFor(name, args),   // >>> email: sending and deleting ask
   extraTools: [...(host.botBrowser ? BROWSER_TOOLS : []), ...(host.vault ? VAULT_TOOLS : []), ...(host.botFiles ? FILE_TOOLS : [])],   // project tools come through aware.botTools()
-  labelFor: (c) => browserLabel(c) || filesLabel(c) || projectLabel(c) || conn.label(c.name, c.args || {}) || mail.label(c.name, c.args || {}),
+  labelFor: (c) => browserLabel(c) || filesLabel(c) || projectLabel(c) || trade.label(c) || conn.label(c.name, c.args || {}) || mail.label(c.name, c.args || {}),
   runTool: (call, opts) => (call.name === 'vault_list' ? (host.vault ? host.vault.model().then((out) => ({ out, step: 'Checked your saved sign-ins' })) : Promise.resolve({ out: "Error: the vault isn't available here." }))
-    : BROWSER.has(call.name) ? runBrowser(call, opts) : FILES.has(call.name) ? runFiles(call, opts && opts.job) : PROJECTS.has(call.name) ? runProject(call, { approved: !!(opts && opts.approved) }) : brain.runTool(call, opts)),
+    : BROWSER.has(call.name) ? runBrowser(call, opts) : FILES.has(call.name) ? runFiles(call, opts && opts.job) : PROJECTS.has(call.name) ? runProject(call, { approved: !!(opts && opts.approved) }) : trade.NAMES.has(call.name) ? trade.runForBot(call, opts) : brain.runTool(call, opts)),
   reportFooter: filesFooter,
-  checkApproval: (call, job) => (BROWSER.has(call.name) && host.botBrowser ? host.botBrowser.check(job.id, job.goal, call.name, call.args || {}) : PROJECTS.has(call.name) ? projectApproval(call) : Promise.resolve(null)),
+  checkApproval: (call, job) => (BROWSER.has(call.name) && host.botBrowser ? host.botBrowser.check(job.id, job.goal, call.name, call.args || {}) : PROJECTS.has(call.name) ? projectApproval(call) : trade.NAMES.has(call.name) ? trade.checkForBot(call, job) : Promise.resolve(null)),
   onFinal: (job) => { if (job.browser && host.botBrowser) host.botBrowser.close(job.id); },
   systemPrompt,
   notify: (title, body, tag) => host.notify(title, String(body || '').slice(0, 240), tag),

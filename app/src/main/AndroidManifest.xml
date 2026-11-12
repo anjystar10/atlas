@@ -179,6 +179,7 @@
                 android:value="Device Link: keeps a connection to the user's own computer so it can send the assistant tasks and, when the user allows it, view and control this phone" />
         </service>
         <receiver android:name=".LinkReceiver" android:exported="false" />
+        <receiver android:name=".TradingReceiver" android:exported="false" />
         <activity
             android:name=".LaptopActivity"
             android:exported="false"

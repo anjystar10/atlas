@@ -67,11 +67,22 @@ contextBridge.exposeInMainWorld('atlasHost', {
   // >>> email (mail.js): the account and the password stay in the main process
   mail: (op, args) => ipcRenderer.invoke('mail', op, args),
   // <<< email
+  // >>> trading
+  trading: {
+    run: (name, args, opts) => ipcRenderer.invoke('trade:run', name, args, opts),
+    list: () => ipcRenderer.invoke('trade:list'),
+    save: (acc, secret) => ipcRenderer.invoke('trade:save', acc, secret),
+    remove: (id) => ipcRenderer.invoke('trade:remove', id),
+    limits: (id, limits) => ipcRenderer.invoke('trade:limits', id, limits),
+    test: (acc, secret) => ipcRenderer.invoke('trade:test', acc, secret),
+    resume: () => ipcRenderer.invoke('trade:resume'),
+  },
+  // <<< trading
   // >>> connections
   conn: (op, ...args) => ipcRenderer.invoke('conn', op, ...args),
   // <<< connections
   on: (channel, fn) => {
-    const ok = ['notification-click', 'orb-clicked', 'orb-state', 'connections-changed', 'remote-stop'];
+    const ok = ['notification-click', 'orb-clicked', 'orb-state', 'connections-changed', 'remote-stop', 'trading-changed'];
     if (!ok.includes(channel)) return;
     ipcRenderer.on(channel, (_e, ...args) => fn(...args));
   }
