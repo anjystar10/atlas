@@ -1,6 +1,7 @@
 // Email for Atlas and Atlas Bot on the PC: the tools the model gets, what needs the user's OK, the lines Atlas reads
 // about the inbox, and running them through the app's main process (mail.js holds the account and the password).
 // The phone has the same tools with the same names and rules (Email.kt).
+import * as aware from './aware.js';   // the capability registry: offers these tools in the chat and to bots, and the brief line
 const host = typeof window !== 'undefined' ? window.atlasHost : null;
 
 const str = (description, e) => ({ type: 'string', description, ...(e ? { enum: e } : {}) });
@@ -100,8 +101,11 @@ function draftText(d) {
   return `Draft ${d.id} is ready (not sent):\nTo: ${d.to}${d.cc ? `\nCc: ${d.cc}` : ''}\nSubject: ${d.subject}\n\n${d.body.trim()}\n\nShow it to the user; send it with email_send(draft_id: "${d.id}") when they're happy.`;
 }
 
-/** Runs an email tool. [approved]: the user already said yes (a bot's approval); otherwise [confirm] asks now. */
-export async function run(call, { approved = false, confirm } = {}) {
+/**
+ * Runs an email tool. [approved]: the user already said yes (a bot's approval). Otherwise sending and deleting wait for
+ * an OK: [ask] (the chat's way: aware.addAsk, answered in the conversation) or [confirm] (a yes/no box).
+ */
+export async function run(call, { approved = false, confirm, ask } = {}) {
   const a = call.args || {};
   if (!host || !host.mail) return { out: 'Error: email is not available here.' };
   if (!state.account) await refresh();
@@ -112,6 +116,10 @@ export async function run(call, { approved = false, confirm } = {}) {
   if (need) {
     let detail = need;
     if (call.name === 'email_send') { const d = (await host.mail('getDraft', { id: a.draft_id })).ok; if (d) detail = `To: ${d.to}${d.cc ? `\nCc: ${d.cc}` : ''}\nSubject: ${d.subject}\n\n${d.body.slice(0, 1500)}${d.body.length > 1500 ? '\n…' : ''}`; }
+    if (ask && !confirm) {
+      const ref = ask(need, () => run(call, { approved: true }));
+      return { out: `Needs the user's OK first [${ref}]: ${need}.${call.name === 'email_send' ? `\n\n${detail}\n\n` : ' '}Show them${call.name === 'email_send' ? ' the email' : ''} and ask in one short line; when they say yes, call answer_approval with ref ${ref}.`, step: 'Waiting for your OK: ' + need.slice(0, 60) };
+    }
     const yes = confirm ? await confirm(call.name === 'email_send' ? 'Send this email?' : 'Delete these emails?', detail, call.name === 'email_send' ? 'Send It' : 'Delete') : false;
     if (!yes) return { out: call.name === 'email_send' ? 'The user said no: the email was not sent (the draft is kept).' : 'The user said no: nothing was deleted.' };
   }
@@ -132,3 +140,14 @@ export async function run(call, { approved = false, confirm } = {}) {
     }
   } catch (e) { return { out: 'Error: ' + (e.message || e) }; }
 }
+
+// ---------------------------------------------------------------- registered with the main Atlas (aware.js)
+
+aware.register({
+  id: 'email', forChat: true, forBots: true,
+  tools: () => TOOLS,
+  run: (call) => run(call, { ask: aware.addAsk }),   // brain.runTool calls run() itself first, so bots' approvals pass through
+  brief: () => promptLine(),
+});
+// what the brief says stays fresh: now, and every 5 minutes (the main process caches the count, so this is cheap)
+if (host && host.mail) { refresh().catch(() => {}); const t = setInterval(() => refresh().catch(() => {}), 5 * 60_000); if (t.unref) t.unref(); }

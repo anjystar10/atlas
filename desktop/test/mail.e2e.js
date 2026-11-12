@@ -105,10 +105,18 @@ const MSGS = {
     check('the original is marked answered on the server', imap.boxes.get('INBOX').msgs.find((m) => m.uid === 1).flags.has('\\Answered'));
     const again = await run('email_send', { draft_id: 'd1' });
     check('a sent draft is gone (no double sending)', /There's no draft "d1"/.test(again.out), again.out);
+    // the chat's way: the OK is asked in the conversation (aware.addAsk) and answer_approval runs it
+    const asks = new Map(); let askN = 0;
+    const ask = (what, runIt) => { const ref = 'chat' + (++askN); asks.set(ref, { what, runIt }); return ref; };
+    await run('email_draft', { to: 'tolu@example.net', subject: 'In chat', body: 'Asked in the chat.' });
+    const pend = await M.run({ name: 'email_send', args: { draft_id: 'd2' } }, { ask });
+    check('in the chat, sending waits for a yes in the conversation and shows the email', /Needs the user's OK first \[chat1\]: Send the email “In chat” to tolu@example\.net/.test(pend.out) && /Asked in the chat\./.test(pend.out) && sent.length === 1, pend.out);
+    const later = await asks.get('chat1').runIt();
+    check('their yes sends it', /Sent “In chat”/.test(later.out) && sent.length === 2, later.out);
     const bot = await run('email_draft', { to: 'tolu@example.net', subject: 'Thanks', body: 'Got it, thanks.' });
     confirms = [];
-    const bs = await run('email_send', { draft_id: 'd2' }, { approved: true });
-    check("a bot's already-approved send goes without asking again", /Sent “Thanks” to tolu@example\.net/.test(bs.out) && confirms.length === 0 && sent.length === 2, bs.out);
+    const bs = await run('email_send', { draft_id: 'd3' }, { approved: true });
+    check("a bot's already-approved send goes without asking again", /Sent “Thanks” to tolu@example\.net/.test(bs.out) && confirms.length === 0 && sent.length === 3, bs.out);
     const badTo = await run('email_draft', { to: 'Anna', body: 'hi' });
     check('a name that isn\'t an address is refused, with what to do', /isn't a valid email address/.test(badTo.out) && /find_contact/.test(badTo.out), badTo.out);
 

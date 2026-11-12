@@ -56,7 +56,7 @@ app.whenReady().then(async () => {
     runTool: async (call, { approved, job, approvedWhat } = {}) => {
       if (!BROWSER.has(call.name)) return { out: 'no such tool' };
       if (approved && approvedWhat && ['browser_click', 'browser_type', 'browser_press'].includes(call.name)) {
-        const now = await bb.check(job.id, job.goal, call.name, call.args || {});
+        const got = await bb.check(job.id, job.goal, call.name, call.args || {}); const now = got && typeof got === 'object' ? got.what : got;
         if (now !== approvedWhat) return { out: 'The page changed since the user said yes.' };
       }
       return bb.run(job.id, job.goal, call.name, call.args || {});
@@ -80,7 +80,7 @@ app.whenReady().then(async () => {
     ok('the price list downloaded into the job folder', () => {
       const f = path.join(bb.jobs.get(j.id).folder, 'price list.csv'); assert.equal(fs.readFileSync(f, 'utf8'), 'item,price\nBlue Kettle,25\nRed Kettle,30\n');
     });
-    ok('"Place order" waits for the OK; nothing ordered yet', () => { assert.match(j.approval.what, /Click “Place order” on 127\.0\.0\.1/); assert.equal(got.orders, 0); });
+    ok('"Place order" waits for the OK; nothing ordered yet', () => { assert.match(j.approval.what, /Click “Place order” on a payment page on 127\.0\.0\.1/); assert.equal(j.approval.mustAsk, true, 'money: no rule may skip it'); assert.equal(got.orders, 0); });
     bots.approve(j.id, true);
     await until(() => j.state === B.S.AWAITING_ANSWER, 'the sign-in hand-over');
     ok('approved order placed exactly once', () => assert.equal(got.orders, 1));

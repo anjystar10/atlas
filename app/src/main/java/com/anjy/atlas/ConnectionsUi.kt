@@ -15,10 +15,9 @@ import kotlinx.coroutines.withContext
  * Add one (address and token, or a pasted setup), see its status and tools, reconnect, choose who may use it and how
  * much to ask, remove it. Tokens stay on this phone, encrypted; they don't sync.
  */
-private val connScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
 private fun MainActivity.bg(work: () -> Unit, then: () -> Unit = {}) {
-    connScope.launch {
+    scope.launch {
         val err = withContext(Dispatchers.IO) { try { work(); null } catch (e: Exception) { e.message ?: e.javaClass.simpleName } }
         if (err != null) showBanner(err, MISS) else then()
         render(keepScroll = true)
@@ -52,7 +51,7 @@ internal fun MainActivity.connectionsCard(): View {
     buttons.addView(secondary("Paste a Setup") { pasteSetup() }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(8) })
     c.add(buttons, 14)
     c.add(secondary("Add a Web API") { addApi() }, 8)
-    if (servers.isNotEmpty()) c.add(secondary("Check All Again") { connScope.launch { Connections.refresh(applicationContext, force = true); render(keepScroll = true) } }, 8)
+    if (servers.isNotEmpty()) c.add(secondary("Check All Again") { scope.launch { Connections.refresh(applicationContext, force = true); render(keepScroll = true) } }, 8)
     return c
 }
 
@@ -144,4 +143,4 @@ internal fun MainActivity.connectionsAsker(): suspend (String) -> Boolean = { ne
 }
 
 /** Checks the connections again when Atlas opens (each at most every 10 minutes), off the main thread. */
-internal fun MainActivity.refreshConnections() { connScope.launch { try { Connections.refresh(applicationContext) } catch (_: Exception) {} } }
+internal fun MainActivity.refreshConnections() { scope.launch { try { Connections.refresh(applicationContext) } catch (_: Exception) {} } }

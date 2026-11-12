@@ -3,6 +3,8 @@ import * as store from './store.js';
 import { db, pref, setPref, onChange } from './store.js';
 import * as brain from './brain.js';
 import * as sync from './sync.js';
+import * as keyshare from './keyshare.js';
+import * as botmirror from './botmirror.js';
 import * as voice from './voice.js';
 import { endsTalk } from './speech.js';
 import { Orb } from './orb.js';
@@ -14,6 +16,7 @@ import { renderLibrary, refreshLibrary } from './library.js';
 import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // >>> connections (MCP servers, web APIs)
 import { renderConnections } from './connui.js';
+import { renderEmail } from './mailui.js';   // >>> email: Me → Email
 import * as LW from './linkwire.js';   // >>> device link (control across devices)
 import { renderDevices } from './linkui.js';
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
@@ -177,7 +180,7 @@ function renderBots(page) {
     col.appendChild(lib);
     // <<< library
     const all = bots.visible();
-    if (!all.length) { col.appendChild(h('<div class="card" style="margin-top:14px"><div style="font:400 19px var(--serif)">No bots yet</div><p class="muted" style="margin:6px 0 0">Ask Atlas for something bigger, like “research the best monitor under $300 for coding and send me a report”, or say “send a bot to…”.</p></div>')); BX.extrasSections(col, kit()); return; }
+    if (!all.length) { col.appendChild(h('<div class="card" style="margin-top:14px"><div style="font:400 19px var(--serif)">No bots yet</div><p class="muted" style="margin:6px 0 0">Ask Atlas for something bigger, like “research the best monitor under $300 for coding and send me a report”, or say “send a bot to…”.</p></div>')); botsElsewhere(col); BX.extrasSections(col, kit()); return; }
     const list = h('<div style="margin-top:14px"></div>'); col.appendChild(list);
     for (const x of all) {
       const line = [BOT_LABELS[x.state], x.state === BOT.RUNNING ? x.current : null, x.plan.length ? `plan ${x.plan.filter((p) => p.done).length}/${x.plan.length}` : null].filter(Boolean).join(' · ');
@@ -185,6 +188,7 @@ function renderBots(page) {
       c.onclick = () => { botView = x.id; botDraft = ''; render(); };
       list.appendChild(c);
     }
+    botsElsewhere(col);
     BX.extrasSections(col, kit());
     return;
   }
@@ -468,6 +472,18 @@ async function editTask(t) {
 }
 
 // ---- Me ----
+/** Bots working on the phone (read-only here: each job runs where it was started). Click one for its report. */
+function botsElsewhere(col) {
+  const list = botmirror.others(); if (!list.length) return;
+  col.appendChild(h(`<div class="eyebrow" style="margin-top:22px">${list.some((v) => v.platform === 'android') ? 'On Your Phone' : 'On Your Other Device'}</div>`));
+  for (const v of list.slice(0, 20)) {
+    const line = [v.label, v.state === 'running' && v.current ? v.current : null, v.total ? `plan ${v.done}/${v.total}` : null].filter(Boolean).join(' · ');
+    const c = h(`<div class="card botcard"${v.report ? ' role="button" tabindex="0"' : ''}><div class="goal">${esc(v.goal)}</div><div class="small muted" style="margin-top:6px">${esc(line)}</div></div>`);
+    if (v.report) c.onclick = () => sheet({ title: v.goal.slice(0, 80), html: `<p class="small muted" style="margin:0 0 8px">Its report, from your phone.</p><div class="md" style="max-height:60vh;overflow:auto">${renderMarkdown(v.report)}</div>`, primary: 'Close', secondary: null });
+    col.appendChild(c);
+  }
+}
+
 function settingRow(label, on, onToggle, note) {
   const r = h(`<div class="setting"><div class="grow"><div>${esc(label)}</div>${note ? `<div class="small muted">${esc(note)}</div>` : ''}</div><div class="switch ${on ? 'on' : ''}"></div></div>`);
   r.querySelector('.switch').onclick = (e) => { e.currentTarget.classList.toggle('on'); onToggle(e.currentTarget.classList.contains('on')); };
@@ -648,6 +664,10 @@ function renderMe(page) {
   }
   // <<< vault
 
+  // >>> email (mailui.js)
+  renderEmail(col, { h, esc, sheet, toast, render });
+  // <<< email
+
   // >>> connections: MCP servers and web APIs (connui.js)
   renderConnections(col, { h, esc, sheet, toast, render, settingRow });
   // <<< connections
@@ -664,10 +684,30 @@ function renderMe(page) {
     r.querySelector('#link').onclick = async () => { if (await sync.link(r.querySelector('#code').value)) { toast('Linked. Syncing…'); render(true); } else toast("That code doesn't look right. Check it and try again."); };
     const n = h('<button class="btn" style="margin-top:10px">Start a New Link Here Instead</button>'); n.onclick = async () => { await sync.link(sync.newCode()); render(true); }; dc.appendChild(n);
   } else {
-    dc.appendChild(h(`<div style="font:400 22px var(--serif)">Linked</div><p class="muted" style="margin:4px 0 10px">${esc(sync.status.last || 'Syncing…')}${sync.status.at ? ' · ' + esc(logged(sync.status.at)) : ''}</p>`));
+    dc.appendChild(h(`<div style="font:400 22px var(--serif)">Linked</div>`));
+    // how syncing stands, in plain words: when it last worked, what's waiting, the phone, any problem and its fix
+    const ss = sync.status, p = ss.problem;
+    const whenSaid = (ms) => { const t = logged(ms); return t.startsWith('Today ') ? 'today ' + t.slice(6) : 'on ' + t; };
+    const headline = p ? p.text : ss.running ? 'Syncing…' : ss.at ? `Synced ${whenSaid(ss.at)}${ss.pending ? ` · ${ss.pending} change${ss.pending === 1 ? '' : 's'} waiting to go up` : ''}` : (ss.last || 'Syncing…');
+    const lines = [`<p style="margin:4px 0 2px;color:${p && p.kind !== 'offline' ? 'var(--warm)' : 'var(--muted)'}">${esc(headline)}</p>`];
+    if (p && p.fix) lines.push(`<p class="small muted" style="margin:2px 0">${esc(p.fix)}</p>`);
+    const cloudNow = Date.now() + (ss.skew || 0);
+    if (!ss.others.length) lines.push('<p class="small muted" style="margin:6px 0 0">Your phone hasn\'t synced yet. Enter the code below in Atlas there.</p>');
+    for (const o of ss.others) {
+      const who = o.platform === 'android' ? 'Your phone' : o.platform === 'windows' ? 'Another PC' : 'Your other device';
+      const ago = cloudNow - o.seenMs;
+      const seen = o.seenMs <= 0 ? 'not seen yet' : ago < 11 * 60000 ? 'active now' : 'last seen ' + whenSaid(Date.now() - ago);
+      lines.push(`<p class="small muted" style="margin:6px 0 0">${esc(who)} · ${esc(seen)}${o.app ? ' · Atlas ' + esc(o.app) : ''}</p>`);
+      if (o.outdated) lines.push('<p class="small" style="margin:2px 0 0;color:var(--warm)">Update Atlas there so everything syncs both ways.</p>');
+    }
+    if (ss.tooBig) lines.push(`<p class="small muted" style="margin:4px 0 0">${ss.tooBig} item${ss.tooBig === 1 ? ' is' : 's are'} too big to sync and stay${ss.tooBig === 1 ? 's' : ''} on this PC only.</p>`);
+    if (ss.waiting) lines.push(`<p class="small" style="margin:4px 0 0;color:var(--warm)">${ss.waiting} item${ss.waiting === 1 ? '' : 's'} from your phone need${ss.waiting === 1 ? 's' : ''} a newer Atlas here. Update Atlas to bring ${ss.waiting === 1 ? 'it' : 'them'} in.</p>`);
+    dc.appendChild(h(`<div style="margin-bottom:10px">${lines.join('')}</div>`));
     dc.appendChild(h(`<div class="small muted">Your link code (keep it private):</div>`));
     dc.appendChild(h(`<div class="field mono" style="margin:6px 0 10px;text-align:center;font-size:17px;user-select:all">${esc(code)}</div>`));
-    const r = h('<div class="row"><button class="btn">Copy Code</button><button class="btn">Sync Now</button><button class="btn danger">Unlink This PC</button></div>'); dc.appendChild(r);
+    dc.appendChild(settingRow('Share My AI Keys', keyshare.on(), (on) => keyshare.set(on),
+      'Your AI keys go to your phone too, inside the encrypted sync (scrambled with your link code; the cloud can’t read them). Turn it on on both devices.'));
+    const r = h('<div class="row" style="margin-top:10px"><button class="btn">Copy Code</button><button class="btn">Sync Now</button><button class="btn danger">Unlink This PC</button></div>'); dc.appendChild(r);
     r.children[0].onclick = () => { navigator.clipboard.writeText(code); toast('Copied'); };
     r.children[1].onclick = async () => { toast('Syncing…'); toast(await sync.runOnce()); render(true); };
     r.children[2].onclick = async () => { if (await sheet({ title: 'Unlink This PC?', body: 'It stops syncing. Everything stays on this PC; the phone keeps its copy.', primary: 'Unlink', danger: true })) { await sync.unlink(); render(true); } };
@@ -890,7 +930,8 @@ async function main() {
   host.showOrb(pref('onScreen', true));
   if (pref(F)) showFocus();
   checkDue(); setInterval(checkDue, 15000);
-  sync.syncSoon(800); sync.keepFresh();
+  keyshare.register(); botmirror.register({ visible: () => bots.visible(), labels: BOT_LABELS });
+  sync.loadStatus(); sync.syncSoon(800); sync.keepFresh();
   // >>> device link: the live line to the phone (tasks both ways, remote control)
   LW.start({ sheet, toast }); brain.ui.onPhone = (task) => LW.sendTask(task);
   LW.onChange(() => { if (tab === 'me') render(true, true); });

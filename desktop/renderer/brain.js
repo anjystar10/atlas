@@ -4,7 +4,8 @@ import { db, pref, setPref, saveChat, changed, OPEN, findTask, createTask, updat
 import { plainReply, plainMemory } from './plain.js';
 import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
-import * as mail from './mail.js';   // >>> email (mail.js): read, search, draft and send the user's email
+import * as aware from './aware.js';   // what's going on + the capability registry (bots, approvals, the chat's browser, new subsystems)
+import * as mail from './mail.js';   // >>> email (mail.js registers its tools and brief line in aware.js)
 const host = window.atlasHost;
 
 // ---- this PC, measured: a local model is checked against free memory before it's used (see fit.js) ----
@@ -317,7 +318,6 @@ export const TOOLS = [
   fn('set_routine', 'Set up a routine: a bot sent on a schedule, like "every weekday at 8am, summarise the news on AI". Runs every 5 minutes at most.', {
     goal: str('What the bot should do each time'), schedule: str('When, in plain words: "every weekday at 8am", "every 2 hours", "every Sunday evening", "every month on the 1st at 9am"'),
     name: str('A short name (optional)'), specialist: str('A specialist bot to send (optional)') }, ['goal', 'schedule']),
-  ...mail.TOOLS,   // >>> email
 ];
 
 const PC = new Set(['open_app', 'list_apps', 'open_link', 'open_path', 'list_files', 'read_file', 'write_file', 'run_command', 'look_at_screen', 'click', 'type_text', 'press_keys', 'scroll']);
@@ -458,12 +458,17 @@ export async function runTool(call, { approved = false } = {}) {
       return { out: r.out || 'Done.', step: r.step || null, image: r.image || null, pc: true };
     }
     if (conn.owns(call.name)) return await conn.run(call, { approved, confirm: ui.confirm });   // connections
-    if (mail.owns(call.name)) return await mail.run(call, { approved, confirm: ui.confirm });   // >>> email
+    // >>> email: run here rather than through aware.run, which has no way to say a bot's action was already approved
+    if (mail.owns(call.name)) return await mail.run(call, { approved, ask: aware.addAsk });
+    const viaCap = await aware.run(call);   // the capability registry (aware.js)
+    if (viaCap) return viaCap;
     return { out: `Error: there's no tool called ${call.name}.` };
   } catch (e) { return { out: 'Error: ' + (e.message || e) }; }
 }
 
 // ------------------------------------------------------------------ the conversation
+
+const AWARE_LABEL = { bots: () => 'Checking your bots', answer_approval: (a) => (a.yes ? 'Going ahead' : 'Cancelling that'), web: (a) => (a.action === 'open' ? 'Opening ' + String(a.url || '').replace(/^https?:\/\//, '').slice(0, 40) : 'Working on the page') };
 
 export const convo = { busy: false, status: null, stopFlag: 0 };
 const KEEP_TURNS = 24, MAX_STEPS = 40;
@@ -477,7 +482,7 @@ function history() {
   return h;
 }
 
-export function systemPrompt(spoken) {
+export function systemPrompt(spoken, brief = '') {
   const name = (db.state.settings.name || '').trim() || 'the user';
   const now = new Date();
   return `You are Atlas, ${name}'s personal AI assistant. Right now you're on their Windows PC (you also live on their phone, and the two share one memory: the Log and this conversation sync). On the PC you can open apps, files, folders and links, look at the screen, click, type and press keys, and run PowerShell commands. You can search the internet and read pages directly. You keep their Log: reminders and things they want remembered.
@@ -511,16 +516,15 @@ Your phone (on_phone):
 Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of PC actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
+${aware.PROMPT}
 - When they teach you how they want a kind of job done, save it with save_skill. When they want a bot on a schedule ("every morning…"), use set_routine (for one-off reminders use set_reminder).
 ${ui.botTeam()}
 
-${conn.promptLine() ? conn.promptLine() + '\n\n' : ''}${mail.promptLine()}
-
-Your own settings (change_setting, when they ask):
+${conn.promptLine() ? conn.promptLine() + '\n\n' : ''}Your own settings (change_setting, when they ask):
 ${ui.settingsText()}
 
 Now: ${now.toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
-${logContext()}`;
+${brief ? `\nWhat's going on right now (for you; don't read it out):\n${brief}\n` : ''}${logContext()}`;
 }
 
 /**
@@ -545,7 +549,7 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
     const full = q + attachments.filter((x) => x.kind === 'text').map((x) => `\n\n[File: ${x.name}]\n${x.text}\n[End of ${x.name}]`).join('');
     p = await guardLocal(p);
     reply.source = p.name;
-    const tools = [...TOOLS, ...conn.declarations('chat')];   // connections
+    const tools = [...TOOLS, ...conn.declarations('chat'), ...aware.chatTools()];   // connections + the capability registry
     let sess = session(p, keyFor(p.id), hist, full, media, tools);
     const tried = new Set([p.id]);
     let final = null, steps = 0;
@@ -553,7 +557,8 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
       steps++;
       if (mine !== convo.stopFlag) throw new Failure('Stopped.');
       let turn;
-      try { turn = await callWithKeys(p, sess, () => sess.call(systemPrompt(spoken)), mine); }
+      const brief = await aware.brief({ markSeen: steps === 1 }).catch(() => '');   // fresh each step, so a finished action shows
+      try { turn = await callWithKeys(p, sess, () => sess.call(systemPrompt(spoken, brief)), mine); }
       catch (e) {
         if (!(e instanceof Switch)) throw e;
         if (tried.has(e.to.id)) throw new Failure(e.message);
@@ -566,7 +571,7 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
       if (turn.text) { reply.text = plainReply(turn.text); changed('chat'); }
       const results = [];
       for (const c of turn.calls) {
-        convo.status = conn.label(c.name, c.args || {}) || mail.label(c.name, c.args || {}) || (LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
+        convo.status = conn.label(c.name, c.args || {}) || mail.label(c.name, c.args || {}) || (LABEL[c.name] || AWARE_LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
         const r = await runTool(c);
         if (r.step) reply.steps.push(r.step);
         results.push({ call: c, out: r.out, image: r.image });
