@@ -790,3 +790,43 @@ test('connections in a bot: tools appear while the bot runs; read-only ones go a
   assert.deepEqual(w.ran, [['mcp__notes__add', false], ['mcp__notes__save_note', true]]);
   assert.equal(j.state, B.S.COMPLETED);
 });
+
+// ------------------------------------------------------------------ email (mailtext.js; the phone's MailText.kt answers the same cases)
+test('email: the shared cases in tools/mail-fixtures.json still hold (the phone checks the same file)', async () => {
+  const { createRequire } = await import('node:module'); const req = createRequire(import.meta.url);
+  const T = req('../mailtext.js'); const F = req('../../tools/mail-fixtures.json');
+  for (const c of F.htmlToText) assert.equal(T.htmlToText(c.in), c.out);
+  for (const c of F.stripQuoted) assert.deepEqual(T.stripQuoted(c.in), c.out);
+  for (const c of F.quoteForReply) assert.equal(T.quoteForReply(c.body, c.original), c.out);
+  for (const c of F.replySubject) assert.equal(T.replySubject(c.in), c.out);
+  for (const c of F.parseQuery) assert.deepEqual(T.parseQuery(c.in), c.out);
+  for (const c of F.presetFor) assert.deepEqual(T.presetFor(c.in), c.out);
+  for (const c of F.parseId) assert.deepEqual(T.parseId(c.in), c.out);
+  for (const c of F.splitAddresses) assert.deepEqual(T.splitAddresses(c.in), c.out);
+  for (const c of F.addr) assert.equal(T.addr(c.in), c.out);
+});
+test('email: what the cases mean', async () => {
+  const { createRequire } = await import('node:module'); const T = createRequire(import.meta.url)('../mailtext.js');
+  assert.equal(T.stripQuoted('Yes!\n\nOn Mon, Anna <a@x> wrote:\n> lunch?').text, 'Yes!');
+  assert.equal(T.stripQuoted('> a forward that is only quotes').hidden, false);
+  assert.equal(T.htmlToText('<p>Caf&eacute;</p><script>x()</script>'), 'Café');
+  assert.ok(T.presetFor('me@outlook.com').webmail && !T.presetFor('me@outlook.com').imap, 'Outlook.com goes to the bot browser');
+  assert.deepEqual(T.presetFor('a@gmail.com').imap, { host: 'imap.gmail.com', port: 993, secure: true });
+  assert.match(T.friendlyError({ authenticationFailed: true }, T.presetFor('a@gmail.com')), /Gmail turned down the password.*apppasswords/);
+  assert.match(T.friendlyError({ code: 'ENOTFOUND' }), /Couldn't find the mail server/);
+  assert.match(T.friendlyError({ code: 'EAUTH', response: '535 5.7.8 Username and Password not accepted' }, T.presetFor('x@yahoo.com')), /Yahoo Mail turned down/);
+  assert.equal(T.splitAddresses('Anna'), null, 'a bare name is not an address');
+});
+test('email: sending and deleting need an OK, as a message and a delete; reading and tidying do not', async () => {
+  const M = await import('../renderer/mail.js');
+  assert.match(M.approvalFor('email_send', { draft_id: 'd9' }), /^Send the email draft d9$/);
+  M.state.drafts.set('d1', { to: 'Anna <a@x.org>', subject: 'Re: Lunch' });
+  assert.equal(M.approvalFor('email_send', { draft_id: 'd1' }), 'Send the email “Re: Lunch” to Anna <a@x.org>');
+  assert.equal(M.approvalFor('email_delete', { ids: 'INBOX#1, INBOX#2' }), 'Delete 2 emails (to the trash)');
+  for (const t of ['email_list', 'email_read', 'email_search', 'email_draft', 'email_mark', 'email_archive', 'email_move', 'email_save_attachment']) assert.equal(M.approvalFor(t, {}), null, t);
+  assert.equal(M.category('email_send'), 'message'); assert.equal(M.category('email_delete'), 'delete');
+  const BX = await import('../renderer/botx.js');
+  assert.equal(BX.categoryFor('email_send', {}), 'message'); assert.equal(BX.categoryFor('email_delete', {}), 'delete');
+  assert.deepEqual(M.TOOLS.map((t) => t.name), ['email_list', 'email_read', 'email_search', 'email_save_attachment', 'email_draft', 'email_send', 'email_mark', 'email_archive', 'email_move', 'email_delete']);
+  for (const t of M.TOOLS) assert.ok(t.description.length > 20 && t.parameters.type === 'object', t.name);
+});

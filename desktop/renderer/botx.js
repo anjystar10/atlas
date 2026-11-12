@@ -38,6 +38,8 @@ export function categoryFor(tool, a = {}) {
     case 'write_file': case 'forget': return 'delete';
     case 'update_reminder': return 'delete';
     case 'open_link': return 'message';
+    case 'email_send': return 'message';   // >>> email
+    case 'email_delete': return 'delete';
     case 'press_keys': case 'type_text': case 'tap': case 'click': return guessCategory(a.label || a.text || '') === 'other' ? 'message' : guessCategory(a.label || a.text || '');
     default: return connectionCategory(tool, a) || 'other';
   }

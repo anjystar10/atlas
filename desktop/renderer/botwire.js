@@ -10,6 +10,7 @@ import * as sync from './sync.js';
 import { BROWSER_TOOLS, BROWSER, VAULT_TOOLS, browserLabel } from './botbrowse.js';
 import { FILE_TOOLS, FILES, filesLabel, runFiles, filesFooter } from './botfiles.js';
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
+import * as mail from './mail.js';   // >>> email
 const host = window.atlasHost;
 
 function systemPrompt(j = {}) {
@@ -119,9 +120,9 @@ export const bots = createBots({
   isSwitch: (e) => e instanceof brain.Switch,
   isRetryable: (e) => e instanceof brain.Failure && (e.offline || [429, 500, 502, 503, 504].includes(e.code)),
   tools: () => [...brain.TOOLS, ...conn.declarations('bots')],   // connections come and go while Atlas runs
-  extraApproval: (name, args) => conn.approvalFor(name, args),
+  extraApproval: (name, args) => conn.approvalFor(name, args) || mail.approvalFor(name, args),   // >>> email: sending and deleting ask
   extraTools: [...(host.botBrowser ? BROWSER_TOOLS : []), ...(host.vault ? VAULT_TOOLS : []), ...(host.botFiles ? FILE_TOOLS : [])],
-  labelFor: (c) => browserLabel(c) || filesLabel(c) || conn.label(c.name, c.args || {}),
+  labelFor: (c) => browserLabel(c) || filesLabel(c) || conn.label(c.name, c.args || {}) || mail.label(c.name, c.args || {}),
   runTool: (call, opts) => (call.name === 'vault_list' ? (host.vault ? host.vault.model().then((out) => ({ out, step: 'Checked your saved sign-ins' })) : Promise.resolve({ out: "Error: the vault isn't available here." }))
     : BROWSER.has(call.name) ? runBrowser(call, opts) : FILES.has(call.name) ? runFiles(call, opts && opts.job) : brain.runTool(call, opts)),
   reportFooter: filesFooter,

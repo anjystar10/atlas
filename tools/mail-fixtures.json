@@ -1,0 +1,387 @@
+{
+ "htmlToText": [
+  {
+   "in": "<p>Hello&nbsp;<b>there</b></p><p>Line two</p>",
+   "out": "Hello there\n\nLine two"
+  },
+  {
+   "in": "<html><head><style>p{x}</style><title>t</title></head><body><div>Caf&eacute;? &amp; &#8212; &#x2603;</div><script>bad()</script></body></html>",
+   "out": "Café? & — ☃"
+  },
+  {
+   "in": "<ul><li>One</li><li>Two</li></ul><a href=\"https://x.org/a?b=1&amp;c=2\">Open</a> <a href=\"mailto:a@b.c\">mail me</a>",
+   "out": "• One\n• Two\nOpen (https://x.org/a?b=1&c=2) mail me"
+  },
+  {
+   "in": "Text<br>next<br/>third<table><tr><td>a</td><td>b</td></tr></table><!-- hidden -->",
+   "out": "Text\nnext\nthird\n\na b"
+  },
+  {
+   "in": "<div>  lots   of\n\n\n spaces </div><div></div><div>end</div>",
+   "out": "lots of\n\nspaces\n\nend"
+  }
+ ],
+ "stripQuoted": [
+  {
+   "in": "Sounds good, see you then.\n\nOn Mon, 9 Nov 2026 at 10:00, Anna <a@x.org> wrote:\n> Lunch?\n> Friday",
+   "out": {
+    "text": "Sounds good, see you then.",
+    "hidden": true
+   }
+  },
+  {
+   "in": "Thanks!\n\nOn Mon, 9 Nov 2026 at 10:00, Anna Smith\n<a@x.org> wrote:\n> Lunch?",
+   "out": {
+    "text": "Thanks!",
+    "hidden": true
+   }
+  },
+  {
+   "in": "Will do.\n\n-----Original Message-----\nFrom: Bob\nSent: Monday\nSubject: x\n\nold text",
+   "out": {
+    "text": "Will do.",
+    "hidden": true
+   }
+  },
+  {
+   "in": "Done.\n\n________________________________\nFrom: Bob <b@y.com>\nSent: Monday, 9 November 2026 10:00\nTo: King\nSubject: Re: x\n\nold",
+   "out": {
+    "text": "Done.",
+    "hidden": true
+   }
+  },
+  {
+   "in": "From: the start, this line is mine\nand more",
+   "out": {
+    "text": "From: the start, this line is mine\nand more",
+    "hidden": false
+   }
+  },
+  {
+   "in": "> only quotes\n> here",
+   "out": {
+    "text": "> only quotes\n> here",
+    "hidden": false
+   }
+  },
+  {
+   "in": "Inline answer below\n> question one\nmy answer one\n> question two\nmy answer two",
+   "out": {
+    "text": "Inline answer below\n> question one\nmy answer one\n> question two\nmy answer two",
+    "hidden": false
+   }
+  },
+  {
+   "in": "Hi\n\nFrom my phone",
+   "out": {
+    "text": "Hi\n\nFrom my phone",
+    "hidden": false
+   }
+  },
+  {
+   "in": "Ok\r\n\r\nOn Tue, Anna wrote:\r\n> hi\r\n",
+   "out": {
+    "text": "Ok",
+    "hidden": true
+   }
+  }
+ ],
+ "quoteForReply": [
+  {
+   "body": "Yes, Friday works.",
+   "original": {
+    "date": "2026-11-09T10:00:00Z",
+    "from": "Anna <a@x.org>",
+    "text": "Lunch?\nFriday at 1"
+   },
+   "out": "Yes, Friday works.\n\nOn Mon, 09 Nov 2026 10:00 GMT, Anna <a@x.org> wrote:\n> Lunch?\n> Friday at 1\n"
+  },
+  {
+   "body": "ok",
+   "original": {
+    "from": "",
+    "text": "x"
+   },
+   "out": "ok\n\nOn an earlier date, they wrote:\n> x\n"
+  }
+ ],
+ "replySubject": [
+  {
+   "in": "Lunch",
+   "out": "Re: Lunch"
+  },
+  {
+   "in": "Re: Lunch",
+   "out": "Re: Lunch"
+  },
+  {
+   "in": "RE:Lunch",
+   "out": "RE:Lunch"
+  },
+  {
+   "in": "AW: x",
+   "out": "AW: x"
+  },
+  {
+   "in": "",
+   "out": "Re: (no subject)"
+  },
+  {
+   "in": "Fwd: x",
+   "out": "Re: Fwd: x"
+  }
+ ],
+ "parseQuery": [
+  {
+   "in": "from:anna subject:\"lunch plans\" is:unread after:2026-11-01 pizza",
+   "out": {
+    "from": "anna",
+    "subject": "lunch plans",
+    "unread": true,
+    "since": "2026-11-01",
+    "text": "pizza"
+   }
+  },
+  {
+   "in": "is:starred before:2026/10/05",
+   "out": {
+    "starred": true,
+    "before": "2026-10-05"
+   }
+  },
+  {
+   "in": "hello world",
+   "out": {
+    "text": "hello world"
+   }
+  },
+  {
+   "in": "to:bob@x.com is:read",
+   "out": {
+    "to": "bob@x.com",
+    "unread": false
+   }
+  },
+  {
+   "in": "label:work \"exact phrase\"",
+   "out": {
+    "text": "label:work exact phrase"
+   }
+  }
+ ],
+ "presetFor": [
+  {
+   "in": "king@gmail.com",
+   "out": {
+    "id": "gmail",
+    "name": "Gmail",
+    "imap": {
+     "host": "imap.gmail.com",
+     "port": 993,
+     "secure": true
+    },
+    "smtp": {
+     "host": "smtp.gmail.com",
+     "port": 465,
+     "secure": true
+    },
+    "help": "Gmail needs an app password, not your normal password: turn on 2-Step Verification, then make one at https://myaccount.google.com/apppasswords and paste its 16 letters here.",
+    "known": true
+   }
+  },
+  {
+   "in": "x@Yahoo.com",
+   "out": {
+    "id": "yahoo",
+    "name": "Yahoo Mail",
+    "imap": {
+     "host": "imap.mail.yahoo.com",
+     "port": 993,
+     "secure": true
+    },
+    "smtp": {
+     "host": "smtp.mail.yahoo.com",
+     "port": 465,
+     "secure": true
+    },
+    "help": "Yahoo needs an app password: Yahoo Account Security → Generate app password, then paste it here.",
+    "known": true
+   }
+  },
+  {
+   "in": "me@icloud.com",
+   "out": {
+    "id": "icloud",
+    "name": "iCloud Mail",
+    "imap": {
+     "host": "imap.mail.me.com",
+     "port": 993,
+     "secure": true
+    },
+    "smtp": {
+     "host": "smtp.mail.me.com",
+     "port": 587,
+     "secure": false
+    },
+    "help": "iCloud needs an app-specific password: account.apple.com → Sign-In and Security → App-Specific Passwords.",
+    "known": true
+   }
+  },
+  {
+   "in": "me@outlook.com",
+   "out": {
+    "id": "outlook",
+    "name": "Outlook.com",
+    "webmail": "https://outlook.live.com/mail/",
+    "help": "Outlook.com stopped letting apps sign in with a password (September 2024), so Atlas reads it in its own browser instead: you sign in there once.",
+    "known": true
+   }
+  },
+  {
+   "in": "me@hotmail.com",
+   "out": {
+    "id": "outlook",
+    "name": "Outlook.com",
+    "webmail": "https://outlook.live.com/mail/",
+    "help": "Outlook.com stopped letting apps sign in with a password (September 2024), so Atlas reads it in its own browser instead: you sign in there once.",
+    "known": true
+   }
+  },
+  {
+   "in": "me@proton.me",
+   "out": {
+    "id": "proton",
+    "name": "Proton Mail",
+    "webmail": "https://mail.proton.me/",
+    "help": "Proton Mail only allows other apps through its paid Bridge app, so Atlas reads it in its own browser instead: you sign in there once.",
+    "known": true
+   }
+  },
+  {
+   "in": "me@mycompany.co.uk",
+   "out": {
+    "id": "other",
+    "name": "mycompany.co.uk",
+    "imap": {
+     "host": "imap.mycompany.co.uk",
+     "port": 993,
+     "secure": true
+    },
+    "smtp": {
+     "host": "smtp.mycompany.co.uk",
+     "port": 465,
+     "secure": true
+    },
+    "help": "If your provider uses two-step sign-in, it probably needs an app password rather than your normal one.",
+    "known": false
+   }
+  },
+  {
+   "in": "bad",
+   "out": {
+    "id": "other",
+    "name": "Email",
+    "imap": {
+     "host": "",
+     "port": 993,
+     "secure": true
+    },
+    "smtp": {
+     "host": "",
+     "port": 465,
+     "secure": true
+    },
+    "help": "If your provider uses two-step sign-in, it probably needs an app password rather than your normal one.",
+    "known": false
+   }
+  }
+ ],
+ "parseId": [
+  {
+   "in": "INBOX#12",
+   "out": {
+    "folder": "INBOX",
+    "uid": 12
+   }
+  },
+  {
+   "in": "[Gmail]/All Mail#5",
+   "out": {
+    "folder": "[Gmail]/All Mail",
+    "uid": 5
+   }
+  },
+  {
+   "in": "Work#Stuff#7",
+   "out": {
+    "folder": "Work#Stuff",
+    "uid": 7
+   }
+  },
+  {
+   "in": "INBOX#0",
+   "out": null
+  },
+  {
+   "in": "INBOX",
+   "out": null
+  },
+  {
+   "in": "#3",
+   "out": null
+  }
+ ],
+ "splitAddresses": [
+  {
+   "in": "Anna <a@x.org>, b@y.com",
+   "out": [
+    "Anna <a@x.org>",
+    "b@y.com"
+   ]
+  },
+  {
+   "in": "\"Smith, Anna\" <a@x.org>",
+   "out": [
+    "\"Smith, Anna\" <a@x.org>"
+   ]
+  },
+  {
+   "in": "Anna",
+   "out": null
+  },
+  {
+   "in": "a@x.org; c@d.ee",
+   "out": [
+    "a@x.org",
+    "c@d.ee"
+   ]
+  },
+  {
+   "in": "",
+   "out": []
+  }
+ ],
+ "addr": [
+  {
+   "in": {
+    "name": "Anna Smith",
+    "address": "a@x.org"
+   },
+   "out": "Anna Smith <a@x.org>"
+  },
+  {
+   "in": {
+    "name": "Smith, Anna",
+    "address": "a@x.org"
+   },
+   "out": "\"Smith, Anna\" <a@x.org>"
+  },
+  {
+   "in": {
+    "name": "",
+    "address": "b@y.com"
+   },
+   "out": "b@y.com"
+  }
+ ]
+}

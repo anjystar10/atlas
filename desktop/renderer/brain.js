@@ -4,6 +4,7 @@ import { db, pref, setPref, saveChat, changed, OPEN, findTask, createTask, updat
 import { plainReply, plainMemory } from './plain.js';
 import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
+import * as mail from './mail.js';   // >>> email (mail.js): read, search, draft and send the user's email
 const host = window.atlasHost;
 
 // ---- this PC, measured: a local model is checked against free memory before it's used (see fit.js) ----
@@ -316,6 +317,7 @@ export const TOOLS = [
   fn('set_routine', 'Set up a routine: a bot sent on a schedule, like "every weekday at 8am, summarise the news on AI". Runs every 5 minutes at most.', {
     goal: str('What the bot should do each time'), schedule: str('When, in plain words: "every weekday at 8am", "every 2 hours", "every Sunday evening", "every month on the 1st at 9am"'),
     name: str('A short name (optional)'), specialist: str('A specialist bot to send (optional)') }, ['goal', 'schedule']),
+  ...mail.TOOLS,   // >>> email
 ];
 
 const PC = new Set(['open_app', 'list_apps', 'open_link', 'open_path', 'list_files', 'read_file', 'write_file', 'run_command', 'look_at_screen', 'click', 'type_text', 'press_keys', 'scroll']);
@@ -456,6 +458,7 @@ export async function runTool(call, { approved = false } = {}) {
       return { out: r.out || 'Done.', step: r.step || null, image: r.image || null, pc: true };
     }
     if (conn.owns(call.name)) return await conn.run(call, { approved, confirm: ui.confirm });   // connections
+    if (mail.owns(call.name)) return await mail.run(call, { approved, confirm: ui.confirm });   // >>> email
     return { out: `Error: there's no tool called ${call.name}.` };
   } catch (e) { return { out: 'Error: ' + (e.message || e) }; }
 }
@@ -511,7 +514,9 @@ Atlas Bot (deploy_bot):
 - When they teach you how they want a kind of job done, save it with save_skill. When they want a bot on a schedule ("every morning…"), use set_routine (for one-off reminders use set_reminder).
 ${ui.botTeam()}
 
-${conn.promptLine() ? conn.promptLine() + '\n\n' : ''}Your own settings (change_setting, when they ask):
+${conn.promptLine() ? conn.promptLine() + '\n\n' : ''}${mail.promptLine()}
+
+Your own settings (change_setting, when they ask):
 ${ui.settingsText()}
 
 Now: ${now.toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
@@ -561,7 +566,7 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
       if (turn.text) { reply.text = plainReply(turn.text); changed('chat'); }
       const results = [];
       for (const c of turn.calls) {
-        convo.status = conn.label(c.name, c.args || {}) || (LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
+        convo.status = conn.label(c.name, c.args || {}) || mail.label(c.name, c.args || {}) || (LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
         const r = await runTool(c);
         if (r.step) reply.steps.push(r.step);
         results.push({ call: c, out: r.out, image: r.image });

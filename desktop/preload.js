@@ -57,6 +57,9 @@ contextBridge.exposeInMainWorld('atlasHost', {
     done: () => ipcRenderer.invoke('remote:done'),
   },
   // <<< device link
+  // >>> email (mail.js): the account and the password stay in the main process
+  mail: (op, args) => ipcRenderer.invoke('mail', op, args),
+  // <<< email
   // >>> connections
   conn: (op, ...args) => ipcRenderer.invoke('conn', op, ...args),
   // <<< connections

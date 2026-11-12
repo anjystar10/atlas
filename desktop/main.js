@@ -271,6 +271,24 @@ ipcMain.handle('remote:done', (e) => { if (fromMain(e)) remote.stopInput(); retu
 app.on('will-quit', () => { try { remote.stopInput(); } catch {} });
 // <<< device link
 
+// >>> email (see mail.js): read, search, draft and send over IMAP/SMTP with an app password; never synced
+let mailbox = null;
+function mailer() {
+  if (mailbox) return mailbox;
+  const can = () => { try { return safeStorage.isEncryptionAvailable(); } catch { return false; } };
+  mailbox = require('./mail').createMail({
+    load: () => { try { return fs.readFileSync(file('email.json'), 'utf8'); } catch { return null; } },
+    save: (text) => writeAtomic('email.json', text),
+    encrypt: (t) => (can() ? 'enc:' + safeStorage.encryptString(t).toString('base64') : 'raw:' + Buffer.from(t, 'utf8').toString('base64')),
+    decrypt: (v) => (String(v).startsWith('enc:') ? safeStorage.decryptString(Buffer.from(String(v).slice(4), 'base64')) : Buffer.from(String(v).slice(4), 'base64').toString('utf8')),
+    attachmentsDir: () => path.join(app.getPath('documents'), 'Atlas Bot', 'Email attachments'),
+  });
+  return mailbox;
+}
+ipcMain.handle('mail', async (e, op, args) => (fromMain(e) ? mailer().op(String(op || ''), args && typeof args === 'object' ? args : {}) : { error: 'not allowed' }));
+app.on('will-quit', () => { if (mailbox) mailbox.close(); });
+// <<< email
+
 // ------------------------------------------------------------------ connections (MCP servers and web APIs; see mcp.js)
 
 let connections = null;
