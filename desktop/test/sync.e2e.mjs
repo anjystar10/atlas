@@ -233,4 +233,21 @@ test('shared AI keys: off by default (nothing sent); on, the phone’s key arriv
   await ks.set(false);
 });
 
+test('bot jobs show on the other device, read-only: the phone’s arrive, this PC’s go up, and none run twice', async () => {
+  const bm = await import('../renderer/botmirror.js');
+  const pcJobs = [{ id: 'job-pc', goal: 'Compare three laptops', state: 'running', current: 'Reading a review', plan: [{ done: true }, { done: false }], createdAt: now(), updatedAt: now(), device: 'pc-device' }];
+  bm.register({ visible: () => pcJobs, labels: { running: 'Working', completed: 'Done' } });
+  await phoneSends('botview', 'job-phone', { id: 'job-phone', device: 'phone-device', platform: 'android', goal: 'Find a gym near me', state: 'completed', label: 'Done', current: '', done: 3, total: 3, report: '**Gym A** is best.', createdAt: now(), updatedAt: now() });
+  await sync.runOnce();
+  assert.deepEqual(bm.others().map((v) => [v.id, v.label]), [['job-phone', 'Done']]);
+  const up = await cloudHas('botview', 'job-pc');
+  assert.deepEqual([up.goal, up.label, up.done, up.total, up.platform], ['Compare three laptops', 'Working', 1, 2, 'windows']);
+  await sync.runOnce();
+  assert.equal(await cloudHas('botview', 'job-phone').then((r) => r.device), 'phone-device', 'the phone’s job is not sent back as this PC’s');
+  // the phone removes its job: it goes from here too
+  await phoneSends('botview', 'job-phone', null, { deleted: true });
+  await sync.runOnce();
+  assert.deepEqual(bm.others(), []);
+});
+
 after(async () => { await sync.unlink(); });

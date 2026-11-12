@@ -4,6 +4,7 @@ import { db, pref, setPref, onChange } from './store.js';
 import * as brain from './brain.js';
 import * as sync from './sync.js';
 import * as keyshare from './keyshare.js';
+import * as botmirror from './botmirror.js';
 import * as voice from './voice.js';
 import { endsTalk } from './speech.js';
 import { Orb } from './orb.js';
@@ -176,7 +177,7 @@ function renderBots(page) {
     col.appendChild(lib);
     // <<< library
     const all = bots.visible();
-    if (!all.length) { col.appendChild(h('<div class="card" style="margin-top:14px"><div style="font:400 19px var(--serif)">No bots yet</div><p class="muted" style="margin:6px 0 0">Ask Atlas for something bigger, like “research the best monitor under $300 for coding and send me a report”, or say “send a bot to…”.</p></div>')); BX.extrasSections(col, kit()); return; }
+    if (!all.length) { col.appendChild(h('<div class="card" style="margin-top:14px"><div style="font:400 19px var(--serif)">No bots yet</div><p class="muted" style="margin:6px 0 0">Ask Atlas for something bigger, like “research the best monitor under $300 for coding and send me a report”, or say “send a bot to…”.</p></div>')); botsElsewhere(col); BX.extrasSections(col, kit()); return; }
     const list = h('<div style="margin-top:14px"></div>'); col.appendChild(list);
     for (const x of all) {
       const line = [BOT_LABELS[x.state], x.state === BOT.RUNNING ? x.current : null, x.plan.length ? `plan ${x.plan.filter((p) => p.done).length}/${x.plan.length}` : null].filter(Boolean).join(' · ');
@@ -184,6 +185,7 @@ function renderBots(page) {
       c.onclick = () => { botView = x.id; botDraft = ''; render(); };
       list.appendChild(c);
     }
+    botsElsewhere(col);
     BX.extrasSections(col, kit());
     return;
   }
@@ -467,6 +469,18 @@ async function editTask(t) {
 }
 
 // ---- Me ----
+/** Bots working on the phone (read-only here: each job runs where it was started). Click one for its report. */
+function botsElsewhere(col) {
+  const list = botmirror.others(); if (!list.length) return;
+  col.appendChild(h(`<div class="eyebrow" style="margin-top:22px">${list.some((v) => v.platform === 'android') ? 'On Your Phone' : 'On Your Other Device'}</div>`));
+  for (const v of list.slice(0, 20)) {
+    const line = [v.label, v.state === 'running' && v.current ? v.current : null, v.total ? `plan ${v.done}/${v.total}` : null].filter(Boolean).join(' · ');
+    const c = h(`<div class="card botcard"${v.report ? ' role="button" tabindex="0"' : ''}><div class="goal">${esc(v.goal)}</div><div class="small muted" style="margin-top:6px">${esc(line)}</div></div>`);
+    if (v.report) c.onclick = () => sheet({ title: v.goal.slice(0, 80), html: `<p class="small muted" style="margin:0 0 8px">Its report, from your phone.</p><div class="md" style="max-height:60vh;overflow:auto">${renderMarkdown(v.report)}</div>`, primary: 'Close', secondary: null });
+    col.appendChild(c);
+  }
+}
+
 function settingRow(label, on, onToggle, note) {
   const r = h(`<div class="setting"><div class="grow"><div>${esc(label)}</div>${note ? `<div class="small muted">${esc(note)}</div>` : ''}</div><div class="switch ${on ? 'on' : ''}"></div></div>`);
   r.querySelector('.switch').onclick = (e) => { e.currentTarget.classList.toggle('on'); onToggle(e.currentTarget.classList.contains('on')); };
@@ -878,6 +892,7 @@ async function main() {
   host.showOrb(pref('onScreen', true));
   if (pref(F)) showFocus();
   checkDue(); setInterval(checkDue, 15000);
-  keyshare.register(); sync.loadStatus(); sync.syncSoon(800); sync.keepFresh();
+  keyshare.register(); botmirror.register({ visible: () => bots.visible(), labels: BOT_LABELS });
+  sync.loadStatus(); sync.syncSoon(800); sync.keepFresh();
 }
 main();
