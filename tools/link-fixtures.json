@@ -1,0 +1,142 @@
+{
+ "note": "Made by the PC (desktop/renderer/linkcore.js). Link.kt must decrypt and agree; see LinkTest.kt and desktop/test/link.test.mjs.",
+ "code": "ATLS-ABCD-EFGH-JKMN-PQRS-TVWX",
+ "owner": "451bec3046629ece294d6f25824697636cfdc4642b1f6b997e49a2b4cee51ad9",
+ "message": {
+  "v": 1,
+  "id": "7b0c1f1e-1111-4a4a-9c9c-000000000001",
+  "k": "task",
+  "from": "phone-device-id",
+  "to": "pc-device-id",
+  "at": 1794440000000,
+  "tid": "task-1",
+  "text": "Open Notepad and type “héllo — wörld” 🚀",
+  "fromName": "Anjy's phone"
+ },
+ "ciphertext": "l0SQtY1xZAgT1ZoeHWzRL87U7DsAKxO8JYBsbwtURlhp29YRXAn5yYURzhQoBdfxMH7sFGemB5VLRz9cRdVypDd5dCA2xSgPzbkLrekwAnwFNmYy8wJEvVIGMBDRTvjPQgXy8WWJu9192qhUz1jFk1/1y5S7PG9b59QsxRvmQ5iesF2eFERGeG0ulmRr/lOBQ9wokHuf8kAoLXG+Aawpudyxl5xqTHlfclgfTAwYgvvZR4eFxi6k7u/yFo/o8yK7EgwFiJU8FRqhNaUBeN1jsFnmIc/KFBcsrE32qI0sqkRRHkMLNcpwhgyG615j/ZP9QptZ+bsU+SYJ46dBE+1D",
+ "inputs": [
+  {
+   "input": {
+    "t": "tap",
+    "x": 0.25,
+    "y": 0.5
+   },
+   "w": 1080,
+   "h": 2400,
+   "plan": {
+    "t": "tap",
+    "x": 270,
+    "y": 1200
+   }
+  },
+  {
+   "input": {
+    "t": "drag",
+    "x": 0.5,
+    "y": 0.8,
+    "x2": 0.5,
+    "y2": 0.2
+   },
+   "w": 1000,
+   "h": 1000,
+   "plan": {
+    "t": "drag",
+    "x": 500,
+    "y": 800,
+    "x2": 500,
+    "y2": 200
+   }
+  },
+  {
+   "input": {
+    "t": "scroll",
+    "dy": -99
+   },
+   "w": 100,
+   "h": 100,
+   "plan": {
+    "t": "scroll",
+    "x": 50,
+    "y": 50,
+    "dy": -20
+   }
+  },
+  {
+   "input": {
+    "t": "scroll",
+    "dy": 0
+   },
+   "w": 100,
+   "h": 100,
+   "plan": null
+  },
+  {
+   "input": {
+    "t": "key",
+    "key": "Ctrl+C"
+   },
+   "w": 1,
+   "h": 1,
+   "plan": {
+    "t": "key",
+    "key": "ctrl+c"
+   }
+  },
+  {
+   "input": {
+    "t": "key",
+    "key": "a;b"
+   },
+   "w": 1,
+   "h": 1,
+   "plan": null
+  },
+  {
+   "input": {
+    "t": "act",
+    "act": "home"
+   },
+   "w": 1,
+   "h": 1,
+   "plan": {
+    "t": "act",
+    "act": "home"
+   }
+  },
+  {
+   "input": {
+    "t": "act",
+    "act": "nope"
+   },
+   "w": 1,
+   "h": 1,
+   "plan": null
+  },
+  {
+   "input": {
+    "t": "text",
+    "text": "hi"
+   },
+   "w": 1,
+   "h": 1,
+   "plan": {
+    "t": "text",
+    "text": "hi"
+   }
+  },
+  {
+   "input": {
+    "t": "tap",
+    "x": 2,
+    "y": -1
+   },
+   "w": 1920,
+   "h": 1080,
+   "plan": {
+    "t": "tap",
+    "x": 1919,
+    "y": 0
+   }
+  }
+ ]
+}

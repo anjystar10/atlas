@@ -103,7 +103,7 @@ export const EXTRA_TOOLS = {
   bot_forget: fn('bot_forget', 'Remove one of your own saved notes that is wrong or out of date.', { text: str('The note, or words from it') }, ['text']),
 };
 /** Atlas's own tools that bots don't get. */
-export const NOT_FOR_BOTS = new Set(['change_setting', 'start_focus', 'deploy_bot', 'save_skill', 'set_routine']);
+export const NOT_FOR_BOTS = new Set(['change_setting', 'start_focus', 'deploy_bot', 'save_skill', 'set_routine', 'on_phone']);   // on_phone: a bot (maybe itself sent from the phone) doesn't bounce work back
 
 const LABEL = { web_search: (a) => `Searching for “${String(a.query || '').slice(0, 60)}”`, read_page: (a) => 'Reading ' + String(a.url || '').replace(/^https?:\/\//, '').slice(0, 50),
   open_app: (a) => 'Opening ' + (a.name || ''), list_apps: () => 'Looking at your apps', open_link: () => 'Opening a link', open_path: () => 'Opening a file', list_files: () => 'Looking in a folder',

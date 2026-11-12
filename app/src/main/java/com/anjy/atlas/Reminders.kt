@@ -200,6 +200,7 @@ class BootReceiver : BroadcastReceiver() {
                 Reminders.tickAndSchedule(context.applicationContext)
                 BotExtras.tick(context.applicationContext)   // routines: set the next alarm, and run any missed while off
                 AvatarService.startIfEnabled(context)
+                if (Link.reachable(context)) LinkService.start(context)   // >>> device link: reachable from the laptop after a restart
             } catch (e: Exception) { Log.e("AtlasAlarms", "boot", e) }
             finally { pending.finish() }
         }.start()

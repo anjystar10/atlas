@@ -14,6 +14,8 @@ import { renderLibrary, refreshLibrary } from './library.js';
 import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // >>> connections (MCP servers, web APIs)
 import { renderConnections } from './connui.js';
+import * as LW from './linkwire.js';   // >>> device link (control across devices)
+import { renderDevices } from './linkui.js';
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
 const host = window.atlasHost;
 
@@ -671,6 +673,8 @@ function renderMe(page) {
     r.children[2].onclick = async () => { if (await sheet({ title: 'Unlink This PC?', body: 'It stops syncing. Everything stays on this PC; the phone keeps its copy.', primary: 'Unlink', danger: true })) { await sync.unlink(); render(true); } };
   }
 
+  renderDevices(col, kit());   // >>> device link: online devices, Control Phone, who may control this PC
+
   // This PC
   col.appendChild(h('<div class="eyebrow">On This PC</div>'));
   const pc = h('<div class="card"></div>'); col.appendChild(pc);
@@ -887,5 +891,9 @@ async function main() {
   if (pref(F)) showFocus();
   checkDue(); setInterval(checkDue, 15000);
   sync.syncSoon(800); sync.keepFresh();
+  // >>> device link: the live line to the phone (tasks both ways, remote control)
+  LW.start({ sheet, toast }); brain.ui.onPhone = (task) => LW.sendTask(task);
+  LW.onChange(() => { if (tab === 'me') render(true, true); });
+  // <<< device link
 }
 main();

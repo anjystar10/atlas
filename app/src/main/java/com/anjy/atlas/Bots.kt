@@ -614,7 +614,7 @@ object Bots {
     private val finishOnly by lazy { JSONArray().put(finishTool) }
 
     /** Atlas's own tools that bots don't get: settings, focus sessions, and sending more bots. */
-    private val notForBots = setOf("change_setting", "start_focus", "deploy_bot", "save_skill", "set_routine")
+    private val notForBots = setOf("change_setting", "start_focus", "deploy_bot", "save_skill", "set_routine", "on_laptop")   // on_laptop: a bot (maybe itself sent from the laptop) doesn't bounce work back
     private val browserTools = setOf("browser_open", "browser_read", "browser_click", "browser_type", "browser_select", "browser_press", "browser_scroll", "browser_back", "browser_wait", "browser_download", "browser_fill_login" /* vault: Vault.kt */)
 
     private val declarations: JSONArray by lazy {

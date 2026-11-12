@@ -49,11 +49,19 @@ contextBridge.exposeInMainWorld('atlasHost', {
     reveal: (id) => ipcRenderer.invoke('vault:reveal', id),
   },
   // <<< vault
+  // >>> device link (control this PC from the phone)
+  remote: {
+    frame: (maxW, q) => ipcRenderer.invoke('remote:frame', maxW, q),
+    input: (plan) => ipcRenderer.invoke('remote:input', plan),
+    banner: (text) => ipcRenderer.invoke('remote:banner', text),
+    done: () => ipcRenderer.invoke('remote:done'),
+  },
+  // <<< device link
   // >>> connections
   conn: (op, ...args) => ipcRenderer.invoke('conn', op, ...args),
   // <<< connections
   on: (channel, fn) => {
-    const ok = ['notification-click', 'orb-clicked', 'orb-state', 'connections-changed'];
+    const ok = ['notification-click', 'orb-clicked', 'orb-state', 'connections-changed', 'remote-stop'];
     if (!ok.includes(channel)) return;
     ipcRenderer.on(channel, (_e, ...args) => fn(...args));
   }
