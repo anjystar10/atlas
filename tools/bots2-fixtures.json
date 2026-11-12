@@ -1,0 +1,1799 @@
+{
+ "capabilityOf": [
+  {
+   "tool": "web_search",
+   "out": {
+    "cap": "web",
+    "write": false
+   }
+  },
+  {
+   "tool": "read_page",
+   "out": {
+    "cap": "web",
+    "write": false
+   }
+  },
+  {
+   "tool": "browser_read",
+   "out": {
+    "cap": "browser",
+    "write": false
+   }
+  },
+  {
+   "tool": "browser_click",
+   "out": {
+    "cap": "browser",
+    "write": true
+   }
+  },
+  {
+   "tool": "browser_fill_login",
+   "out": {
+    "cap": "accounts",
+    "write": true
+   }
+  },
+  {
+   "tool": "vault_list",
+   "out": {
+    "cap": "accounts",
+    "write": false
+   }
+  },
+  {
+   "tool": "make_document",
+   "out": {
+    "cap": "files",
+    "write": true
+   }
+  },
+  {
+   "tool": "run_command",
+   "out": {
+    "cap": "device",
+    "write": true
+   }
+  },
+  {
+   "tool": "look_at_screen",
+   "out": {
+    "cap": "device",
+    "write": false
+   }
+  },
+  {
+   "tool": "read_log",
+   "out": {
+    "cap": "log",
+    "write": false
+   }
+  },
+  {
+   "tool": "set_reminder",
+   "out": {
+    "cap": "log",
+    "write": true
+   }
+  },
+  {
+   "tool": "email_read",
+   "out": {
+    "cap": "email",
+    "write": false
+   }
+  },
+  {
+   "tool": "email_send",
+   "out": {
+    "cap": "email",
+    "write": true
+   }
+  },
+  {
+   "tool": "trade_quote",
+   "out": {
+    "cap": "trading",
+    "write": false
+   }
+  },
+  {
+   "tool": "trade_order",
+   "out": {
+    "cap": "trading",
+    "write": true
+   }
+  },
+  {
+   "tool": "trade_stop_all",
+   "out": {
+    "cap": "core",
+    "write": false
+   }
+  },
+  {
+   "tool": "project_read",
+   "out": {
+    "cap": "projects",
+    "write": false
+   }
+  },
+  {
+   "tool": "project_run",
+   "out": {
+    "cap": "projects",
+    "write": true
+   }
+  },
+  {
+   "tool": "calendar_events",
+   "out": {
+    "cap": "phone",
+    "write": false
+   }
+  },
+  {
+   "tool": "phone_alarm",
+   "out": {
+    "cap": "phone",
+    "write": true
+   }
+  },
+  {
+   "tool": "on_laptop",
+   "out": {
+    "cap": "link",
+    "write": true
+   }
+  },
+  {
+   "tool": "mcp__github__create_issue",
+   "out": {
+    "cap": "connections",
+    "write": true
+   }
+  },
+  {
+   "tool": "call_api",
+   "out": {
+    "cap": "connections",
+    "write": true
+   }
+  },
+  {
+   "tool": "update_plan",
+   "out": {
+    "cap": "core",
+    "write": false
+   }
+  },
+  {
+   "tool": "finish",
+   "out": {
+    "cap": "core",
+    "write": false
+   }
+  },
+  {
+   "tool": "spawn_agent",
+   "out": {
+    "cap": "core",
+    "write": false
+   }
+  },
+  {
+   "tool": "verdict",
+   "out": {
+    "cap": "core",
+    "write": false
+   }
+  },
+  {
+   "tool": "some_new_tool",
+   "out": {
+    "cap": "other",
+    "write": true
+   }
+  },
+  {
+   "tool": "",
+   "out": {
+    "cap": "other",
+    "write": true
+   }
+  }
+ ],
+ "defaultAccess": {
+  "web": "write",
+  "browser": "write",
+  "accounts": "write",
+  "files": "write",
+  "device": "write",
+  "log": "write",
+  "email": "write",
+  "trading": "read",
+  "projects": "write",
+  "phone": "write",
+  "link": "write",
+  "connections": "write",
+  "other": "write"
+ },
+ "normalizeBot": [
+  {
+   "in": {
+    "id": "sp-research",
+    "name": "Research Bot",
+    "role": "Finds things out",
+    "instructions": "Search widely.",
+    "groups": [
+     "web"
+    ],
+    "notes": [
+     "likes sources"
+    ],
+    "updatedAt": 5
+   },
+   "now": 1762900000000,
+   "id": "gen-0",
+   "out": {
+    "id": "sp-research",
+    "name": "Research Bot",
+    "role": "Finds things out",
+    "instructions": "Search widely.",
+    "groups": [
+     "web"
+    ],
+    "notes": [
+     "likes sources"
+    ],
+    "updatedAt": 5,
+    "v": 2,
+    "icon": "",
+    "home": "any",
+    "access": null,
+    "triggers": [],
+    "budget": {
+     "minutesPerDay": 120,
+     "callsPerDay": 300,
+     "moneyPerDay": 0
+    },
+    "log": [],
+    "state": "active",
+    "createdBy": "user"
+   }
+  },
+  {
+   "in": {
+    "name": "  Trader  ",
+    "v": 2,
+    "role": "Trades",
+    "access": {
+     "trading": "write",
+     "web": "read",
+     "email": "bogus"
+    },
+    "home": "pc",
+    "budget": {
+     "minutesPerDay": 30,
+     "callsPerDay": "50",
+     "moneyPerDay": 20
+    },
+    "triggers": [
+     {
+      "type": "price",
+      "config": {
+       "symbol": "BTCUSDT",
+       "above": 100000
+      }
+     },
+     {
+      "config": {}
+     }
+    ],
+    "icon": "📈"
+   },
+   "now": 1762900000000,
+   "id": "gen-1",
+   "out": {
+    "name": "Trader",
+    "v": 2,
+    "role": "Trades",
+    "access": {
+     "web": "read",
+     "browser": "off",
+     "accounts": "off",
+     "files": "off",
+     "device": "off",
+     "log": "off",
+     "email": "off",
+     "trading": "write",
+     "projects": "off",
+     "phone": "off",
+     "link": "off",
+     "connections": "off",
+     "other": "off"
+    },
+    "home": "pc",
+    "budget": {
+     "minutesPerDay": 30,
+     "callsPerDay": 50,
+     "moneyPerDay": 20
+    },
+    "triggers": [
+     {
+      "id": "tr-0",
+      "type": "price",
+      "config": {
+       "symbol": "BTCUSDT",
+       "above": 100000
+      },
+      "enabled": true
+     }
+    ],
+    "icon": "📈",
+    "id": "gen-1",
+    "instructions": "",
+    "groups": [],
+    "notes": [],
+    "log": [],
+    "state": "active",
+    "createdBy": "user",
+    "updatedAt": 1762900000000
+   }
+  },
+  {
+   "in": {
+    "id": "b-inbox",
+    "name": "Inbox",
+    "v": 2,
+    "state": "paused",
+    "createdBy": "atlas",
+    "budget": {
+     "minutesPerDay": 99999,
+     "callsPerDay": -4
+    },
+    "log": [
+     {
+      "at": 1,
+      "mission": "m1",
+      "text": "Triaged 12 emails"
+     },
+     {
+      "text": ""
+     }
+    ],
+    "extra": {
+     "keep": true
+    }
+   },
+   "now": 1762900000000,
+   "id": "gen-2",
+   "out": {
+    "id": "b-inbox",
+    "name": "Inbox",
+    "v": 2,
+    "state": "paused",
+    "createdBy": "atlas",
+    "budget": {
+     "minutesPerDay": 1440,
+     "callsPerDay": 1,
+     "moneyPerDay": 0
+    },
+    "log": [
+     {
+      "at": 1,
+      "mission": "m1",
+      "text": "Triaged 12 emails"
+     }
+    ],
+    "extra": {
+     "keep": true
+    },
+    "role": "",
+    "instructions": "",
+    "icon": "",
+    "home": "any",
+    "access": {
+     "web": "write",
+     "browser": "write",
+     "accounts": "write",
+     "files": "write",
+     "device": "write",
+     "log": "write",
+     "email": "write",
+     "trading": "read",
+     "projects": "write",
+     "phone": "write",
+     "link": "write",
+     "connections": "write",
+     "other": "write"
+    },
+    "groups": [],
+    "triggers": [],
+    "notes": [],
+    "updatedAt": 1762900000000
+   }
+  },
+  {
+   "in": {},
+   "now": 1762900000000,
+   "id": "gen-3",
+   "out": {
+    "id": "gen-3",
+    "v": 2,
+    "name": "Helper Bot",
+    "role": "",
+    "instructions": "",
+    "icon": "",
+    "home": "any",
+    "access": null,
+    "groups": [],
+    "triggers": [],
+    "budget": {
+     "minutesPerDay": 120,
+     "callsPerDay": 300,
+     "moneyPerDay": 0
+    },
+    "notes": [],
+    "log": [],
+    "state": "active",
+    "createdBy": "user",
+    "updatedAt": 1762900000000
+   }
+  }
+ ],
+ "allows": [
+  {
+   "botIndex": 0,
+   "tool": "web_search",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "read_page",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "browser_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "browser_click",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "browser_fill_login",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "vault_list",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "make_document",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "run_command",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "look_at_screen",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "read_log",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "set_reminder",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "email_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "email_send",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "trade_quote",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "trade_order",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "trade_stop_all",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "project_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "project_run",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "calendar_events",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "phone_alarm",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "on_laptop",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "mcp__github__create_issue",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "call_api",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "update_plan",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "finish",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "spawn_agent",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "verdict",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "some_new_tool",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 0,
+   "tool": "",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "web_search",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "read_page",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "browser_read",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "browser_click",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "browser_fill_login",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "vault_list",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "make_document",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "run_command",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "look_at_screen",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "read_log",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "set_reminder",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "email_read",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "email_send",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "trade_quote",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "trade_order",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "trade_stop_all",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "project_read",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "project_run",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "calendar_events",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "phone_alarm",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "on_laptop",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "mcp__github__create_issue",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "call_api",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "update_plan",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "finish",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "spawn_agent",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "verdict",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "some_new_tool",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 1,
+   "tool": "",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 2,
+   "tool": "web_search",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "read_page",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "browser_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "browser_click",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "browser_fill_login",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "vault_list",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "make_document",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "run_command",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "look_at_screen",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "read_log",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "set_reminder",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "email_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "email_send",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "trade_quote",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "trade_order",
+   "access": null,
+   "out": false
+  },
+  {
+   "botIndex": 2,
+   "tool": "trade_stop_all",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "project_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "project_run",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "calendar_events",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "phone_alarm",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "on_laptop",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "mcp__github__create_issue",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "call_api",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "update_plan",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "finish",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "spawn_agent",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "verdict",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "some_new_tool",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 2,
+   "tool": "",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "web_search",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "read_page",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "browser_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "browser_click",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "browser_fill_login",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "vault_list",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "make_document",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "run_command",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "look_at_screen",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "read_log",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "set_reminder",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "email_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "email_send",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "trade_quote",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "trade_order",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "trade_stop_all",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "project_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "project_run",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "calendar_events",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "phone_alarm",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "on_laptop",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "mcp__github__create_issue",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "call_api",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "update_plan",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "finish",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "spawn_agent",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "verdict",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "some_new_tool",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 3,
+   "tool": "",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 1,
+   "tool": "trade_order",
+   "access": {
+    "trading": "read"
+   },
+   "out": false
+  }
+ ],
+ "narrowAccess": [
+  {
+   "parent": null,
+   "child": {
+    "web": "write",
+    "email": "write"
+   },
+   "out": {
+    "web": "write",
+    "browser": "off",
+    "accounts": "off",
+    "files": "off",
+    "device": "off",
+    "log": "off",
+    "email": "write",
+    "trading": "off",
+    "projects": "off",
+    "phone": "off",
+    "link": "off",
+    "connections": "off",
+    "other": "off"
+   }
+  },
+  {
+   "parent": {
+    "web": "read",
+    "browser": "write",
+    "trading": "off"
+   },
+   "child": {
+    "web": "write",
+    "browser": "read",
+    "trading": "write"
+   },
+   "out": {
+    "web": "read",
+    "browser": "read",
+    "accounts": "off",
+    "files": "off",
+    "device": "off",
+    "log": "off",
+    "email": "off",
+    "trading": "off",
+    "projects": "off",
+    "phone": "off",
+    "link": "off",
+    "connections": "off",
+    "other": "off"
+   }
+  },
+  {
+   "parent": {
+    "web": "write"
+   },
+   "child": null,
+   "out": {
+    "web": "write",
+    "browser": "off",
+    "accounts": "off",
+    "files": "off",
+    "device": "off",
+    "log": "off",
+    "email": "off",
+    "trading": "off",
+    "projects": "off",
+    "phone": "off",
+    "link": "off",
+    "connections": "off",
+    "other": "off"
+   }
+  }
+ ],
+ "budgetCheck": [
+  {
+   "budget": null,
+   "u": {
+    "day": "d",
+    "calls": 0,
+    "ms": 0,
+    "money": 0
+   },
+   "out": {
+    "ok": true,
+    "reason": null,
+    "callsLeft": 300,
+    "msLeft": 7200000
+   }
+  },
+  {
+   "budget": {
+    "callsPerDay": 10,
+    "minutesPerDay": 5
+   },
+   "u": {
+    "day": "d",
+    "calls": 10,
+    "ms": 0,
+    "money": 0
+   },
+   "out": {
+    "ok": false,
+    "reason": "calls",
+    "callsLeft": 0,
+    "msLeft": 300000
+   }
+  },
+  {
+   "budget": {
+    "callsPerDay": 10,
+    "minutesPerDay": 5
+   },
+   "u": {
+    "day": "d",
+    "calls": 3,
+    "ms": 300000,
+    "money": 0
+   },
+   "out": {
+    "ok": false,
+    "reason": "time",
+    "callsLeft": 7,
+    "msLeft": 0
+   }
+  },
+  {
+   "budget": {
+    "callsPerDay": 10,
+    "minutesPerDay": 5
+   },
+   "u": {
+    "day": "d",
+    "calls": 10,
+    "ms": 0,
+    "money": 0,
+    "extraCalls": 5
+   },
+   "out": {
+    "ok": true,
+    "reason": null,
+    "callsLeft": 5,
+    "msLeft": 300000
+   }
+  },
+  {
+   "budget": {
+    "callsPerDay": 10,
+    "minutesPerDay": 5
+   },
+   "u": {
+    "day": "d",
+    "calls": 1,
+    "ms": 400000,
+    "money": 0,
+    "extraMs": 600000
+   },
+   "out": {
+    "ok": true,
+    "reason": null,
+    "callsLeft": 9,
+    "msLeft": 500000
+   }
+  }
+ ],
+ "moneyAllowed": [
+  {
+   "budget": null,
+   "u": {
+    "money": 0
+   },
+   "amount": 1,
+   "out": false
+  },
+  {
+   "budget": {
+    "moneyPerDay": 50
+   },
+   "u": {
+    "money": 20
+   },
+   "amount": 30,
+   "out": true
+  },
+  {
+   "budget": {
+    "moneyPerDay": 50
+   },
+   "u": {
+    "money": 20
+   },
+   "amount": 31,
+   "out": false
+  }
+ ],
+ "agentSlice": [
+  {
+   "callsLeft": 300,
+   "msLeft": 7200000,
+   "out": {
+    "maxCalls": 150,
+    "maxMs": 3600000
+   }
+  },
+  {
+   "callsLeft": 3,
+   "msLeft": 10000,
+   "out": {
+    "maxCalls": 4,
+    "maxMs": 60000
+   }
+  },
+  {
+   "callsLeft": 0,
+   "msLeft": 0,
+   "out": {
+    "maxCalls": 4,
+    "maxMs": 60000
+   }
+  }
+ ],
+ "usageToday": [
+  {
+   "u": {
+    "day": "2026-11-12",
+    "calls": 4,
+    "ms": 9,
+    "money": 1,
+    "extraCalls": 2
+   },
+   "day": "2026-11-12",
+   "out": {
+    "day": "2026-11-12",
+    "calls": 4,
+    "ms": 9,
+    "money": 1,
+    "extraCalls": 2,
+    "extraMs": 0
+   }
+  },
+  {
+   "u": {
+    "day": "2026-11-11",
+    "calls": 4
+   },
+   "day": "2026-11-12",
+   "out": {
+    "day": "2026-11-12",
+    "calls": 0,
+    "ms": 0,
+    "money": 0,
+    "extraCalls": 0,
+    "extraMs": 0
+   }
+  },
+  {
+   "u": null,
+   "day": "2026-11-12",
+   "out": {
+    "day": "2026-11-12",
+    "calls": 0,
+    "ms": 0,
+    "money": 0,
+    "extraCalls": 0,
+    "extraMs": 0
+   }
+  }
+ ],
+ "dayOf": [
+  {
+   "ms": 1762900000000,
+   "offsetMin": 60,
+   "out": "2025-11-11"
+  },
+  {
+   "ms": 1762900000000,
+   "offsetMin": -480,
+   "out": "2025-11-11"
+  },
+  {
+   "ms": 1762905600000,
+   "offsetMin": 60,
+   "out": "2025-11-12"
+  }
+ ],
+ "parsePlanTree": [
+  {
+   "text": "1. [x] Search for reviews\n2. [ ] Compare prices",
+   "out": [
+    {
+     "text": "Search for reviews",
+     "done": true,
+     "depth": 0
+    },
+    {
+     "text": "Compare prices",
+     "done": false,
+     "depth": 0
+    }
+   ]
+  },
+  {
+   "text": "Find the products\n  [x] Search Jumia\n  [ ] Search Konga\n    - read the specs\nWrite the report",
+   "out": [
+    {
+     "text": "Find the products",
+     "done": false,
+     "depth": 0
+    },
+    {
+     "text": "Search Jumia",
+     "done": true,
+     "depth": 1
+    },
+    {
+     "text": "Search Konga",
+     "done": false,
+     "depth": 1
+    },
+    {
+     "text": "read the specs",
+     "done": false,
+     "depth": 2
+    },
+    {
+     "text": "Write the report",
+     "done": false,
+     "depth": 0
+    }
+   ]
+  },
+  {
+   "text": "\tTab step\n- bullet [x] not done mark\n* [X] Starred done\n1.2) [x] Numbered sub\n\n   \nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": [
+    {
+     "text": "Tab step",
+     "done": false,
+     "depth": 1
+    },
+    {
+     "text": "bullet [x] not done mark",
+     "done": false,
+     "depth": 0
+    },
+    {
+     "text": "Starred done",
+     "done": true,
+     "depth": 0
+    },
+    {
+     "text": "Numbered sub",
+     "done": true,
+     "depth": 0
+    },
+    {
+     "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+     "done": false,
+     "depth": 0
+    }
+   ]
+  },
+  {
+   "text": "",
+   "out": []
+  }
+ ],
+ "userSaid": [
+  {
+   "text": "yes",
+   "out": "yes"
+  },
+  {
+   "text": "Yes please go ahead",
+   "out": "yes"
+  },
+  {
+   "text": "ok",
+   "out": "yes"
+  },
+  {
+   "text": "okay sure",
+   "out": "yes"
+  },
+  {
+   "text": "go ahead",
+   "out": "yes"
+  },
+  {
+   "text": "do it",
+   "out": "yes"
+  },
+  {
+   "text": "👍",
+   "out": "yes"
+  },
+  {
+   "text": "no",
+   "out": "no"
+  },
+  {
+   "text": "don't",
+   "out": "no"
+  },
+  {
+   "text": "Nope",
+   "out": "no"
+  },
+  {
+   "text": "stop that",
+   "out": "no"
+  },
+  {
+   "text": "wait a sec",
+   "out": "no"
+  },
+  {
+   "text": "maybe later?",
+   "out": null
+  },
+  {
+   "text": "what is it?",
+   "out": null
+  },
+  {
+   "text": "",
+   "out": null
+  },
+  {
+   "text": "  …yes",
+   "out": "yes"
+  },
+  {
+   "text": "not now",
+   "out": "no"
+  },
+  {
+   "text": "approve",
+   "out": "yes"
+  },
+  {
+   "text": "never mind",
+   "out": "no"
+  }
+ ],
+ "dryRunSkips": [
+  {
+   "tool": "web_search",
+   "needsApproval": false,
+   "out": false
+  },
+  {
+   "tool": "browser_click",
+   "needsApproval": true,
+   "out": true
+  },
+  {
+   "tool": "email_send",
+   "needsApproval": false,
+   "out": true
+  },
+  {
+   "tool": "email_read",
+   "needsApproval": false,
+   "out": false
+  },
+  {
+   "tool": "trade_order",
+   "needsApproval": false,
+   "out": true
+  },
+  {
+   "tool": "trade_quote",
+   "needsApproval": false,
+   "out": false
+  },
+  {
+   "tool": "make_document",
+   "needsApproval": false,
+   "out": false
+  },
+  {
+   "tool": "mcp__x__y",
+   "needsApproval": false,
+   "out": true
+  },
+  {
+   "tool": "browser_fill_login",
+   "needsApproval": false,
+   "out": true
+  }
+ ],
+ "missionDefaults": [
+  {
+   "in": {
+    "id": "j1",
+    "createdAt": 7,
+    "specialist": "sp-research",
+    "workMs": 1000,
+    "plan": [
+     {
+      "text": "a",
+      "done": false
+     }
+    ]
+   },
+   "out": {
+    "id": "j1",
+    "createdAt": 7,
+    "specialist": "sp-research",
+    "workMs": 1000,
+    "plan": [
+     {
+      "text": "a",
+      "done": false,
+      "depth": 0
+     }
+    ],
+    "v": 2,
+    "bot": "sp-research",
+    "source": {
+     "type": "user",
+     "ref": null,
+     "at": 7
+    },
+    "cost": {
+     "calls": 0,
+     "tokensIn": 0,
+     "tokensOut": 0,
+     "ms": 1000
+    },
+    "verify": {
+     "status": "none",
+     "rounds": 0,
+     "notes": []
+    },
+    "dryRun": false
+   }
+  },
+  {
+   "in": {
+    "id": "j2",
+    "createdAt": 8,
+    "routine": "r1"
+   },
+   "out": {
+    "id": "j2",
+    "createdAt": 8,
+    "routine": "r1",
+    "v": 2,
+    "bot": "atlas",
+    "source": {
+     "type": "routine",
+     "ref": "r1",
+     "at": 8
+    },
+    "cost": {
+     "calls": 0,
+     "tokensIn": 0,
+     "tokensOut": 0,
+     "ms": 0
+    },
+    "verify": {
+     "status": "none",
+     "rounds": 0,
+     "notes": []
+    },
+    "dryRun": false
+   }
+  },
+  {
+   "in": {
+    "id": "j3",
+    "createdAt": 9,
+    "parent": "j1"
+   },
+   "out": {
+    "id": "j3",
+    "createdAt": 9,
+    "parent": "j1",
+    "v": 2,
+    "bot": "atlas",
+    "source": {
+     "type": "delegation",
+     "ref": "j1",
+     "at": 9
+    },
+    "cost": {
+     "calls": 0,
+     "tokensIn": 0,
+     "tokensOut": 0,
+     "ms": 0
+    },
+    "verify": {
+     "status": "none",
+     "rounds": 0,
+     "notes": []
+    },
+    "dryRun": false
+   }
+  },
+  {
+   "in": {
+    "id": "j4",
+    "v": 2,
+    "bot": "b-inbox",
+    "source": {
+     "type": "trigger",
+     "ref": "tr-0",
+     "at": 3
+    },
+    "cost": {
+     "calls": 2,
+     "tokensIn": 10,
+     "tokensOut": 5,
+     "ms": 3
+    },
+    "verify": {
+     "status": "passed",
+     "rounds": 1,
+     "notes": []
+    },
+    "dryRun": true,
+    "plan": []
+   },
+   "out": {
+    "id": "j4",
+    "v": 2,
+    "bot": "b-inbox",
+    "source": {
+     "type": "trigger",
+     "ref": "tr-0",
+     "at": 3
+    },
+    "cost": {
+     "calls": 2,
+     "tokensIn": 10,
+     "tokensOut": 5,
+     "ms": 3
+    },
+    "verify": {
+     "status": "passed",
+     "rounds": 1,
+     "notes": []
+    },
+    "dryRun": true,
+    "plan": []
+   }
+  }
+ ]
+}

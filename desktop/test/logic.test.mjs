@@ -1002,3 +1002,28 @@ test('projects in the chat: through the capability registry, a risky step waits 
   aware.use({ mode: () => 'ask' });
   delete globalThis.window.atlasHost.projects;
 });
+
+// ------------------------------------------------------------------ Atlas Bot v2: the model and rules (crew.js) against the shared fixtures
+test('bots v2: crew.js gives every answer in tools/bots2-fixtures.json (the phone checks the same file)', async () => {
+  const C = await import('../renderer/crew.js');
+  const fs = await import('node:fs');
+  const F = JSON.parse(fs.readFileSync(new URL('../../tools/bots2-fixtures.json', import.meta.url), 'utf8'));
+  for (const c of F.capabilityOf) assert.deepEqual(C.capabilityOf(c.tool), c.out, c.tool);
+  assert.deepEqual(C.defaultAccess(), F.defaultAccess);
+  for (const c of F.normalizeBot) assert.deepEqual(JSON.parse(JSON.stringify(C.normalizeBot(c.in, c.now, c.id))), c.out, c.id);
+  const bots = F.normalizeBot.map((c) => c.out);
+  for (const c of F.allows) assert.equal(C.allows(bots[c.botIndex], c.tool, () => true, c.access), c.out, `${c.botIndex} ${c.tool}`);
+  for (const c of F.narrowAccess) assert.deepEqual(C.narrowAccess(c.parent, c.child), c.out);
+  for (const c of F.budgetCheck) assert.deepEqual(C.budgetCheck(c.budget, c.u), c.out);
+  for (const c of F.moneyAllowed) assert.equal(C.moneyAllowed(c.budget, c.u, c.amount), c.out);
+  for (const c of F.agentSlice) assert.deepEqual(C.agentSlice(c.callsLeft, c.msLeft), c.out);
+  for (const c of F.usageToday) assert.deepEqual(C.usageToday(c.u, c.day), c.out);
+  for (const c of F.dayOf) assert.equal(C.dayOf(c.ms, c.offsetMin), c.out);
+  for (const c of F.parsePlanTree) assert.deepEqual(C.parsePlanTree(c.text), c.out, c.text.slice(0, 40));
+  for (const c of F.userSaid) assert.equal(C.userSaid(c.text), c.out, c.text);
+  for (const c of F.dryRunSkips) assert.equal(C.dryRunSkips(c.tool, c.needsApproval), c.out, c.tool);
+  for (const c of F.missionDefaults) assert.deepEqual(C.missionDefaults(JSON.parse(JSON.stringify(c.in))), c.out, c.in.id);
+  // no plan cap: a 120-step nested plan keeps every step
+  const long = Array.from({ length: 120 }, (_, i) => (i % 3 ? '  ' : '') + `[ ] step ${i}`).join('\n');
+  assert.equal(C.parsePlanTree(long).length, 120);
+});
