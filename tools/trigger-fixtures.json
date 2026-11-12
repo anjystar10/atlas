@@ -1,0 +1,1337 @@
+{
+ "note": "Made by desktop/test/make-trigger-fixtures.mjs from desktop/renderer/trigrules.js. Do not edit by hand.",
+ "t0": 1794474000000,
+ "clean": [
+  {
+   "input": {
+    "id": "a",
+    "type": "email",
+    "config": {
+     "from": "bank, alerts@gtbank.com",
+     "subject": "debit",
+     "goal": "Log the spend",
+     "perHour": "5"
+    }
+   },
+   "i": 0,
+   "out": {
+    "id": "a",
+    "type": "email",
+    "config": {
+     "v": 1,
+     "from": "bank, alerts@gtbank.com",
+     "subject": "debit",
+     "folder": "INBOX",
+     "unreadOnly": true,
+     "goal": "Log the spend",
+     "perHour": 5
+    },
+    "enabled": true
+   },
+   "summary": "When an email from bank, alerts@gtbank.com about “debit” arrives"
+  },
+  {
+   "input": {
+    "type": "price",
+    "config": {
+     "symbol": "btcusdt",
+     "above": "100000",
+     "below": 90000,
+     "movePct": 3,
+     "windowMin": 2
+    }
+   },
+   "i": 1,
+   "out": {
+    "id": "tr-1",
+    "type": "price",
+    "config": {
+     "v": 1,
+     "symbol": "BTCUSDT",
+     "account": "",
+     "above": 100000,
+     "below": 90000,
+     "movePct": 3,
+     "windowMin": 5,
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "When BTCUSDT goes above 100000 or goes below 90000 or moves 3% within 5 min"
+  },
+  {
+   "input": {
+    "type": "price",
+    "config": {
+     "symbol": "NQ",
+     "movePct": "1.5"
+    }
+   },
+   "i": 2,
+   "out": {
+    "id": "tr-2",
+    "type": "price",
+    "config": {
+     "v": 1,
+     "symbol": "NQ",
+     "account": "",
+     "above": null,
+     "below": null,
+     "movePct": 1.5,
+     "windowMin": 60,
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "When NQ moves 1.5% within 60 min"
+  },
+  {
+   "input": {
+    "id": "n",
+    "type": "notification",
+    "config": {
+     "app": "WhatsApp",
+     "contains": "urgent"
+    },
+    "enabled": false
+   },
+   "i": 3,
+   "out": {
+    "id": "n",
+    "type": "notification",
+    "config": {
+     "v": 1,
+     "app": "WhatsApp",
+     "contains": "urgent",
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": false
+   },
+   "summary": "When WhatsApp sends a notification mentioning “urgent”"
+  },
+  {
+   "input": {
+    "type": "file",
+    "config": {
+     "source": "downloads",
+     "pattern": "*.pdf"
+    }
+   },
+   "i": 4,
+   "out": {
+    "id": "tr-4",
+    "type": "file",
+    "config": {
+     "v": 1,
+     "folder": "",
+     "pattern": "*.pdf",
+     "source": "downloads",
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "When a new *.pdf file appears in Downloads"
+  },
+  {
+   "input": {
+    "type": "file",
+    "config": {
+     "folder": "C:\\Users\\me\\Inbox"
+    }
+   },
+   "i": 5,
+   "out": {
+    "id": "tr-5",
+    "type": "file",
+    "config": {
+     "v": 1,
+     "folder": "C:\\Users\\me\\Inbox",
+     "pattern": "*",
+     "source": "folder",
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "When a new file appears in C:\\Users\\me\\Inbox"
+  },
+  {
+   "input": {
+    "type": "schedule",
+    "config": {
+     "schedule": {
+      "kind": "interval",
+      "everyMin": 30
+     }
+    }
+   },
+   "i": 6,
+   "out": {
+    "id": "tr-6",
+    "type": "schedule",
+    "config": {
+     "v": 1,
+     "text": "",
+     "schedule": {
+      "kind": "interval",
+      "everyMin": 30
+     },
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "Every 30 minutes"
+  },
+  {
+   "input": {
+    "type": "remote",
+    "config": {
+     "name": "deploy done"
+    }
+   },
+   "i": 7,
+   "out": {
+    "id": "tr-7",
+    "type": "remote",
+    "config": {
+     "v": 1,
+     "name": "deploy done",
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "When your other device sends “deploy done”"
+  },
+  {
+   "input": {
+    "type": "manual",
+    "config": {}
+   },
+   "i": 8,
+   "out": {
+    "id": "tr-8",
+    "type": "manual",
+    "config": {
+     "v": 1,
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "Only when you start it"
+  },
+  {
+   "input": {
+    "type": "teleport",
+    "config": {
+     "x": 1
+    }
+   },
+   "i": 9,
+   "out": {
+    "id": "tr-9",
+    "type": "teleport",
+    "config": {
+     "x": 1
+    },
+    "enabled": true
+   },
+   "summary": "“teleport” (needs a newer Atlas)"
+  }
+ ],
+ "goal": [
+  {
+   "bot": {
+    "id": "b1",
+    "home": "pc",
+    "instructions": "x",
+    "triggers": [
+     {
+      "type": "email",
+      "enabled": true
+     }
+    ]
+   },
+   "trigger": {
+    "id": "a",
+    "type": "email",
+    "config": {
+     "v": 1,
+     "from": "bank, alerts@gtbank.com",
+     "subject": "debit",
+     "folder": "INBOX",
+     "unreadOnly": true,
+     "goal": "Log the spend",
+     "perHour": 5
+    },
+    "enabled": true
+   },
+   "event": {
+    "title": "New email from Bank: Debit alert",
+    "data": {
+     "from": "Bank",
+     "subject": "Debit alert",
+     "email_id": null,
+     "n": 3
+    }
+   },
+   "out": "Log the spend\n\nWhat happened: New email from Bank: Debit alert\nfrom: Bank\nsubject: Debit alert\nn: 3",
+   "key": "b1|a|New email from Bank: Debit alert"
+  },
+  {
+   "bot": {
+    "id": "b2"
+   },
+   "trigger": {
+    "id": "t",
+    "type": "manual",
+    "config": {}
+   },
+   "event": {
+    "title": "Started",
+    "data": {}
+   },
+   "out": "Handle this:\n\nWhat happened: Started",
+   "key": "b2|t|Started"
+  }
+ ],
+ "where": [
+  {
+   "home": "any",
+   "device": "phone",
+   "out": "here"
+  },
+  {
+   "home": "phone",
+   "device": "phone",
+   "out": "here"
+  },
+  {
+   "home": "phone",
+   "device": "pc",
+   "out": "queue"
+  },
+  {
+   "home": "pc",
+   "device": "pc",
+   "out": "here"
+  },
+  {
+   "home": null,
+   "device": "pc",
+   "out": "here"
+  }
+ ],
+ "awake": [
+  {
+   "bot": {
+    "home": "phone",
+    "triggers": [
+     {
+      "type": "email",
+      "enabled": true
+     }
+    ]
+   },
+   "out": "Runs when your phone is awake"
+  },
+  {
+   "bot": {
+    "home": "pc",
+    "triggers": [
+     {
+      "type": "manual",
+      "enabled": true
+     }
+    ]
+   },
+   "out": ""
+  },
+  {
+   "bot": {
+    "home": "any",
+    "triggers": [
+     {
+      "type": "price",
+      "enabled": true
+     }
+    ]
+   },
+   "out": "Runs when your phone or laptop is awake"
+  },
+  {
+   "bot": {
+    "home": "pc",
+    "triggers": [
+     {
+      "type": "file",
+      "enabled": true
+     }
+    ]
+   },
+   "out": "Runs when your laptop is on and Atlas is open"
+  }
+ ],
+ "watchable": [
+  {
+   "type": "email",
+   "device": "phone",
+   "out": true
+  },
+  {
+   "type": "email",
+   "device": "pc",
+   "out": true
+  },
+  {
+   "type": "notification",
+   "device": "phone",
+   "out": true
+  },
+  {
+   "type": "notification",
+   "device": "pc",
+   "out": false
+  },
+  {
+   "type": "teleport",
+   "device": "phone",
+   "out": false
+  },
+  {
+   "type": "teleport",
+   "device": "pc",
+   "out": false
+  }
+ ],
+ "dedupe": [
+  {
+   "key": "k1",
+   "at": 1794474000000,
+   "fresh": true
+  },
+  {
+   "key": "k1",
+   "at": 1794474001000,
+   "fresh": false
+  },
+  {
+   "key": "k2",
+   "at": 1794474002000,
+   "fresh": true
+  },
+  {
+   "key": "k1",
+   "at": 1794733205000,
+   "fresh": true
+  }
+ ],
+ "rate": [
+  {
+   "at": 1794474000000,
+   "perHour": 2,
+   "ok": true
+  },
+  {
+   "at": 1794474030000,
+   "perHour": 2,
+   "ok": false
+  },
+  {
+   "at": 1794474061000,
+   "perHour": 2,
+   "ok": true
+  },
+  {
+   "at": 1794474125000,
+   "perHour": 2,
+   "ok": false
+  },
+  {
+   "at": 1794474190000,
+   "perHour": 2,
+   "ok": false
+  },
+  {
+   "at": 1794477700000,
+   "perHour": 2,
+   "ok": true
+  }
+ ],
+ "schedule": [
+  {
+   "at": 1794474000000,
+   "fire": null,
+   "nextAt": 1794475800000
+  },
+  {
+   "at": 1794474600000,
+   "fire": null,
+   "nextAt": 1794475800000
+  },
+  {
+   "at": 1794475860000,
+   "fire": 1794475800000,
+   "nextAt": 1794477660000
+  },
+  {
+   "at": 1794475920000,
+   "fire": null,
+   "nextAt": 1794477660000
+  },
+  {
+   "at": 1794486000000,
+   "fire": 1794477660000,
+   "nextAt": 1794487800000
+  }
+ ],
+ "scheduleSpec": {
+  "kind": "interval",
+  "everyMin": 30
+ },
+ "email": {
+  "cfg": {
+   "v": 1,
+   "from": "bank, alerts@gtbank.com",
+   "subject": "debit",
+   "folder": "INBOX",
+   "unreadOnly": true,
+   "goal": "Log the spend",
+   "perHour": 5
+  },
+  "steps": [
+   {
+    "messages": [
+     {
+      "uid": 10,
+      "from": "Bank <alerts@gtbank.com>",
+      "subject": "Debit alert",
+      "unread": true
+     }
+    ],
+    "events": [],
+    "state": {
+     "lastUid": 10,
+     "folder": "INBOX"
+    }
+   },
+   {
+    "messages": [
+     {
+      "uid": 11,
+      "from": "Bank <alerts@gtbank.com>",
+      "subject": "Debit alert ₦5,000",
+      "unread": true
+     },
+     {
+      "uid": 12,
+      "from": "Mum",
+      "subject": "debit?",
+      "unread": true
+     },
+     {
+      "uid": 13,
+      "from": "alerts@gtbank.com",
+      "subject": "Credit alert",
+      "unread": true
+     },
+     {
+      "uid": 10,
+      "from": "x",
+      "subject": "debit",
+      "unread": true
+     }
+    ],
+    "events": [
+     {
+      "type": "email",
+      "key": "INBOX:11",
+      "title": "New email from Bank <alerts@gtbank.com>: Debit alert ₦5,000",
+      "data": {
+       "email_id": null,
+       "from": "Bank <alerts@gtbank.com>",
+       "subject": "Debit alert ₦5,000"
+      }
+     }
+    ],
+    "state": {
+     "lastUid": 13,
+     "folder": "INBOX"
+    }
+   },
+   {
+    "messages": [
+     {
+      "uid": 14,
+      "from": "BANK",
+      "subject": "DEBIT",
+      "unread": false
+     },
+     {
+      "uid": 15,
+      "from": "bank",
+      "subject": "debit",
+      "unread": true,
+      "id": "INBOX:15"
+     }
+    ],
+    "events": [
+     {
+      "type": "email",
+      "key": "INBOX:15",
+      "title": "New email from bank: debit",
+      "data": {
+       "email_id": "INBOX:15",
+       "from": "bank",
+       "subject": "debit"
+      }
+     }
+    ],
+    "state": {
+     "lastUid": 15,
+     "folder": "INBOX"
+    }
+   }
+  ]
+ },
+ "emailFolderChange": {
+  "cfg": {
+   "v": 1,
+   "from": "bank, alerts@gtbank.com",
+   "subject": "debit",
+   "folder": "Work",
+   "unreadOnly": true,
+   "goal": "Log the spend",
+   "perHour": 5
+  },
+  "before": {
+   "lastUid": 15,
+   "folder": "INBOX"
+  },
+  "messages": [
+   {
+    "uid": 14,
+    "from": "BANK",
+    "subject": "DEBIT",
+    "unread": false
+   },
+   {
+    "uid": 15,
+    "from": "bank",
+    "subject": "debit",
+    "unread": true,
+    "id": "INBOX:15"
+   }
+  ],
+  "events": [],
+  "state": {
+   "lastUid": 15,
+   "folder": "Work"
+  }
+ },
+ "price": {
+  "cfg": {
+   "v": 1,
+   "symbol": "BTCUSDT",
+   "account": "",
+   "above": 100000,
+   "below": 90000,
+   "movePct": 3,
+   "windowMin": 5,
+   "goal": "",
+   "perHour": 12
+  },
+  "steps": [
+   {
+    "price": 95000,
+    "at": 1794474000000,
+    "events": [],
+    "state": {
+     "armedAbove": true,
+     "armedBelow": true,
+     "last": 95000,
+     "ref": 95000,
+     "refAt": 1794474000000
+    }
+   },
+   {
+    "price": 99000,
+    "at": 1794474010000,
+    "events": [
+     {
+      "type": "price",
+      "key": "move:1794474010000",
+      "title": "BTCUSDT moved +4.21% (from 95000 to 99000)",
+      "data": {
+       "symbol": "BTCUSDT",
+       "price": 99000,
+       "from": 95000,
+       "pct": 4.21
+      }
+     }
+    ],
+    "state": {
+     "armedAbove": true,
+     "armedBelow": true,
+     "last": 99000,
+     "ref": 99000,
+     "refAt": 1794474010000
+    }
+   },
+   {
+    "price": 100500,
+    "at": 1794474020000,
+    "events": [
+     {
+      "type": "price",
+      "key": "above:100000:1794474020000",
+      "title": "BTCUSDT went above 100000 (now 100500)",
+      "data": {
+       "symbol": "BTCUSDT",
+       "price": 100500,
+       "level": 100000
+      }
+     }
+    ],
+    "state": {
+     "armedAbove": false,
+     "armedBelow": true,
+     "last": 100500,
+     "ref": 99000,
+     "refAt": 1794474010000
+    }
+   },
+   {
+    "price": 101000,
+    "at": 1794474030000,
+    "events": [],
+    "state": {
+     "armedAbove": false,
+     "armedBelow": true,
+     "last": 101000,
+     "ref": 99000,
+     "refAt": 1794474010000
+    }
+   },
+   {
+    "price": 99900,
+    "at": 1794474040000,
+    "events": [],
+    "state": {
+     "armedAbove": false,
+     "armedBelow": true,
+     "last": 99900,
+     "ref": 99000,
+     "refAt": 1794474010000
+    }
+   },
+   {
+    "price": 99700,
+    "at": 1794474050000,
+    "events": [],
+    "state": {
+     "armedAbove": true,
+     "armedBelow": true,
+     "last": 99700,
+     "ref": 99000,
+     "refAt": 1794474010000
+    }
+   },
+   {
+    "price": 100100,
+    "at": 1794474060000,
+    "events": [
+     {
+      "type": "price",
+      "key": "above:100000:1794474060000",
+      "title": "BTCUSDT went above 100000 (now 100100)",
+      "data": {
+       "symbol": "BTCUSDT",
+       "price": 100100,
+       "level": 100000
+      }
+     }
+    ],
+    "state": {
+     "armedAbove": false,
+     "armedBelow": true,
+     "last": 100100,
+     "ref": 99000,
+     "refAt": 1794474010000
+    }
+   },
+   {
+    "price": 89000,
+    "at": 1794474070000,
+    "events": [
+     {
+      "type": "price",
+      "key": "below:90000:1794474070000",
+      "title": "BTCUSDT went below 90000 (now 89000)",
+      "data": {
+       "symbol": "BTCUSDT",
+       "price": 89000,
+       "level": 90000
+      }
+     },
+     {
+      "type": "price",
+      "key": "move:1794474070000",
+      "title": "BTCUSDT moved -10.10% (from 99000 to 89000)",
+      "data": {
+       "symbol": "BTCUSDT",
+       "price": 89000,
+       "from": 99000,
+       "pct": -10.1
+      }
+     }
+    ],
+    "state": {
+     "armedAbove": true,
+     "armedBelow": false,
+     "last": 89000,
+     "ref": 89000,
+     "refAt": 1794474070000
+    }
+   },
+   {
+    "price": 89500,
+    "at": 1794474080000,
+    "events": [],
+    "state": {
+     "armedAbove": true,
+     "armedBelow": false,
+     "last": 89500,
+     "ref": 89000,
+     "refAt": 1794474070000
+    }
+   },
+   {
+    "price": 92000,
+    "at": 1794474300000,
+    "events": [
+     {
+      "type": "price",
+      "key": "move:1794474300000",
+      "title": "BTCUSDT moved +3.37% (from 89000 to 92000)",
+      "data": {
+       "symbol": "BTCUSDT",
+       "price": 92000,
+       "from": 89000,
+       "pct": 3.37
+      }
+     }
+    ],
+    "state": {
+     "armedAbove": true,
+     "armedBelow": true,
+     "last": 92000,
+     "ref": 92000,
+     "refAt": 1794474300000
+    }
+   },
+   {
+    "price": 95000,
+    "at": 1794474310000,
+    "events": [
+     {
+      "type": "price",
+      "key": "move:1794474310000",
+      "title": "BTCUSDT moved +3.26% (from 92000 to 95000)",
+      "data": {
+       "symbol": "BTCUSDT",
+       "price": 95000,
+       "from": 92000,
+       "pct": 3.26
+      }
+     }
+    ],
+    "state": {
+     "armedAbove": true,
+     "armedBelow": true,
+     "last": 95000,
+     "ref": 95000,
+     "refAt": 1794474310000
+    }
+   },
+   {
+    "price": "bad",
+    "at": 1794474320000,
+    "events": [],
+    "state": {
+     "armedAbove": true,
+     "armedBelow": true,
+     "last": 95000,
+     "ref": 95000,
+     "refAt": 1794474310000
+    }
+   }
+  ]
+ },
+ "priceStartAbove": {
+  "cfg": {
+   "v": 1,
+   "symbol": "X",
+   "account": "",
+   "above": 50,
+   "below": null,
+   "movePct": null,
+   "windowMin": 60,
+   "goal": "",
+   "perHour": 12
+  },
+  "steps": [
+   {
+    "price": 60,
+    "at": 1794474000000,
+    "events": [],
+    "state": {
+     "armedAbove": false,
+     "armedBelow": true,
+     "last": 60,
+     "ref": 60,
+     "refAt": 1794474000000
+    }
+   },
+   {
+    "price": 70,
+    "at": 1794474001000,
+    "events": [],
+    "state": {
+     "armedAbove": false,
+     "armedBelow": true,
+     "last": 70,
+     "ref": 60,
+     "refAt": 1794474000000
+    }
+   },
+   {
+    "price": 49,
+    "at": 1794474002000,
+    "events": [],
+    "state": {
+     "armedAbove": true,
+     "armedBelow": true,
+     "last": 49,
+     "ref": 60,
+     "refAt": 1794474000000
+    }
+   },
+   {
+    "price": 51,
+    "at": 1794474003000,
+    "events": [
+     {
+      "type": "price",
+      "key": "above:50:1794474003000",
+      "title": "X went above 50 (now 51)",
+      "data": {
+       "symbol": "X",
+       "price": 51,
+       "level": 50
+      }
+     }
+    ],
+    "state": {
+     "armedAbove": false,
+     "armedBelow": true,
+     "last": 51,
+     "ref": 60,
+     "refAt": 1794474000000
+    }
+   }
+  ]
+ },
+ "notification": [
+  {
+   "cfg": {
+    "app": "WhatsApp",
+    "contains": "urgent, asap"
+   },
+   "n": {
+    "pkg": "com.whatsapp",
+    "app": "WhatsApp",
+    "title": "Mum",
+    "text": "Call me ASAP"
+   },
+   "out": true,
+   "event": {
+    "type": "notification",
+    "key": "com.whatsapp:Mum:Call me ASAP",
+    "title": "WhatsApp: Mum — Call me ASAP",
+    "data": {
+     "app": "WhatsApp",
+     "title": "Mum",
+     "text": "Call me ASAP"
+    }
+   }
+  },
+  {
+   "cfg": {
+    "app": "com.whatsapp",
+    "contains": ""
+   },
+   "n": {
+    "pkg": "com.whatsapp",
+    "app": "WA",
+    "title": "x",
+    "text": ""
+   },
+   "out": true,
+   "event": {
+    "type": "notification",
+    "key": "com.whatsapp:x:",
+    "title": "WA: x",
+    "data": {
+     "app": "WA",
+     "title": "x",
+     "text": ""
+    }
+   }
+  },
+  {
+   "cfg": {
+    "app": "whats",
+    "contains": "urgent"
+   },
+   "n": {
+    "pkg": "com.whatsapp",
+    "app": "WhatsApp",
+    "title": "Mum",
+    "text": "hello"
+   },
+   "out": false,
+   "event": {
+    "type": "notification",
+    "key": "com.whatsapp:Mum:hello",
+    "title": "WhatsApp: Mum — hello",
+    "data": {
+     "app": "WhatsApp",
+     "title": "Mum",
+     "text": "hello"
+    }
+   }
+  },
+  {
+   "cfg": {
+    "app": "Telegram",
+    "contains": ""
+   },
+   "n": {
+    "pkg": "com.whatsapp",
+    "app": "WhatsApp",
+    "title": "Mum",
+    "text": "hello"
+   },
+   "out": false,
+   "event": {
+    "type": "notification",
+    "key": "com.whatsapp:Mum:hello",
+    "title": "WhatsApp: Mum — hello",
+    "data": {
+     "app": "WhatsApp",
+     "title": "Mum",
+     "text": "hello"
+    }
+   }
+  },
+  {
+   "cfg": {
+    "app": "",
+    "contains": "otp"
+   },
+   "n": {
+    "pkg": "com.gtbank",
+    "app": "GTWorld",
+    "title": "Your OTP",
+    "text": "123456"
+   },
+   "out": true,
+   "event": {
+    "type": "notification",
+    "key": "com.gtbank:Your OTP:123456",
+    "title": "GTWorld: Your OTP — 123456",
+    "data": {
+     "app": "GTWorld",
+     "title": "Your OTP",
+     "text": "123456"
+    }
+   }
+  }
+ ],
+ "glob": [
+  {
+   "pattern": "*.pdf",
+   "name": "Report.PDF",
+   "out": true
+  },
+  {
+   "pattern": "*.pdf",
+   "name": "a.pdf.tmp",
+   "out": false
+  },
+  {
+   "pattern": "report*",
+   "name": "report-2026.xlsx",
+   "out": true
+  },
+  {
+   "pattern": "*",
+   "name": "x",
+   "out": true
+  },
+  {
+   "pattern": "a?c.txt",
+   "name": "abc.txt",
+   "out": true
+  },
+  {
+   "pattern": "a?c.txt",
+   "name": "abbc.txt",
+   "out": false
+  },
+  {
+   "pattern": "(x).txt",
+   "name": "(x).txt",
+   "out": true
+  }
+ ],
+ "file": {
+  "cfg": {
+   "pattern": "*.pdf"
+  },
+  "steps": [
+   {
+    "listing": [
+     {
+      "name": "old.pdf",
+      "size": 10,
+      "mtime": 1
+     },
+     {
+      "name": "x.txt",
+      "size": 1,
+      "mtime": 1
+     }
+    ],
+    "at": 1794474000000,
+    "events": [],
+    "state": {
+     "base": true,
+     "known": {
+      "old.pdf": {
+       "size": 10,
+       "mtime": 1,
+       "done": true,
+       "since": 1794474000000
+      }
+     }
+    }
+   },
+   {
+    "listing": [
+     {
+      "name": "old.pdf",
+      "size": 10,
+      "mtime": 1
+     },
+     {
+      "name": "new.pdf",
+      "size": 5,
+      "mtime": 2
+     }
+    ],
+    "at": 1794474001000,
+    "events": [],
+    "state": {
+     "base": true,
+     "known": {
+      "old.pdf": {
+       "size": 10,
+       "mtime": 1,
+       "done": true,
+       "since": 1794474000000
+      },
+      "new.pdf": {
+       "size": 5,
+       "mtime": 2,
+       "done": false,
+       "since": 1794474001000
+      }
+     }
+    }
+   },
+   {
+    "listing": [
+     {
+      "name": "old.pdf",
+      "size": 10,
+      "mtime": 1
+     },
+     {
+      "name": "new.pdf",
+      "size": 9,
+      "mtime": 3
+     }
+    ],
+    "at": 1794474002000,
+    "events": [],
+    "state": {
+     "base": true,
+     "known": {
+      "old.pdf": {
+       "size": 10,
+       "mtime": 1,
+       "done": true,
+       "since": 1794474000000
+      },
+      "new.pdf": {
+       "size": 9,
+       "mtime": 3,
+       "done": false,
+       "since": 1794474002000
+      }
+     }
+    }
+   },
+   {
+    "listing": [
+     {
+      "name": "old.pdf",
+      "size": 10,
+      "mtime": 1
+     },
+     {
+      "name": "new.pdf",
+      "size": 9,
+      "mtime": 3
+     }
+    ],
+    "at": 1794474004000,
+    "events": [],
+    "state": {
+     "base": true,
+     "known": {
+      "old.pdf": {
+       "size": 10,
+       "mtime": 1,
+       "done": true,
+       "since": 1794474000000
+      },
+      "new.pdf": {
+       "size": 9,
+       "mtime": 3,
+       "done": false,
+       "since": 1794474002000
+      }
+     }
+    }
+   },
+   {
+    "listing": [
+     {
+      "name": "old.pdf",
+      "size": 10,
+      "mtime": 1
+     },
+     {
+      "name": "new.pdf",
+      "size": 9,
+      "mtime": 3
+     }
+    ],
+    "at": 1794474006000,
+    "events": [
+     {
+      "type": "file",
+      "key": "new.pdf:9:3",
+      "title": "New file: new.pdf",
+      "data": {
+       "file": "new.pdf",
+       "path": null,
+       "size": 9
+      }
+     }
+    ],
+    "state": {
+     "base": true,
+     "known": {
+      "old.pdf": {
+       "size": 10,
+       "mtime": 1,
+       "done": true,
+       "since": 1794474000000
+      },
+      "new.pdf": {
+       "size": 9,
+       "mtime": 3,
+       "done": true,
+       "since": 1794474002000
+      }
+     }
+    }
+   },
+   {
+    "listing": [
+     {
+      "name": "old.pdf",
+      "size": 12,
+      "mtime": 9
+     },
+     {
+      "name": "new.pdf",
+      "size": 9,
+      "mtime": 3
+     }
+    ],
+    "at": 1794474007000,
+    "events": [],
+    "state": {
+     "base": true,
+     "known": {
+      "old.pdf": {
+       "size": 12,
+       "mtime": 9,
+       "done": true,
+       "since": 1794474007000
+      },
+      "new.pdf": {
+       "size": 9,
+       "mtime": 3,
+       "done": true,
+       "since": 1794474002000
+      }
+     }
+    }
+   },
+   {
+    "listing": [
+     {
+      "name": "old.pdf",
+      "size": 12,
+      "mtime": 9
+     }
+    ],
+    "at": 1794474011000,
+    "events": [],
+    "state": {
+     "base": true,
+     "known": {
+      "old.pdf": {
+       "size": 12,
+       "mtime": 9,
+       "done": true,
+       "since": 1794474007000
+      }
+     }
+    }
+   }
+  ]
+ }
+}

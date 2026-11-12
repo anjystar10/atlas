@@ -1027,3 +1027,28 @@ test('bots v2: crew.js gives every answer in tools/bots2-fixtures.json (the phon
   const long = Array.from({ length: 120 }, (_, i) => (i % 3 ? '  ' : '') + `[ ] step ${i}`).join('\n');
   assert.equal(C.parsePlanTree(long).length, 120);
 });
+
+// ------------------------------------------------------------------ Atlas Bot v2 triggers: the rules (desktop/renderer/trigrules.js)
+test('triggers: every fixture case gives the answer the phone must also give', async () => {
+  const R = await import('../renderer/trigrules.js');
+  const F = JSON.parse((await import('node:fs')).readFileSync(new URL('../../tools/trigger-fixtures.json', import.meta.url), 'utf8'));
+  for (const c of F.clean) { const o = R.cleanTrigger(c.input, c.i); assert.deepEqual(o, c.out); assert.equal(R.summary(o), c.summary); }
+  for (const c of F.goal) { assert.equal(R.goalFor(c.bot, c.trigger, c.event), c.out); assert.equal(R.eventKey(c.bot.id, c.trigger.id, c.event), c.key); }
+  for (const c of F.where) assert.equal(R.where({ home: c.home || undefined }, c.device), c.out);
+  for (const c of F.awake) assert.equal(R.awakeLabel(c.bot), c.out);
+  for (const c of F.watchable) assert.equal(R.watchable(c.type, c.device), c.out);
+  let s = {}; for (const c of F.dedupe) { const r = R.dedupe(s, c.key, c.at); s = r.state; assert.equal(r.fresh, c.fresh, c.key); }
+  s = {}; for (const c of F.rate) { const r = R.rateAllow(s, 'b|t', c.perHour, c.at); s = r.state; assert.equal(r.ok, c.ok, String(c.at)); }
+  s = {}; for (const c of F.schedule) { const r = R.scheduleDue(s, F.scheduleSpec, c.at); s = r.state; assert.equal(r.fire, c.fire); assert.equal(s.nextAt, c.nextAt); }
+  s = {}; for (const c of F.email.steps) { const r = R.emailEvents(s, c.messages, F.email.cfg); s = r.state; assert.deepEqual(r.events, c.events); assert.deepEqual(r.state, c.state); }
+  { const r = R.emailEvents(F.emailFolderChange.before, F.emailFolderChange.messages, F.emailFolderChange.cfg); assert.deepEqual(r.events, []); assert.deepEqual(r.state, F.emailFolderChange.state); }
+  for (const P of [F.price, F.priceStartAbove]) { s = {}; for (const c of P.steps) { const r = R.priceEvents(s, c.price, c.at, P.cfg); s = r.state; assert.deepEqual(r.events, c.events); assert.deepEqual(r.state, c.state); } }
+  for (const c of F.notification) { assert.equal(R.notificationMatches(c.cfg, c.n), c.out); assert.deepEqual(R.notificationEvent(c.n), c.event); }
+  for (const c of F.glob) assert.equal(R.globMatch(c.pattern, c.name), c.out, c.pattern + ' ' + c.name);
+  s = null; for (const c of F.file.steps) { const r = R.fileEvents(s, c.listing, c.at, F.file.cfg); s = r.state; assert.deepEqual(r.events, c.events); assert.deepEqual(r.state, c.state); }
+  // the cases say what they should, not just what the code did
+  assert.equal(F.email.steps[0].events.length, 0, 'the first look only sets the baseline');
+  assert.ok(F.price.steps.some((x) => x.events.some((e) => /above 100000 \(now 100100\)/.test(e.title))), 'a level re-arms after the price falls back');
+  assert.equal(F.priceStartAbove.steps[1].events.length, 0, 'already above at the first look: no event');
+  assert.equal(F.file.steps.flatMap((x) => x.events).length, 1, 'one new pdf, once, after it settled; edits to an old file are not new');
+});
