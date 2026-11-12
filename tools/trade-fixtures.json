@@ -1,0 +1,1827 @@
+{
+ "note": "Made from desktop/traderules.js. The phone (TradeRules.kt) must give the same answers: see TradeRulesTest.kt and desktop/test/logic.test.mjs.",
+ "cases": [
+  {
+   "name": "paper market buy by dollars",
+   "order": {
+    "symbol": "btcusdt",
+    "side": "buy",
+    "notional": 50
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a1",
+    "name": "Bybit demo",
+    "broker": "bybit",
+    "mode": "paper"
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "market",
+     "qty": "0.000746",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": false
+    },
+    "needsApproval": false,
+    "worstCaseUsd": 49.98,
+    "estUsd": 49.98,
+    "summary": "PAPER · Bybit demo: BUY 0.000746 BTCUSDT at market (about $49.98). Worst case: the whole $49.98 if the price went to zero; there's no stop."
+   }
+  },
+  {
+   "name": "live buy asks",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 50
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "market",
+     "qty": "0.000746",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": false
+    },
+    "needsApproval": true,
+    "worstCaseUsd": 49.98,
+    "estUsd": 49.98,
+    "summary": "LIVE · Bybit: BUY 0.000746 BTCUSDT at market (about $49.98). Worst case: the whole $49.98 if the price went to zero; there's no stop."
+   }
+  },
+  {
+   "name": "live buy inside a confirmed plan does not ask",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 50
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": {
+    "accountId": "a2",
+    "confirmed": true,
+    "expiresAt": 5000,
+    "maxOrders": 3,
+    "used": 0,
+    "symbols": [
+     "BTC"
+    ],
+    "maxOrderUsd": 60,
+    "sides": [
+     "buy"
+    ]
+   },
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "market",
+     "qty": "0.000746",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": false
+    },
+    "needsApproval": false,
+    "worstCaseUsd": 49.98,
+    "estUsd": 49.98,
+    "summary": "LIVE · Bybit: BUY 0.000746 BTCUSDT at market (about $49.98). Worst case: the whole $49.98 if the price went to zero; there's no stop."
+   }
+  },
+  {
+   "name": "plan does not cover a bigger order",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 80
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": {
+    "accountId": "a2",
+    "confirmed": true,
+    "expiresAt": 5000,
+    "maxOrders": 3,
+    "used": 0,
+    "symbols": [
+     "BTC"
+    ],
+    "maxOrderUsd": 60,
+    "sides": [
+     "buy"
+    ]
+   },
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "market",
+     "qty": "0.001194",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": false
+    },
+    "needsApproval": true,
+    "worstCaseUsd": 80,
+    "estUsd": 80,
+    "summary": "LIVE · Bybit: BUY 0.001194 BTCUSDT at market (about $80.00). Worst case: the whole $80.00 if the price went to zero; there's no stop."
+   }
+  },
+  {
+   "name": "plan expired",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 50
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 6000
+   },
+   "plan": {
+    "accountId": "a2",
+    "confirmed": true,
+    "expiresAt": 5000,
+    "maxOrders": 3,
+    "used": 0,
+    "symbols": [
+     "BTC"
+    ],
+    "maxOrderUsd": 60,
+    "sides": [
+     "buy"
+    ]
+   },
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "market",
+     "qty": "0.000746",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": false
+    },
+    "needsApproval": true,
+    "worstCaseUsd": 49.98,
+    "estUsd": 49.98,
+    "summary": "LIVE · Bybit: BUY 0.000746 BTCUSDT at market (about $49.98). Worst case: the whole $49.98 if the price went to zero; there's no stop."
+   }
+  },
+  {
+   "name": "plan used up",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 50
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": {
+    "accountId": "a2",
+    "confirmed": true,
+    "expiresAt": 5000,
+    "maxOrders": 3,
+    "used": 3,
+    "symbols": [
+     "BTC"
+    ],
+    "maxOrderUsd": 60,
+    "sides": [
+     "buy"
+    ]
+   },
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "market",
+     "qty": "0.000746",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": false
+    },
+    "needsApproval": true,
+    "worstCaseUsd": 49.98,
+    "estUsd": 49.98,
+    "summary": "LIVE · Bybit: BUY 0.000746 BTCUSDT at market (about $49.98). Worst case: the whole $49.98 if the price went to zero; there's no stop."
+   }
+  },
+  {
+   "name": "over the order size",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 150
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "order_size"
+    ]
+   }
+  },
+  {
+   "name": "symbol not allowed",
+   "order": {
+    "symbol": "DOGEUSDT",
+    "side": "buy",
+    "notional": 20
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "symbol"
+    ]
+   }
+  },
+  {
+   "name": "stop switch on",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 20
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": true,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "killed"
+    ]
+   }
+  },
+  {
+   "name": "stop switch on, closing still allowed",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "sell",
+    "qty": 0.0005,
+    "closing": true
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": true,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "sell",
+     "type": "market",
+     "qty": "0.000500",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": true
+    },
+    "needsApproval": true,
+    "worstCaseUsd": null,
+    "estUsd": 33.5,
+    "summary": "LIVE · Bybit: SELL 0.000500 BTCUSDT at market (about $33.50). This closes or reduces a position."
+   }
+  },
+  {
+   "name": "daily loss reached",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 20
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 965,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "daily_loss"
+    ]
+   }
+  },
+  {
+   "name": "a stop this far could pass the daily loss",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "qty": 0.0005,
+    "stopLoss": 30000
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 985,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "risk_exceeds"
+    ]
+   }
+  },
+  {
+   "name": "two trades already today",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 20
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 2,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "orders_today"
+    ]
+   }
+  },
+  {
+   "name": "open positions full",
+   "order": {
+    "symbol": "ETHUSDT",
+    "side": "buy",
+    "notional": 20
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 3000,
+    "ask": 3000.5,
+    "last": 3000
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [
+     "BTCUSDT",
+     "SOLUSDT"
+    ],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "positions"
+    ]
+   }
+  },
+  {
+   "name": "size rounds down to the lot step",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "qty": 0.00123456789
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a1",
+    "name": "Bybit demo",
+    "broker": "bybit",
+    "mode": "paper"
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "market",
+     "qty": "0.001234",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": false
+    },
+    "needsApproval": false,
+    "worstCaseUsd": 82.68,
+    "estUsd": 82.68,
+    "summary": "PAPER · Bybit demo: BUY 0.001234 BTCUSDT at market (about $82.68). Worst case: the whole $82.68 if the price went to zero; there's no stop."
+   }
+  },
+  {
+   "name": "too small",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 0.5
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a1",
+    "name": "Bybit demo",
+    "broker": "bybit",
+    "mode": "paper"
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "too_small"
+    ]
+   }
+  },
+  {
+   "name": "limit price to the tick",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "qty": 0.001,
+    "type": "limit",
+    "limit": 66000.123
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a1",
+    "name": "Bybit demo",
+    "broker": "bybit",
+    "mode": "paper"
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "limit",
+     "qty": "0.001000",
+     "price": "66000.12",
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": false
+    },
+    "needsApproval": false,
+    "worstCaseUsd": 66,
+    "estUsd": 66,
+    "summary": "PAPER · Bybit demo: BUY 0.001000 BTCUSDT limit 66000.12 (about $66.00). Worst case: the whole $66.00 if the price went to zero; there's no stop."
+   }
+  },
+  {
+   "name": "limit without a price",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "qty": 0.001,
+    "type": "limit"
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a1",
+    "name": "Bybit demo",
+    "broker": "bybit",
+    "mode": "paper"
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "price_needed"
+    ]
+   }
+  },
+  {
+   "name": "stop loss on the wrong side",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "qty": 0.0005,
+    "stopLoss": 68000
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a1",
+    "name": "Bybit demo",
+    "broker": "bybit",
+    "mode": "paper"
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "stop_side"
+    ]
+   }
+  },
+  {
+   "name": "spot buy with a stop: worst case is the stop distance",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "qty": 0.001,
+    "stopLoss": 66000,
+    "takeProfit": 69000
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "market",
+     "qty": "0.001000",
+     "price": null,
+     "stop": null,
+     "stopLoss": "66000.00",
+     "takeProfit": "69000.00",
+     "closing": false
+    },
+    "needsApproval": true,
+    "worstCaseUsd": 1,
+    "estUsd": 67,
+    "summary": "LIVE · Bybit: BUY 0.001000 BTCUSDT at market (about $67.00). Stop loss 66000.00. Take profit 69000.00. Worst case: about $1.00 lost if the stop is hit (more if the price jumps past it)."
+   }
+  },
+  {
+   "name": "outside trading hours",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 20
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ],
+     "hours": {
+      "start": "13:00",
+      "end": "17:00",
+      "days": [
+       1,
+       2,
+       3,
+       4,
+       5
+      ]
+     }
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "hours"
+    ]
+   }
+  },
+  {
+   "name": "hours that cross midnight",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 20
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ],
+     "hours": {
+      "start": "22:00",
+      "end": "02:00",
+      "days": []
+     }
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 60,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "market",
+     "qty": "0.000298",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": false
+    },
+    "needsApproval": true,
+    "worstCaseUsd": 19.97,
+    "estUsd": 19.97,
+    "summary": "LIVE · Bybit: BUY 0.000298 BTCUSDT at market (about $19.97). Worst case: the whole $19.97 if the price went to zero; there's no stop."
+   }
+  },
+  {
+   "name": "live futures need a stop",
+   "order": {
+    "symbol": "NQZ6",
+    "side": "buy",
+    "qty": 1
+   },
+   "inst": {
+    "tickSize": "0.25",
+    "qtyStep": "1",
+    "minQty": "1",
+    "pointValue": 20,
+    "futures": true
+   },
+   "market": {
+    "bid": 21000,
+    "ask": 21000.25,
+    "last": 21000
+   },
+   "account": {
+    "id": "a3",
+    "name": "TopstepX 50K",
+    "broker": "projectx",
+    "mode": "live",
+    "limits": {
+     "maxContracts": 1,
+     "maxDailyLossUsd": 500,
+     "allowDerivatives": true
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "needs_stop"
+    ]
+   }
+  },
+  {
+   "name": "live futures with a stop",
+   "order": {
+    "symbol": "NQZ6",
+    "side": "sell",
+    "qty": 1,
+    "stopLoss": 21010,
+    "takeProfit": 20980
+   },
+   "inst": {
+    "tickSize": "0.25",
+    "qtyStep": "1",
+    "minQty": "1",
+    "pointValue": 20,
+    "futures": true
+   },
+   "market": {
+    "bid": 21000,
+    "ask": 21000.25,
+    "last": 21000
+   },
+   "account": {
+    "id": "a3",
+    "name": "TopstepX 50K",
+    "broker": "projectx",
+    "mode": "live",
+    "limits": {
+     "maxContracts": 1,
+     "maxDailyLossUsd": 500,
+     "allowDerivatives": true
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "NQZ6",
+     "side": "sell",
+     "type": "market",
+     "qty": "1",
+     "price": null,
+     "stop": null,
+     "stopLoss": "21010.00",
+     "takeProfit": "20980.00",
+     "closing": false
+    },
+    "needsApproval": true,
+    "worstCaseUsd": 200,
+    "estUsd": 420000,
+    "summary": "LIVE · TopstepX 50K: SELL 1 contract NQZ6 at market (about $420,000.00 of contract value). Stop loss 21010.00. Take profit 20980.00. Worst case: about $200.00 lost if the stop is hit (more if the price jumps past it)."
+   }
+  },
+  {
+   "name": "futures over the contract limit",
+   "order": {
+    "symbol": "NQZ6",
+    "side": "buy",
+    "qty": 3,
+    "stopLoss": 20990
+   },
+   "inst": {
+    "tickSize": "0.25",
+    "qtyStep": "1",
+    "minQty": "1",
+    "pointValue": 20,
+    "futures": true
+   },
+   "market": {
+    "bid": 21000,
+    "ask": 21000.25,
+    "last": 21000
+   },
+   "account": {
+    "id": "a3",
+    "name": "TopstepX 50K",
+    "broker": "projectx",
+    "mode": "live",
+    "limits": {
+     "maxContracts": 1,
+     "maxDailyLossUsd": 500,
+     "allowDerivatives": true
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "contracts",
+     "risk_exceeds"
+    ]
+   }
+  },
+  {
+   "name": "futures risk passes the daily loss",
+   "order": {
+    "symbol": "NQZ6",
+    "side": "buy",
+    "qty": 1,
+    "stopLoss": 20970
+   },
+   "inst": {
+    "tickSize": "0.25",
+    "qtyStep": "1",
+    "minQty": "1",
+    "pointValue": 20,
+    "futures": true
+   },
+   "market": {
+    "bid": 21000,
+    "ask": 21000.25,
+    "last": 21000
+   },
+   "account": {
+    "id": "a3",
+    "name": "TopstepX 50K",
+    "broker": "projectx",
+    "mode": "live",
+    "limits": {
+     "maxContracts": 1,
+     "maxDailyLossUsd": 500,
+     "allowDerivatives": true
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "risk_exceeds"
+    ]
+   }
+  },
+  {
+   "name": "live futures switched off for the account",
+   "order": {
+    "symbol": "NQZ6",
+    "side": "buy",
+    "qty": 1,
+    "stopLoss": 20990
+   },
+   "inst": {
+    "tickSize": "0.25",
+    "qtyStep": "1",
+    "minQty": "1",
+    "pointValue": 20,
+    "futures": true
+   },
+   "market": {
+    "bid": 21000,
+    "ask": 21000.25,
+    "last": 21000
+   },
+   "account": {
+    "id": "a4",
+    "name": "TopstepX 50K",
+    "broker": "projectx",
+    "mode": "live",
+    "limits": {
+     "maxContracts": 1,
+     "maxDailyLossUsd": 500,
+     "allowDerivatives": false
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "derivatives_off"
+    ]
+   }
+  },
+  {
+   "name": "paper futures need no stop and no OK",
+   "order": {
+    "symbol": "NQZ6",
+    "side": "buy",
+    "qty": 2
+   },
+   "inst": {
+    "tickSize": "0.25",
+    "qtyStep": "1",
+    "minQty": "1",
+    "pointValue": 20,
+    "futures": true
+   },
+   "market": {
+    "bid": 21000,
+    "ask": 21000.25,
+    "last": 21000
+   },
+   "account": {
+    "id": "a3",
+    "name": "TopstepX 50K",
+    "broker": "projectx",
+    "mode": "paper",
+    "limits": {}
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "NQZ6",
+     "side": "buy",
+     "type": "market",
+     "qty": "2",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": false
+    },
+    "needsApproval": false,
+    "worstCaseUsd": null,
+    "estUsd": 840010,
+    "summary": "PAPER · TopstepX 50K: BUY 2 contracts NQZ6 at market (about $840,010.00 of contract value). Worst case: no stop, so the loss isn't capped."
+   }
+  },
+  {
+   "name": "futures by dollars is refused",
+   "order": {
+    "symbol": "NQZ6",
+    "side": "buy",
+    "notional": 1000
+   },
+   "inst": {
+    "tickSize": "0.25",
+    "qtyStep": "1",
+    "minQty": "1",
+    "pointValue": 20,
+    "futures": true
+   },
+   "market": {
+    "bid": 21000,
+    "ask": 21000.25,
+    "last": 21000
+   },
+   "account": {
+    "id": "a3",
+    "name": "TopstepX 50K",
+    "broker": "projectx",
+    "mode": "paper",
+    "limits": {}
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": 1000,
+    "equity": 1000,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "size"
+    ]
+   }
+  }
+ ],
+ "rounding": [
+  {
+   "value": "0.00123456789",
+   "step": "0.000001",
+   "floor": "0.001234",
+   "round": "0.001235"
+  },
+  {
+   "value": "10",
+   "step": "0.25",
+   "floor": "10.00",
+   "round": "10.00"
+  },
+  {
+   "value": "1.999999999",
+   "step": "0.001",
+   "floor": "1.999",
+   "round": "2.000"
+  },
+  {
+   "value": "0.3",
+   "step": "0.1",
+   "floor": "0.3",
+   "round": "0.3"
+  },
+  {
+   "value": "66000.123",
+   "step": "0.01",
+   "floor": "66000.12",
+   "round": "66000.12"
+  },
+  {
+   "value": "21000.13",
+   "step": "0.25",
+   "floor": "21000.00",
+   "round": "21000.25"
+  },
+  {
+   "value": "5",
+   "step": "1",
+   "floor": "5",
+   "round": "5"
+  }
+ ],
+ "hmac": {
+  "note": "RFC 4231 test case 2 (HMAC-SHA256)",
+  "key": "Jefe",
+  "data": "what do ya want for nothing?",
+  "hex": "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843"
+ },
+ "bybitPayload": {
+  "note": "From bybit-exchange.github.io/docs/v5/guide (GET example)",
+  "ts": "1658384314791",
+  "key": "XXXXXXXXXX",
+  "recv": "5000",
+  "query": "category=option&symbol=BTC-29JUL22-25000-C",
+  "expect": "1658384314791XXXXXXXXXX5000category=option&symbol=BTC-29JUL22-25000-C"
+ },
+ "hours": [
+  [
+   {
+    "start": "09:00",
+    "end": "17:00",
+    "days": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ]
+   },
+   600,
+   4,
+   true
+  ],
+  [
+   {
+    "start": "09:00",
+    "end": "17:00",
+    "days": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ]
+   },
+   600,
+   6,
+   false
+  ],
+  [
+   {
+    "start": "22:00",
+    "end": "02:00",
+    "days": []
+   },
+   30,
+   1,
+   true
+  ],
+  [
+   {
+    "start": "22:00",
+    "end": "02:00",
+    "days": []
+   },
+   600,
+   1,
+   false
+  ],
+  [
+   null,
+   0,
+   1,
+   true
+  ]
+ ]
+}
