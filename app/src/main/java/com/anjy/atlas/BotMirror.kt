@@ -35,7 +35,7 @@ object BotMirror {
     private fun list(ctx: Context): Map<String, JSONObject> {
         val me = Store.read(ctx) { it.deviceId }
         val out = LinkedHashMap<String, JSONObject>()
-        val jobs = Bots.snapshot()
+        val jobs = Bots.jobsForSync()
         synchronized(lock) {
             val o = read(ctx)
             if (jobs != null) {

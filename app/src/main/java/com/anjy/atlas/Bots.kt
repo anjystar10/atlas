@@ -68,7 +68,7 @@ object Bots {
     /** The journal is loaded (sync can show this device's jobs on the other one). */
     val ready get() = loaded
     /** A snapshot of the jobs, read on the main thread where they change (null: not ready, or busy). */
-    fun snapshot(): List<BotJob>? {
+    fun jobsForSync(): List<BotJob>? {
         if (!loaded) return null
         if (Looper.myLooper() == Looper.getMainLooper()) return visible()
         val latch = java.util.concurrent.CountDownLatch(1); var out: List<BotJob>? = null
