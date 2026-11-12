@@ -128,7 +128,7 @@ function killTree(child) {
   } catch { try { child.kill('SIGKILL'); } catch {} }
 }
 function shellSpawn(command, cwd, detached) {
-  const env = { ...process.env, CI: '1', FORCE_COLOR: '0', NO_COLOR: '1', PYTHONUNBUFFERED: '1', PYTHONIOENCODING: 'utf-8', NPM_CONFIG_FUND: 'false', NPM_CONFIG_AUDIT: 'false', NPM_CONFIG_UPDATE_NOTIFIER: 'false' };
+  const env = { ...process.env, CI: '1', FORCE_COLOR: '0', NO_COLOR: '1', PYTHONUNBUFFERED: '1', PYTHONDONTWRITEBYTECODE: '1' /* fast fixes keep size and mtime second: no stale .pyc */, PYTHONIOENCODING: 'utf-8', NPM_CONFIG_FUND: 'false', NPM_CONFIG_AUDIT: 'false', NPM_CONFIG_UPDATE_NOTIFIER: 'false' };
   const child = isWin
     ? spawn(process.env.ComSpec || 'cmd.exe', ['/d', '/s', '/c', `"${command}"`], { cwd, env, windowsHide: true, windowsVerbatimArguments: true, stdio: ['ignore', 'pipe', 'pipe'], detached: !!detached })
     : spawn('/bin/sh', ['-c', command], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
@@ -321,7 +321,7 @@ async function run(name, args = {}, { approved = false, library = null } = {}) {
         for (const e of fs.readdirSync(d, { withFileTypes: true })) {
           const r = rel ? rel + '/' + e.name : e.name;
           if (e.isDirectory()) { if (SKIP.has(e.name) && e.name !== 'bin') { skipped++; continue; } walk(path.join(d, e.name), r); continue; }
-          if (!e.isFile() || e.name.endsWith('.tmp')) continue;
+          if (!e.isFile() || e.name.endsWith('.tmp') || (!rel && e.name === MANIFEST)) continue;
           const f = path.join(d, e.name), size = fs.statSync(f).size;
           if (total + size > MAX_ZIP) { skipped++; continue; }
           total += size; files.push({ name: path.basename(dir) + '/' + r, data: fs.readFileSync(f) });
