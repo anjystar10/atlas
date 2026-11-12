@@ -178,10 +178,11 @@ object MailText {
 
     fun friendlyError(e: Throwable?, preset: Preset?): String {
         var msg = ""; var t: Throwable? = e; var n = 0
-        while (t != null && n++ < 5) { msg += " " + (t.message ?: t.javaClass.simpleName); t = t.cause }
-        val name = e?.javaClass?.simpleName ?: ""
+        var names = ""   // every exception in the chain (a mail error often wraps the network one)
+        while (t != null && n++ < 5) { msg += " " + (t.message ?: ""); names += " " + t.javaClass.simpleName; t = t.cause }
+        val name = names.trim()
         msg = msg.trim()
-        if (name == "AuthenticationFailedException" || Regex("AUTHENTICATIONFAILED|Invalid credentials|authentication failed|LOGIN failed|Application-specific password|535|Username and Password not accepted|AUTHENTICATE failed", I).containsMatchIn(msg))
+        if (name.contains("AuthenticationFailedException") || Regex("AUTHENTICATIONFAILED|Invalid credentials|authentication failed|LOGIN failed|Application-specific password|535|Username and Password not accepted|AUTHENTICATE failed", I).containsMatchIn(msg))
             return "${preset?.name ?: "The mail server"} turned down the password. ${preset?.help ?: "Check the address and password."}"
         if (Regex("UnknownHost|Unable to resolve host|No address associated", I).containsMatchIn(msg + name)) return "Couldn't find the mail server. Check the server name, or your internet connection."
         if (Regex("ConnectException|SocketTimeout|timed? ?out|Connection refused|Connection reset|Network is unreachable", I).containsMatchIn(msg + name)) return "Couldn't reach the mail server. Check your internet connection (and the server name and port)."
