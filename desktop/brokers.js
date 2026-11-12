@@ -207,7 +207,7 @@ function projectx({ userName, apiKey, base = 'https://api.topstepx.com', account
       const a = await this.account(); const c = await contract(symbol);
       const p = a.positions.find((x) => x.contractId === c.id);
       if (!p) return null;
-      return { symbol: c.name, side: 'sell', qty: String(p.size), type: 'market', closing: true, closeContract: c.id };
+      return { symbol: c.name, side: p.type === 2 ? 'buy' : 'sell', qty: String(p.size), type: 'market', closing: true, closeContract: c.id };
     },
     async closeContract(contractId) { await call('/api/Position/closeContract', { accountId: acct(), contractId }); return true; },
     async history(days = 7) {

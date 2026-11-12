@@ -900,6 +900,7 @@ class MainActivity : Activity() {
         Link.listen(onLink); Link.setForeground(this, true)   // >>> device link: listening while Atlas is open
         resumedNow = true
         Connections.asker = connectionsAsker(); refreshConnections()   // >>> connections: chat asks here; tools checked again
+        Trading.asker = tradingAsker()   // >>> trading: a LIVE order from chat waits for a tap here
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
         if (::aurora.isInitialized) aurora.resume()
         if (returnedFromSystem && tab != 0) render(keepScroll = true)
@@ -912,6 +913,7 @@ class MainActivity : Activity() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
         resumedNow = false
         Connections.asker = null   // >>> connections: nothing on screen to ask with
+        Trading.asker = null   // >>> trading
         Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
         Link.unlisten(onLink); Link.setForeground(this, false)   // >>> device link
         stopVoice()
@@ -2104,6 +2106,11 @@ class MainActivity : Activity() {
         body.add(eyebrow("Connections"), 16)
         body.add(connectionsCard(), 8)
         // <<< connections
+
+        // >>> trading: accounts, PAPER / LIVE, limits, the stop switch (TradingUi.kt)
+        body.add(eyebrow("Trading"), 16)
+        body.add(tradingCard(), 8)
+        // <<< trading
 
         // sign-ins Atlas Bot may use (VaultUi.kt)
         body.add(eyebrow("Vault"), 16)

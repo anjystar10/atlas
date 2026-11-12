@@ -442,6 +442,13 @@ object Bots {
                             if (out.waitForUser != null) { waitForUser(j, out.waitForUser); return }
                             results.add(c to out.text)
                         }
+                        // >>> trading: a LIVE order waits for the user's tap on the job page; "always allow" never covers it (Trading.kt)
+                        in Trading.names -> {
+                            val need = Trading.needForBot(app, j.id, c)
+                            if (need != null) { askApproval(j, Approval(need.take(600), c.name, JSONObject(c.args.toString()), null, category = "purchase", mustAsk = true)); return }
+                            results.add(c to runTrade(j, c, approved = false))
+                        }
+                        // <<< trading
                         else -> {
                             if (c.name !in toolNames && !Connections.owns(c.name) && c.name !in Capabilities.names(app, forBots = true)) { results.add(c to "Error: there's no tool called ${c.name}."); continue }
                             val label = if (c.name == "tap" || c.name == "long_press") withContext(Dispatchers.Default) { PhoneControl.labelOf(c.args.optInt("element", -1)) } else null
@@ -477,6 +484,20 @@ object Bots {
         persist()
         return r.out
     }
+
+    // >>> trading
+    /** Runs a trading tool for the bot, with the "doing it now" mark ([approved]: the user OK'd this exact order). */
+    private suspend fun runTrade(j: BotJob, c: Gemini.Call, approved: Boolean): String {
+        val what = Trading.stepLabel(c)
+        j.current = what; j.pending = what; persistNow(); changed()
+        val out = Trading.runForBot(app, j.id, c, approved)
+        j.pending = null; j.toolCalls++
+        j.step(if (out.startsWith("Error") || out.startsWith("Not ")) "$what: ${out.take(120)}" else what)
+        j.addRecent("$what:\n${out.take(1200)}")
+        persist()
+        return out
+    }
+    // <<< trading
 
     /** Runs one file tool for the bot (BotFiles), with the same "doing it now" mark as [runTool]. */
     private suspend fun runFiles(j: BotJob, c: Gemini.Call): String {
@@ -535,6 +556,13 @@ object Bots {
             j.notes.add("Approved and done: ${a.what}. Result: ${out.text.lineSequence().firstOrNull()?.take(300) ?: ""}")
             persist(); return
         }
+        // >>> trading: the approved order exactly as shown (its ticket); the risk engine checks it again before it's sent
+        if (a.tool in Trading.names) {
+            val out = runTrade(j, Gemini.Call(a.tool, a.args, null), approved = true)
+            j.notes.add("Approved: ${a.what.take(200)}. Result: ${out.lineSequence().firstOrNull()?.take(300) ?: ""}")
+            persist(); return
+        }
+        // <<< trading
         if (a.elementLabel != null) {
             val now = withContext(Dispatchers.Default) { PhoneControl.labelOf(a.args.optInt("element", -1)) }
             if (now != a.elementLabel) { j.notes.add("The user approved: ${a.what}, but the screen changed before it could be done, so it was NOT done. Read the screen again; ask again if it's still needed."); persist(); return }

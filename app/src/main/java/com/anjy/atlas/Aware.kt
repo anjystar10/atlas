@@ -39,6 +39,7 @@ object Capabilities {
     init {
         // ---- built in: managing bots, answering approvals and quick web actions from the chat (AwareTools below)
         register(AwareTools.cap)
+        register(Trading.cap)   // >>> trading: the trade_* tools in chat and for bots; LIVE orders ask (Trading.kt)
         // ---- new subsystems register here, one line each (e.g. register(Email.cap))
     }
 
