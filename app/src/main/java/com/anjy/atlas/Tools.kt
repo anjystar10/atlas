@@ -79,6 +79,10 @@ object Tools {
             put(fn("start_focus", "Start a focus session when the user says they're doing something right now (\"I'm doing it now\", \"starting my homework\"). Opens a distraction-free screen with a timer.",
                 JSONObject().put("title", str("What they're doing")).put("minutes", int("Planned length in minutes, if they said or it's known (default: none, the timer counts up)"))
                     .put("id", str("The reminder's id, if it's one from the Log")), listOf("title")))
+            // >>> device link
+            put(fn("on_laptop", "Do something on the user's LAPTOP (they're on the phone): open or use a PC app, find or send a file from the laptop, run something there, look at its screen. Atlas on the laptop does it as a bot job with the PC's tools and reports back into this chat. Give the full task in plain words.",
+                JSONObject().put("task", str("What to do on the laptop, with all the details")), listOf("task")))
+            // <<< device link
             put(fn("deploy_bot", "Send Atlas Bot to do a bigger job in the background: anything that needs many steps, like deep research with sources, comparing several options, writing a long piece, checking many pages, or a long chain of phone actions. The bot plans, works on its own, and its report lands in this chat when it's done; the chat stays free meanwhile. Don't use it for quick things you can do in a step or two.",
                 JSONObject().put("goal", str("The job in one clear sentence, e.g. 'Find the best budget phone under $300 for photos, with sources'"))
                     .put("details", str("Everything the bot should know: what the user wants, preferences, limits, what to include in the report"))
@@ -266,6 +270,13 @@ object Tools {
                     delay(s * 1000L)
                     withContext(Dispatchers.Default) { Result(PhoneControl.readScreen(), null, phone = true) }
                 }
+                // >>> device link
+                "on_laptop" -> withContext(Dispatchers.IO) {
+                    val task = a.optString("task").trim()
+                    if (task.isEmpty()) Result("Error: say what to do on the laptop.")
+                    else { Link.init(ctx); val out = LinkTasks.sendTask(task); Result("$out Tell the user briefly, in your own words.", if (out.startsWith("Error")) null else "Sent to your laptop: ${task.take(80)}") }
+                }
+                // <<< device link
                 "deploy_bot" -> withContext(Dispatchers.Main) {
                     val goal = a.optString("goal").trim()
                     if (goal.isEmpty()) return@withContext Result("Error: give the bot a goal.")

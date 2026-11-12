@@ -786,6 +786,8 @@ class MainActivity : Activity() {
         Reminders.channels(this)
         Conversation.load(applicationContext)
         Bots.init(applicationContext)
+        Link.init(applicationContext); LinkTasks.watchJobs()   // >>> device link: report on jobs the laptop sent
+        if (Link.reachable(this)) LinkService.start(this)
         if (Build.VERSION.SDK_INT >= 33) onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT) { handleBack() }
         applyPalette()
         L.init(this)
@@ -884,6 +886,9 @@ class MainActivity : Activity() {
         tabFor(intent.getStringExtra("tab"))?.let { if (it != tab) { tab = it; render() } }
     }
 
+    // >>> device link: Me follows the laptop coming online, tasks and control (not while something's being typed)
+    private val onLink: () -> Unit = { if (tab == 2 && currentFocus !is android.widget.EditText) render(keepScroll = true) }
+
     override fun onResume() {
         super.onResume()
         AvatarService.setAppInFront(this, true)
@@ -891,6 +896,7 @@ class MainActivity : Activity() {
         Bots.listen(onBots)
         Sync.listen(onSync); Sync.syncSoon(this, 500); Sync.setForeground(this, true)
         if (Sync.linked(this)) SyncJob.schedule(this)
+        Link.listen(onLink); Link.setForeground(this, true)   // >>> device link: listening while Atlas is open
         resumedNow = true
         Connections.asker = connectionsAsker(); refreshConnections()   // >>> connections: chat asks here; tools checked again
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
@@ -906,6 +912,7 @@ class MainActivity : Activity() {
         resumedNow = false
         Connections.asker = null   // >>> connections: nothing on screen to ask with
         Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
+        Link.unlisten(onLink); Link.setForeground(this, false)   // >>> device link
         stopVoice()
         AvatarService.setAppInFront(this, false)
         Tilt.stop(); if (::aurora.isInitialized) aurora.pause()
@@ -2111,6 +2118,7 @@ class MainActivity : Activity() {
             }, 8)
         }
         body.add(dv, 8)
+        if (code != null) body.add(linkCard(), 8)   // >>> device link (LinkUi.kt): control the laptop, be controlled
 
         // Atlas on screen
         body.add(eyebrow("Atlas On Screen"), 16)

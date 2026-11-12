@@ -297,6 +297,9 @@ export const TOOLS = [
   fn('write_file', 'Create or overwrite a text file on this PC. The user is asked first.', { path: str('The file'), text: str('Its full contents') }, ['path', 'text']),
   fn('run_command', 'Run a PowerShell command on this PC and get its output. The user is asked first. Prefer the other tools when one fits.', { command: str('The PowerShell command'), timeout_s: int('Seconds to allow (default 60)') }, ['command']),
   fn('look_at_screen', "See the PC's screen (a screenshot). Use before clicking; coordinates for click come from it."),
+  // >>> device link
+  fn('on_phone', "Do something on the user's PHONE (they're at this PC): open or use a phone app, send something from the phone, check something only the phone has. The phone's Atlas does it as a bot job with phone control and reports back into this chat. Give the full task in plain words.", { task: str('What to do on the phone, with all the details') }, ['task']),
+  // <<< device link
   fn('click', 'Click at a point on the screen, in the coordinates of the latest look_at_screen.', { x: int('x'), y: int('y'), button: str('Which button', ['left', 'right']), double: bool('Double-click') }, ['x', 'y']),
   fn('type_text', 'Type text into whatever has focus on the PC.', { text: str('What to type') }, ['text']),
   fn('press_keys', "Press keys or a shortcut, e.g. 'enter', 'ctrl+s', 'alt+tab', 'ctrl+shift+t'.", { keys: str('The keys') }, ['keys']),
@@ -352,7 +355,7 @@ function readLog(query, limit) {
 }
 
 /** Hooks the screens provide: asking the user to allow something, starting a focus session, changing settings. */
-export const ui = { confirm: async () => false, startFocus: () => {}, setting: () => 'Error: settings unavailable.', settingsText: () => '', deployBot: () => null,
+export const ui = { onPhone: async () => "Error: the Device Link isn't ready.", confirm: async () => false, startFocus: () => {}, setting: () => 'Error: settings unavailable.', settingsText: () => '', deployBot: () => null,
   saveSkill: () => null, saveRoutine: () => ({ error: 'Routines are unavailable.' }), botTeam: () => '' };
 
 async function webSearch(q) {
@@ -421,6 +424,13 @@ export async function runTool(call, { approved = false } = {}) {
       case 'web_search': return { out: await webSearch(String(a.query || '')), step: `Searched the web for “${String(a.query || '').slice(0, 60)}”` };
       case 'read_page': return { out: await readPage(String(a.url || '')), step: 'Read ' + String(a.url || '').replace(/^https?:\/\//, '').slice(0, 50) };
       case 'change_setting': { const out = await ui.setting(a.setting, String(a.value ?? '')); return { out, step: out.startsWith('Error') ? null : out }; }
+      // >>> device link
+      case 'on_phone': {
+        const task = String(a.task || '').trim(); if (!task) return { out: 'Error: say what to do on the phone.' };
+        const out = await ui.onPhone(task);
+        return { out: out + ' Tell the user briefly, in your own words.', step: out.startsWith('Error') ? null : 'Sent to your phone: ' + task.slice(0, 80) };
+      }
+      // <<< device link
       case 'deploy_bot': {
         const goal = String(a.goal || '').trim(); if (!goal) return { out: 'Error: give the bot a goal.' };
         const j = ui.deployBot(goal, String(a.details || ''), a.specialist ? String(a.specialist) : null); if (!j) return { out: "Error: Atlas Bot isn't available right now." };
@@ -491,6 +501,9 @@ Using the PC:
 
 Where you're running (so you can say why something is held back; don't bring it up otherwise):
 - ${fitRules.line(device.now())}
+
+Your phone (on_phone):
+- The user's phone is linked to this PC. When they want something done ON THE PHONE (an app only the phone has, a text from their phone, something on its screen), use on_phone with the whole task. It runs there and the result comes back into this chat.
 
 Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of PC actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
