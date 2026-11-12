@@ -169,6 +169,23 @@
                 android:value="Atlas Bot: finishes a multi-step job the user asked the assistant to do (research, writing, phone actions) while they use other apps" />
         </service>
         <receiver android:name=".BotReceiver" android:exported="false" />
+        <!-- Device Link: your laptop reaching this phone (tasks, and controlling it once you allow) while Atlas is closed -->
+        <service
+            android:name=".LinkService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Device Link: keeps a connection to the user's own computer so it can send the assistant tasks and, when the user allows it, view and control this phone" />
+        </service>
+        <receiver android:name=".LinkReceiver" android:exported="false" />
+        <activity
+            android:name=".LaptopActivity"
+            android:exported="false"
+            android:screenOrientation="unspecified"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
         <activity
             android:name=".PermissionActivity"
             android:exported="false"

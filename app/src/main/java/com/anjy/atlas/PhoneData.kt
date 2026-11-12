@@ -107,7 +107,7 @@ object PhoneData {
     // ---------------------------------------------------------------- permissions
 
     private const val CH_ACCESS = "atlas_access"
-    private var pending: CompletableDeferred<Boolean>? = null
+    @Volatile private var pending: CompletableDeferred<Boolean>? = null
 
     /** True while one of Atlas's screens is in front (so asking on screen is allowed and makes sense). */
     private fun onScreen(): Boolean = ActivityManager.RunningAppProcessInfo().also { ActivityManager.getMyMemoryState(it) }.importance ==
@@ -128,8 +128,9 @@ object PhoneData {
                 ctx.startActivity(Intent(ctx, PermissionActivity::class.java).putExtra(PermissionActivity.EXTRA_PERMS, perms.toTypedArray())
                     .putExtra(PermissionActivity.EXTRA_WHY, what).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
-            val ok = withTimeoutOrNull(60_000) { d.await() } ?: false
-            if (ok && granted(ctx, perms)) return null
+            withTimeoutOrNull(60_000) { d.await() }
+            // what Android says counts, not the answer that came back (it can be lost if the screen was rebuilt)
+            if (granted(ctx, perms)) return null
             return Tools.Result("Error: they didn't allow Atlas to $what. Tell them it can be turned on in Android Settings → Apps → Atlas → Permissions if they change their mind.")
         }
         notifyAsk(ctx, perms, what)
@@ -350,8 +351,17 @@ object PhoneData {
         return ArrayList(out.distinct().sorted())
     }
 
+    /**
+     * Whether Android lets Atlas open another app right now. From the background it silently drops the request
+     * (no error comes back), so without this a bot would report an alarm or timer that was never set. Allowed while
+     * one of Atlas's screens is in front, or while Atlas floats on screen with its overlay permission.
+     */
+    private fun mayOpenApps(ctx: Context): Boolean =
+        onScreen() || (android.provider.Settings.canDrawOverlays(ctx) && AvatarService.running)
+
     private fun clock(ctx: Context, i: Intent, done: String, step: String): Tools.Result {
         if (i.resolveActivity(ctx.packageManager) == null) return Tools.Result("Error: there's no clock app on the phone that takes this.")
+        if (!mayOpenApps(ctx)) return Tools.Result("Error: Android doesn't let Atlas reach the Clock app while it's in the background, so nothing was set. Use set_reminder instead (Atlas's own alarm works in the background), or tell them to open Atlas and ask again.")
         return try {
             ctx.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             Tools.Result(done, step)

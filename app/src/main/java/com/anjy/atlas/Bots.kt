@@ -462,7 +462,7 @@ object Bots {
         val what = label(c)
         j.current = what; j.pending = what; persistNow(); changed()
         // a connection tool reaching here was already cleared by the bot's approval rules
-        val r = if (Connections.owns(c.name)) Connections.run(app, c, approved = true) else Tools.run(app, c)
+        val r = if (Connections.owns(c.name)) Connections.run(app, c, approved = true, who = "bots") else Tools.run(app, c)
         // pictures the bot made go into its job folder (listed on the job page)
         r.media.forEach { m -> try { val d = BotBrowser.jobDir(app, j.id).apply { mkdirs() }; m.file.copyTo(java.io.File(d, m.file.name), overwrite = true) } catch (e: Exception) { Log.w(TAG, "picture", e) } }
         j.pending = null; j.toolCalls++
@@ -623,7 +623,7 @@ object Bots {
     private val finishOnly by lazy { JSONArray().put(finishTool) }
 
     /** Atlas's own tools that bots don't get: settings, focus sessions, and sending more bots. */
-    private val notForBots = setOf("change_setting", "start_focus", "deploy_bot", "save_skill", "set_routine")
+    private val notForBots = setOf("change_setting", "start_focus", "deploy_bot", "save_skill", "set_routine", "on_laptop")   // on_laptop: a bot (maybe itself sent from the laptop) doesn't bounce work back
     private val browserTools = setOf("browser_open", "browser_read", "browser_click", "browser_type", "browser_select", "browser_press", "browser_scroll", "browser_back", "browser_wait", "browser_download", "browser_fill_login" /* vault: Vault.kt */)
 
     private val declarations: JSONArray by lazy {

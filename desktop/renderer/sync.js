@@ -286,6 +286,9 @@ export async function claim(id, leaseMs) {
 }
 
 let timer = 0, failures = 0, lastTry = 0;
+const pushedHooks = new Set();
+/** Called after a sync that sent changes (the device link uses it to tell the other device to fetch them now). */
+export function onPushed(fn) { pushedHooks.add(fn); return () => pushedHooks.delete(fn); }
 /** Asks for a sync shortly (changes made close together go in one). Also what the device link calls when the phone says "something changed". */
 export function syncSoon(ms = 1500) { if (!code()) return; clearTimeout(timer); timer = setTimeout(() => runOnce(), ms); }
 /**
@@ -460,6 +463,7 @@ async function runInner() {
     status.others = devicesOf(devices, me); status.tooBig = Object.keys(tooBig).length; status.waiting = Object.keys(parked).length;
     failures = 0; status.problem = null;
     if (again) syncSoon(1500);
+    if (put) for (const fn of pushedHooks) { try { fn(); } catch {} }   // the device link tells the phone to fetch them now
     status.last = 'Synced' + (got + put ? ` (${got} in, ${put} out)` : '');
     for (const w of touched) changed(w);
   } catch (e) {

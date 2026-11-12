@@ -424,6 +424,7 @@ object Sync {
             others = devicesOf(devices, me); tooBigCount = tooBig.length(); parkedCount = parked.length(); loadedFor = "x"
             failures = 0; problem = null
             if (again) syncSoon(ctx, 1500)
+            if (put > 0) try { Link.pingSync() } catch (_: Exception) {}   // the other device fetches them now (when the live link is up)
             if (got > 0) main.post { Conversation.reloadFromSync(ctx); Thread { try { Reminders.tickAndSchedule(ctx) } catch (_: Exception) {} }.start() }
             "Synced" + if (got + put > 0) " ($got in, $put out)" else ""
         } catch (e: Exception) {

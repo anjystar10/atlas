@@ -713,6 +713,51 @@ test("a bot's files: the report footer lists what it made", async () => {
   for (const t of FILE_TOOLS) assert.ok(t.description.length > 20 && /^[a-z_]+$/.test(t.name));
 });
 
+// ------------------------------------------------------------------ the AI services: same catalogue as the phone, keys land right
+test('the PC and the phone list the same services, addresses and default models', async () => {
+  const fs = await import('node:fs');
+  const kt = fs.readFileSync(new URL('../../app/src/main/java/com/anjy/atlas/Providers.kt', import.meta.url), 'utf8');
+  const block = kt.slice(kt.indexOf('val builtIn = listOf('), kt.indexOf('/** Services the user added'));
+  const phone = [...block.matchAll(/Provider\("([^"]+)", "[^"]*", "([^"]+)", ("[^"]*"|Gemini\.ENDPOINT), ("[^"]*"|Gemini\.DEFAULT_MODEL)/g)]
+    .map((m) => ({ id: m[1], style: m[2], base: m[3].replace(/"/g, ''), model: m[4].replace(/"/g, '') }));
+  const pc = brain.BUILT_IN.filter((p) => !p.local);
+  assert.deepEqual(phone.map((p) => p.id), pc.map((p) => p.id), 'same services in the same order (the fallback order)');
+  for (const p of phone) {
+    const q = brain.byId(p.id);
+    assert.equal(q.style, p.style, p.id);
+    if (p.base !== 'Gemini.ENDPOINT') assert.equal(q.base, p.base, p.id);
+    if (p.model !== 'Gemini.DEFAULT_MODEL') assert.equal(q.model, p.model, p.id);
+  }
+  for (const p of pc) if (!p.custom) { if (p.style !== 'gemini') assert.match(p.base, /^https:\/\/[^ ]+[^/]$/, p.id); assert.ok(p.model, p.id); assert.match(p.keyUrl, /^https:\/\//, p.id); }
+});
+
+test('a pasted key lands on the right service', () => {
+  assert.equal(brain.keyTarget('gsk_abcdefghijklmnop', 'mistral'), 'groq');
+  assert.equal(brain.keyTarget('sk-ant-api03-xyz', 'openai'), 'anthropic');
+  assert.equal(brain.keyTarget('sk-1234567890abcdef', 'deepseek'), 'deepseek');
+  assert.equal(brain.keyTarget('sk-1234567890abcdef', 'custom'), 'custom');
+  assert.equal(brain.keyTarget('sk-proj-1234567890', 'anthropic'), 'openai');
+  assert.equal(brain.keyTarget('abcdefghijklmnopqrstuvwxyz', 'cohere'), 'cohere');
+});
+
+test('services you add work like the built-in ones and go cleanly', () => {
+  db.prefs = {};
+  const p = brain.addCustom('My Server', 'https://llm.example.com/v1/', 'my-model');
+  assert.ok(p.id.startsWith('c_')); assert.equal(brain.baseOf(p), 'https://llm.example.com/v1'); assert.equal(brain.modelOf(p), 'my-model');
+  const q = brain.addCustom('Second', 'https://two.example.com/v1', 'm2');
+  assert.notEqual(p.id, q.id);
+  brain.addKey(p.id, 'key-for-my-server-123456');
+  db.prefs.provider = p.id;
+  assert.equal(brain.active().id, p.id, 'a service you added can be the one Atlas thinks with');
+  brain.updateCustom(p.id, 'Renamed', 'https://llm.example.com/v1', 'other');
+  assert.equal(brain.byId(p.id).name, 'Renamed'); assert.equal(brain.modelOf(brain.byId(p.id)), 'other');
+  brain.removeCustom(p.id);
+  assert.equal(brain.byId(p.id), undefined); assert.deepEqual(brain.keys(p.id), [], 'its keys go too');
+  assert.ok(brain.byId(q.id)); brain.removeCustom('gemini'); assert.ok(brain.byId('gemini'), 'built-in services cannot be removed');
+  db.prefs = {};
+  brain.loadCustoms();
+});
+
 // ------------------------------------------------------------------ connections (MCP servers, web APIs)
 import * as CN from '../renderer/connect.js';
 

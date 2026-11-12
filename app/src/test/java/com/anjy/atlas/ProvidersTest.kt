@@ -18,10 +18,32 @@ class ProvidersTest {
         assertNull(Providers.guess("hello"))
     }
 
+    @Test fun aKeyLandsOnTheRightService() {
+        // a key with a telling shape goes to its own service, whatever page you're on
+        assertEquals("groq", Providers.keyTarget("gsk_abcdefghijklmnop", "mistral"))
+        assertEquals("anthropic", Providers.keyTarget("sk-ant-api03-xyz", "openai"))
+        // an "sk-…" key on another OpenAI-style service's page stays there (DeepSeek, custom and others look like OpenAI's)
+        assertEquals("deepseek", Providers.keyTarget("sk-1234567890abcdef", "deepseek"))
+        assertEquals("custom", Providers.keyTarget("sk-1234567890abcdef", "custom"))
+        // …but on Claude's or Gemini's page it's an OpenAI key
+        assertEquals("openai", Providers.keyTarget("sk-proj-1234567890", "anthropic"))
+        // no telling shape: the page you're on
+        assertEquals("cohere", Providers.keyTarget("abcdefghijklmnopqrstuvwxyz", "cohere"))
+        assertEquals("sambanova", Providers.keyTarget("0123456789abcdef0123", "sambanova"))
+    }
+
+    @Test fun theNewServicesAreThere() {
+        listOf("cerebras", "sambanova", "cohere", "mistral", "zai", "fireworks", "ovh").forEach { assertTrue(it, Providers.byId(it) != null) }
+        assertEquals("https://api.cohere.ai/compatibility/v1", Providers.byId("cohere")!!.baseUrl)
+        // only one "Other" built in; services the user adds get ids of their own
+        assertEquals(1, Providers.builtIn.count { it.custom })
+    }
+
     @Test fun everyServiceIsComplete() {
         Providers.all.forEach { p ->
             assertTrue(p.id, p.style in setOf("gemini", "openai", "anthropic"))
-            if (p.id != "custom") { assertTrue(p.id, p.baseUrl.startsWith("https://")); assertTrue(p.id, p.defaultModel.isNotBlank()) }
+            if (!p.custom) { assertTrue(p.id, p.baseUrl.startsWith("https://")); assertTrue(p.id, p.defaultModel.isNotBlank()); assertTrue(p.id, p.keyUrl.startsWith("https://")) }
+            if (p.style != "gemini") assertFalse(p.id, p.baseUrl.endsWith("/"))
         }
         assertEquals(Providers.all.size, Providers.all.map { it.id }.toSet().size)
     }
