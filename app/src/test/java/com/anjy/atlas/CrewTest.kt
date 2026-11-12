@@ -18,14 +18,14 @@ class CrewTest {
         JSONObject(File(dir!!, "tools/bots2-fixtures.json").readText())
     }
     private fun cases(k: String): List<JSONObject> = fx.getJSONArray(k).let { a -> List(a.length()) { a.getJSONObject(it) } }
-    private fun same(expected: Any?, actual: Any?, msg: String) {
-        val ok = when {
-            expected is JSONObject && actual is JSONObject -> expected.similar(actual)
-            expected is JSONArray && actual is JSONArray -> expected.similar(actual)
-            else -> expected == actual
-        }
-        assertTrue("$msg\nexpected: $expected\nactual:   $actual", ok)
+    /** Deep JSON equality, numbers by value (the PC writes 5, the phone may hold 5L): Android's org.json has no similar(). */
+    private fun eq(a: Any?, b: Any?): Boolean = when {
+        a is JSONObject && b is JSONObject -> a.length() == b.length() && a.keys().asSequence().all { b.has(it) && eq(a.opt(it), b.opt(it)) }
+        a is JSONArray && b is JSONArray -> a.length() == b.length() && (0 until a.length()).all { eq(a.opt(it), b.opt(it)) }
+        a is Number && b is Number -> a.toDouble() == b.toDouble()
+        else -> a == b
     }
+    private fun same(expected: Any?, actual: Any?, msg: String) = assertTrue("$msg\nexpected: $expected\nactual:   $actual", eq(expected, actual))
     private fun obj(o: JSONObject, k: String): JSONObject? = o.optJSONObject(k)
 
     @Test fun capabilities() {
