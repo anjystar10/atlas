@@ -262,7 +262,7 @@ object BotExtras {
             JSONObject().put("id", "sp-planner").put("name", "Planner Bot").put("role", "Turns goals into schedules and step-by-step plans")
                 .put("instructions", "Break the goal into clear steps with realistic timings. Check the Log for what is already planned and avoid clashes. Offer to log reminders rather than logging many without being asked.").put("groups", JSONArray(listOf("web", "log"))),
             JSONObject().put("id", "sp-developer").put("name", "Developer Bot").put("role", "Programming, debugging and technical work")
-                .put("instructions", "Read before you change. Prefer small, safe steps and check each one worked. Explain technical findings in plain words.").put("groups", JSONArray()),
+                .put("instructions", "Read before you change. Prefer small, safe steps and check each one worked: code is not done until it has run and its tests pass. Building something new happens on the laptop, in a project. Explain technical findings in plain words.").put("groups", JSONArray()),
             JSONObject().put("id", "sp-finance").put("name", "Finance Bot").put("role", "Numbers, budgets, prices and comparisons")
                 .put("instructions", "Show the figures and where each came from. Recheck every sum. Never move money or buy anything; lay out the options and let the user decide.").put("groups", JSONArray(listOf("web", "log"))),
         )

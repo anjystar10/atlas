@@ -4,6 +4,7 @@ import { db, pref, setPref, saveChat, changed, OPEN, findTask, createTask, updat
 import { plainReply, plainMemory } from './plain.js';
 import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
+import { PROJECTS_PROMPT, projectLabel } from './projects.js';   // >>> projects (the tools come through the capability registry) <<<
 import * as aware from './aware.js';   // what's going on + the capability registry (bots, approvals, the chat's browser, new subsystems)
 import * as mail from './mail.js';   // >>> email (mail.js registers its tools and brief line in aware.js)
 const host = window.atlasHost;
@@ -320,6 +321,7 @@ export const TOOLS = [
     name: str('A short name (optional)'), specialist: str('A specialist bot to send (optional)') }, ['goal', 'schedule']),
 ];
 
+
 const PC = new Set(['open_app', 'list_apps', 'open_link', 'open_path', 'list_files', 'read_file', 'write_file', 'run_command', 'look_at_screen', 'click', 'type_text', 'press_keys', 'scroll']);
 
 function parseWhen(s) {
@@ -513,7 +515,7 @@ Where you're running (so you can say why something is held back; don't bring it 
 Your phone (on_phone):
 - The user's phone is linked to this PC. When they want something done ON THE PHONE (an app only the phone has, a text from their phone, something on its screen), use on_phone with the whole task. It runs there and the result comes back into this chat.
 
-Atlas Bot (deploy_bot):
+${host.projects ? PROJECTS_PROMPT + '\nFor a big build, send the Developer specialist (deploy_bot with specialist "Developer Bot") with the full brief, so the chat stays free; small scripts and fixes you can do yourself here.\n\n' : ''}Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of PC actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
 ${aware.PROMPT}
@@ -571,7 +573,7 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
       if (turn.text) { reply.text = plainReply(turn.text); changed('chat'); }
       const results = [];
       for (const c of turn.calls) {
-        convo.status = conn.label(c.name, c.args || {}) || mail.label(c.name, c.args || {}) || (LABEL[c.name] || AWARE_LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
+        convo.status = conn.label(c.name, c.args || {}) || projectLabel(c) || mail.label(c.name, c.args || {}) || (LABEL[c.name] || AWARE_LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
         const r = await runTool(c);
         if (r.step) reply.steps.push(r.step);
         results.push({ call: c, out: r.out, image: r.image });
