@@ -100,16 +100,20 @@ function createTrading(deps) {
 
   // ---------------------------------------------------------------- the tools
 
+  /** The account an approval was made for (never whatever the model names now). */
+  function ticketAccount(t) { const a = accounts().find((x) => x.id === t.accountId); if (!a) throw new BrokerError('That account was removed.', 'which'); return a; }
+
   async function order(args, opts) {
-    const a = pick(args.account);
     if (opts.ticket) {
-      const t = takeTicket(opts.ticket, 'order');
+      const t = takeTicket(opts.ticket, 'order'); const a = ticketAccount(t);
       const fresh = await assess(a, t.payload);   // fresh numbers: the stop switch, today's loss and limits still decide
       if (!fresh.v.ok) return refused(a, t.payload, fresh.v);
       return { out: await send(a, fresh.v, fresh, args) };
     }
+    const a = pick(args.account);
     const order = { symbol: args.symbol, side: args.side, qty: args.qty, notional: args.notional, type: args.type || (args.limit ? 'limit' : 'market'), limit: args.limit, stop: args.stop, stopLoss: args.stop_loss, takeProfit: args.take_profit };
     const as = await assess(a, order);
+    if (opts.prepare && !(as.v.ok && as.v.needsApproval)) return { ok: true };   // nothing to ask; the real run checks again
     if (!as.v.ok) return refused(a, order, as.v);
     if (as.v.needsApproval) {
       const frozen = { ...as.v.order, qty: as.v.order.qty, notional: undefined, limit: as.v.order.price, stop: as.v.order.stop };
@@ -120,17 +124,20 @@ function createTrading(deps) {
   }
 
   async function close(args, opts) {
-    const a = pick(args.account);
-    const b = broker(a);
     if (opts.ticket) {
-      const t = takeTicket(opts.ticket, 'close');
+      const t = takeTicket(opts.ticket, 'close'); const a = ticketAccount(t);
       const fresh = await assess(a, t.payload);
       if (!fresh.v.ok) return refused(a, t.payload, fresh.v);
+      fresh.v.order.closeContract = t.payload.closeContract;
       return { out: await send(a, fresh.v, fresh, args) };
     }
+    const a = pick(args.account);
+    const b = broker(a);
     const co = await b.closeOrder(args.symbol);
+    if (!co && opts.prepare) return { ok: true };
     if (!co) return { out: `${label(a)}: there's no open position in ${String(args.symbol).toUpperCase()}.` };
     const as = await assess(a, co);
+    if (opts.prepare && !(as.v.ok && as.v.needsApproval)) return { ok: true };
     if (!as.v.ok) return refused(a, co, as.v);
     as.v.order.closeContract = co.closeContract;
     if (as.v.needsApproval) return { need: as.v.summary, ticket: ticketFor('close', a, { ...co }, as.v.summary), title: 'Close This LIVE Position?', button: 'Close It' };
@@ -138,13 +145,13 @@ function createTrading(deps) {
   }
 
   async function plan(args, opts) {
-    const a = pick(args.account);
     if (opts.ticket) {
-      const t = takeTicket(opts.ticket, 'plan');
+      const t = takeTicket(opts.ticket, 'plan'); const a = ticketAccount(t);
       const s = store.get(); store.set({ ...s, plans: { ...(s.plans || {}), [a.id]: { ...t.payload, confirmed: true, confirmedAt: now() } } });
       audit({ at: now(), account: a.name, mode: a.mode, action: 'plan', result: 'confirmed', note: t.payload.summary });
       return { out: `Plan confirmed for ${label(a)}. Orders inside it go ahead without asking until ${new Date(t.payload.expiresAt).toLocaleString()} or ${t.payload.maxOrders} orders; every account limit still applies. Losses are possible.` };
     }
+    const a = pick(args.account);
     const L = R.limitsFor(a);
     const p = {
       id: 'p' + now().toString(36), accountId: a.id, summary: String(args.summary || '').slice(0, 1200),
@@ -156,6 +163,7 @@ function createTrading(deps) {
     };
     if (!p.summary) return { out: 'Error: describe the plan (strategy, entries and exits, risk per trade) in summary.' };
     const text = `${label(a)}\n${p.summary}\n\nUp to ${p.maxOrders} order(s)${p.symbols.length ? ' in ' + p.symbols.join(', ') : ''}${p.sides.length ? ' (' + p.sides.join('/') + ' only)' : ''}, each at most ${R.money(p.maxOrderUsd)} (spot) or ${p.maxContracts} contract(s) (futures), for ${Math.round((p.expiresAt - now()) / 3600e3)} hours. Every account limit still applies. Losses are possible; nothing is guaranteed.`;
+    if (opts.prepare && a.mode !== 'live') return { ok: true };
     if (a.mode !== 'live') {
       const s = store.get(); store.set({ ...s, plans: { ...(s.plans || {}), [a.id]: { ...p, confirmed: true, confirmedAt: now() } } });
       return { out: `PAPER plan saved (no OK needed for paper):\n${text}` };
@@ -222,6 +230,7 @@ function createTrading(deps) {
 
   async function run(name, args = {}, opts = {}) {
     try {
+      if (opts.prepare && !['trade_order', 'trade_close', 'trade_plan'].includes(name)) return { ok: true };   // only these ever ask
       switch (name) {
         case 'trade_accounts': return accountsList();
         case 'trade_account': return await account(args);
