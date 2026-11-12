@@ -441,6 +441,75 @@
     "createdBy": "user",
     "updatedAt": 1762900000000
    }
+  },
+  {
+   "in": {
+    "id": "sp-x",
+    "v": 2,
+    "access": null,
+    "groups": [
+     "web"
+    ],
+    "name": "Normalised v1"
+   },
+   "now": 1762900000000,
+   "id": "gen-4",
+   "out": {
+    "id": "sp-x",
+    "v": 2,
+    "access": null,
+    "groups": [
+     "web"
+    ],
+    "name": "Normalised v1",
+    "role": "",
+    "instructions": "",
+    "icon": "",
+    "home": "any",
+    "triggers": [],
+    "budget": {
+     "minutesPerDay": 120,
+     "callsPerDay": 300,
+     "moneyPerDay": 0
+    },
+    "notes": [],
+    "log": [],
+    "state": "active",
+    "createdBy": "user",
+    "updatedAt": 1762900000000
+   }
+  },
+  {
+   "in": {
+    "id": "b-y",
+    "v": 2,
+    "access": "nonsense",
+    "name": "Bad access"
+   },
+   "now": 1762900000000,
+   "id": "gen-5",
+   "out": {
+    "id": "b-y",
+    "v": 2,
+    "access": null,
+    "name": "Bad access",
+    "role": "",
+    "instructions": "",
+    "icon": "",
+    "home": "any",
+    "groups": [],
+    "triggers": [],
+    "budget": {
+     "minutesPerDay": 120,
+     "callsPerDay": 300,
+     "moneyPerDay": 0
+    },
+    "notes": [],
+    "log": [],
+    "state": "active",
+    "createdBy": "user",
+    "updatedAt": 1762900000000
+   }
   }
  ],
  "allows": [
@@ -1136,6 +1205,354 @@
   },
   {
    "botIndex": 3,
+   "tool": "",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "web_search",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "read_page",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "browser_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "browser_click",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "browser_fill_login",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "vault_list",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "make_document",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "run_command",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "look_at_screen",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "read_log",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "set_reminder",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "email_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "email_send",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "trade_quote",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "trade_order",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "trade_stop_all",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "project_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "project_run",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "calendar_events",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "phone_alarm",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "on_laptop",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "mcp__github__create_issue",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "call_api",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "update_plan",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "finish",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "spawn_agent",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "verdict",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "some_new_tool",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 4,
+   "tool": "",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "web_search",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "read_page",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "browser_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "browser_click",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "browser_fill_login",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "vault_list",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "make_document",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "run_command",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "look_at_screen",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "read_log",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "set_reminder",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "email_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "email_send",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "trade_quote",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "trade_order",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "trade_stop_all",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "project_read",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "project_run",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "calendar_events",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "phone_alarm",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "on_laptop",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "mcp__github__create_issue",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "call_api",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "update_plan",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "finish",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "spawn_agent",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "verdict",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
+   "tool": "some_new_tool",
+   "access": null,
+   "out": true
+  },
+  {
+   "botIndex": 5,
    "tool": "",
    "access": null,
    "out": true

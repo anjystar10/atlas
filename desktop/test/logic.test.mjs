@@ -616,21 +616,21 @@ test('specialists: a bot hands parts to helpers, waits without holding a slot, a
   assert.ok(!w.tools[1].includes('run_command') && w.tools[1].includes('web_search') && w.tools[1].includes('bot_remember'), 'Research Bot only gets its own kinds of tools');
 });
 
-test('helpers: no deeper than two levels, at most four, and stopping a bot stops its helpers', async () => {
+test('helpers: bounded only against runaway loops (12 per bot, 4 levels), and stopping a bot stops its helpers', async () => {
   const e = extrasFor(); await e.ex.init();
   const p = { toolCalls: 70, workMs: 0 };
   assert.equal(B.childBudget(p).maxCalls, 8, 'a helper gets a share of what is left (never less than 8)');
   const w = world([
-    turn(...[1, 2, 3, 4, 5].map((i) => call('delegate', { specialist: 'Research Bot', task: 'Part ' + i }))),
+    turn(...Array.from({ length: 13 }, (_, i) => call('delegate', { specialist: 'Research Bot', task: 'Part ' + (i + 1) }))),
     (brief) => { return turn(call('ask_user', { question: 'hold on' })); },
   ], { extras: e.ex, ids: true });
   await w.bots.init(); const j = w.bots.deploy('Big', '');
   await settle(w);
-  assert.equal(j.children.length, 4, 'the fifth is refused');
+  assert.equal(j.children.length, 12, 'the thirteenth is refused (a ceiling against runaway loops, not a working limit)');
   assert.ok(w.notes.some((x) => Array.isArray(x) && x.some((o) => String(o).includes("that's the limit"))));
   w.bots.stop(j.id); await settle(w);
   assert.ok(j.children.map((id) => w.bots.job(id)).every((k) => B.FINAL.has(k.state)), 'helpers stop with it');
-  assert.equal(B.MAX_DEPTH, 2);
+  assert.equal(B.MAX_DEPTH, 4);
 });
 
 test('specialist notes and the synced copies of skills, routines, team and rules', async () => {

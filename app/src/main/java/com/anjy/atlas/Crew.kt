@@ -128,14 +128,16 @@ object Crew {
         val src = x ?: JSONObject()
         val out = JSONObject(src.toString())
         out.put("id", clip(src.opt("id"), 60).ifEmpty { id })
-        val v1 = (jsNumber(src, "v") ?: 0.0) < 2 && src.optJSONObject("access") == null
+        // an explicit null keeps the v1 rule (tool groups); a v2 bot that never had a map gets the default one
+        val access: Any = src.optJSONObject("access")?.let { cleanAccess(it)!! }
+            ?: if (src.has("access")) JSONObject.NULL else if ((jsNumber(src, "v") ?: 0.0) >= 2) defaultAccess() else JSONObject.NULL
         out.put("v", V)
         out.put("name", clip(src.opt("name"), 40).ifEmpty { "Helper Bot" })
         out.put("role", clip(src.opt("role"), 200))
         out.put("instructions", clip(src.opt("instructions"), 4000))
         out.put("icon", clip(src.opt("icon"), 8))
         out.put("home", src.optString("home").takeIf { src.opt("home") is String && it in HOMES } ?: "any")
-        out.put("access", if (v1) JSONObject.NULL else cleanAccess(src.optJSONObject("access")) ?: defaultAccess())
+        out.put("access", access)
         out.put("groups", JSONArray((src.optJSONArray("groups")?.let { a -> List(a.length()) { a.opt(it).toString() } }) ?: emptyList<String>()))
         out.put("triggers", cleanTriggers(src.optJSONArray("triggers")))
         out.put("budget", cleanBudget(src.optJSONObject("budget")))

@@ -106,7 +106,8 @@ export function normalizeBot(x, now, id) {
   out.instructions = clip(src.instructions, 4000);
   out.icon = clip(src.icon, 8);
   out.home = HOMES.includes(src.home) ? src.home : 'any';
-  out.access = src.v >= 2 || src.access ? cleanAccess(src.access) || defaultAccess() : null;
+  // an explicit null keeps the v1 rule (tool groups); a v2 bot that never had a map gets the default one
+  out.access = src.access && typeof src.access === 'object' ? cleanAccess(src.access) : 'access' in src ? null : src.v >= 2 ? defaultAccess() : null;
   out.groups = Array.isArray(src.groups) ? src.groups.map(String) : [];
   out.triggers = cleanTriggers(src.triggers);
   out.budget = cleanBudget(src.budget);

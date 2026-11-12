@@ -11,6 +11,8 @@ const bots = [
   { name: '  Trader  ', v: 2, role: 'Trades', access: { trading: 'write', web: 'read', email: 'bogus' }, home: 'pc', budget: { minutesPerDay: 30, callsPerDay: '50', moneyPerDay: 20 }, triggers: [{ type: 'price', config: { symbol: 'BTCUSDT', above: 100000 } }, { config: {} }], icon: '📈' },
   { id: 'b-inbox', name: 'Inbox', v: 2, state: 'paused', createdBy: 'atlas', budget: { minutesPerDay: 99999, callsPerDay: -4 }, log: [{ at: 1, mission: 'm1', text: 'Triaged 12 emails' }, { text: '' }], extra: { keep: true } },
   {},
+  { id: 'sp-x', v: 2, access: null, groups: ['web'], name: 'Normalised v1' },
+  { id: 'b-y', v: 2, access: 'nonsense', name: 'Bad access' },
 ];
 const fx = {
   capabilityOf: tools.map((t) => ({ tool: t, out: C.capabilityOf(t) })),
