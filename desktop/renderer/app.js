@@ -16,6 +16,7 @@ import { renderLibrary, refreshLibrary } from './library.js';
 import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // >>> connections (MCP servers, web APIs)
 import { renderConnections } from './connui.js';
+import * as trade from './trade.js';   // >>> trading (Me → Trading; the tools register themselves)
 import * as LW from './linkwire.js';   // >>> device link (control across devices)
 import { renderDevices } from './linkui.js';
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
@@ -666,6 +667,7 @@ function renderMe(page) {
   // >>> connections: MCP servers and web APIs (connui.js)
   renderConnections(col, { h, esc, sheet, toast, render, settingRow });
   // <<< connections
+  trade.renderTrading(col, { h, esc, sheet, toast, render });   // >>> trading <<<
 
   // Devices
   BX.permissionsCard(col, kit());
@@ -858,6 +860,7 @@ function showFocus() {
 // ------------------------------------------------------------------ Atlas's own settings (change_setting)
 
 brain.ui.confirm = (title, detail, yes) => sheet({ title, html: `<pre>${esc(detail)}</pre>`, primary: yes, secondary: 'No' });
+trade.setConfirm((title, detail, yes) => { try { host.show && host.show(); } catch {} return sheet({ title, html: `<pre style="white-space:pre-wrap">${esc(detail)}</pre>`, primary: yes, secondary: "Don't" }); });   // trading: a LIVE order waits for this tap
 brain.ui.startFocus = startFocus;
 brain.ui.settingsText = () => {
   const on = (b) => (b ? 'on' : 'off'); const eng = voice.engine();

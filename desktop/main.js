@@ -318,6 +318,22 @@ ipcMain.handle('conn', async (e, op, ...a) => {
 
 // ------------------------------------------------------------------ start
 
+// >>> trading (see trading.js): accounts, limits and the stop switch; keys stay in this process, encrypted by Windows
+let trading = null;
+const trade = () => (trading = trading || require('./trading'));
+ipcMain.handle('trade:run', async (e, name, args, opts) => {
+  if (!fromMain(e) || !/^trade_[a-z_]+$/.test(String(name))) return { out: 'Error: not allowed' };
+  const o = opts && typeof opts === 'object' ? { ticket: typeof opts.ticket === 'string' ? opts.ticket : undefined, prepare: !!opts.prepare } : {};
+  return trade().core.run(String(name), args && typeof args === 'object' ? args : {}, o);
+});
+ipcMain.handle('trade:list', (e) => (fromMain(e) ? trade().list() : { accounts: [] }));
+ipcMain.handle('trade:save', (e, acc, secret) => (fromMain(e) && acc && typeof acc === 'object' ? trade().save(BrowserWindow.fromWebContents(e.sender), acc, secret && typeof secret === 'object' ? secret : null).catch((err) => ({ error: err.message })) : { error: 'not allowed' }));
+ipcMain.handle('trade:remove', (e, id) => (fromMain(e) && typeof id === 'string' ? trade().remove(id) : false));
+ipcMain.handle('trade:limits', (e, id, limits) => (fromMain(e) && typeof id === 'string' ? trade().setLimits(id, limits || {}) : false));
+ipcMain.handle('trade:test', (e, acc, secret) => (fromMain(e) && acc ? trade().test(acc, secret) : { error: 'not allowed' }));
+ipcMain.handle('trade:resume', (e) => (fromMain(e) ? trade().resume(BrowserWindow.fromWebContents(e.sender)) : false));
+// <<< trading
+
 app.whenReady().then(() => {
   if (!firstInstance) return;
   // the microphone (for talking to Atlas) and the screen (to look at it) are allowed for Atlas's own pages
@@ -329,6 +345,8 @@ app.whenReady().then(() => {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open Atlas', click: showMain },
     { label: 'Talk to Atlas', click: () => { showMain(); win.webContents.send('orb-clicked'); } },
+    { type: 'separator' },
+    { label: 'Stop All Trading', click: () => { trade().stopAll('from the tray').then((r) => { if (win) win.webContents.send('trading-changed'); }).catch(() => {}); } },   // trading: the stop switch
     { type: 'separator' },
     { label: 'Quit Atlas', click: () => { quitting = true; app.quit(); } }
   ]));
