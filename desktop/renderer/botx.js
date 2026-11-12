@@ -221,7 +221,7 @@ export function cleanSpecialist(x, now, id) {
 export const DEFAULT_SPECIALISTS = [
   { id: 'sp-research', name: 'Research Bot', role: 'Finds things out and backs them with sources', instructions: 'Search widely, read the best primary sources, cross-check key facts in two places, and report with links. Say plainly what you could not verify.', groups: ['web'] },
   { id: 'sp-planner', name: 'Planner Bot', role: 'Turns goals into schedules and step-by-step plans', instructions: 'Break the goal into clear steps with realistic timings. Check the Log for what is already planned and avoid clashes. Offer to log reminders rather than logging many without being asked.', groups: ['web', 'log'] },
-  { id: 'sp-developer', name: 'Developer Bot', role: 'Programming, debugging and technical work', instructions: 'Read before you change. Prefer small, safe steps and check each one worked. Explain technical findings in plain words.', groups: [] },
+  { id: 'sp-developer', name: 'Developer Bot', role: 'Programming, debugging and technical work', instructions: 'Read before you change. Prefer small, safe steps and check each one worked: code is not done until it has run and its tests pass. Building something new happens on the laptop, in a project. Explain technical findings in plain words.', groups: [] },
   { id: 'sp-finance', name: 'Finance Bot', role: 'Numbers, budgets, prices and comparisons', instructions: 'Show the figures and where each came from. Recheck every sum. Never move money or buy anything; lay out the options and let the user decide.', groups: ['web', 'log'] },
 ];
 export function specialistPrompt(sp) {
