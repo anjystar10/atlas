@@ -2128,8 +2128,8 @@ class MainActivity : Activity() {
         val bp = card()
         bp.addView(settingRow("Bot Permissions", "Ask, always or never, per kind of action") { startActivity(BotExtrasActivity.intent(this, "permissions")) })
         // >>> background first: what lets Atlas work while you use your phone (PermissionCenter.kt)
-        val off = PermissionCenter.ALL.count { !PermissionCenter.granted(this, it.id) }
-        bp.addView(settingRow("Permissions", if (off == 0) "All on: Atlas can work in the background" else "$off off · what lets Atlas work in the background") { startActivity(Intent(this, PermissionsActivity::class.java)) })
+        val permsOff = PermissionCenter.ALL.count { !PermissionCenter.granted(this, it.id) }
+        bp.addView(settingRow("Permissions", if (permsOff == 0) "All on: Atlas can work in the background" else "$permsOff off · what lets Atlas work in the background") { startActivity(Intent(this, PermissionsActivity::class.java)) })
         // <<< background first
         body.add(bp, 8)
 
