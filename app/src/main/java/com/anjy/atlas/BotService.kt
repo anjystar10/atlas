@@ -75,8 +75,10 @@ class BotService : Service() {
         try { startForeground(NOTIF_ID, build(this), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) }
         catch (e: Exception) { Log.w(TAG, "startForeground", e); stopSelf(); return START_NOT_STICKY }
         running = true; lastText = null
-        if (!Bots.active()) stopSelf()
-        return START_NOT_STICKY
+        if (!Bots.active()) { stopSelf(); return START_NOT_STICKY }
+        // Sticky while bots are working: if Android ends Atlas to free memory, it starts the service again and
+        // Bots.init() picks the jobs back up from the journal (a step that was mid-way is never repeated blindly).
+        return START_STICKY
     }
 
     override fun onDestroy() { running = false; lastText = null; super.onDestroy() }
