@@ -527,5 +527,82 @@
    "7",
    null
   ]
+ ],
+ "plain": [
+  [
+   "Logged reminder [3f2a9c1e-1111-2222-3333-444455556666] Call mum.",
+   "Logged reminder Call mum.",
+   null
+  ],
+  [
+   "Saved (id 3f2a9c1e-1111-2222-3333-444455556666).",
+   "Saved.",
+   null
+  ],
+  [
+   "Use the id 3f2a9c1e-1111-2222-3333-444455556666 in the form.",
+   "Use the id 3f2a9c1e-1111-2222-3333-444455556666 in the form.",
+   null
+  ],
+  [
+   "My licence key is 3f2a9c1e-1111-2222-3333-444455556666",
+   null,
+   "My licence key is 3f2a9c1e-1111-2222-3333-444455556666"
+  ],
+  [
+   "wait (just a sec) I am checking",
+   "wait (just a sec) I am checking",
+   null
+  ],
+  [
+   "Scroll (down) to the bottom.",
+   "Scroll (down) to the bottom.",
+   null
+  ],
+  [
+   "set_reminder(title=\"x\", when=\"y\")",
+   "",
+   null
+  ],
+  [
+   "Done.\nremember(text=\"milk\")",
+   "Done.",
+   null
+  ],
+  [
+   "I set it. (What I did: called set_reminder)",
+   "I set it.",
+   null
+  ],
+  [
+   "Price: $1,299.99 — 20% off (was $1,624).",
+   "Price: $1,299.99 — 20% off (was $1,624).",
+   null
+  ],
+  [
+   "Here is the code:\n```python\nprint(\"hi\")\n```\nDone.",
+   "Here is the code:\n```python\nprint(\"hi\")\n```\nDone.",
+   null
+  ],
+  [
+   "iPhone 15 is my phone",
+   null,
+   "iPhone 15 is my phone"
+  ],
+  [
+   "eBay account: anjy_257",
+   null,
+   "eBay account: anjy_257"
+  ],
+  [
+   "my name is anjy",
+   null,
+   "My name is anjy"
+  ],
+  [
+   "  likes   jollof rice  ",
+   null,
+   "Likes jollof rice"
+  ]
  ]
 }

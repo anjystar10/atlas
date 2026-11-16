@@ -76,6 +76,23 @@ for r in out:
 repeats = [["", "none"], ["none", "none"], ["Daily", "daily"], ["every day", "daily"], ["weekdays", "weekdays"], ["every weekday", "weekdays"], ["Weekly", "weekly"], ["monthly", None], ["every 2 days", None]]
 minutes = [[None, 1, 1440, None], ["30", 1, 1440, 30], [45, 1, 1440, 45], ["1.5 hours", 1, 1440, 90], ["2h", 1, 1440, 120], ["0", 1, 1440, "NaN"], ["5000", 1, 1440, "NaN"], ["soon", 1, 1440, "NaN"]]
 clocks = [["6pm", [18, 0]], ["6 pm", [18, 0]], ["12am", [0, 0]], ["12pm", [12, 0]], ["12:30 a.m.", [0, 30]], ["18.45", [18, 45]], ["0930", [9, 30]], ["midnight", [0, 0]], ["24:00", "bad"], ["13pm", "bad"], ["0pm", "bad"], ["7", None]]
+plain = [  # [model text, what's shown (reply), what's saved (memory) or null to skip]
+ ["Logged reminder [3f2a9c1e-1111-2222-3333-444455556666] Call mum.", "Logged reminder Call mum.", None],
+ ["Saved (id 3f2a9c1e-1111-2222-3333-444455556666).", "Saved.", None],
+ ["Use the id 3f2a9c1e-1111-2222-3333-444455556666 in the form.", "Use the id 3f2a9c1e-1111-2222-3333-444455556666 in the form.", None],
+ ["My licence key is 3f2a9c1e-1111-2222-3333-444455556666", None, "My licence key is 3f2a9c1e-1111-2222-3333-444455556666"],
+ ["wait (just a sec) I am checking", "wait (just a sec) I am checking", None],
+ ["Scroll (down) to the bottom.", "Scroll (down) to the bottom.", None],
+ ["set_reminder(title=\"x\", when=\"y\")", "", None],
+ ["Done.\nremember(text=\"milk\")", "Done.", None],
+ ["I set it. (What I did: called set_reminder)", "I set it.", None],
+ ["Price: $1,299.99 — 20% off (was $1,624).", "Price: $1,299.99 — 20% off (was $1,624).", None],
+ ["Here is the code:\n```python\nprint(\"hi\")\n```\nDone.", "Here is the code:\n```python\nprint(\"hi\")\n```\nDone.", None],
+ ["iPhone 15 is my phone", None, "iPhone 15 is my phone"],
+ ["eBay account: anjy_257", None, "eBay account: anjy_257"],
+ ["my name is anjy", None, "My name is anjy"],
+ ["  likes   jollof rice  ", None, "Likes jollof rice"],
+]
 json.dump({"_about": "Shared accuracy cases: the PC (desktop/test/accuracy.test.mjs) and the phone (AccuracyTest.kt) must give exactly these answers. Expected instants were computed independently with Python's zoneinfo. Regenerate with the script described in the test header.",
-           "when": out, "repeat": repeats, "minutes": minutes, "clock": clocks}, open(sys.argv[1], "w"), indent=1, ensure_ascii=False)
+           "when": out, "repeat": repeats, "minutes": minutes, "clock": clocks, "plain": plain}, open(sys.argv[1], "w"), indent=1, ensure_ascii=False)
 print(len(out), "when cases")

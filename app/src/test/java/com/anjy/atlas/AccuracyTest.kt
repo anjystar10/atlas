@@ -52,6 +52,15 @@ class AccuracyTest {
         }
     }
 
+    @Test fun plainTextKeepsWhatIsRealAndHidesOnlyMachinery() {
+        val rows = fix.getJSONArray("plain")
+        for (i in 0 until rows.length()) {
+            val r = rows.getJSONArray(i); val input = r.getString(0)
+            if (!r.isNull(1)) assertEquals("reply: $input", r.getString(1), Plain.reply(input))
+            if (!r.isNull(2)) assertEquals("memory: $input", r.getString(2), Plain.memory(input))
+        }
+    }
+
     @Test fun readBackNamesTheStoredDay() {
         val cases = fix.getJSONArray("when")
         val c = (0 until cases.length()).map { cases.getJSONObject(it) }.first { it.getString("input") == "tomorrow at 6pm" }

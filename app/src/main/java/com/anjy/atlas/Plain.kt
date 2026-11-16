@@ -10,11 +10,14 @@ object Plain {
         "tap", "long_press", "type_text", "scroll", "press_key", "wait", "web_search", "read_page", "change_setting",
         "start_focus", "default_api", "tool_code", "tool_call", "function_call"
     )
-    private val UUID = Regex("""\[?\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b]?""")
+    // Atlas's own ids, as tools print them: "[3f2a…]", "(3f2a…)", "(id 3f2a…)", "#3f2a…". A bare one in a sentence is kept:
+    // it may be the user's own code or key, and dropping it would lose what they asked to keep. (Same as plain.js.)
+    private val UUID = Regex("""\s*(?:\[\s*|\(\s*(?:id[:\s]+)?|#)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b(?:\s*[\])])?""")
     private val TOKENS = Regex("""<\|[^|>]{1,40}\|>|</?s>|<think>[\s\S]*?</think>|</?(start_of_turn|end_of_turn)>""")
     private val WHAT_I_DID = Regex("""\(What I did:[^)]*\)""")
     private val FENCE = Regex("""```([a-zA-Z_]*)\n?([\s\S]*?)```""")
-    private val TOOL_LINE = Regex("""^\s*(print\()?\s*(default_api\.)?(${TOOLS.joinToString("|")})\s*\(.*$""")
+    // a tool call written out on its own line: name(...) with no space, ending in ")" — prose like "wait (just a sec)" stays
+    private val TOOL_LINE = Regex("""^\s*(print\()?\s*(default_api\.)?(${TOOLS.joinToString("|")})\((.*=.*|\s*|\s*["'{].*)\)\)?\s*;?\s*$""")
 
     /** True when the text is a tool call written out (a model sometimes prints one instead of making it). */
     private fun looksLikeToolCall(code: String): Boolean {
@@ -47,7 +50,8 @@ object Plain {
         }
         t = t.replace(FENCE) { it.groupValues[2] }.replace("`", "").replace(Regex("""[{}\[\]<>]"""), "")
         t = t.replace(Regex("""\s+"""), " ").trim().trim('"', '\'')
-        return t.replaceFirstChar { it.uppercase() }
+        // a capital to start, unless the first word is written its own way (iPhone, eBay, gRPC)
+        return if (t.substringBefore(' ').any { it.isUpperCase() }) t else t.replaceFirstChar { it.uppercase() }
     }
 
     /** For speaking aloud: no symbols, no code blocks, list markers turned into pauses. */

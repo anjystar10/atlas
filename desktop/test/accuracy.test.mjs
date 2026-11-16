@@ -91,3 +91,11 @@ test('accuracy · reminders: moving and renaming confirm the new state; empty re
   const gone = await tool('update_reminder', { id: 'nope', action: 'done' });
   assert.ok(gone.out.startsWith('Error'), gone.out);
 });
+
+test('accuracy · plain text: nothing real is dropped; only Atlas\'s own machinery is hidden (shared with Plain.kt)', async () => {
+  const P = await import('../renderer/plain.js');
+  for (const [input, reply, memory] of FIX.plain) {
+    if (reply != null) assert.equal(P.plainReply(input), reply, 'reply: ' + input);
+    if (memory != null) assert.equal(P.plainMemory(input), memory, 'memory: ' + input);
+  }
+});
