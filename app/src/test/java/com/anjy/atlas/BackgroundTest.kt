@@ -7,6 +7,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+private fun btn(t: String, s: Int, f: Boolean) = NotifRules.Btn(t, s, f)
+
 class BackgroundTest {
     private val none = RouteRules.Avail()
     private val full = RouteRules.Avail(emailConnected = true, notificationAccess = true, hasReplyableMessage = true, smsAllowed = true)
@@ -53,7 +55,7 @@ class BackgroundTest {
     }
 
     @Test fun replyButtonPicksTheSemanticReplyThenWordsThenAnyTextBox() {
-        val b = NotifRules.Btn
+        val b = ::btn
         assertEquals(1, NotifRules.replyIndex(listOf(b("Mark as read", 2, false), b("Reply", 1, true))))
         assertEquals(1, NotifRules.replyIndex(listOf(b("Quick note", 0, true), b("Reply", 0, true))))
         assertEquals(0, NotifRules.replyIndex(listOf(b("Antworten…", 0, true))))
@@ -62,7 +64,7 @@ class BackgroundTest {
     }
 
     @Test fun markReadPicksTheSemanticActionOrItsWords() {
-        val b = NotifRules.Btn
+        val b = ::btn
         assertEquals(1, NotifRules.markReadIndex(listOf(b("Reply", 1, true), b("Done", 2, false))))
         assertEquals(0, NotifRules.markReadIndex(listOf(b("Mark as read", 0, false), b("Reply", 1, true))))
         assertEquals(-1, NotifRules.markReadIndex(listOf(b("Reply", 1, true), b("Mute", 0, false))))
