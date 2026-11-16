@@ -162,3 +162,6 @@ export function normMinutes(v, min, max) {
   const n = Math.round(+m[1] * (m[2] && m[2][0] === 'h' ? 60 : 1));
   return n >= min && n <= max ? n : NaN;
 }
+
+/** This device's time zone (the user's), e.g. "Africa/Lagos". */
+export const localZone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } };

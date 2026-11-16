@@ -6,7 +6,8 @@ import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
 import { PROJECTS_PROMPT, projectLabel } from './projects.js';   // >>> projects (the tools come through the capability registry) <<<
 import * as aware from './aware.js';   // what's going on + the capability registry (bots, approvals, the chat's browser, new subsystems)
-import * as mail from './mail.js';   // >>> email (mail.js registers its tools and brief line in aware.js)
+import * as mail from './mail.js';
+import * as When from './when.js';   // exact times from what the user said, the same rules as the phone (When.kt)   // >>> email (mail.js registers its tools and brief line in aware.js)
 const host = window.atlasHost;
 
 // ---- this PC, measured: a local model is checked against free memory before it's used (see fit.js) ----
@@ -278,12 +279,12 @@ export const SETTINGS = ['speak_replies', 'voice', 'theme', 'on_screen', 'your_n
 
 export const TOOLS = [
   fn('set_reminder', 'Log a reminder. At its time Atlas rings an alarm (important things) or sends a notification (lighter things), on this PC and on the phone.', {
-    title: str("Short title, e.g. 'Pick up my sister'"), when: str("Local date and time 'YYYY-MM-DD HH:MM' (24h). Leave out only if no time was given."),
+    title: str("Short title, e.g. 'Pick up my sister'"), when: str("When, as the user said it (\"tomorrow at 6pm\", \"in 90 minutes\", \"monday 9am\") or local 'YYYY-MM-DD HH:MM'. Leave out only if no time was given."),
     alert: str('alarm: important or time-critical. notification: lighter things. If the user says which, do that.', ['alarm', 'notification']),
     duration_min: int('How long it takes, minutes (default 30)'), repeat: str('How it repeats', ['none', 'daily', 'weekdays', 'weekly']), notes: str('Optional details') }, ['title']),
   fn('update_reminder', 'Change a logged reminder: done, cancel, delete, move, rename, or make it an alarm / a notification.', {
     id: str("The reminder's id from your instructions"), action: str('What to do', ['done', 'cancel', 'delete', 'move', 'rename', 'make_alarm', 'make_notification']),
-    when: str("For move: 'YYYY-MM-DD HH:MM'"), title: str('For rename') }, ['id', 'action']),
+    when: str("For move: the new time, as said (\"tomorrow 9am\") or 'YYYY-MM-DD HH:MM'"), title: str('For rename') }, ['id', 'action']),
   fn('remember', 'Save a lasting fact or preference the user wants kept (shown in the Log, on both devices).', { text: str('The fact, in a short sentence') }, ['text']),
   fn('forget', 'Delete a saved memory.', { id: str("The memory's id from your instructions") }, ['id']),
   fn('read_log', "Look things up in the user's Log: reminders and what happened to them, memories, history. Newest first.", { query: str('Words to search for; leave out for the latest'), limit: int('How many at most (default 30)') }),
@@ -324,12 +325,6 @@ export const TOOLS = [
 
 const PC = new Set(['open_app', 'list_apps', 'open_link', 'open_path', 'list_files', 'read_file', 'write_file', 'run_command', 'look_at_screen', 'click', 'type_text', 'press_keys', 'scroll']);
 
-function parseWhen(s) {
-  const m = String(s || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})/);
-  if (!m) return null;
-  const d = new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
-  return isNaN(d) ? null : d.getTime();
-}
 const pad = (n) => String(n).padStart(2, '0');
 export const fmtLocal = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 export const hhmm = (ms) => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
@@ -405,22 +400,29 @@ export async function runTool(call, { approved = false } = {}) {
     switch (call.name) {
       case 'set_reminder': {
         const title = plainMemory(a.title || ''); if (!title) return { out: 'Error: a title is needed.' };
-        const at = parseWhen(a.when); if (a.when && at == null) return { out: "Error: couldn't read the time. Use 'YYYY-MM-DD HH:MM'." };
+        const tz = When.localZone();
+        let at = null;
+        if (String(a.when ?? '').trim()) { const r = When.resolveWhen(a.when, now, tz); if (!r.ok) return { out: 'Error: ' + r.error }; at = r.ms; }
+        const rep = When.normRepeat(a.repeat); if (rep == null) return { out: `Error: “${a.repeat}” isn't a repeat Atlas can do. Use none, daily, weekdays or weekly.` };
+        if (rep !== 'none' && at == null) return { out: 'Error: a repeating reminder needs a time. Ask the user when.' };
+        let dur = When.normMinutes(a.duration_min, 1, 1440); if (Number.isNaN(dur)) return { out: 'Error: duration_min must be between 1 and 1440 minutes.' }; if (dur == null) dur = 30;
         const alarm = a.alert === 'alarm';
-        const t = createTask(title, { startAt: at, durationMin: a.duration_min || 30, notes: plainMemory(a.notes || ''), priority: alarm ? 'high' : 'normal', recurrence: a.repeat || 'none' });
-        const w = t.startAt ? `${dayLabel(t.startAt)} at ${hhmm(t.startAt)}` : 'with no time yet';
-        return { out: `Logged reminder [${t.id}] '${t.title}' ${w}; at its time: ${alarm ? 'an alarm' : 'a notification'}.`, step: `Logged “${t.title}”, ${w}` };
+        const t = createTask(title, { startAt: at, durationMin: dur, notes: plainMemory(a.notes || ''), priority: alarm ? 'high' : 'normal', recurrence: rep });
+        const w = t.startAt ? `${When.relativeDay(t.startAt, now, tz)}, ${When.fmtLong(t.startAt, tz)} (${tz})` : 'with no time yet';
+        return { out: `Logged reminder [${t.id}] '${t.title}' for ${w}${rep !== 'none' ? `, repeats ${rep}` : ''}; at its time: ${alarm ? 'an alarm' : 'a notification'}. Tell the user this stored time exactly.`, step: `Logged “${t.title}”, ${t.startAt ? `${When.relativeDay(t.startAt, now, tz)} at ${hhmm(t.startAt)}` : 'with no time yet'}` };
       }
       case 'update_reminder': {
         const t = findTask(a.id); if (!t) return { out: 'Error: no reminder with that id.' };
-        const title = t.title;
+        const title = t.title; let moved = null;
         if (a.action === 'done') respond(a.id, 'done'); else if (a.action === 'cancel') cancelTask(a.id); else if (a.action === 'delete') deleteTask(a.id);
-        else if (a.action === 'move') { const at = parseWhen(a.when); if (at == null) return { out: "Error: give the new time as 'YYYY-MM-DD HH:MM'." }; updateTask(a.id, { startAt: at }); }
-        else if (a.action === 'rename') updateTask(a.id, { title: plainMemory(a.title || '') });
+        else if (a.action === 'move') { const r = When.resolveWhen(a.when, now, When.localZone()); if (!r.ok) return { out: 'Error: ' + r.error }; updateTask(a.id, { startAt: r.ms }); moved = r; }
+        else if (a.action === 'rename') { const nt = plainMemory(a.title || ''); if (!nt) return { out: 'Error: give the new title.' }; updateTask(a.id, { title: nt }); }
         else if (a.action === 'make_alarm' || a.action === 'make_notification') updateTask(a.id, { priority: a.action === 'make_alarm' ? 'high' : 'normal' });
         else return { out: 'Error: unknown action.' };
         const word = { done: 'Marked “%” done', cancel: 'Cancelled “%”', delete: 'Deleted “%”', move: 'Moved “%”', rename: 'Renamed “%”', make_alarm: '“%” will ring as an alarm', make_notification: '“%” will come as a notification' }[a.action];
-        return { out: `Done: ${a.action} on '${title}'.`, step: word.replace('%', title) };
+        const after = findTask(a.id);
+        const state = a.action === 'delete' ? 'deleted' : after ? `now ${after.status}${after.startAt ? ', at ' + When.fmtLong(after.startAt, When.localZone()) : ''}${after.title !== title ? `, titled '${after.title}'` : ''}` : 'gone';
+        return { out: `Done: ${a.action} on '${title}' (${state}).${moved ? ' Tell the user this stored time exactly.' : ''}`, step: word.replace('%', title) };
       }
       case 'remember': { const txt = plainMemory(a.text || ''); if (!txt) return { out: 'Error: nothing to remember.' }; const m = remember(txt); return { out: `Saved memory [${m.id}].`, step: `Remembered “${txt}”` }; }
       case 'forget': { const m = db.state.memories.find((x) => x.id === a.id); if (!m) return { out: 'Error: no memory with that id.' }; forget(a.id); return { out: 'Forgotten.', step: `Forgot “${m.text}”` }; }
@@ -493,11 +495,16 @@ How you talk:
 - Like a sharp, warm friend. Natural and relaxed, short by default, longer when they want detail. Understand casual writing and slang; match their energy.
 - Be straight with them: they're an adult. Answer what was asked, fully and plainly. Don't lecture, moralise, pile on warnings or disclaimers, or back away from a topic because it's blunt, dark or uncomfortable; give your real opinion when asked. If something is truly dangerous, say so once, in a sentence, and carry on.
 - Be honest. Only say you did something if a tool result shows it worked. If you don't know, say so; if it might have changed recently, search the web.
+- Accuracy comes first (>>> accuracy):
+  - Anything about the world now (news, prices, scores, who holds a role, opening hours, laws, releases) comes from web_search / read_page in this turn, and you name where it came from. If you couldn't check, say "I couldn't check that" rather than answering from memory.
+  - Dates and times: work them out from "Now" below, in that time zone. When a tool tells you the stored time, repeat that exact day and time; never your own guess.
+  - After acting, report what the tool result confirms (the stored time, the file name, the number of items). If it shows an error or doesn't confirm it, say plainly it didn't happen and why.
+  - If a request is ambiguous in a way that changes the result (which Sarah, which account, 7 am or pm), ask one short question instead of guessing. (<<< accuracy)
 - Never show code, ids, function or tool names, JSON, or how you work inside, unless they asked you for code. Say what you did in plain words.
 ${spoken ? '- This came by voice and your answer will be read aloud: one to three short spoken sentences. No lists, no formatting, no links. Spoken, you are composed and courteous, the unflappable aide: precise, quietly warm, a touch of dry wit when it fits; never gushing.' : '- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler.'}
 
 The Log (only what's worth keeping):
-- set_reminder when they want reminding or have something to do at a time. Work out the exact date from today. If they gave a day but no time, ask what time unless it's obvious.
+- set_reminder when they want reminding or have something to do at a time. Pass the time as they said it ("tomorrow at 6pm", "in 90 minutes", "monday 9am") or as 'YYYY-MM-DD HH:MM'; Atlas works out the exact moment and tells you what it stored. If they gave a day but no time, ask what time unless it's obvious.
 - Choose the alert: an alarm for important or time-critical things, a notification for lighter ones; follow them if they say which.
 - When they say they're doing something right now, use start_focus.
 - remember for lasting facts they want kept; read_log to look things up. Don't log ordinary chat or PC actions.
@@ -525,7 +532,7 @@ ${ui.botTeam()}
 ${conn.promptLine() ? conn.promptLine() + '\n\n' : ''}Your own settings (change_setting, when they ask):
 ${ui.settingsText()}
 
-Now: ${now.toLocaleString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })} (${Intl.DateTimeFormat().resolvedOptions().timeZone}).
+Now: ${When.fmtLong(now.getTime(), When.localZone())} (${When.fmtLocal(now.getTime(), When.localZone())}, time zone ${When.localZone()}).
 ${brief ? `\nWhat's going on right now (for you; don't read it out):\n${brief}\n` : ''}${logContext()}`;
 }
 

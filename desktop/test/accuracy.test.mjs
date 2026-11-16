@@ -39,3 +39,55 @@ test('accuracy · time: the read-back names the weekday, date and time that were
   const r = W.resolveWhen(c.input, c.now, c.tz);
   assert.equal(r.long, 'Fri 13 Nov 2026, 18:00'); assert.equal(r.relative, 'tomorrow');
 });
+
+// ------------------------------------------------------------------ the real PC tools: what they accept, refuse and confirm
+globalThis.window = globalThis.window || {};
+globalThis.window.atlasHost = globalThis.window.atlasHost || { read: async () => null, write: async () => true };
+const store = await import('../renderer/store.js');
+const brain = await import('../renderer/brain.js');
+await store.load();
+const tool = (name, args) => brain.runTool({ name, args });
+
+test('accuracy · reminders: the tool stores the exact time and reads it back; bad input is refused, not guessed', async () => {
+  const tz = W.localZone(); const now = Date.now();
+  const r = await tool('set_reminder', { title: '  Call mum  ', when: 'in 90 minutes' });
+  const t = store.db.state.tasks.at(-1);
+  assert.equal(t.title, 'Call mum');
+  assert.ok(Math.abs(t.startAt - (now + 90 * 60000)) <= 61000, 'stored 90 minutes from now');
+  assert.ok(r.out.includes(W.fmtLong(t.startAt, tz)), 'the result quotes the stored time: ' + r.out);
+  const before = store.db.state.tasks.length;
+  for (const [args, why] of [
+    [{ title: 'x', when: '2001-01-01 10:00' }, 'already passed'],
+    [{ title: 'x', when: '2027-02-29 10:00' }, "isn't a real date"],
+    [{ title: 'x', when: 'tomorrow' }, 'no time'],
+    [{ title: 'x', when: 'tomorrow at 7' }, 'morning or the evening'],
+    [{ title: 'x', when: 'tomorrow 9am', repeat: 'monthly' }, "isn't a repeat"],
+    [{ title: 'x', repeat: 'daily' }, 'needs a time'],
+    [{ title: 'x', when: 'tomorrow 9am', duration_min: 0 }, 'between 1 and 1440'],
+    [{ title: '   ', when: 'tomorrow 9am' }, 'title is needed'],
+  ]) {
+    const o = await tool('set_reminder', args);
+    assert.ok(o.out.startsWith('Error') && o.out.toLowerCase().includes(why.toLowerCase()), `${JSON.stringify(args)} → ${o.out}`);
+  }
+  assert.equal(store.db.state.tasks.length, before, 'nothing was stored for the refused ones');
+  const ok = await tool('set_reminder', { title: 'Gym', when: 'tomorrow at 6pm', repeat: 'Every weekday', duration_min: '1.5 hours' });
+  const g = store.db.state.tasks.at(-1);
+  assert.equal(g.recurrence, 'weekdays'); assert.equal(g.durationMin, 90);
+  assert.ok(ok.out.includes('tomorrow') && ok.out.includes(', 18:00'), ok.out);
+});
+
+test('accuracy · reminders: moving and renaming confirm the new state; empty renames are refused', async () => {
+  await tool('set_reminder', { title: 'Dentist', when: 'tomorrow at 10am' });
+  const t = store.db.state.tasks.at(-1);
+  const m = await tool('update_reminder', { id: t.id, action: 'move', when: 'tomorrow at 11:30am' });
+  assert.ok(m.out.includes(W.fmtLong(store.db.state.tasks.find((x) => x.id === t.id).startAt, W.localZone())) && m.out.includes('11:30'), m.out);
+  const bad = await tool('update_reminder', { id: t.id, action: 'move', when: 'yesterday 9am' });
+  assert.ok(bad.out.startsWith('Error'), bad.out);
+  const r0 = await tool('update_reminder', { id: t.id, action: 'rename', title: '  ' });
+  assert.ok(r0.out.startsWith('Error'), r0.out);
+  assert.equal(store.db.state.tasks.find((x) => x.id === t.id).title, 'Dentist');
+  const r1 = await tool('update_reminder', { id: t.id, action: 'rename', title: 'Dentist (Dr Ade)' });
+  assert.ok(r1.out.includes("titled 'Dentist (Dr Ade)'"), r1.out);
+  const gone = await tool('update_reminder', { id: 'nope', action: 'done' });
+  assert.ok(gone.out.startsWith('Error'), gone.out);
+});
