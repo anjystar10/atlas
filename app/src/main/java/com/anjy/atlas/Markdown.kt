@@ -162,7 +162,7 @@ object Markdown {
 
     private fun trimEnd(sb: SpannableStringBuilder) { while (sb.isNotEmpty() && sb[sb.length - 1].isWhitespace()) sb.delete(sb.length - 1, sb.length) }
 
-    private val INLINE = Regex("""\*\*(.+?)\*\*|__(.+?)__|`([^`]+)`|\[([^\]]+)]\((https?://[^)\s]+)\)|(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?!\w)|(?<![\w_])_(?!\s)(.+?)(?<!\s)_(?!\w)""")
+    private val INLINE = Regex("""\*\*(.+?)\*\*|__(.+?)__|`([^`]+)`|\[([^\]]+)]\((https?://[^)\s]+)\)|(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?!\w)|(?<![\w_])_(?!\s)(.+?)(?<!\s)_(?!\w)|\\([\\`*_\[\]()#+\-.!|~])""")   // last: "\*" shows a plain * (same as md.js)
 
     /** Bold, italics, inline code and links within one line. */
     private fun inline(sb: SpannableStringBuilder, s: String, st: Style) {
@@ -183,6 +183,7 @@ object Markdown {
                     sb.setSpan(URLSpan(g[5]), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                     sb.setSpan(ForegroundColorSpan(st.accent), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
+                g[8].isNotEmpty() -> sb.append(g[8])
                 else -> {
                     sb.append(g[6].ifEmpty { g[7] })
                     sb.setSpan(st.italic?.let { Face(it) } ?: android.text.style.StyleSpan(Typeface.ITALIC), start, sb.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)

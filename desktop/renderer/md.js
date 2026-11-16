@@ -11,6 +11,9 @@ function inline(s) {
   let t = esc(s);
   const codes = [];
   t = t.replace(/`([^`]+)`/g, (_m, c) => { codes.push(c); return `\u0000${codes.length - 1}\u0000`; });
+  // a backslash before a Markdown symbol means the symbol itself: "\*not italic\*" shows *not italic*
+  const lits = [];
+  t = t.replace(/\\([\\`*_[\]()#+\-.!|~])/g, (_m, c) => { lits.push(c); return `\u0002${lits.length - 1}\u0002`; });
   // links are set aside while bold and italics are worked out, so a "_" or "*" in an address can't break it
   const links = [];
   const keep = (url, txt) => { links.push(`<a href="${url}" target="_blank" rel="noreferrer">${txt}</a>`); return `\u0001${links.length - 1}\u0001`; };
@@ -18,7 +21,7 @@ function inline(s) {
   t = t.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, (_m, pre, url) => { const tail = url.match(/[.,;:!?]+$/)?.[0] || ''; const u = tail ? url.slice(0, -tail.length) : url; return pre + keep(u, u) + tail; });
   t = emph(t);
   t = t.replace(/\u0001(\d+)\u0001/g, (_m, i) => links[+i]);
-  return t.replace(/\u0000(\d+)\u0000/g, (_m, i) => `<code>${codes[+i]}</code>`);
+  return t.replace(/\u0000(\d+)\u0000/g, (_m, i) => `<code>${codes[+i]}</code>`).replace(/\u0002(\d+)\u0002/g, (_m, i) => lits[+i]);
 }
 
 export function renderMarkdown(src) {
