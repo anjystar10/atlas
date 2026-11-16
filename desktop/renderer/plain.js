@@ -9,8 +9,8 @@ const UUID = /\s*(?:\[\s*|\(\s*(?:id[:\s]+)?|#)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-
 const TOKENS = /<\|[^|>]{1,40}\|>|<\/?s>|<think>[\s\S]*?<\/think>|<\/?(start_of_turn|end_of_turn)>/g;
 const WHAT_I_DID = /\(What I did:[^)]*\)/g;
 const FENCE = /```([a-zA-Z_]*)\n?([\s\S]*?)```/g;
-// a tool call written out on its own line: name(...) with no space, ending in ")" — prose like "wait (just a sec)" stays
-const TOOL_LINE = new RegExp(`^\\s*(print\\()?\\s*(default_api\\.)?(${TOOLS.join('|')})\\((.*=.*|\\s*|\\s*["'{].*)\\)\\)?\\s*;?\\s*$`);
+// a tool call written out on a line: name( right after the name, with arguments — prose like "wait (just a sec)" stays
+const TOOL_LINE = new RegExp(`^\\s*(print\\()?\\s*(default_api\\.)?(${TOOLS.join('|')})\\((.*=.*|\\s*["'{].*|\\s*\\).*)$`);
 const looksLikeToolCall = (code) => { const c = code.trim(); return TOOLS.some((t) => c.includes(t + '(') || c.includes(`"${t}"`)) || (c.startsWith('{') && /"(name|args|arguments)"/.test(c)); };
 
 export function plainReply(s) {

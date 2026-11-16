@@ -16,8 +16,8 @@ object Plain {
     private val TOKENS = Regex("""<\|[^|>]{1,40}\|>|</?s>|<think>[\s\S]*?</think>|</?(start_of_turn|end_of_turn)>""")
     private val WHAT_I_DID = Regex("""\(What I did:[^)]*\)""")
     private val FENCE = Regex("""```([a-zA-Z_]*)\n?([\s\S]*?)```""")
-    // a tool call written out on its own line: name(...) with no space, ending in ")" — prose like "wait (just a sec)" stays
-    private val TOOL_LINE = Regex("""^\s*(print\()?\s*(default_api\.)?(${TOOLS.joinToString("|")})\((.*=.*|\s*|\s*["'{].*)\)\)?\s*;?\s*$""")
+    // a tool call written out on a line: name( right after the name, with arguments — prose like "wait (just a sec)" stays
+    private val TOOL_LINE = Regex("""^\s*(print\()?\s*(default_api\.)?(${TOOLS.joinToString("|")})\((.*=.*|\s*["'{].*|\s*\).*)$""")
 
     /** True when the text is a tool call written out (a model sometimes prints one instead of making it). */
     private fun looksLikeToolCall(code: String): Boolean {
