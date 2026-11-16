@@ -229,16 +229,19 @@ object Tools {
                 "read_log" -> withContext(Dispatchers.IO) { Result(readLog(ctx, a.optString("query"), a.optInt("limit", 30).coerceIn(1, 200))) }
                 "remember" -> withContext(Dispatchers.IO) {
                     val txt = Plain.memory(a.optString("text"))
-                    if (txt.isEmpty()) Result("Error: nothing to remember.") else {
+                    val same = Store.read(ctx) { s -> s.memories.firstOrNull { it.text.trim().equals(txt, ignoreCase = true) } }
+                    if (txt.isEmpty()) Result("Error: nothing to remember.")
+                    else if (same != null) Result("Already saved as memory [${same.id}]: '${same.text}'. Nothing new was added.")
+                    else {
                         val m = Store.edit(ctx) { Engine.remember(it, txt, now) }; ModelManager.markStale()
-                        Result("Saved memory [${m.id}].", "Remembered “$txt”")
+                        Result("Saved memory [${m.id}], exactly: '${m.text}'.", "Remembered “$txt”")
                     }
                 }
                 "forget" -> withContext(Dispatchers.IO) {
                     val id = a.optString("id")
                     val txt = Store.read(ctx) { s -> s.memories.firstOrNull { it.id == id }?.text } ?: return@withContext Result("Error: no memory with id $id.")
                     Store.edit(ctx) { Engine.forget(it, id, now) }; ModelManager.markStale()
-                    Result("Forgotten.", "Forgot “$txt”")
+                    Result("Forgotten: '$txt'.", "Forgot “$txt”")
                 }
                 "open_app" -> {
                     val name = a.optString("name").trim()
@@ -271,7 +274,8 @@ object Tools {
                 }
                 "start_focus" -> withContext(Dispatchers.Main) {
                     val title = Plain.memory(a.optString("title")).ifEmpty { "Focus" }
-                    val mins = a.optInt("minutes", 0).takeIf { it > 0 }
+                    val mins = com.anjy.atlas.core.When.normMinutes(a.opt("minutes"), 1, 600)
+                    if (mins == -1) return@withContext Result("Error: minutes must be between 1 and 600 (or left out for an open session).")
                     Focus.start(ctx, title, mins, a.optString("id").takeIf { it.isNotBlank() })
                     Result("Focus session started for '$title'${mins?.let { " ($it min)" } ?: ""}. The focus screen is open.", "Started a focus session: $title")
                 }

@@ -424,9 +424,14 @@ export async function runTool(call, { approved = false } = {}) {
         const state = a.action === 'delete' ? 'deleted' : after ? `now ${after.status}${after.startAt ? ', at ' + When.fmtLong(after.startAt, When.localZone()) : ''}${after.title !== title ? `, titled '${after.title}'` : ''}` : 'gone';
         return { out: `Done: ${a.action} on '${title}' (${state}).${moved ? ' Tell the user this stored time exactly.' : ''}`, step: word.replace('%', title) };
       }
-      case 'remember': { const txt = plainMemory(a.text || ''); if (!txt) return { out: 'Error: nothing to remember.' }; const m = remember(txt); return { out: `Saved memory [${m.id}].`, step: `Remembered “${txt}”` }; }
-      case 'forget': { const m = db.state.memories.find((x) => x.id === a.id); if (!m) return { out: 'Error: no memory with that id.' }; forget(a.id); return { out: 'Forgotten.', step: `Forgot “${m.text}”` }; }
-      case 'read_log': return { out: readLog(a.query, a.limit) };
+      case 'remember': {
+        const txt = plainMemory(a.text || ''); if (!txt) return { out: 'Error: nothing to remember.' };
+        const same = db.state.memories.find((x) => x.text.trim().toLowerCase() === txt.toLowerCase());
+        if (same) return { out: `Already saved as memory [${same.id}]: '${same.text}'. Nothing new was added.` };
+        const m = remember(txt); return { out: `Saved memory [${m.id}], exactly: '${m.text}'.`, step: `Remembered “${txt}”` };
+      }
+      case 'forget': { const m = db.state.memories.find((x) => x.id === a.id); if (!m) return { out: 'Error: no memory with that id.' }; forget(a.id); return { out: `Forgotten: '${m.text}'.`, step: `Forgot “${m.text}”` }; }
+      case 'read_log': { const n = Math.min(200, Math.max(1, Math.round(Number(a.limit) || 30))); return { out: readLog(a.query, n) }; }
       case 'web_search': return { out: await webSearch(String(a.query || '')), step: `Searched the web for “${String(a.query || '').slice(0, 60)}”` };
       case 'read_page': return { out: await readPage(String(a.url || '')), step: 'Read ' + String(a.url || '').replace(/^https?:\/\//, '').slice(0, 50) };
       case 'change_setting': { const out = await ui.setting(a.setting, String(a.value ?? '')); return { out, step: out.startsWith('Error') ? null : out }; }
@@ -452,7 +457,12 @@ export async function runTool(call, { approved = false } = {}) {
         if (r.error) return { out: 'Error: ' + r.error };
         return { out: `Routine set: "${r.routine.name}", next run ${new Date(r.routine.nextAt).toLocaleString()}. The user can pause, test or delete it on the Bots page.`, step: 'Set a routine: ' + r.routine.name };
       }
-      case 'start_focus': { const title = plainMemory(a.title || '') || 'Focus'; ui.startFocus(title, a.minutes || null, a.id || null); return { out: `Focus session started for '${title}'.`, step: 'Started a focus session: ' + title }; }
+      case 'start_focus': {
+        const title = plainMemory(a.title || '') || 'Focus';
+        const mins = When.normMinutes(a.minutes, 1, 600); if (Number.isNaN(mins)) return { out: 'Error: minutes must be between 1 and 600 (or left out for an open session).' };
+        ui.startFocus(title, mins, a.id || null);
+        return { out: `Focus session started for '${title}'${mins ? ` (${mins} min)` : ''}.`, step: 'Started a focus session: ' + title };
+      }
     }
     if (PC.has(call.name)) {
       if (call.name === 'run_command' && !approved && !(await ui.confirm('Run this on your PC?', String(a.command || ''), 'Run It'))) return { out: 'The user said no to running that command.' };

@@ -99,3 +99,17 @@ test('accuracy · plain text: nothing real is dropped; only Atlas\'s own machine
     if (memory != null) assert.equal(P.plainMemory(input), memory, 'memory: ' + input);
   }
 });
+
+test('accuracy · memory: saved word for word, no duplicates, forgetting names what went; focus minutes checked', async () => {
+  const n0 = store.db.state.memories.length;
+  const r = await tool('remember', { text: 'my licence key is 3f2a9c1e-1111-2222-3333-444455556666' });
+  assert.ok(r.out.includes("'My licence key is 3f2a9c1e-1111-2222-3333-444455556666'"), r.out);
+  const dup = await tool('remember', { text: 'My licence key is 3f2a9c1e-1111-2222-3333-444455556666 ' });
+  assert.ok(dup.out.startsWith('Already saved'), dup.out);
+  assert.equal(store.db.state.memories.length, n0 + 1);
+  const id = store.db.state.memories.at(-1).id;
+  const f = await tool('forget', { id }); assert.ok(f.out.includes('licence key'), f.out);
+  assert.equal(store.db.state.memories.length, n0);
+  assert.ok((await tool('forget', { id })).out.startsWith('Error'));
+  assert.ok((await tool('remember', { text: '  ' })).out.startsWith('Error'));
+});
