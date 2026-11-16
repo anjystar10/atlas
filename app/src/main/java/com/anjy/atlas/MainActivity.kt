@@ -893,6 +893,7 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         AvatarService.setAppInFront(this, true)
+        PermissionCenter.atlasInFront = true   // >>> background first: permission asks show here as a sheet
         Conversation.listen(onChat)
         Bots.listen(onBots)
         Sync.listen(onSync); Sync.syncSoon(this, 500); Sync.setForeground(this, true)
@@ -912,6 +913,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
         resumedNow = false
+        PermissionCenter.atlasInFront = false   // >>> background first
         Connections.asker = null   // >>> connections: nothing on screen to ask with
         Trading.asker = null   // >>> trading
         Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
@@ -2125,6 +2127,10 @@ class MainActivity : Activity() {
         body.add(eyebrow("Atlas Bot"), 16)
         val bp = card()
         bp.addView(settingRow("Bot Permissions", "Ask, always or never, per kind of action") { startActivity(BotExtrasActivity.intent(this, "permissions")) })
+        // >>> background first: what lets Atlas work while you use your phone (PermissionCenter.kt)
+        val off = PermissionCenter.ALL.count { !PermissionCenter.granted(this, it.id) }
+        bp.addView(settingRow("Permissions", if (off == 0) "All on: Atlas can work in the background" else "$off off · what lets Atlas work in the background") { startActivity(Intent(this, PermissionsActivity::class.java)) })
+        // <<< background first
         body.add(bp, 8)
 
         // Phone and PC: one Atlas

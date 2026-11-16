@@ -42,6 +42,7 @@ object Capabilities {
         register(Trading.cap)   // >>> trading: the trade_* tools in chat and for bots; LIVE orders ask (Trading.kt)
         // ---- new subsystems register here, one line each (e.g. register(Email.cap))
         register(Email.cap)   // >>> email (Email.kt)
+        register(Messages.cap)   // >>> background first: messages from notifications, texts (Messages.kt)
     }
 
     fun all(): List<Cap> = caps.toList()
