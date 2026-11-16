@@ -59,6 +59,7 @@ app.whenReady().then(async () => {
     () => T(c('project_write', { project: NODE, path: '../../escape.txt', text: 'should never be written' })),   // refused outright
     () => T(c('project_run', { project: NODE, command: 'npm test && echo pwned > ../pwned.txt' })),   // a chained command: needs the OK (denied)
     () => T(c('project_zip', { project: NODE })),
+    () => T(c('finish', { report: 'early' })),   // unticked plan steps: one reminder (0.10.1)
     () => T(c('finish', { report: '## Word Counter\n\nBuilt and tested: `node index.js <text>` prints the word count. The zip is in the Library.' })),
   ];
 

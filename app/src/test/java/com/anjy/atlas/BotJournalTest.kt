@@ -101,4 +101,21 @@ class BotJournalTest {
         assertEquals("1 working · 1 needs you · 1 done", BotRules.summary(jobs, now))
         assertEquals("", BotRules.summary(emptyList(), now))
     }
+
+    // 0.10.1: bots keep going until the job is done
+    @Test fun botsKeepGoingUntilDone() {
+        assertTrue("plans can be long", BotRules.MAX_PLAN >= 50)
+        assertFalse("a bot that did work and then talks hasn't finished", BotRules.textEndsJob(0, false))
+        assertFalse(BotRules.textEndsJob(1, false))
+        assertTrue(BotRules.textEndsJob(2, false))
+        assertTrue(BotRules.textEndsJob(0, true))
+        assertTrue(BotRules.remindOpenSteps(2, false, false))
+        assertFalse("only once", BotRules.remindOpenSteps(2, true, false))
+        assertFalse(BotRules.remindOpenSteps(0, false, false))
+        assertFalse(BotRules.remindOpenSteps(3, false, true))
+        assertTrue(BotRules.MAX_TOOL_CALLS >= 300 && BotRules.MAX_WORK_MS >= 120 * 60_000L)
+        val j = BotJob("x", "g", "", 1L)
+        j.planNudged = true
+        assertTrue("survives a restart", BotJob.from(j.json()).planNudged)
+    }
 }

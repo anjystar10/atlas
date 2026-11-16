@@ -46,6 +46,7 @@ app.whenReady().then(async () => {
       charts: [{ title: 'Price', type: 'bar', labels: ['Pixel 9a', 'Galaxy A56', 'Moto G'], series: [{ name: 'USD', values: [499, 449, 199] }] }, { title: 'Share', type: 'pie', labels: ['A', 'B'], series: [{ values: [1, 3] }] }] })),
     () => T(c('make_page', { title: 'Raw page', html: `<!doctype html><title>raw</title><img id="i" src="${spy}/img.png"><script>fetch('${spy}/fetch').then(()=>document.title='reached',()=>document.title='blocked')</script>` })),
     () => T(c('workspace_list')),
+    () => T(c('finish', { report: 'early' })),   // unticked plan steps: one reminder (0.10.1)
     () => T(c('finish', { report: '## Budget phones\n\nThe Pixel 9a is the pick; the spreadsheet, document and page have the details.' })),
   ];
   let k = 0;

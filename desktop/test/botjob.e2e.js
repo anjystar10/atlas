@@ -43,6 +43,7 @@ app.whenReady().then(async () => {
     () => T(c('browser_open', { url: base + '/login' })),
     () => T(c('browser_handover', { reason: 'The shop wants you to sign in.' })),
     () => T(c('browser_read')),
+    () => T(c('finish', { report: 'early' })),   // unticked plan steps: one reminder (0.10.1)
     () => T(c('finish', { report: '## Kettles\n\nSearched, filled the form, downloaded the price list and placed order 1001.' })),
   ];
   let k = 0;
