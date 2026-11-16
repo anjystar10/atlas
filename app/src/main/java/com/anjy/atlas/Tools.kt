@@ -53,8 +53,9 @@ object Tools {
                 JSONObject().put("query", str("Words to search for; leave out to get the latest entries"))
                     .put("limit", int("How many entries at most (default 30)"))))
             put(fn("forget", "Delete a saved memory.", JSONObject().put("id", str("The memory's id from your instructions")), listOf("id")))
-            put(fn("open_app", "Open an installed app by name. Returns the screen once it has opened.",
-                JSONObject().put("name", str("The app's name as it appears on the phone, e.g. 'ChatGPT', 'Instagram', 'Settings'")), listOf("name")))
+            put(fn("open_app", "Open an installed app by name. Returns the screen once it has opened. To get something DONE, prefer the background ways first (connections, messages_recent/reply_message, send_sms, phone_alarm, a bot's browser on the app's website); a bot that opens an app is pointed at those first.",
+                JSONObject().put("name", str("The app's name as it appears on the phone, e.g. 'ChatGPT', 'Instagram', 'Settings'"))
+                    .put("use_screen", JSONObject().put("type", "boolean").put("description", "Bots only: true when there's no background way and the screen must be used (the user gets a heads-up first)")), listOf("name")))
             put(fn("open_link", "Open a web link or app link (https://, tel:, mailto:, geo:).", JSONObject().put("url", str("The link")), listOf("url")))
             put(fn("read_screen", "Read what's on the phone's screen now: the app, and numbered elements (buttons, text, fields)."))
             put(fn("tap", "Tap a numbered element from the most recent screen. Returns the new screen.",
@@ -173,6 +174,9 @@ object Tools {
         // >>> connections: an MCP tool (mcp__server__tool) goes to Connections.kt
         if (c.name.startsWith("mcp__")) return try { Connections.run(ctx, c, approved = false) } catch (e: Exception) { Result("Error: ${e.message ?: e.javaClass.simpleName}") }
         // <<< connections
+        // >>> background first: driving another app on screen is the last resort, with a heads-up (ScreenGate.kt)
+        if (c.name == "open_app" || c.name in ScreenGate.driving) ScreenGate.before(ctx, c.name, a)?.let { return it }
+        // <<< background first
         return try {
             when (c.name) {
                 "set_reminder" -> withContext(Dispatchers.IO) {
@@ -280,11 +284,11 @@ object Tools {
                     Result("Focus session started for '$title'${mins?.let { " ($it min)" } ?: ""}. The focus screen is open.", "Started a focus session: $title")
                 }
                 "read_screen" -> withContext(Dispatchers.Default) { Result(PhoneControl.readScreen(), null, phone = true) }
-                "tap" -> withContext(Dispatchers.Default) { PhoneControl.tap(a.optInt("element", -1), long = false) }
-                "long_press" -> withContext(Dispatchers.Default) { PhoneControl.tap(a.optInt("element", -1), long = true) }
-                "type_text" -> withContext(Dispatchers.Default) { PhoneControl.type(if (a.has("element")) a.optInt("element", -1) else -1, a.optString("text"), a.optBoolean("press_enter", false)) }
-                "scroll" -> withContext(Dispatchers.Default) { PhoneControl.scroll(a.optString("direction", "down"), if (a.has("element")) a.optInt("element", -1) else -1) }
-                "press_key" -> withContext(Dispatchers.Default) { PhoneControl.key(a.optString("key")) }
+                "tap" -> withContext(Dispatchers.Default) { PhoneControl.tap(a.optInt("element", -1), long = false) }.also { ScreenGate.touched(ctx) }
+                "long_press" -> withContext(Dispatchers.Default) { PhoneControl.tap(a.optInt("element", -1), long = true) }.also { ScreenGate.touched(ctx) }
+                "type_text" -> withContext(Dispatchers.Default) { PhoneControl.type(if (a.has("element")) a.optInt("element", -1) else -1, a.optString("text"), a.optBoolean("press_enter", false)) }.also { ScreenGate.touched(ctx) }
+                "scroll" -> withContext(Dispatchers.Default) { PhoneControl.scroll(a.optString("direction", "down"), if (a.has("element")) a.optInt("element", -1) else -1) }.also { ScreenGate.touched(ctx) }
+                "press_key" -> withContext(Dispatchers.Default) { PhoneControl.key(a.optString("key")) }.also { ScreenGate.touched(ctx) }
                 "wait" -> {
                     val s = a.optInt("seconds", 2).coerceIn(1, 15)
                     delay(s * 1000L)

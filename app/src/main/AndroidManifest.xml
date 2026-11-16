@@ -25,6 +25,8 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <!-- background first: texts are sent only after the user OKs each one (Messages.kt) -->
+    <uses-permission android:name="android.permission.SEND_SMS" />
     <!-- the vault shows a saved password only after the phone's own unlock -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
@@ -221,6 +223,20 @@
                 android:resource="@xml/atlas_access" />
         </service>
 
+        <!-- >>> background first: notification replies, permission asks, the screen heads-up (Messages.kt, PermissionCenter.kt, ScreenGate.kt) -->
+        <service
+            android:name=".AtlasNotifs"
+            android:exported="true"
+            android:label="Atlas"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        <activity android:name=".PermissionAskActivity" android:exported="false" android:theme="@android:style/Theme.DeviceDefault.Dialog.NoActionBar" android:excludeFromRecents="true" android:taskAffinity="" />
+        <activity android:name=".PermissionsActivity" android:exported="false" android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+        <receiver android:name=".ScreenReceiver" android:exported="false" />
+        <!-- <<< background first -->
         <receiver android:name=".AlarmReceiver" android:exported="false" />
         <receiver android:name=".PingReceiver" android:exported="false" />
         <receiver android:name=".RoutineReceiver" android:exported="false" />

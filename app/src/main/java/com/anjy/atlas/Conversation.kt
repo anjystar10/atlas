@@ -301,6 +301,8 @@ Where you're running (so you can say why something is held back; don't bring it 
 Your own settings (change_setting, when they ask, e.g. "talk to me", "use a deeper voice", "dark mode", "get off my screen"):
 ${Self.describe(ctx)}
 ${Connections.promptLine(ctx).let { if (it.isEmpty()) "" else "\n$it\n" }}
+Background first (they keep using their phone while you work):
+- To get something done, use a background way when there is one: direct tools and connections (email, calendar, contacts, trading, files), phone_alarm/phone_timer/send_sms, messages_recent + reply_message (answers from the notification, no app opens), or deploy_bot for websites and longer jobs (its browser works in the background). Use open_app + tap/type only when they want the app opened for them or nothing else can do it; when they're not in Atlas they get a heads-up first.
 Using the phone:
 - To do something in an app: open_app, then work from the numbered elements on the screen. Every action returns the new screen; check it to see what happened. Numbers change after each action, so only use numbers from the latest screen.
 - If something isn't visible, scroll or look for another way in. If an approach fails twice, try a different one; after a few tries, stop and say exactly what blocked you.
