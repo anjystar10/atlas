@@ -37,8 +37,8 @@ import java.util.UUID
 object Bots {
     private const val TAG = "AtlasBot"
     /** The most tool steps one job may take, and the most working time. */
-    const val MAX_TOOL_CALLS = 80
-    const val MAX_WORK_MS = 30 * 60_000L
+    const val MAX_TOOL_CALLS = BotRules.MAX_TOOL_CALLS
+    const val MAX_WORK_MS = BotRules.MAX_WORK_MS
     /** After this many rounds the conversation with the model starts afresh from the journal (keeps it small). */
     private const val ROUNDS_PER_PART = 10
     /** Finished jobs kept in the journal. */
@@ -336,9 +336,9 @@ object Bots {
                 tick()
                 if (turn.calls.isEmpty()) {
                     // it answered in words instead of calling finish: take that as the report once it has done some work
-                    if (turn.text.isNotBlank() && (j.toolCalls > 0 || nudges >= 2 || wrapping)) { complete(j, turn.text); return }
+                    if (turn.text.isNotBlank() && BotRules.textEndsJob(nudges, wrapping)) { complete(j, turn.text); return }
                     nudges++
-                    extra = "\n\n(You replied without using a tool. Keep working with your tools, and call finish with the report when the job is done.)"
+                    extra = "\n\n" + BotRules.NUDGE
                     break
                 }
                 if (wrapping && turn.calls.none { it.name == "finish" }) { complete(j, compiled(j)); return }
@@ -351,6 +351,11 @@ object Bots {
                             if (busy.isNotEmpty() && !j.finishNudged && !wrapping) {
                                 j.finishNudged = true
                                 results.add(c to "${busy.size} of your helpers are still working. Call wait_for_helpers to get their reports first (or call finish again to finish without them)."); continue
+                            }
+                            val open = j.plan.count { !it.done }
+                            if (BotRules.remindOpenSteps(open, j.planNudged, wrapping)) {
+                                j.planNudged = true
+                                results.add(c to BotRules.openStepsReminder(open)); continue
                             }
                             busy.forEach { stop(it.id) }
                             complete(j, c.args.optString("report").ifBlank { turn.text.ifBlank { compiled(j) } }); return
@@ -392,7 +397,7 @@ object Bots {
                             if (lines.isNotEmpty()) {
                                 val first = j.plan.isEmpty()
                                 j.plan.clear()
-                                lines.take(12).forEach { l ->
+                                lines.take(BotRules.MAX_PLAN).forEach { l ->
                                     val done = Regex("^(\\d+[.)]\\s*)?\\[(x|X|✓)]").containsMatchIn(l)
                                     j.plan.add(PlanItem(Plain.memory(l.replace(Regex("^(\\d+[.)]\\s*)?(\\[[ xX✓]?]\\s*)?(\\d+[.)]\\s*)?"), "")).take(160), done))
                                 }
@@ -691,7 +696,7 @@ object Bots {
             // >>> files the bot hands over (BotFiles): its job folder, a PDF document, an Excel spreadsheet, an interactive page
             BotFiles.declarations.forEach { put(it) }
             // <<< files
-            put(fn("update_plan", "Write or update your plan for this job: 3 to 8 short steps, one per line, in order. Start a line with [x] when that step is done.",
+            put(fn("update_plan", "Write or update your plan for this job: as many short steps as the job needs (no fixed number), one per line, in order. Start a line with [x] when that step is done.",
                 JSONObject().put("plan", str("The steps, one per line, e.g. \"[x] Search for reviews\\n[ ] Compare prices\"")), listOf("plan")))
             put(fn("note", "Save something you'll need later: a fact, figure, name or link you found, with where it came from. Older tool results are dropped as you go, but notes are kept for the whole job.",
                 JSONObject().put("text", str("The note, short and specific")), listOf("text")))
@@ -745,7 +750,8 @@ object Bots {
 You are Atlas Bot, an agent that Atlas ($name's personal AI assistant) sends to do a job in the background on their Android phone. You're not chatting: nobody reads what you write until you finish. Work through the job with your tools, then call finish with the report.
 
 How you work:
-1. Plan first: call update_plan with a short plan (3 to 8 steps). Keep it current: tick steps off with [x] as you finish them, and change the plan when you learn something.
+1. Plan first: call update_plan with a plan of as many steps as the job really needs (a small job may need 3, a big one 30 or more; there's no fixed number). The plan gives you structure, not a limit: add, split or reorder steps whenever you learn something, and tick steps off with [x] as you finish them.
+   Your job is to get the thing DONE, not just to find out about it: research only as far as doing it needs, unless the user asked for information. Keep going until every step is done or truly can't be.
 2. Work step by step with tools. When the job is to get something done online (not just find out), do it in your browser. For research, run several focused web searches and read the best pages instead of guessing; cross-check important facts in two sources when you can. Prefer recent, primary sources.
 3. Older tool results are dropped as you go to keep things small, so save what you'll need later (facts, figures, names, links, with the source) with note as soon as you find it. Your plan and notes are kept for the whole job.
 4. Before you finish, check your work: does the report do the whole job? Is every number and claim backed by something you read or did?

@@ -39,8 +39,16 @@ object BotRules {
     const val MAX_CHILDREN = 4
     const val CHILD_MAX_CALLS = 30
     const val CHILD_MAX_MS = 10 * 60_000L
-    const val MAX_TOOL_CALLS = 80
-    const val MAX_WORK_MS = 30 * 60_000L
+    const val MAX_TOOL_CALLS = 300
+    const val MAX_WORK_MS = 120 * 60_000L
+    /** Plans can be as long as the job needs; this only guards against a runaway list. */
+    const val MAX_PLAN = 60
+    const val NUDGE = "(You replied in words without using a tool, so the job isn't finished. If it IS done, call finish with the report. Otherwise do the next step of your plan with your tools.)"
+    /** A bot that answers in words instead of calling finish: only take that as the end after two reminders, or when the budget is spent. */
+    fun textEndsJob(nudges: Int, wrapping: Boolean) = wrapping || nudges >= 2
+    /** Finishing with plan steps not ticked: remind once (they may be done but unticked), unless the budget is spent. */
+    fun remindOpenSteps(open: Int, alreadyNudged: Boolean, wrapping: Boolean) = open > 0 && !alreadyNudged && !wrapping
+    fun openStepsReminder(open: Int) = "$open step${if (open == 1) " of your plan isn't" else "s of your plan aren't"} ticked off. Do ${if (open == 1) "it" else "them"} now (or update the plan if they're done or no longer needed), then call finish again. If you truly can't, call finish again and say in the report what's left undone and why."
     fun callsOf(j: BotJob) = if (j.maxCalls > 0) j.maxCalls else MAX_TOOL_CALLS
     fun msOf(j: BotJob) = if (j.maxMs > 0) j.maxMs else MAX_WORK_MS
     /** The budget a new helper of [parent] gets: half of what the parent has left, within the helper limits. */
@@ -216,6 +224,8 @@ class BotJob(
     /** A helper whose report its bot has taken in. */
     var reported = false
     var finishNudged = false
+    /** Already reminded once that plan steps were left when it tried to finish. */
+    var planNudged = false
 
     val final get() = state in BotRules.FINAL
 
@@ -245,7 +255,7 @@ class BotJob(
         .put("device", device).put("updated_ms", updatedAt).put("suggestPc", suggestPc ?: JSONObject.NULL)
         .put("inbox", JSONArray(inbox)).put("wrapUp", wrapUp).put("specialist", specialist ?: JSONObject.NULL).put("parent", parent ?: JSONObject.NULL)
         .put("depth", depth).put("children", JSONArray(children)).put("routine", routine ?: JSONObject.NULL).put("maxCalls", maxCalls).put("maxMs", maxMs)
-        .put("reported", reported).put("finishNudged", finishNudged).put("memo", memo)
+        .put("reported", reported).put("finishNudged", finishNudged).put("planNudged", planNudged).put("memo", memo)
 
     companion object {
         private fun JSONObject.str(k: String): String? = if (isNull(k)) null else optString(k).takeIf { has(k) }
@@ -265,7 +275,7 @@ class BotJob(
             suggestPc = o.str("suggestPc")
             inbox.addAll(o.optJSONArray("inbox").strings()); wrapUp = o.optBoolean("wrapUp"); specialist = o.str("specialist"); parent = o.str("parent")
             depth = o.optInt("depth"); children.addAll(o.optJSONArray("children").strings()); routine = o.str("routine")
-            maxCalls = o.optInt("maxCalls"); maxMs = o.optLong("maxMs"); reported = o.optBoolean("reported"); finishNudged = o.optBoolean("finishNudged")
+            maxCalls = o.optInt("maxCalls"); maxMs = o.optLong("maxMs"); reported = o.optBoolean("reported"); finishNudged = o.optBoolean("finishNudged"); planNudged = o.optBoolean("planNudged")
             memo = o.optBoolean("memo")
         }
 

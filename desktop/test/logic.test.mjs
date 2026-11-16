@@ -107,7 +107,8 @@ test('a bot plans, researches, notes, finishes, and posts its report', async () 
   const w = world([
     turn(call('update_plan', { plan: '[ ] Search\n[ ] Read\n[ ] Report' }), call('web_search', { query: 'best phone' })),
     turn(call('note', { text: 'Phone X is 299 (example.com)' }), call('read_page', { url: 'https://example.com/x' })),
-    turn(call('finish', { report: '## Best phone\n\nPhone X.\n\n## Sources\n- [Example](https://example.com/x)' })),
+    turn(call('finish', { report: 'too early' })),
+    (brief, ctx) => turn(call('finish', { report: '## Best phone\n\nPhone X.\n\n## Sources\n- [Example](https://example.com/x)' })),
   ]);
   await w.bots.init();
   const j = w.bots.deploy('Find the best phone', 'under 300');
@@ -618,7 +619,7 @@ test('specialists: a bot hands parts to helpers, waits without holding a slot, a
 
 test('helpers: no deeper than two levels, at most four, and stopping a bot stops its helpers', async () => {
   const e = extrasFor(); await e.ex.init();
-  const p = { toolCalls: 70, workMs: 0 };
+  const p = { toolCalls: B.MAX_TOOL_CALLS - 10, workMs: 0 };
   assert.equal(B.childBudget(p).maxCalls, 8, 'a helper gets a share of what is left (never less than 8)');
   const w = world([
     turn(...[1, 2, 3, 4, 5].map((i) => call('delegate', { specialist: 'Research Bot', task: 'Part ' + i }))),
@@ -1001,4 +1002,46 @@ test('projects in the chat: through the capability registry, a risky step waits 
   assert.equal((await aware.run({ name: 'project_run', args: { project: 'X', command: 'git push' } })).out, 'ran git push');
   aware.use({ mode: () => 'ask' });
   delete globalThis.window.atlasHost.projects;
+});
+
+
+// ------------------------------------------------------------------ 0.10.1: bots keep going until the job is done
+test('bots: no fixed plan size, words are not a finished job, and unticked steps get one reminder', async () => {
+  assert.ok(B.MAX_PLAN >= 50, 'plans can be long');
+  assert.equal(B.textEndsJob(0, false), false, 'a bot that did some work and then talks has not finished');
+  assert.equal(B.textEndsJob(1, false), false);
+  assert.equal(B.textEndsJob(2, false), true, 'after two reminders its words are the report');
+  assert.equal(B.textEndsJob(0, true), true, 'when the budget is spent, words are the report');
+  assert.equal(B.remindOpenSteps(2, false, false), true);
+  assert.equal(B.remindOpenSteps(2, true, false), false, 'only once');
+  assert.equal(B.remindOpenSteps(0, false, false), false);
+  assert.equal(B.remindOpenSteps(3, false, true), false, 'not when the budget is spent');
+  assert.match(B.openStepsReminder(1), /1 step of your plan isn't ticked off/);
+  assert.ok(B.MAX_TOOL_CALLS >= 300 && B.MAX_WORK_MS >= 120 * 60000, 'the default budget matches the user\'s "moderate" choice');
+  // a 20-step plan is kept whole
+  const w = world([
+    turn(call('update_plan', { plan: Array.from({ length: 20 }, (_, i) => `[ ] Step ${i + 1}`).join('\n') })),
+    turn(call('update_plan', { plan: Array.from({ length: 20 }, (_, i) => `[x] Step ${i + 1}`).join('\n') }), call('web_search', { query: 'x' })),
+    turn(call('finish', { report: 'Done.' })),
+  ]);
+  await w.bots.init();
+  const j = w.bots.deploy('A long job', '');
+  await settle(w);
+  assert.equal(j.state, B.S.COMPLETED);
+  assert.equal(j.plan.length, 20);
+});
+
+test('bots: talking without a tool after some work is nudged, not taken as the report', async () => {
+  const w = world([
+    turn(call('web_search', { query: 'flights' })),
+    { calls: [], text: 'I found some flights. Next I will compare prices.' },
+    (brief) => { assert.ok(brief.includes("the job isn't finished"), 'the nudge reaches the bot'); return turn(call('web_search', { query: 'prices' })); },
+    turn(call('finish', { report: 'Cheapest: X.' })),
+  ]);
+  await w.bots.init();
+  const j = w.bots.deploy('Find the cheapest flight', '');
+  await settle(w);
+  assert.equal(j.state, B.S.COMPLETED);
+  assert.equal(j.report, 'Cheapest: X.');
+  assert.deepEqual(w.ran.map((r) => r[0]), ['web_search', 'web_search']);
 });

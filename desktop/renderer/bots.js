@@ -15,7 +15,14 @@ export const S = {
 export const ALL = Object.values(S);
 export const FINAL = new Set([S.COMPLETED, S.FAILED, S.CANCELLED]);
 export const WAITING_ON_USER = new Set([S.AWAITING_APPROVAL, S.AWAITING_ANSWER, S.NEEDS_REVIEW]);
-export const MAX_RUNNING = 2, MAX_TOOL_CALLS = 80, MAX_WORK_MS = 30 * 60000, ROUNDS_PER_PART = 10, MAX_RETRIES = 5, KEEP_FINISHED = 30;
+export const MAX_PLAN = 60;
+export const NUDGE = "(You replied in words without using a tool, so the job isn't finished. If it IS done, call finish with the report. Otherwise do the next step of your plan with your tools.)";
+/** A bot that answers in words instead of calling finish: only take that as the end after two reminders, or when the budget is spent. */
+export const textEndsJob = (nudges, wrapping) => !!wrapping || nudges >= 2;
+/** Finishing with plan steps not ticked: remind once, unless the budget is spent. */
+export const remindOpenSteps = (open, nudged, wrapping) => open > 0 && !nudged && !wrapping;
+export const openStepsReminder = (open) => `${open} step${open === 1 ? " of your plan isn't" : "s of your plan aren't"} ticked off. Do ${open === 1 ? 'it' : 'them'} now (or update the plan if they're done or no longer needed), then call finish again. If you truly can't, call finish again and say in the report what's left undone and why.`;
+export const MAX_RUNNING = 2, MAX_TOOL_CALLS = 300, MAX_WORK_MS = 120 * 60000, ROUNDS_PER_PART = 10, MAX_RETRIES = 5, KEEP_FINISHED = 30;
 /** Helpers (delegation): a bot's helpers may have helpers, no deeper; at most 4 per bot; each gets a share of what's left. */
 export const MAX_DEPTH = 2, MAX_CHILDREN = 4, CHILD_MAX_CALLS = 30, CHILD_MAX_MS = 10 * 60000;
 export const callsOf = (j) => j.maxCalls || MAX_TOOL_CALLS;
@@ -83,7 +90,7 @@ const fn = (name, description, props, required = []) => ({ name, description, pa
 export const FINISH = fn('finish', 'Finish the job and hand over the report. The report is shown to the user and posted in their chat.',
   { report: str('The full report in neat Markdown, ending with a Sources section when you used the web.') }, ['report']);
 export const BOT_TOOLS = [
-  fn('update_plan', 'Write or update your plan for this job: 3 to 8 short steps, one per line, in order. Start a line with [x] when that step is done.',
+  fn('update_plan', 'Write or update your plan for this job: as many short steps as the job needs (no fixed number), one per line, in order. Start a line with [x] when that step is done.',
     { plan: str('The steps, one per line, e.g. "[x] Search for reviews\\n[ ] Compare prices"') }, ['plan']),
   fn('note', "Save something you'll need later: a fact, figure, name or link you found, with where it came from. Older tool results are dropped as you go, but notes are kept for the whole job.",
     { text: str('The note, short and specific') }, ['text']),
@@ -151,7 +158,7 @@ export function compiled(j) {
 }
 
 export function parsePlan(text) {
-  return String(text || '').split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 12).map((l) => ({
+  return String(text || '').split('\n').map((l) => l.trim()).filter(Boolean).slice(0, MAX_PLAN).map((l) => ({
     done: /^(\d+[.)]\s*)?\[(x|X|✓)]/.test(l),
     text: l.replace(/^(\d+[.)]\s*)?(\[[ xX✓]?]\s*)?(\d+[.)]\s*)?/, '').slice(0, 160),
   }));
@@ -466,9 +473,9 @@ export function createBots(deps) {
         if (!mine()) return;
         tick();
         if (!turn.calls.length) {
-          if (turn.text && (j.toolCalls > 0 || nudges >= 2 || wrapping)) return complete(j, turn.text);
+          if (turn.text && textEndsJob(nudges, wrapping)) return complete(j, turn.text);
           nudges++;
-          extra = '\n\n(You replied without using a tool. Keep working with your tools, and call finish with the report when the job is done.)';
+          extra = '\n\n' + NUDGE;
           fresh = true; continue;
         }
         if (wrapping && !turn.calls.some((c) => c.name === 'finish')) return complete(j, compiled(j));
@@ -482,6 +489,8 @@ export function createBots(deps) {
               j.finishNudged = true;
               results.push({ call: c, out: `${busy.length} of your helpers are still working. Call wait_for_helpers to get their reports first (or call finish again to finish without them).` }); continue;
             }
+            const open = (j.plan || []).filter((x) => !x.done).length;
+            if (remindOpenSteps(open, j.planNudged, wrapping)) { j.planNudged = true; results.push({ call: c, out: openStepsReminder(open) }); continue; }
             for (const k of busy) stop(k.id);
             return complete(j, a.report || turn.text || compiled(j));
           }
