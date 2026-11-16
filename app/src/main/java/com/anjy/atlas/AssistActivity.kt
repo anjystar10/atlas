@@ -138,12 +138,12 @@ class AssistActivity : Activity() {
             v.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, ime.bottom))
             WindowInsets.CONSUMED
         }
-        if (intent?.getBooleanExtra("listen", false) == true) root.postDelayed({ listen() }, 250)
+        if (intent?.getBooleanExtra("listen", false) == true) { val w = intent.getBooleanExtra(AvatarService.EXTRA_FROM_WAKE_WORD, false); Hear.prewarm(this); root.postDelayed({ listen(afterWake = w) }, 250) }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent.getBooleanExtra("listen", false) && !listening) listen()
+        if (intent.getBooleanExtra("listen", false) && !listening) listen(afterWake = intent.getBooleanExtra(AvatarService.EXTRA_FROM_WAKE_WORD, false))
     }
 
     override fun onResume() {
@@ -162,7 +162,7 @@ class AssistActivity : Activity() {
         super.onPause()
     }
 
-    private fun listen() {
+    private fun listen(afterWake: Boolean = false) {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1); return
         }
@@ -173,7 +173,7 @@ class AssistActivity : Activity() {
         greet.text = "Listening…"
         said.visibility = View.GONE; answer.visibility = View.GONE; steps.visibility = View.GONE
         orb.energy = 1f
-        voice = Hear.open(this,
+        voice = Hear.open(this, afterWake = afterWake,
             onPartial = { t -> said.visibility = View.VISIBLE; said.setTextColor(FG); said.text = t },
             onLevel = { l -> orb.level = l },
             onDone = { t ->

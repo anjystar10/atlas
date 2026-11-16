@@ -113,4 +113,28 @@ class SpeechTest {
         val d = Voice.ATLAS_DESIGN.lowercase()
         listOf("jarvis", "bettany", "stark", "iron man", "marvel").forEach { assertFalse(it, d.contains(it)) }
     }
+
+    @Test fun whileWorkingStopEndOrPassOn() {
+        assertEquals(Speech.WhileWorking.STOP, Speech.whileWorking("Stop"))
+        assertEquals(Speech.WhileWorking.STOP, Speech.whileWorking("cancel that, Atlas"))
+        assertEquals(Speech.WhileWorking.STOP, Speech.whileWorking("wait, stop!"))
+        assertEquals(Speech.WhileWorking.END_TALK, Speech.whileWorking("that's all, thanks"))
+        assertEquals(Speech.WhileWorking.PASS_ON, Speech.whileWorking("also check the price in naira"))
+        assertEquals(Speech.WhileWorking.PASS_ON, Speech.whileWorking("don't stop until you find it"))
+        assertEquals(Speech.WhileWorking.PASS_ON, Speech.whileWorking("how long will it take?"))
+    }
+
+    @Test fun atlasEndFromVoskWordTimes() {
+        val j = """{"result":[{"conf":1.0,"end":0.42,"start":0.1,"word":"hey"},{"conf":0.9,"end":0.95,"start":0.45,"word":"atlas"},{"conf":0.8,"end":1.4,"start":1.1,"word":"what's"}],"text":"hey atlas what's"}"""
+        assertEquals(0.95, Speech.atlasEnd(j)!!, 1e-9)
+        assertNull(Speech.atlasEnd("""{"result":[{"end":0.4,"word":"hey"}],"text":"hey"}"""))
+        assertNull(Speech.atlasEnd("not json"))
+        assertNull(Speech.atlasEnd(null))
+    }
+
+    @Test fun onlyAFreshWakeRecordingIsUsed() {
+        assertTrue(Speech.tailFresh(1_000, 4_000))
+        assertFalse(Speech.tailFresh(1_000, 20_000))
+        assertFalse(Speech.tailFresh(5_000, 1_000))
+    }
 }

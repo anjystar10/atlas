@@ -62,8 +62,30 @@ object Hear {
     fun usesModel(ctx: Context) = mode(ctx) == "auto" && System.currentTimeMillis() >= cloudDownUntil && VoiceInput.allowed(ctx) && connected(ctx) && engines(ctx).isNotEmpty()
 
     /** Something to listen with, chosen as above. Same callbacks either way; [onPartial] gets "…" while a speech model writes it down. */
-    fun open(ctx: Context, onPartial: (String) -> Unit, onLevel: (Float) -> Unit, onDone: (String?) -> Unit, onError: (String) -> Unit): Hearing =
-        if (usesModel(ctx)) Ears(ctx.applicationContext, onPartial, onLevel, onDone, onError) else VoiceInput(ctx, onPartial, onLevel, onDone, onError)
+    fun open(ctx: Context, afterWake: Boolean = false, onPartial: (String) -> Unit, onLevel: (Float) -> Unit, onDone: (String?) -> Unit, onError: (String) -> Unit): Hearing =
+        if (usesModel(ctx)) Ears(ctx.applicationContext, afterWake, onPartial, onLevel, onDone, onError) else VoiceInput(ctx, onPartial, onLevel, onDone, onError)
+
+    /** Where the wake listener (its own process) leaves what was said right after "Hey Atlas". */
+    fun tailFile(ctx: Context) = java.io.File(ctx.filesDir, "wake-tail.pcm")
+
+    /**
+     * The speech service's connection, opened ahead of time (on "Hey Atlas", while you're still talking), so the
+     * words are written down sooner once you stop. Cheap: no audio, no charge.
+     */
+    fun prewarm(ctx: Context) {
+        if (!usesModel(ctx)) return
+        val app = ctx.applicationContext
+        Thread {
+            try {
+                val (id, key) = engines(app).firstOrNull() ?: return@Thread
+                val url = when (id) { "groq" -> "https://api.groq.com/openai/v1/models"; "openai" -> "https://api.openai.com/v1/models"; else -> "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1" }
+                val con = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+                con.requestMethod = "HEAD"; con.connectTimeout = 5_000; con.readTimeout = 5_000
+                if (id == "gemini") con.setRequestProperty("x-goog-api-key", key) else con.setRequestProperty("Authorization", "Bearer $key")
+                con.responseCode   // the connection is kept for the real request
+            } catch (_: Exception) {}
+        }.start()
+    }
 
     /** Names and words Atlas should expect to hear, so they're spelled right: "Atlas", your name, names from your Log. */
     fun hint(ctx: Context): String = try {
@@ -181,6 +203,7 @@ object Hear {
      */
     private class Ears(
         private val ctx: Context,
+        private val afterWake: Boolean,
         private val onPartial: (String) -> Unit,
         private val onLevel: (Float) -> Unit,
         private val onDone: (String?) -> Unit,
@@ -210,6 +233,28 @@ object Hear {
             val pcm = ByteArrayOutputStream()
             val ep = Speech.Endpointer()
             var verdict = Speech.Heard.GOING
+            // after "Hey Atlas": the wake listener kept what was said after the phrase until it let go of the
+            // microphone; it goes first, so nothing said in that moment is lost
+            if (afterWake) {
+                val f = tailFile(ctx)
+                val until = System.currentTimeMillis() + 1500
+                while (!cancelled && System.currentTimeMillis() < until && !(f.exists() && Speech.tailFresh(f.lastModified(), System.currentTimeMillis()))) Thread.sleep(40)
+                try {
+                    if (f.exists() && Speech.tailFresh(f.lastModified(), System.currentTimeMillis())) {
+                        val tail = f.readBytes()
+                        val step = frame * 2
+                        val sh = ShortArray(frame)
+                        var i = 0
+                        while (i + step <= tail.size && verdict == Speech.Heard.GOING) {
+                            java.nio.ByteBuffer.wrap(tail, i, step).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(sh)
+                            pcm.write(tail, i, step)
+                            verdict = ep.feed(Speech.rms(sh))
+                            i += step
+                        }
+                        Log.i(TAG, "kept ${tail.size / 2 * 1000 / RATE} ms said right after the wake word")
+                    }
+                } catch (e: Exception) { Log.w(TAG, "wake tail", e) } finally { f.delete() }
+            }
             try {
                 val min = AudioRecord.getMinBufferSize(RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
                 // the wake word may be letting go of the microphone at this very moment: give it a few tries
@@ -230,6 +275,7 @@ object Hear {
                 val buf = ShortArray(frame)
                 val bytes = ByteArray(frame * 2)
                 var shown = 0f
+                // (everything was already said in the moment after the wake word: nothing more to record)
                 while (!stop && verdict == Speech.Heard.GOING) {
                     var got = 0
                     while (got < frame && !stop) { val n = r.read(buf, got, frame - got); if (n <= 0) { stop = true; break }; got += n }

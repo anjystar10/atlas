@@ -189,6 +189,23 @@ object Conversation {
     /** The pictures in the user's latest message that has any (for generate_image to work from). */
     fun latestUserImages(): List<java.io.File> = messages.lastOrNull { it.fromUser && it.media.any { m -> m.image } }?.media?.filter { it.image && it.file.exists() }?.map { it.file } ?: emptyList()
 
+    /** What the user said (by voice) while Atlas was working: read at its next step, newest last. */
+    private val live = java.util.concurrent.ConcurrentLinkedQueue<String>()
+
+    /**
+     * Something said while Atlas is working. It doesn't stop the work: it shows in the chat and Atlas reads it at its
+     * next step (a question gets a quick spoken answer through `say`; a change of plan is taken into account). When
+     * Atlas isn't working, it's an ordinary message.
+     */
+    fun interject(ctx: Context, text: String, onSpoken: (() -> Unit)? = null) {
+        val t = text.trim()
+        if (t.isEmpty()) return
+        if (!busy) { send(ctx, t, spoken = true, onSpoken = onSpoken); return }
+        messages.add(Msg(true, t, "You", System.currentTimeMillis()))
+        live.add(t)
+        changed()
+    }
+
     /** Send [text] as the user. [spoken]: it came by voice, so the answer is read out too. */
     fun send(ctx: Context, text: String, spoken: Boolean = false, onSpoken: (() -> Unit)? = null, media: List<Attach.Item> = emptyList()) {
         val app = ctx.applicationContext
@@ -196,6 +213,7 @@ object Conversation {
         val q = text.trim().ifEmpty { when { media.isEmpty() -> ""; media.any { it.video } -> "What's in this video?"; media.any { it.isFile } -> "Have a look at this."; else -> "What's in this picture?" } }
         if (q.isEmpty()) return
         if (busy) stop()
+        live.clear()
         val asked = Msg(true, q, "You", System.currentTimeMillis(), media = media)
         messages.add(asked)
         val reply = Msg(false, "", "Atlas", System.currentTimeMillis())
@@ -221,6 +239,14 @@ object Conversation {
                 }
                 save(app)
                 changed()
+            }
+            // said while it worked but too late to be read (it had already finished): that's the next request
+            val late = generateSequence { live.poll() }.toList()
+            if (late.isNotEmpty() && mine == gen) {
+                messages.removeAll { m -> m.fromUser && late.any { it == m.text } && m.at > reply.at }
+                val next = { send(app, late.joinToString(". "), spoken = true, onSpoken = onSpoken) }
+                if (spoken || Store.read(app) { it.settings.speakReplies }) speak(app, reply.text) { next() } else next()
+                return@launch
             }
             if (spoken || Store.read(app) { it.settings.speakReplies }) speak(app, reply.text, onSpoken) else onSpoken?.invoke()
         }
@@ -323,17 +349,22 @@ ${Tools.logContext(ctx)}
             Connections.declarations(ctx, "chat").let { extra -> for (i in 0 until extra.length()) put(extra.get(i)) }
             // everything registered in the capability registry (Aware.kt): bots, approvals, the chat's browser, and new subsystems
             Capabilities.chatDeclarations(ctx).let { extra -> for (i in 0 until extra.length()) put(extra.get(i)) }
+            if (spoken) put(SAY_TOOL)
         } }
         // <<< connections
         var session = Providers.session(ctx, p, history.toList(), full, m, tools)
         var final: String? = null
         var steps = 0
         val tried = mutableSetOf(p.id)
+        val heard = mutableListOf<String>()   // said while this request was being worked on
+        var newFrom = 0
         while (steps < MAX_STEPS) {
             steps++
             // what's going on right now (bots, approvals, the laptop…), fresh each step so a finished action shows
             val brief = withContext(Dispatchers.IO) { try { Situation.brief(ctx, markSeen = steps == 1) } catch (e: Exception) { "" } }
-            val system = withContext(Dispatchers.IO) { systemPrompt(ctx, spoken, brief) }
+            generateSequence { live.poll() }.forEach { heard.add(it) }
+            val system = withContext(Dispatchers.IO) { systemPrompt(ctx, spoken, brief) } + saidMeanwhile(heard, newFrom)
+            newFrom = heard.size
             val turn = try { callWithKeys(ctx, p, session) { session.call(system) } } catch (sw: KeyRouter.SwitchService) {
                 // carry on with the next service; it hears what was already done so nothing is repeated
                 if (!tried.add(sw.to.id)) throw Gemini.Failure(sw.message ?: "All your keys have run out for now.")
@@ -349,6 +380,12 @@ ${Tools.logContext(ctx)}
             if (turn.text.isNotBlank()) { reply.text = Plain.reply(turn.text); changed() }
             val results = mutableListOf<Pair<Gemini.Call, String>>()
             for (c in turn.calls) {
+                if (c.name == "say") {   // a short line spoken now; the work carries on
+                    val line = c.args.optString("text").trim()
+                    if (line.isNotEmpty()) withContext(Dispatchers.Main) { Voice.speak(ctx, line) }
+                    results.add(c to if (line.isEmpty()) "Error: nothing to say." else "Said it. Carry on.")
+                    continue
+                }
                 status = label(c); changed()
                 val r = Tools.run(ctx, c)
                 if (r.phone && !usingPhone) usingPhone = true
@@ -362,7 +399,8 @@ ${Tools.logContext(ctx)}
         val text = final ?: "I stopped after $MAX_STEPS steps without finishing. Tell me how you'd like me to continue."
         reply.text = Plain.reply(text).ifBlank { "Done." }
         // keep the exchange for next time as plain words, with a note of what was done
-        history.add(true to (if (media.isEmpty()) q else "$q\n(sent: ${media.joinToString(", ") { if (it.isFile) it.name else if (it.video) "a video" else "a picture" }})"))
+        history.add(true to (if (media.isEmpty()) q else "$q\n(sent: ${media.joinToString(", ") { if (it.isFile) it.name else if (it.video) "a video" else "a picture" }})") +
+            (if (heard.isEmpty()) "" else "\n(while you worked I also said: ${heard.joinToString(" / ")})"))
         history.add(false to text + stepNote(reply.steps))
         fixHistory()
     }
@@ -424,4 +462,17 @@ ${Tools.logContext(ctx)}
 
     fun speak(ctx: Context, s: String, onDone: (() -> Unit)? = null) = Voice.speak(ctx, s, onDone)
     fun hush() = Voice.hush()
+
+    /** For a voice conversation while Atlas works: a short line spoken now, without ending its turn. */
+    private val SAY_TOOL: org.json.JSONObject = org.json.JSONObject().put("name", "say")
+        .put("description", "Voice conversations only: speak one short line to the user right now, without ending your turn. Use it now and then for a quick progress update while you work through several steps (not every step), and to answer briefly anything they say while you work. Under 15 words.")
+        .put("parameters", org.json.JSONObject().put("type", "object").put("properties", org.json.JSONObject().put("text", org.json.JSONObject().put("type", "string").put("description", "What to say"))).put("required", JSONArray().put("text")))
+
+    /** What the user said while this request was worked on, for Atlas's instructions; the ones from [newFrom] on are new. */
+    private fun saidMeanwhile(heard: List<String>, newFrom: Int): String {
+        if (heard.isEmpty()) return ""
+        val lines = heard.mapIndexed { i, t -> "- \"$t\"" + if (i >= newFrom) " (new)" else "" }.joinToString("\n")
+        return "\n\nWhile you've been working on this, the user said (by voice):\n$lines\n" +
+            "Take anything new into account right away: if it changes or adds to the task, adjust and carry on; if it's a question, answer it in a sentence with say and carry on; if it asks you to stop, stop and say what you got done."
+    }
 }

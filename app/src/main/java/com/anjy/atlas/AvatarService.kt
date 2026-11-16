@@ -79,7 +79,7 @@ class AvatarService : Service() {
             ACTION_CELEBRATE -> celebrate()
             ACTION_MIC -> apply(fromUser = true)
             ACTION_STOP_TASK -> Conversation.stop()
-            ACTION_WAKE -> wake()
+            ACTION_WAKE -> { fromWakeWord = intent?.getBooleanExtra(EXTRA_FROM_WAKE_WORD, false) == true; wake() }
             else -> apply(fromUser = false)
         }
         return START_STICKY
@@ -270,7 +270,7 @@ class AvatarService : Service() {
     /** "Hey Atlas" (or a tap): grow and listen. Without Atlas on screen, the panel opens instead. */
     private fun wake() {
         if (orbFrame == null || checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            try { startActivity(Intent(this, AssistActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("listen", true)) }
+            try { startActivity(Intent(this, AssistActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("listen", true).putExtra(EXTRA_FROM_WAKE_WORD, fromWakeWord)); fromWakeWord = false }
             catch (e: Exception) { Log.w(TAG, "couldn't open the panel", e); HotwordService.hold(this, false) }
             return
         }
@@ -280,18 +280,63 @@ class AvatarService : Service() {
         orbFrame?.visibility = View.VISIBLE
         setGrown(true)
         handler.post(pulse)
-        listen()
+        Hear.prewarm(this)
+        listen(afterWake = fromWakeWord)
+        fromWakeWord = false
     }
 
-    private var hearFails = 0
+    /** Set when "Hey Atlas" (not a tap) woke it: the wake listener hands over what was said right after the phrase. */
+    private var fromWakeWord = false
 
-    private fun listen() {
+    private var hearFails = 0
+    /** Listening while Atlas works (it carries on; what's said is passed on to it), not waiting for an answer. */
+    private var alongside = false
+    /** Atlas's own voice paused the listening while it works: listen again once it has finished speaking. */
+    private var resumeAfterVoice = false
+
+    /**
+     * While Atlas works on something you asked for by voice, the conversation goes on: it keeps listening (except
+     * while it speaks, so it doesn't hear itself), "stop" stops the work, "that's all" ends the talk (the work goes
+     * on), and anything else is passed on to it as it works.
+     */
+    private fun listenAlongside() {
+        if (!talking || !Conversation.busy || Voice.busy || voice != null) return
+        alongside = true
+        orb?.energy = 1f
+        voice = Hear.open(this,
+            onPartial = { t -> if (!Conversation.usingPhone) say(t, who = "You") },
+            onLevel = { l -> orb?.level = l },
+            onDone = { t ->
+                voice = null; alongside = false; orb?.level = 0f
+                if (!talking) return@open
+                if (t.isNullOrBlank()) { handler.postDelayed({ listenAlongside() }, 250); return@open }
+                when (Speech.whileWorking(t)) {
+                    Speech.WhileWorking.STOP -> { Conversation.stop(); Voice.speak(this, "Stopped."); handler.postDelayed({ listen() }, 900) }
+                    Speech.WhileWorking.END_TALK -> { if (!Conversation.usingPhone) say(t, who = "You"); handler.postDelayed({ endTalk() }, 700) }
+                    Speech.WhileWorking.PASS_ON -> {
+                        turns++
+                        if (!Conversation.usingPhone) say(t, who = "You")
+                        Conversation.interject(this, t, onSpoken = { if (talking) handler.postDelayed({ listen() }, 400) })
+                        handler.postDelayed({ listenAlongside() }, 300)
+                    }
+                }
+            },
+            onError = { _ ->
+                voice = null; alongside = false; orb?.level = 0f
+                // listening alongside is a bonus: a hiccup just means a short pause before trying again
+                if (talking) handler.postDelayed({ listenAlongside() }, 2500)
+            })
+        voice?.start()
+    }
+
+    private fun listen(afterWake: Boolean = false) {
         if (!talking) return
         Conversation.hush()
+        alongside = false; resumeAfterVoice = false
         orb?.energy = 1f
         say("Listening…", who = "You", dim = true)
         voice?.cancel()
-        voice = Hear.open(this,
+        voice = Hear.open(this, afterWake = afterWake,
             onPartial = { t -> say(t, who = "You") },
             onLevel = { l -> orb?.level = l },
             onDone = { t ->
@@ -307,6 +352,8 @@ class AvatarService : Service() {
                 say(t, who = "You")
                 // listen again once Atlas has finished speaking (a short gap, so the tail of its own voice isn't heard)
                 Conversation.send(this, t, spoken = true, onSpoken = { if (talking) handler.postDelayed({ listen() }, 400) })
+                // the conversation goes on while it works
+                handler.postDelayed({ listenAlongside() }, 700)
             },
             onError = { msg ->
                 voice = null; orb?.level = 0f; say(msg, dim = true)
@@ -330,6 +377,7 @@ class AvatarService : Service() {
         handler.removeCallbacksAndMessages(null)
         handler.postDelayed(syncTick, 10 * 60_000L)   // (the line above also cleared the sync timer)
         voice?.cancel(); voice = null
+        alongside = false; resumeAfterVoice = false
         orb?.level = 0f; orb?.energy = 0f
         hideCaption()
         setGrown(false)
@@ -414,6 +462,12 @@ class AvatarService : Service() {
             t += 0.05f
             // A talk can't move on by itself if its answer was stopped or cut off by other speech (the "listen again"
             // never comes): when nothing is listening, thinking or speaking for a while, the talk ends.
+            // listening alongside the work: Atlas's own voice pauses it (so it doesn't hear itself), then it resumes
+            if (alongside && voice != null && Voice.busy) { voice?.cancel(); voice = null; alongside = false; resumeAfterVoice = true }
+            else if (resumeAfterVoice && !Voice.busy && voice == null) {
+                resumeAfterVoice = false
+                if (Conversation.busy) handler.postDelayed({ listenAlongside() }, 400)
+            }
             if (voice == null && !Conversation.busy && !Voice.busy) {
                 idle += 50
                 if (idle >= 6000) { endTalk(); return }
@@ -469,6 +523,7 @@ class AvatarService : Service() {
         const val ACTION_MIC = "com.anjy.atlas.AVATAR_MIC"
         const val ACTION_STOP_TASK = "com.anjy.atlas.STOP_TASK"
         const val ACTION_WAKE = "com.anjy.atlas.WAKE"
+        const val EXTRA_FROM_WAKE_WORD = "from_wake_word"
         @Volatile var running = false; private set
         @Volatile var appInFront = false; private set
         @Volatile private var instance: AvatarService? = null

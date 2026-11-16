@@ -2057,6 +2057,14 @@ class MainActivity : Activity() {
             st.wakeWord -> "Starting… If it stays like this, tap “Start listening” on Atlas's notification."
             else -> "Say “Hey Atlas” from anywhere to ask something without opening the app. It's heard on the phone only; nothing is recorded or sent. Switching it on downloads a ${HotwordFiles.MODEL_MB} MB speech model once."
         }, 13f, MUTED), 8)
+        if (st.wakeWord) {
+            // the listener reads this when it (re)starts: let go of the microphone and take it back
+            vc.add(switchRow(null, "Wake More Easily", HotwordFiles.sensitive(this)) { on ->
+                HotwordFiles.setSensitive(this, on)
+                AvatarService.holdMic(this, true); body.postDelayed({ AvatarService.holdMic(this, false) }, 700)
+            }, 8)
+            vc.add(text("For a noisy room or when it misses you. Look-alike words (“at last”) may wake it now and then.", 13f, MUTED), 6)
+        }
         vc.add(switchRow(null, "Speak Replies", st.speakReplies) { on -> Store.edit(this) { it.settings.speakReplies = on } }, 8)
         vc.add(text("Spoken questions always get a spoken answer.", 13f, MUTED), 6)
         vc.add(switchRow(null, "Natural Voice", Voice.natural(this)) { on -> Store.setFlag(this, "voice_natural", on); render(keepScroll = true) }, 10)

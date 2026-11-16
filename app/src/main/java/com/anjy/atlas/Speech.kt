@@ -157,6 +157,45 @@ object Speech {
 
     private val END = Regex("""^(no[, ]+)?(thanks?( you)?[, ]+)?(that'?s all|that is all|that will be all|that'll be all|never ?mind|stop listening|good ?bye|bye( bye)?|nothing else|that'?s it|i'?m done|we'?re done)( for now)?([, ]+(thanks?( you)?|atlas))*$""", RegexOption.IGNORE_CASE)
 
+    // ---------------------------------------------------------------- talking while Atlas works
+
+    /** What something said while Atlas is working means. */
+    enum class WhileWorking { STOP, END_TALK, PASS_ON }
+
+    private val STOP_WORK = Regex("""^(please[, ]+)?(stop( it| that| now| everything| working)?|cancel( it| that)?|abort|halt|hold on,? stop|wait,? stop|don'?t do (it|that)|never ?mind,? stop)([, ]+(please|atlas|now))*$""", RegexOption.IGNORE_CASE)
+
+    /**
+     * While Atlas is doing something and the conversation carries on: "stop" stops the work, "that's all" ends the
+     * conversation (the work goes on), anything else is passed on to Atlas as it works (a question, a change of plan).
+     */
+    fun whileWorking(text: String): WhileWorking {
+        val t = text.trim().trim('.', '!', '?', ',', ' ')
+        return when {
+            STOP_WORK.matches(t) -> WhileWorking.STOP
+            endsTalk(t) -> WhileWorking.END_TALK
+            else -> WhileWorking.PASS_ON
+        }
+    }
+
+    // ---------------------------------------------------------------- the words after "Hey Atlas"
+
+    /**
+     * Where the request starts in the audio the wake listener already has: the end of the word "atlas" in a Vosk
+     * result with word times ({"result":[{"word":"atlas","end":1.23},…]}), in seconds, or null if it isn't there.
+     */
+    fun atlasEnd(voskJson: String?): Double? = try {
+        val arr = org.json.JSONObject(voskJson ?: return null).optJSONArray("result") ?: return null
+        var end: Double? = null
+        for (i in 0 until arr.length()) {
+            val w = arr.optJSONObject(i) ?: continue
+            if (w.optString("word") == "atlas") end = w.optDouble("end")
+        }
+        end
+    } catch (_: Exception) { null }
+
+    /** A recording the wake listener kept is used only if it's fresh: the wake was moments ago. */
+    fun tailFresh(writtenAt: Long, now: Long): Boolean = now - writtenAt in 0..8_000
+
     /** Google's British male voices on Android are named like "en-gb-x-rjs-local" (rjs, gbb, gbd are men's voices). */
     fun britishMale(name: String?): Boolean = name != null && Regex("en-gb-x-(rjs|gbb|gbd)(-|$)", RegexOption.IGNORE_CASE).containsMatchIn(name)
 
