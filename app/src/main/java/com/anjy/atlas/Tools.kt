@@ -38,14 +38,14 @@ object Tools {
             put(fn("set_reminder", "Log a reminder. At its time Atlas either rings an alarm (important things) or sends a notification with a sound (lighter things), and asks if they'll do it.",
                 JSONObject().put("title", str("Short title, e.g. 'Pick up my sister'"))
                     .put("alert", str("alarm: important or time-critical (picking someone up, appointments, medicine, leaving for something, waking up). notification: lighter things (drink water, stretch, read, small chores). If the user says which, do that.", listOf("alarm", "notification")))
-                    .put("when", str("Local date and time as 'YYYY-MM-DD HH:MM' (24h). Leave out only if the user gave no time at all."))
+                    .put("when", str("When, as the user said it (\"tomorrow at 6pm\", \"in 90 minutes\", \"monday 9am\") or local 'YYYY-MM-DD HH:MM'. Leave out only if the user gave no time at all."))
                     .put("duration_min", int("How long it takes, in minutes (default 30)"))
                     .put("repeat", str("How it repeats", listOf("none", "daily", "weekdays", "weekly")))
                     .put("notes", str("Optional details")), listOf("title")))
             put(fn("update_reminder", "Change a logged reminder: mark it done, cancel it, delete it, rename it, move it, or make it ring as an alarm or a notification.",
                 JSONObject().put("id", str("The reminder's id from the list in your instructions"))
                     .put("action", str("What to do", listOf("done", "cancel", "delete", "move", "rename", "make_alarm", "make_notification")))
-                    .put("when", str("For move: new local date and time 'YYYY-MM-DD HH:MM'"))
+                    .put("when", str("For move: the new time, as said (\"tomorrow 9am\") or local 'YYYY-MM-DD HH:MM'"))
                     .put("title", str("For rename: the new title")), listOf("id", "action")))
             put(fn("remember", "Save a lasting fact or preference the user wants Atlas to keep (shown in the Log).",
                 JSONObject().put("text", str("The fact, in a short sentence")), listOf("text")))
@@ -105,7 +105,8 @@ object Tools {
         }
     }
 
-    private val whenFmts = listOf("yyyy-MM-dd HH:mm", "yyyy-MM-dd'T'HH:mm", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss").map { DateTimeFormatter.ofPattern(it) }
+    // STRICT: an impossible date (30 February, 31 April) is refused, not quietly moved to the end of the month
+    private val whenFmts = listOf("uuuu-MM-dd HH:mm", "uuuu-MM-dd'T'HH:mm", "uuuu-MM-dd'T'HH:mm:ss", "uuuu-MM-dd HH:mm:ss").map { DateTimeFormatter.ofPattern(it).withResolverStyle(java.time.format.ResolverStyle.STRICT) }
 
     /** "2026-11-12 16:00" (the phone's local time) to epoch ms; null when missing or unreadable. */
     fun parseWhen(s: String?): Long? {
@@ -113,7 +114,9 @@ object Tools {
         for (f in whenFmts) {
             try { return LocalDateTime.parse(t, f).atZone(Engine.zone).toInstant().toEpochMilli() } catch (_: Exception) {}
         }
-        return null
+        // words like "tomorrow 9am" or "in 2 hours" (past allowed: calendars can look back)
+        if (Regex("^\\d{4}-").containsMatchIn(t)) return null   // a malformed or impossible date stays refused
+        return (com.anjy.atlas.core.When.resolve(t, System.currentTimeMillis(), Engine.zone, allowPast = true) as? com.anjy.atlas.core.When.Result.Ok)?.ms
     }
 
     fun fmtWhen(ms: Long): String = "${Brain.dayLabel(ms)} at ${Reminders.fmt(ms)}"
@@ -176,17 +179,23 @@ object Tools {
                     val title = Plain.memory(a.optString("title"))
                     if (title.isEmpty()) return@withContext Result("Error: a title is needed.")
                     val whenRaw = a.optString("when").trim()
-                    val at = parseWhen(whenRaw)
-                    if (whenRaw.isNotEmpty() && at == null) return@withContext Result("Error: couldn't read the time '$whenRaw'. Use 'YYYY-MM-DD HH:MM'.")
-                    // a time already gone would ring at once: the model should recheck the date or ask the user
-                    if (at != null && at < now - Engine.MIN) return@withContext Result("Error: $whenRaw has already passed (it's ${Instant.ofEpochMilli(now).atZone(Engine.zone).toLocalDateTime().format(whenFmts[0])} now). Use the next time it comes round, or ask the user.")
-                    val rep = a.optString("repeat", "none").ifBlank { "none" }
+                    // exact time from what the user said (core/When.kt, the same rules as the PC); impossible or past times are refused
+                    var at: Long? = null
+                    if (whenRaw.isNotEmpty()) when (val r = com.anjy.atlas.core.When.resolve(whenRaw, now, Engine.zone)) {
+                        is com.anjy.atlas.core.When.Result.Bad -> return@withContext Result("Error: ${r.error}")
+                        is com.anjy.atlas.core.When.Result.Ok -> at = r.ms
+                    }
+                    val rep = com.anjy.atlas.core.When.normRepeat(a.optString("repeat"))
+                        ?: return@withContext Result("Error: “${a.optString("repeat")}” isn't a repeat Atlas can do. Use none, daily, weekdays or weekly.")
+                    if (rep != "none" && at == null) return@withContext Result("Error: a repeating reminder needs a time. Ask the user when.")
+                    val dur = com.anjy.atlas.core.When.normMinutes(a.opt("duration_min"), 1, 1440)
+                    if (dur == -1) return@withContext Result("Error: duration_min must be between 1 and 1440 minutes.")
                     val alarm = a.optString("alert") == "alarm"
-                    val t = Store.edit(ctx) { Engine.create(it, title, now, at, a.optInt("duration_min", 30), Plain.memory(a.optString("notes", "")), if (alarm) "high" else "normal", rep) }
+                    val t = Store.edit(ctx) { Engine.create(it, title, now, at, dur ?: 30, Plain.memory(a.optString("notes", "")), if (alarm) "high" else "normal", rep) }
                     Reminders.tickAndSchedule(ctx)
-                    val whenTxt = t.startAt?.let { fmtWhen(it) } ?: "with no time yet"
-                    Result("Logged reminder [${t.id}] '${t.title}' ${whenTxt}${if (t.recurrence != "none") ", repeats ${t.recurrence}" else ""}; at its time: ${if (alarm) "an alarm" else "a notification with a sound"}.",
-                        "Logged “${t.title}”, $whenTxt")
+                    val whenTxt = t.startAt?.let { "${com.anjy.atlas.core.When.relativeDay(it, now, Engine.zone)}, ${com.anjy.atlas.core.When.fmtLong(it, Engine.zone)} (${Engine.zone.id})" } ?: "with no time yet"
+                    Result("Logged reminder [${t.id}] '${t.title}' for ${whenTxt}${if (t.recurrence != "none") ", repeats ${t.recurrence}" else ""}; at its time: ${if (alarm) "an alarm" else "a notification with a sound"}. Tell the user this stored time exactly.",
+                        "Logged “${t.title}”, ${t.startAt?.let { fmtWhen(it) } ?: "with no time yet"}")
                 }
                 "update_reminder" -> withContext(Dispatchers.IO) {
                     val id = a.optString("id")
@@ -196,7 +205,10 @@ object Tools {
                         "cancel" -> Store.edit(ctx) { Engine.cancel(it, id, now) }
                         "delete" -> Store.edit(ctx) { Engine.delete(it, id, now) }
                         "move" -> {
-                            val at = parseWhen(a.optString("when")) ?: return@withContext Result("Error: give the new time as 'YYYY-MM-DD HH:MM'.")
+                            val at = when (val r = com.anjy.atlas.core.When.resolve(a.optString("when"), now, Engine.zone)) {
+                                is com.anjy.atlas.core.When.Result.Bad -> return@withContext Result("Error: ${r.error}")
+                                is com.anjy.atlas.core.When.Result.Ok -> r.ms
+                            }
                             Store.edit(ctx) { s -> val t = Engine.find(s, id); Engine.update(s, id, t.title, now, at, t.durationMin, t.notes, t.priority, t.recurrence) }
                         }
                         "rename" -> {
@@ -208,7 +220,11 @@ object Tools {
                     }
                     Reminders.tickAndSchedule(ctx)
                     val act = a.optString("action")
-                    Result("Done: $act on '$title'.", when (act) { "done" -> "Marked “$title” done"; "cancel" -> "Cancelled “$title”"; "delete" -> "Deleted “$title”"; "move" -> "Moved “$title”"; "make_alarm" -> "“$title” will ring as an alarm"; "make_notification" -> "“$title” will come as a notification"; else -> "Renamed “$title”" })
+                    // read back what's stored now, so the reply quotes the real state, not a guess
+                    val state = if (act == "delete") "deleted" else Store.read(ctx) { s -> s.tasks.firstOrNull { it.id == id } }?.let { t ->
+                        "now ${t.status}" + (t.startAt?.let { ", at ${com.anjy.atlas.core.When.fmtLong(it, Engine.zone)}" } ?: "") + (if (t.title != title) ", titled '${t.title}'" else "")
+                    } ?: "gone"
+                    Result("Done: $act on '$title' ($state).${if (act == "move") " Tell the user this stored time exactly." else ""}", when (act) { "done" -> "Marked “$title” done"; "cancel" -> "Cancelled “$title”"; "delete" -> "Deleted “$title”"; "move" -> "Moved “$title”"; "make_alarm" -> "“$title” will ring as an alarm"; "make_notification" -> "“$title” will come as a notification"; else -> "Renamed “$title”" })
                 }
                 "read_log" -> withContext(Dispatchers.IO) { Result(readLog(ctx, a.optString("query"), a.optInt("limit", 30).coerceIn(1, 200))) }
                 "remember" -> withContext(Dispatchers.IO) {

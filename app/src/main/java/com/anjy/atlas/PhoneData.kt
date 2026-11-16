@@ -226,7 +226,8 @@ object PhoneData {
         a.optString("notes").takeIf { it.isNotBlank() }?.let { v.put(CalendarContract.Events.DESCRIPTION, it.take(4000)) }
         val uri = ctx.contentResolver.insert(CalendarContract.Events.CONTENT_URI, v) ?: return Tools.Result("Error: the calendar didn't accept the event.")
         val id = ContentUris.parseId(uri)
-        return Tools.Result("Added to the ${cal.second} calendar: '$title' (event id $id).", "Added “${title.take(50)}” to your calendar")
+        val stored = v.getAsLong(CalendarContract.Events.DTSTART)?.let { if (allDay) " on ${a.optString("start").trim().take(10)} (all day)" else " for ${com.anjy.atlas.core.When.fmtLong(it, com.anjy.atlas.core.Engine.zone)}" } ?: ""
+        return Tools.Result("Added to the ${cal.second} calendar: '$title'$stored (event id $id). Tell the user this stored time exactly.", "Added “${title.take(50)}” to your calendar")
     }
 
     private fun calendarChange(ctx: Context, a: JSONObject): Tools.Result {
