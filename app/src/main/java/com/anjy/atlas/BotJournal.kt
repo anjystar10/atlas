@@ -34,15 +34,15 @@ object BotRules {
     /** How many bots work at once. */
     const val MAX_RUNNING = 2
 
-    /** Helpers (delegation): a bot's helpers may have helpers, no deeper; at most 4 per bot; each gets a share of what's left. */
-    const val MAX_DEPTH = 2
-    const val MAX_CHILDREN = 4
+    /** Agents and helpers (Atlas Bot v2, docs/BOTS_V2.md §6): up to 4 levels deep, 12 per bot, 40 in a whole mission (Crew). */
+    const val MAX_DEPTH = Crew.MAX_AGENT_DEPTH
+    const val MAX_CHILDREN = Crew.MAX_AGENT_CHILDREN
     const val CHILD_MAX_CALLS = 30
     const val CHILD_MAX_MS = 10 * 60_000L
     const val MAX_TOOL_CALLS = 300
     const val MAX_WORK_MS = 120 * 60_000L
-    /** Plans can be as long as the job needs; this only guards against a runaway list. */
-    const val MAX_PLAN = 60
+    /** Plans can be as long as the job needs (Crew.parsePlanTree); this only guards against a runaway list. */
+    const val MAX_PLAN = Crew.PLAN_MAX_LINES
     const val NUDGE = "(You replied in words without using a tool, so the job isn't finished. If it IS done, call finish with the report. Otherwise do the next step of your plan with your tools.)"
     /** A bot that answers in words instead of calling finish: only take that as the end after two reminders, or when the budget is spent. */
     fun textEndsJob(nudges: Int, wrapping: Boolean) = wrapping || nudges >= 2
@@ -157,7 +157,7 @@ object BotRules {
     }
 }
 
-class PlanItem(val text: String, var done: Boolean = false)
+class PlanItem(val text: String, var done: Boolean = false, val depth: Int = 0)
 
 /** An action the bot wants to take that needs the user's OK. [tool] is null when the bot asked for approval itself. */
 class Approval(val what: String, val tool: String?, val args: JSONObject?, val elementLabel: String?, var decision: String? = null,
@@ -226,6 +226,20 @@ class BotJob(
     var finishNudged = false
     /** Already reminded once that plan steps were left when it tried to finish. */
     var planNudged = false
+    // ---- Atlas Bot v2 (docs/BOTS_V2.md §2): the standing bot, where it came from, cost, the checker, dry run, an agent's role and access
+    var bot: String? = null
+    var source: JSONObject? = null
+    var costCalls = 0
+    var costTokensIn = 0L
+    var costTokensOut = 0L
+    var dryRun = false
+    var role: String? = null
+    var access: JSONObject? = null
+    val intended = mutableListOf<String>()
+    var budgetStop = false
+    var verifyStatus = "none"
+    var verifyRounds = 0
+    val verifyNotes = mutableListOf<String>()
 
     val final get() = state in BotRules.FINAL
 
@@ -244,7 +258,7 @@ class BotJob(
     fun json(): JSONObject = JSONObject().put("id", id).put("goal", goal).put("details", details).put("createdAt", createdAt)
         .put("state", state).put("updatedAt", updatedAt)
         .put("history", JSONArray().apply { history.forEach { (t, s) -> put(JSONObject().put("at", t).put("state", s)) } })
-        .put("plan", JSONArray().apply { plan.forEach { put(JSONObject().put("text", it.text).put("done", it.done)) } })
+        .put("plan", JSONArray().apply { plan.forEach { put(JSONObject().put("text", it.text).put("done", it.done).also { o -> if (it.depth > 0) o.put("depth", it.depth) }) } })
         .put("notes", JSONArray(notes)).put("steps", JSONArray(steps)).put("sources", JSONArray(sources)).put("recent", JSONArray(recent))
         .put("toolCalls", toolCalls).put("workMs", workMs).put("provider", provider ?: JSONObject.NULL).put("pending", pending ?: JSONObject.NULL)
         .put("approval", approval?.let { a -> JSONObject().put("what", a.what).put("tool", a.tool ?: JSONObject.NULL).put("args", a.args ?: JSONObject.NULL)
@@ -256,6 +270,10 @@ class BotJob(
         .put("inbox", JSONArray(inbox)).put("wrapUp", wrapUp).put("specialist", specialist ?: JSONObject.NULL).put("parent", parent ?: JSONObject.NULL)
         .put("depth", depth).put("children", JSONArray(children)).put("routine", routine ?: JSONObject.NULL).put("maxCalls", maxCalls).put("maxMs", maxMs)
         .put("reported", reported).put("finishNudged", finishNudged).put("planNudged", planNudged).put("memo", memo)
+        .put("v", Crew.V).put("bot", bot ?: JSONObject.NULL).put("source", source ?: JSONObject.NULL)
+        .put("cost", JSONObject().put("calls", costCalls).put("tokensIn", costTokensIn).put("tokensOut", costTokensOut).put("ms", workMs))
+        .put("dryRun", dryRun).put("role", role ?: JSONObject.NULL).put("access", access ?: JSONObject.NULL).put("intended", JSONArray(intended))
+        .put("budgetStop", budgetStop).put("verify", JSONObject().put("status", verifyStatus).put("rounds", verifyRounds).put("notes", JSONArray(verifyNotes)))
 
     companion object {
         private fun JSONObject.str(k: String): String? = if (isNull(k)) null else optString(k).takeIf { has(k) }
@@ -265,7 +283,7 @@ class BotJob(
             state = o.optString("state", BotRules.QUEUED).takeIf { it in BotRules.ALL } ?: BotRules.FAILED
             updatedAt = o.optLong("updatedAt", createdAt)
             o.optJSONArray("history")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { history.add(it.optLong("at") to it.optString("state")) } }
-            o.optJSONArray("plan")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { plan.add(PlanItem(it.optString("text"), it.optBoolean("done"))) } }
+            o.optJSONArray("plan")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { plan.add(PlanItem(it.optString("text"), it.optBoolean("done"), it.optInt("depth"))) } }
             notes.addAll(o.optJSONArray("notes").strings()); steps.addAll(o.optJSONArray("steps").strings())
             sources.addAll(o.optJSONArray("sources").strings()); recent.addAll(o.optJSONArray("recent").strings())
             toolCalls = o.optInt("toolCalls"); workMs = o.optLong("workMs"); provider = o.str("provider"); pending = o.str("pending")
@@ -277,6 +295,11 @@ class BotJob(
             depth = o.optInt("depth"); children.addAll(o.optJSONArray("children").strings()); routine = o.str("routine")
             maxCalls = o.optInt("maxCalls"); maxMs = o.optLong("maxMs"); reported = o.optBoolean("reported"); finishNudged = o.optBoolean("finishNudged"); planNudged = o.optBoolean("planNudged")
             memo = o.optBoolean("memo")
+            bot = o.str("bot"); source = o.optJSONObject("source")
+            o.optJSONObject("cost")?.let { c -> costCalls = c.optInt("calls"); costTokensIn = c.optLong("tokensIn"); costTokensOut = c.optLong("tokensOut") }
+            dryRun = o.optBoolean("dryRun"); role = o.str("role"); access = o.optJSONObject("access"); intended.addAll(o.optJSONArray("intended").strings())
+            budgetStop = o.optBoolean("budgetStop")
+            o.optJSONObject("verify")?.let { v -> verifyStatus = v.optString("status", "none"); verifyRounds = v.optInt("rounds"); verifyNotes.addAll(v.optJSONArray("notes").strings()) }
         }
 
         fun listJson(jobs: List<BotJob>): String = JSONArray().apply { jobs.forEach { put(it.json()) } }.toString()
