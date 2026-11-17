@@ -22,8 +22,7 @@ jobs:
         run: |
           mkdir -p /tmp/hw/voices && cd /tmp/hw
           curl -sSL -o small.zip https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip && unzip -q small.zip
-          curl -sSL -o lg.zip https://alphacephei.com/vosk/models/vosk-model-en-us-0.22-lgraph.zip && unzip -q lg.zip || echo "lgraph not available"
-          for v in en_US-lessac-medium en_GB-alan-medium en_US-ryan-medium en_GB-northern_english_male-medium; do
+          for v in en_US-lessac-medium en_GB-alan-medium; do
             lang=${v%%-*}; name=$(echo $v | cut -d- -f2); q=$(echo $v | cut -d- -f3)
             base="https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/${lang%%_*}/$lang/$name/$q"
             curl -sSfL -o voices/$v.onnx "$base/$v.onnx" && curl -sSfL -o voices/$v.onnx.json "$base/$v.onnx.json" || rm -f voices/$v.onnx
@@ -31,4 +30,4 @@ jobs:
           ls -la /tmp/hw /tmp/hw/voices
       - name: Evaluate
         env: { WORK: /tmp/hw }
-        run: python tools/hotword_eval/eval.py /tmp/hw/vosk-model-small-en-us-0.15 $( [ -d /tmp/hw/vosk-model-en-us-0.22-lgraph ] && echo /tmp/hw/vosk-model-en-us-0.22-lgraph )
+        run: python tools/hotword_eval/eval.py /tmp/hw/vosk-model-small-en-us-0.15

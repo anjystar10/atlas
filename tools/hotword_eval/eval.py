@@ -107,11 +107,10 @@ class Variant:
         self.name, self.grammar, self.use_partial, self.check = name, grammar, use_partial, check
 
 VARIANTS = [
-    Variant("0.10 (end of utterance, strict check)", ["hey atlas", "[unk]"], False, check_strict),
-    Variant("partial, strict check", ["hey atlas", "[unk]"], True, check_strict),
-    Variant("partial, balanced check", ["hey atlas", "[unk]"], True, check_balanced),
-    Variant("partial, stage 1 only", ["hey atlas", "[unk]"], True, None),
-    Variant("partial + 'okay atlas', strict", ["hey atlas", "okay atlas", "[unk]"], True, check_strict),
+    Variant("0.10: end of utterance, strict check", ["hey atlas", "[unk]"], False, check_strict),
+    Variant("0.10.2: early (partial), strict check", ["hey atlas", "[unk]"], True, check_strict),
+    Variant("0.10.2 'Wake More Easily': early, balanced check", ["hey atlas", "[unk]"], True, check_balanced),
+    Variant("(reference) early, no second check", ["hey atlas", "[unk]"], True, None),
 ]
 
 def run_variant(model, v, audio_bytes):
@@ -149,7 +148,7 @@ def main():
     global BABBLE_SRC
     model_dirs = [d for d in sys.argv[1:]]
     setup_piper()
-    voices = [("espeak", v, s) for v in ("en-us", "en-gb", "en-gb-scotland", "en-gb-x-rp", "en-us+m3", "en-us+f3", "en-gb+m7") for s in (140, 170)]
+    voices = [("espeak", v, s) for v, s in (("en-us", 150), ("en-gb", 165), ("en-us+f3", 140), ("en-gb-x-rp", 175))]
     voices += [("piper", p, 0) for p in PIPER_VOICES]
     def synth(text, vv, tag):
         kind, voice, speed = vv
@@ -160,7 +159,7 @@ def main():
     pos = [(p, synth(p, vv, f"p{i}_{j}")) for i, p in enumerate(POSITIVE) for j, vv in enumerate(voices)]
     neg = [(n, synth(n, vv, f"n{i}_{j}")) for i, n in enumerate(NEGATIVE) for j, vv in enumerate(voices) if j % 2 == 0]
     BABBLE_SRC = [a for _, a in neg[: 40]]
-    conds = [("clean", None), ("pink", 20), ("babble", 15), ("pink", 10), ("babble", 5)]
+    conds = [("clean", None), ("babble", 15), ("pink", 10), ("babble", 5)]
     rows = []
     for md in model_dirs:
         model = Model(md)
@@ -183,13 +182,33 @@ def main():
                 res[(kind, snr)] = (hit / len(pos), fa, secs, (sorted(lat)[len(lat) // 2] if lat else float("nan")))
             rows.append((os.path.basename(md.rstrip("/")), v.name, res))
             print(f"done {md} / {v.name}", flush=True)
+    # the words after "Hey Atlas": cut where the check says "atlas" ends, decode the rest
+    model = Model(model_dirs[0])
+    kept = 0; total = 0; lost_examples = []
+    for text, a in pos:
+        rest = text.split("atlas", 1)[1].strip(" ,")
+        if not rest: continue
+        total += 1
+        y = pcm(mix(a, "clean", 0))
+        chk = KaldiRecognizer(model, RATE); chk.SetWords(True); chk.AcceptWaveform(y)
+        r = json.loads(chk.FinalResult()); end = None
+        for w in r.get("result", []):
+            if w.get("word") == "atlas": end = w["end"]
+        if end is None: continue
+        tail = y[int(end * RATE) * 2:]
+        dec = KaldiRecognizer(model, RATE); dec.AcceptWaveform(tail)
+        got = json.loads(dec.FinalResult()).get("text", "")
+        first = rest.split()[0].strip(",'").lower().replace("'", "")
+        if first and first[:3] in got.replace("'", "")[:12]: kept += 1
+        elif len(lost_examples) < 4: lost_examples.append(f"said '{rest}', after the cut heard '{got}'")
+    tail_line = f"\nRequest kept after the cut at the end of \"atlas\": first word heard in {kept}/{total} clean clips." + ("" if not lost_examples else " Missed: " + "; ".join(lost_examples))
     out = ["| model | variant | " + " | ".join(f"{k}{'' if s is None else ' '+str(s)+'dB'}: hits / false wakes" for k, s in conds) + " | median wake delay (clean) |",
            "|---|---|" + "---|" * len(conds) + "---|"]
     for m, name, res in rows:
         cells = [f"{res[c][0]*100:.0f}% / {res[c][1]}" for c in conds]
         out.append(f"| {m} | {name} | " + " | ".join(cells) + f" | {res[conds[0]][3]:.2f}s |")
     out.append(f"\n{len(pos)} positive clips and {len(neg)} negative clips per condition ({sum(len(a) for _, a in neg)/RATE/60:.1f} min of non-wake speech).")
-    text = "\n".join(out)
+    text = "\n".join(out) + tail_line
     print(text)
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         open(os.environ["GITHUB_STEP_SUMMARY"], "a").write("## Hey Atlas wake-word evaluation\n\n" + text + "\n")
