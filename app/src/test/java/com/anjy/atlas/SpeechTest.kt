@@ -124,12 +124,24 @@ class SpeechTest {
         assertEquals(Speech.WhileWorking.PASS_ON, Speech.whileWorking("how long will it take?"))
     }
 
-    @Test fun atlasEndFromVoskWordTimes() {
-        val j = """{"result":[{"conf":1.0,"end":0.42,"start":0.1,"word":"hey"},{"conf":0.9,"end":0.95,"start":0.45,"word":"atlas"},{"conf":0.8,"end":1.4,"start":1.1,"word":"what's"}],"text":"hey atlas what's"}"""
-        assertEquals(0.95, Speech.atlasEnd(j)!!, 1e-9)
-        assertNull(Speech.atlasEnd("""{"result":[{"end":0.4,"word":"hey"}],"text":"hey"}"""))
-        assertNull(Speech.atlasEnd("not json"))
-        assertNull(Speech.atlasEnd(null))
+    @Test fun requestStartsJustBeforeTheNextWord() {
+        val j = """{"result":[{"conf":1.0,"end":0.42,"start":0.1,"word":"hey"},{"conf":0.9,"end":1.05,"start":0.45,"word":"atlas"},{"conf":0.8,"end":1.4,"start":0.98,"word":"set"}],"text":"hey atlas set"}"""
+        assertEquals(0.73, Speech.requestStart(j)!!, 1e-9)             // min(1.05, 0.98) - 0.25
+        val alone = """{"result":[{"end":0.42,"start":0.1,"word":"hey"},{"end":0.95,"start":0.45,"word":"atlas"}],"text":"hey atlas"}"""
+        assertEquals(0.70, Speech.requestStart(alone)!!, 1e-9)         // 0.95 - 0.25
+        val short = """{"result":[{"end":0.62,"start":0.5,"word":"atlas"},{"end":1.0,"start":0.55,"word":"set"}],"text":"atlas set"}"""
+        assertEquals(0.5, Speech.requestStart(short)!!, 1e-9)          // never before "atlas" starts
+        assertNull(Speech.requestStart("""{"result":[{"end":0.4,"word":"hey"}],"text":"hey"}"""))
+        assertNull(Speech.requestStart("not json"))
+        assertNull(Speech.requestStart(null))
+    }
+
+    @Test fun leftoverOfTheWakeWordIsDropped() {
+        assertEquals("Set a reminder for six", Speech.dropWakeLeftover("las, set a reminder for six"))
+        assertEquals("What's the weather", Speech.dropWakeLeftover("Atlas what's the weather"))
+        assertEquals("Call my sister", Speech.dropWakeLeftover("call my sister"))
+        assertEquals("Lesson plans for Monday", Speech.dropWakeLeftover("Lesson plans for Monday"))
+        assertEquals("las", Speech.dropWakeLeftover("las"))
     }
 
     @Test fun onlyAFreshWakeRecordingIsUsed() {

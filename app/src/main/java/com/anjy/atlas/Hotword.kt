@@ -165,8 +165,8 @@ class Hotword(private val ctx: Context, private val onWake: () -> Unit) {
                     val verdict = check.finalResult
                     Log.i(TAG, "heard ${if (ended) "" else "(early) "}$res; check: ${try { JSONObject(verdict).optString("text") } catch (_: Exception) { verdict }}")
                     if (checkPasses(verdict, sensitive) && System.currentTimeMillis() - lastWake > 2500) {
-                        // the request starts where "atlas" ends: keep from there on
-                        val from = Speech.atlasEnd(verdict)?.let { ((it * RATE).toInt() * 2).coerceIn(0, pcm.size) } ?: pcm.size
+                        // the request starts just after "atlas": keep from there on
+                        val from = Speech.requestStart(verdict)?.let { ((it * RATE).toInt() * 2).coerceIn(0, pcm.size) } ?: pcm.size
                         tail = ByteArrayOutputStream().also { it.write(pcm, from - from % 2, pcm.size - (from - from % 2)) }
                         tailUntil = System.currentTimeMillis() + TAIL_MAX_MS
                         lastWake = System.currentTimeMillis()

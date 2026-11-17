@@ -180,18 +180,31 @@ object Speech {
     // ---------------------------------------------------------------- the words after "Hey Atlas"
 
     /**
-     * Where the request starts in the audio the wake listener already has: the end of the word "atlas" in a Vosk
-     * result with word times ({"result":[{"word":"atlas","end":1.23},…]}), in seconds, or null if it isn't there.
+     * Where the request starts in the audio the wake listener already has, in seconds, from a Vosk result with word
+     * times ({"result":[{"word":"atlas","start":…,"end":…},…]}); null if "atlas" isn't there. The small model's word
+     * ends run late into the next word (measured: cutting at the end of "atlas" lost the start of the next word in
+     * 17 of 28 clips), so the cut is a quarter second before the earlier of "atlas" ending and the next word
+     * starting; a leftover of "atlas" before the request is removed from the words afterwards ([dropWakeLeftover]).
      */
-    fun atlasEnd(voskJson: String?): Double? = try {
+    fun requestStart(voskJson: String?): Double? = try {
         val arr = org.json.JSONObject(voskJson ?: return null).optJSONArray("result") ?: return null
-        var end: Double? = null
-        for (i in 0 until arr.length()) {
-            val w = arr.optJSONObject(i) ?: continue
-            if (w.optString("word") == "atlas") end = w.optDouble("end")
+        var at = -1
+        for (i in 0 until arr.length()) if (arr.optJSONObject(i)?.optString("word") == "atlas") at = i
+        if (at < 0) null else {
+            val w = arr.getJSONObject(at)
+            val next = arr.optJSONObject(at + 1)?.optDouble("start")?.takeIf { !it.isNaN() }
+            val edge = if (next != null) minOf(w.optDouble("end"), next) else w.optDouble("end")
+            maxOf(w.optDouble("start"), edge - 0.25)
         }
-        end
     } catch (_: Exception) { null }
+
+    private val LEFTOVER = Regex("""^\s*(hey[ ,]+)?(atlas|at las|las|lass|les|less|lis)\b[,.!]?\s*""", RegexOption.IGNORE_CASE)
+
+    /** What's left of "Hey Atlas" at the start of the words after it ("las, set a reminder…" → "set a reminder…"). */
+    fun dropWakeLeftover(text: String): String {
+        val t = LEFTOVER.replace(text, "").trim()
+        return if (t.isEmpty()) text.trim() else t.replaceFirstChar { it.uppercase() }
+    }
 
     /** A recording the wake listener kept is used only if it's fresh: the wake was moments ago. */
     fun tailFresh(writtenAt: Long, now: Long): Boolean = now - writtenAt in 0..8_000

@@ -233,6 +233,7 @@ object Hear {
             val pcm = ByteArrayOutputStream()
             val ep = Speech.Endpointer()
             var verdict = Speech.Heard.GOING
+            var usedTail = false
             // after "Hey Atlas": the wake listener kept what was said after the phrase until it let go of the
             // microphone; it goes first, so nothing said in that moment is lost
             if (afterWake) {
@@ -252,6 +253,7 @@ object Hear {
                             i += step
                         }
                         Log.i(TAG, "kept ${tail.size / 2 * 1000 / RATE} ms said right after the wake word")
+                        usedTail = tail.isNotEmpty()
                     }
                 } catch (e: Exception) { Log.w(TAG, "wake tail", e) } finally { f.delete() }
             }
@@ -306,7 +308,8 @@ object Hear {
             toMain { onPartial("…") }
             val hint = hint(ctx)
             try {
-                val text = Speech.fixHeard(transcribe(ctx, wav, hint), ep.speechMs, hint)
+                var text = Speech.fixHeard(transcribe(ctx, wav, hint), ep.speechMs, hint)
+                if (usedTail) text = Speech.dropWakeLeftover(text)
                 toMain { onDone(text.ifBlank { null }) }
             } catch (e: Exception) {
                 cloudDownUntil = System.currentTimeMillis() + 10 * 60_000L
