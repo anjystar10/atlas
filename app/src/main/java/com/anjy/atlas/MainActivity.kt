@@ -2123,14 +2123,22 @@ class MainActivity : Activity() {
         val eng = Voice.engine(this)
         vc.add(text(when {
             !Voice.natural(this) -> "Using the phone's own voice."
+            eng == ElevenLabs.ID -> "Atlas's own voice, designed for it on ElevenLabs from a description (uses your ElevenLabs key; made once, then kept)."
             eng == "gemini" -> "A human-sounding voice from Gemini (uses your Gemini key)."
             eng == "openai" -> "A human-sounding voice from OpenAI (uses your OpenAI key)."
-            else -> "Natural voices come from Gemini or OpenAI: add one of their keys. Until then Atlas uses the phone's best voice."
+            else -> "Natural voices come from ElevenLabs, Gemini or OpenAI: add one of their keys. Until then Atlas uses the phone's best voice."
         } + (Voice.lastSpoke?.let { "\nLast reply was spoken by $it." } ?: "")
-          + (Voice.lastProblem?.let { "\nThe natural voice failed last time ($it), so the phone's voice stood in." } ?: ""), 13f, MUTED), 6)
+          + (Voice.lastProblem?.let { "\nThe natural voice failed last time ($it), so another voice stood in." } ?: ""), 13f, MUTED), 6)
+        // which natural voice speaks, when there's more than one key for one
+        val engs = Voice.engines(this)
+        if (engs.size > 1) {
+            vc.add(text("Voice Service", 16f, FG, MED), 12)
+            vc.add(chipGroup(engs.map { it to Voice.engineName(it) }, { it == eng }) { Voice.setEngine(this, it); render(keepScroll = true) }, 8)
+            vc.add(text("If it fails, the next one says the reply, so a reply is never lost.", 13f, MUTED), 6)
+        }
         if (eng != null) {
             // each voice in its own row: who it is, what it's like; tap to choose and hear it
-            val list = if (eng == "gemini") Voice.geminiChoices else Voice.openAiChoices
+            val list = when (eng) { "gemini" -> Voice.geminiChoices; ElevenLabs.ID -> Voice.elevenChoices; else -> Voice.openAiChoices }
             val chosen = Voice.current(this, eng).id
             val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             list.forEachIndexed { i, c ->
@@ -2148,6 +2156,32 @@ class MainActivity : Activity() {
             }
             vc.add(rows, 8)
         }
+        // the "AI system" sound on every reply, and the ElevenLabs key for Atlas's designed voice
+        vc.add(switchRow(null, "AI System Finish", Voice.finish(this)) { on -> Voice.setFinish(this, on) }, 12)
+        vc.add(text("A light finish on every spoken reply: a little presence, a faint digital sheen and a small room, so Atlas sounds like a well-made assistant. Words stay clear first.", 13f, MUTED), 6)
+        vc.add(switchRow(null, "Call Me “Sir”", Voice.sir(this)) { on -> Voice.setSir(this, on) }, 12)
+        vc.add(text("Spoken replies now and then address you as “sir”, the way a butler would.", 13f, MUTED), 6)
+        val elKeys = Providers.keys(this, ElevenLabs.ID)
+        vc.add(text("ElevenLabs Key", 16f, FG, MED), 14)
+        vc.add(text(if (elKeys.isEmpty()) "Optional. With an ElevenLabs key Atlas designs its own voice there (refined, calm, British) and speaks with it. Voice Design may need a paid ElevenLabs plan."
+            else "${elKeys.size} key${if (elKeys.size == 1) "" else "s"} added." + (elKeys.firstOrNull { it.problem.isNotBlank() }?.let { " Last problem: ${it.problem}" } ?: ""), 13f, MUTED), 4)
+        var elDraft = ""
+        vc.add(field("Paste an ElevenLabs API key", "") { elDraft = it }.apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; setSingleLine(true)
+        }, 8)
+        val er = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        er.addView(primary("Add Key") {
+            val k = elDraft.trim()
+            if (k.length < 20) { showBanner("That doesn't look like a whole key.", MUTED); return@primary }
+            Providers.addKey(this, ElevenLabs.ID, k); Voice.setEngine(this, ElevenLabs.ID)
+            showBanner("ElevenLabs key added. Atlas designs its voice the first time it speaks.")
+            render(keepScroll = true)
+        }, LinearLayout.LayoutParams(0, WRAP, 1f))
+        er.addView(secondary(if (elKeys.isEmpty()) "Get a Key" else "Remove Keys") {
+            if (elKeys.isEmpty()) try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://elevenlabs.io/app/settings/api-keys"))) } catch (_: Exception) { showBanner("Open elevenlabs.io in your browser.", MUTED) }
+            else { elKeys.forEach { Providers.removeKey(this, ElevenLabs.ID, it.key) }; render(keepScroll = true) }
+        }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
+        vc.add(er, 8)
         // how fast Atlas talks, how it hears, and whether a spoken chat keeps going
         vc.add(hairline(), 10, MATCH, dp(1))
         vc.add(text("Speaking Speed", 16f, FG, MED), 12)

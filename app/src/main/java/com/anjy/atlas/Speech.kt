@@ -268,6 +268,23 @@ object Speech {
         return rate to ByteArray(0)
     }
 
+    /** (sample rate, sound) of a WAV file only if it is plain 16-bit mono PCM (what the finish works on); else null. */
+    fun wavPcm16Mono(b: ByteArray): Pair<Int, ByteArray>? {
+        fun tag(at: Int, t: String) = at + 4 <= b.size && String(b, at, 4, Charsets.US_ASCII) == t
+        fun le16(at: Int) = (b[at].toInt() and 0xff) or ((b[at + 1].toInt() and 0xff) shl 8)
+        fun le32(at: Int) = le16(at) or (le16(at + 2) shl 16)
+        if (!(tag(0, "RIFF") && tag(8, "WAVE"))) return null
+        var at = 12
+        var ok = false
+        while (at + 8 <= b.size) {
+            val len = le32(at + 4).coerceAtLeast(0)
+            if (tag(at, "fmt ") && at + 24 <= b.size) ok = le16(at + 8) == 1 && le16(at + 10) == 1 && le16(at + 22) == 16
+            if (tag(at, "data")) return if (ok) wavData(b) else null
+            at += 8 + len + (len and 1)
+        }
+        return null
+    }
+
     /**
      * What a bot's voice memo says: the report as speech, without its Sources list, cut at a sentence end after about
      * [max] characters (a minute or so), with a pointer to the full report when it was cut.

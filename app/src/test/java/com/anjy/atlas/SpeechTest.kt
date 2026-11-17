@@ -136,6 +136,23 @@ class SpeechTest {
         assertNull(Speech.requestStart(null))
     }
 
+    @Test fun onlyPlain16BitMonoWavIsFinished() {
+        fun wav(format: Int, channels: Int, bits: Int, rate: Int, data: ByteArray): ByteArray {
+            val h = java.nio.ByteBuffer.allocate(44).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+            h.put("RIFF".toByteArray()); h.putInt(36 + data.size); h.put("WAVE".toByteArray()); h.put("fmt ".toByteArray())
+            h.putInt(16); h.putShort(format.toShort()); h.putShort(channels.toShort()); h.putInt(rate); h.putInt(rate * channels * bits / 8)
+            h.putShort((channels * bits / 8).toShort()); h.putShort(bits.toShort()); h.put("data".toByteArray()); h.putInt(data.size)
+            return h.array() + data
+        }
+        val d = ByteArray(400) { it.toByte() }
+        val ok = Speech.wavPcm16Mono(wav(1, 1, 16, 22050, d))!!
+        assertEquals(22050, ok.first); assertEquals(d.toList(), ok.second.toList())
+        assertNull(Speech.wavPcm16Mono(wav(1, 2, 16, 22050, d)))   // stereo
+        assertNull(Speech.wavPcm16Mono(wav(1, 1, 8, 22050, d)))    // 8-bit
+        assertNull(Speech.wavPcm16Mono(wav(3, 1, 32, 22050, d)))   // float
+        assertNull(Speech.wavPcm16Mono(d))                          // not a WAV
+    }
+
     @Test fun leftoverOfTheWakeWordIsDropped() {
         assertEquals("Set a reminder for six", Speech.dropWakeLeftover("las, set a reminder for six"))
         assertEquals("What's the weather", Speech.dropWakeLeftover("Atlas what's the weather"))
