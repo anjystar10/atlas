@@ -6,6 +6,7 @@
 
 // ------------------------------------------------------------------ approvals: kinds of risky action
 
+import { normalizeBot, addLog as crewAddLog, defaultAccess, cleanBudget } from './crew.js';
 export const CATEGORIES = [
   { id: 'message', label: 'Send a message or email' },
   { id: 'publish', label: 'Publish or post something' },
@@ -218,9 +219,14 @@ export function toolAllowed(sp, tool) {
   if (!sp || !sp.groups || !sp.groups.length || !GROUPED.has(tool)) return true;
   return TOOL_GROUPS.some((g) => sp.groups.includes(g.id) && g.tools.includes(tool));
 }
+/**
+ * A specialist bot (v1) is a standing bot (Atlas Bot v2, docs/BOTS_V2.md): the record keeps the v1 fields older Atlas
+ * versions read (name, role, instructions, groups, notes) and gains access, triggers, budget, a work log, home and state.
+ */
 export function cleanSpecialist(x, now, id) {
-  return { id: x.id || id, name: clip(x.name, 40) || 'Helper Bot', role: clip(x.role, 200), instructions: clip(x.instructions, 2000),
-    groups: (x.groups || []).filter((g) => TOOL_GROUPS.some((t) => t.id === g)), notes: (x.notes || []).map((n) => clip(n, 400)).filter(Boolean).slice(-40), updatedAt: now };
+  const b = normalizeBot({ ...x, groups: (x.groups || []).filter((g) => TOOL_GROUPS.some((t) => t.id === g)), updatedAt: now }, now, x.id || id);
+  b.notes = b.notes.slice(-40);
+  return b;
 }
 export const DEFAULT_SPECIALISTS = [
   { id: 'sp-research', name: 'Research Bot', role: 'Finds things out and backs them with sources', instructions: 'Search widely, read the best primary sources, cross-check key facts in two places, and report with links. Say plainly what you could not verify.', groups: ['web'] },
@@ -230,9 +236,11 @@ export const DEFAULT_SPECIALISTS = [
 ];
 export function specialistPrompt(sp) {
   if (!sp) return '';
-  let s = `\n\nYou are working as ${sp.name}${sp.role ? ` (${sp.role})` : ''}, one of the user's specialist bots.`;
+  let s = `\n\nYou are ${sp.name}${sp.role ? ` (${sp.role})` : ''}, one of the user's standing bots: a worker with its own job, memory and work log.`;
   if (sp.instructions) s += `\nYour standing instructions: ${sp.instructions}`;
   if (sp.notes && sp.notes.length) s += `\nYour own notes from earlier jobs (keep what's still true in mind; fix them with bot_remember / bot_forget):\n` + sp.notes.map((n) => '- ' + n).join('\n');
+  const log = (sp.log || []).slice(-8);
+  if (log.length) s += `\nYour recent work (newest last):\n` + log.map((e) => `- ${new Date(e.at).toISOString().slice(0, 10)}: ${e.text}`).join('\n');
   return s;
 }
 export function teamIndex(list) {
@@ -269,6 +277,7 @@ export function createExtras(deps) {
     loaded = true;
     try { const t = await deps.load(); if (t) { const d = JSON.parse(t); for (const k of ['skills', 'routines', 'specialists']) if (Array.isArray(d[k])) data[k] = d[k]; if (d.policy) data.policy = { ...emptyPolicy(), ...d.policy }; data.seeded = !!d.seeded; } } catch (e) { console.error('botx: unreadable', e); }
     if (!data.seeded) { data.seeded = true; for (const s of DEFAULT_SPECIALISTS) if (!data.specialists.some((x) => x.id === s.id)) data.specialists.push(cleanSpecialist(s, 0, s.id)); }
+    data.specialists = data.specialists.map((s) => normalizeBot(s, s.updatedAt || 0, s.id));
     await persist(); tick();
   }
 
@@ -289,6 +298,24 @@ export function createExtras(deps) {
     persist(); changed('specialist'); return old || s;
   }
   function removeSpecialist(id) { const i = data.specialists.findIndex((s) => s.id === id); if (i >= 0) { data.specialists.splice(i, 1); persist(); changed('specialist'); } }
+  // ---- standing bots (v2): the same records, made and changed through these
+  /** A new standing bot (v2: it gets an access map; default everything but trading writes). [by]: 'user' | 'atlas'. */
+  function createBot(def, by = 'user') {
+    const b = cleanSpecialist({ ...def, id: def.id || 'bot-' + deps.uid(), v: 2, access: def.access || defaultAccess(), budget: cleanBudget(def.budget), createdBy: by }, now(), deps.uid());
+    data.specialists.push(b); persist(); changed('specialist'); return b;
+  }
+  /** Changes a standing bot; a v1 bot given an access map becomes v2. */
+  function updateBot(id, patch) {
+    const old = data.specialists.find((s) => s.id === id); if (!old) return null;
+    const b = cleanSpecialist({ ...old, ...patch, ...(patch.access ? { v: 2 } : {}) }, now(), id);
+    for (const k of Object.keys(old)) delete old[k];
+    Object.assign(old, b); persist(); changed('specialist'); return old;
+  }
+  /** One line in a standing bot's dated work log (it syncs with the bot). */
+  function addBotLog(id, at, mission, text) {
+    const b = data.specialists.find((s) => s.id === id); if (!b) return;
+    crewAddLog(b, at, mission, text); b.updatedAt = now(); persist(); changed('specialist');
+  }
   function specialistNote(id, text, forget = false) {
     const sp = data.specialists.find((s) => s.id === id); const t = clip(text, 400); if (!sp || !t) return 'Error: nothing to save.';
     if (forget) {
@@ -377,7 +404,7 @@ export function createExtras(deps) {
   }
 
   return {
-    data, init, tick, saveSkill, removeSkill, saveSpecialist, removeSpecialist, specialistNote, setMode, addRule, removeRule,
+    data, init, tick, saveSkill, removeSkill, saveSpecialist, removeSpecialist, specialistNote, setMode, addRule, removeRule, createBot, updateBot, addBotLog,
     saveRoutine, removeRoutine, enableRoutine, runRoutine, applySynced, synced, mine,
     skill: (name) => findByName(data.skills, name), specialist: (name) => data.specialists.find((s) => s.id === name) || findByName(data.specialists, name),
     mode: (category) => modeFor(data.policy, category),

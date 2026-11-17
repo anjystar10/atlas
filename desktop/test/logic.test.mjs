@@ -617,21 +617,21 @@ test('specialists: a bot hands parts to helpers, waits without holding a slot, a
   assert.ok(!w.tools[1].includes('run_command') && w.tools[1].includes('web_search') && w.tools[1].includes('bot_remember'), 'Research Bot only gets its own kinds of tools');
 });
 
-test('helpers: no deeper than two levels, at most four, and stopping a bot stops its helpers', async () => {
+test('helpers: bounded only against runaway loops (12 per bot, 4 levels), and stopping a bot stops its helpers', async () => {
   const e = extrasFor(); await e.ex.init();
   const p = { toolCalls: B.MAX_TOOL_CALLS - 10, workMs: 0 };
   assert.equal(B.childBudget(p).maxCalls, 8, 'a helper gets a share of what is left (never less than 8)');
   const w = world([
-    turn(...[1, 2, 3, 4, 5].map((i) => call('delegate', { specialist: 'Research Bot', task: 'Part ' + i }))),
+    turn(...Array.from({ length: 13 }, (_, i) => call('delegate', { specialist: 'Research Bot', task: 'Part ' + (i + 1) }))),
     (brief) => { return turn(call('ask_user', { question: 'hold on' })); },
   ], { extras: e.ex, ids: true });
   await w.bots.init(); const j = w.bots.deploy('Big', '');
   await settle(w);
-  assert.equal(j.children.length, 4, 'the fifth is refused');
+  assert.equal(j.children.length, 12, 'the thirteenth is refused (a ceiling against runaway loops, not a working limit)');
   assert.ok(w.notes.some((x) => Array.isArray(x) && x.some((o) => String(o).includes("that's the limit"))));
   w.bots.stop(j.id); await settle(w);
   assert.ok(j.children.map((id) => w.bots.job(id)).every((k) => B.FINAL.has(k.state)), 'helpers stop with it');
-  assert.equal(B.MAX_DEPTH, 2);
+  assert.equal(B.MAX_DEPTH, 4);
 });
 
 test('specialist notes and the synced copies of skills, routines, team and rules', async () => {
@@ -995,6 +995,7 @@ test('projects in the chat: through the capability registry, a risky step waits 
   const r = await aware.run({ name: 'project_run', args: { project: 'X', command: 'git push' } });
   const ref = (r.out.match(/\[(chat\d+)\]/) || [])[1];
   assert.ok(ref, r.out); assert.deepEqual(calls.at(-1), ['project_run', 'git push', false]);
+  aware.heard('yes, push it');   // the user's own words (aware.consent)
   const yes = await aware.run({ name: 'answer_approval', args: { ref, yes: true } });
   assert.equal(yes.out, 'ran git push'); assert.deepEqual(calls.at(-1), ['project_run', 'git push', true]);
   // the user's standing choice "always allow" runs it straight away
@@ -1004,6 +1005,31 @@ test('projects in the chat: through the capability registry, a risky step waits 
   delete globalThis.window.atlasHost.projects;
 });
 
+// ------------------------------------------------------------------ Atlas Bot v2: the model and rules (crew.js) against the shared fixtures
+test('bots v2: crew.js gives every answer in tools/bots2-fixtures.json (the phone checks the same file)', async () => {
+  const C = await import('../renderer/crew.js');
+  const fs = await import('node:fs');
+  const F = JSON.parse(fs.readFileSync(new URL('../../tools/bots2-fixtures.json', import.meta.url), 'utf8'));
+  for (const c of F.capabilityOf) assert.deepEqual(C.capabilityOf(c.tool), c.out, c.tool);
+  assert.deepEqual(C.defaultAccess(), F.defaultAccess);
+  for (const c of F.normalizeBot) assert.deepEqual(JSON.parse(JSON.stringify(C.normalizeBot(c.in, c.now, c.id))), c.out, c.id);
+  const bots = F.normalizeBot.map((c) => c.out);
+  for (const c of F.allows) assert.equal(C.allows(bots[c.botIndex], c.tool, () => true, c.access), c.out, `${c.botIndex} ${c.tool}`);
+  for (const c of F.narrowAccess) assert.deepEqual(C.narrowAccess(c.parent, c.child), c.out);
+  for (const c of F.budgetCheck) assert.deepEqual(C.budgetCheck(c.budget, c.u), c.out);
+  for (const c of F.moneyAllowed) assert.equal(C.moneyAllowed(c.budget, c.u, c.amount), c.out);
+  for (const c of F.agentSlice) assert.deepEqual(C.agentSlice(c.callsLeft, c.msLeft), c.out);
+  for (const c of F.usageToday) assert.deepEqual(C.usageToday(c.u, c.day), c.out);
+  for (const c of F.dayOf) assert.equal(C.dayOf(c.ms, c.offsetMin), c.out);
+  for (const c of F.parsePlanTree) assert.deepEqual(C.parsePlanTree(c.text), c.out, c.text.slice(0, 40));
+  for (const c of F.userSaid) assert.equal(C.userSaid(c.text), c.out, c.text);
+  for (const c of F.consent) assert.deepEqual(C.consent(c.text), c.out, c.text);
+  for (const c of F.dryRunSkips) assert.equal(C.dryRunSkips(c.tool, c.needsApproval), c.out, c.tool);
+  for (const c of F.missionDefaults) assert.deepEqual(C.missionDefaults(JSON.parse(JSON.stringify(c.in))), c.out, c.in.id);
+  // no plan cap: a 120-step nested plan keeps every step
+  const long = Array.from({ length: 120 }, (_, i) => (i % 3 ? '  ' : '') + `[ ] step ${i}`).join('\n');
+  assert.equal(C.parsePlanTree(long).length, 120);
+});
 
 // ------------------------------------------------------------------ 0.10.1: bots keep going until the job is done
 test('bots: no fixed plan size, words are not a finished job, and unticked steps get one reminder', async () => {

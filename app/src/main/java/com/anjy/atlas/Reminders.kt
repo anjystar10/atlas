@@ -201,6 +201,12 @@ class BootReceiver : BroadcastReceiver() {
                 BotExtras.tick(context.applicationContext)   // routines: set the next alarm, and run any missed while off
                 AvatarService.startIfEnabled(context)
                 if (Link.reachable(context)) LinkService.start(context)   // >>> device link: reachable from the laptop after a restart
+                // Bots v2: jobs that were running when the phone switched off pick up again (a half-done step is marked
+                // "needs a check", never repeated blindly). Jobs live on the main thread, so load them there.
+                val app = context.applicationContext
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    try { Bots.init(app); BotService.sync(app) } catch (e: Exception) { Log.e("AtlasBots", "boot resume", e) }
+                }
             } catch (e: Exception) { Log.e("AtlasAlarms", "boot", e) }
             finally { pending.finish() }
         }.start()

@@ -556,6 +556,7 @@ ${brief ? `\nWhat's going on right now (for you; don't read it out):\n${brief}\n
 export async function send(text, { spoken = false, attachments = [] } = {}) {
   const q = (text || '').trim() || (attachments.length ? (attachments.some((x) => x.kind === 'video') ? "What's in this video?" : attachments.some((x) => x.kind === 'image') ? "What's in this picture?" : 'Have a look at this.') : '');
   if (!q) return null;
+  aware.heard((text || '').trim());   // only what the user actually typed or said can approve things (aware.consent)
   const hist = history();
   const user = { id: crypto.randomUUID(), user: true, text: q, source: 'You', at: Date.now(), steps: [], media: attachments.map((x) => ({ kind: x.kind, name: x.name, thumb: x.thumb || null })) };
   const reply = { id: crypto.randomUUID(), user: false, text: '', source: 'Atlas', at: Date.now() + 1, steps: [], pending: true };
