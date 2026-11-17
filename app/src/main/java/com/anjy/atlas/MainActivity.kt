@@ -92,7 +92,7 @@ class MainActivity : Activity() {
         // every colour comes from the one palette (Design.kt); both looks are set in full every time, so switching
         // back from light to dark (without restarting the screen) puts every colour back
         // >>> themes: the chosen colour theme (Me → Look) supplies both looks; see tools/themes.json
-        Themes.load(this)
+        Themes.load(this); shownTheme = Themes.current.id
         val p = if (dark) Palette.DARK else Palette.LIGHT
         BG = p.bg; SURFACE = p.surface; SURFACE2 = p.surface2; LINE = p.line; FG = p.fg; MUTED = p.muted; FAINT = p.faint
         DONE = p.done; MISS = p.danger; ACCENT = p.accent; ACCENT_INK = p.accentInk; GOLD = p.blue; WARM = p.warm
@@ -107,6 +107,7 @@ class MainActivity : Activity() {
         // <<< themes
     }
 
+    private var shownTheme = ""
     private fun hex(c: Int) = String.format("#%06X", c and 0xFFFFFF)
 
     /** Light mode's panels: frosted glass (white at about 45%) seen over the lavender-blue page. */
@@ -390,6 +391,43 @@ class MainActivity : Activity() {
         build()
         return box
     }
+
+    // >>> themes
+    /** The four colour themes side by side, each a small picture of itself in the current light/dark look. */
+    private fun themeSwatches(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        Themes.ALL.forEachIndexed { i, t ->
+            val p = if (dark) t.dark else t.light
+            val on = t.id == Themes.current.id
+            val tile = LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(dp(6), dp(8), dp(6), dp(8))
+                background = rounded(p.bg, 16, if (on) p.accent else withAlpha(p.fg, 40), if (on) 2 else 1)
+                // a page, a panel with a line of text, and the theme's accent and secondary
+                val panel = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(6), dp(6), dp(6)); background = rounded(p.surface, 10)
+                    addView(View(this@MainActivity).apply { background = rounded(p.fg, 99) }, LinearLayout.LayoutParams(MATCH, dp(4)))
+                    addView(View(this@MainActivity).apply { background = rounded(p.muted, 99) }, LinearLayout.LayoutParams(dp(22), dp(4)).apply { topMargin = dp(4) })
+                }
+                addView(panel, LinearLayout.LayoutParams(MATCH, WRAP))
+                val dots = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+                dots.addView(View(this@MainActivity).apply { background = rounded(p.accent, 99) }, LinearLayout.LayoutParams(dp(14), dp(14)))
+                dots.addView(View(this@MainActivity).apply { background = rounded(p.blue, 99) }, LinearLayout.LayoutParams(dp(14), dp(14)).apply { leftMargin = dp(4) })
+                addView(dots, LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(8) })
+                addView(text(t.name.substringBefore(" & ").removePrefix("Atlas "), 12f, p.fg, if (on) SEMI else MED).apply {
+                    gravity = Gravity.CENTER; maxLines = 1; plain = true
+                }, LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(6) })
+                isClickable = true; pressFx()
+                contentDescription = t.name + if (on) ", " + L.t("chosen") else ""
+                setOnClickListener {
+                    if (t.id == Themes.current.id) return@setOnClickListener
+                    haptic(); Themes.set(this@MainActivity, t); relook()
+                }
+            }
+            addView(tile, LinearLayout.LayoutParams(0, WRAP, 1f).apply { if (i > 0) leftMargin = dp(8) })
+        }
+    }
+    // <<< themes
 
     internal fun haptic() {
         if (!Prefs.haptics(this)) return
@@ -1248,6 +1286,7 @@ class MainActivity : Activity() {
         if (!::composer.isInitialized) return
         // Atlas may have switched the theme itself (change_setting): follow it
         Store.getString(this, "theme2")?.let { want -> if ((want == "dark" && !dark) || (want == "light" && dark)) { relook(); return } }
+        if ((Store.getString(this, Themes.KEY) ?: ThemeData.DEFAULT) != shownTheme) { relook(); return }   // >>> themes: or the colour theme
         updateSend()
         if (tab != 0) return
         statusLine?.text = brainLine()
@@ -2283,6 +2322,15 @@ class MainActivity : Activity() {
             Store.setFlag(this, "reduceMotion", on); aurora.still = on; render(keepScroll = true)
         }, 8)
         body.add(you, 8)
+
+        // >>> themes: Look — the colour theme, per device (Atlas can switch it too: "switch to the gold theme")
+        body.add(eyebrow("Look"), 16)
+        val look = card()
+        look.addView(text(Themes.current.name, 20f, FG, HEAD))
+        look.add(text(L.t("Colours for this device. Light or dark stays on the switch at the top."), 14f, MUTED), 4)
+        look.add(themeSwatches(), 14)
+        body.add(look, 8)
+        // <<< themes
 
         // Reliability
         body.add(eyebrow("Make Atlas Reliable"), 16)

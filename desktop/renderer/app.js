@@ -19,6 +19,7 @@ import { renderConnections } from './connui.js';
 import { renderEmail } from './mailui.js';   // >>> email: Me → Email
 import * as trade from './trade.js';   // >>> trading (Me → Trading; the tools register themselves)
 import * as LW from './linkwire.js';   // >>> device link (control across devices)
+import { THEMES, DEFAULT as THEME_DEFAULT, findTheme } from './themes.js';   // >>> themes (Me → Look)
 import { renderDevices } from './linkui.js';
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
 const host = window.atlasHost;
@@ -750,12 +751,30 @@ function renderMe(page) {
   pc.appendChild(settingRow('Alarm Sound', db.state.settings.sound !== false, (on) => { db.state.settings.sound = on; store.saveState(); }));
   const auto = settingRow('Start With Windows', false, (on) => host.autostart(on), 'Quietly, in the tray: reminders and sync keep going.'); pc.appendChild(auto);
   host.autostart().then((on) => auto.querySelector('.switch').classList.toggle('on', !!on));
-  pc.appendChild(settingRow('Light Look', document.documentElement.dataset.theme === 'light', (on) => { setPref('theme', on ? 'light' : 'dark'); applyTheme(); }));
+  pc.appendChild(settingRow('Light Look', document.documentElement.dataset.theme === 'light', (on) => { setPref('theme', on ? 'light' : 'dark'); applyTheme(); render(true); }));
+  pc.appendChild(themePicker());   // >>> themes
   const nm = h(`<div class="setting"><div class="grow">Your Name<div class="small muted">${esc(db.state.settings.name || 'Not set')}</div></div><button class="btn">Change</button></div>`);
   nm.querySelector('button').onclick = () => askText('Your Name', 'What Atlas calls you.', db.state.settings.name || '', (v) => { db.state.settings.name = v.trim().slice(0, 40); store.saveState(); });
   pc.appendChild(nm);
   host.info().then((i) => col.appendChild(h(`<p class="small muted" style="text-align:center;margin-top:24px">Atlas ${esc(i.version)} for Windows</p>`)));
 }
+// >>> themes
+/** Me → Look: the four colour themes side by side, each a small picture of itself in the current light/dark look. */
+function themePicker() {
+  const light = document.documentElement.dataset.theme === 'light';
+  const cur = document.documentElement.dataset.palette || THEME_DEFAULT;
+  const wrap = h(`<div class="setting look"><div class="grow">Colours<div class="small muted">${esc((THEMES.find((t) => t.id === cur) || THEMES[0]).name)} · on this PC only</div><div class="swatches" role="radiogroup" aria-label="Colour theme"></div></div></div>`);
+  const row = wrap.querySelector('.swatches');
+  for (const t of THEMES) {
+    const p = light ? t.light : t.dark;
+    const b = h(`<button class="swatch${t.id === cur ? ' on' : ''}" role="radio" aria-checked="${t.id === cur}" title="${esc(t.note)}" style="--s-bg:${p.bg};--s-surface:${p.surface};--s-fg:${p.fg};--s-muted:${p.muted};--s-accent:${p.accent};--s-blue:${p.blue}">
+      <span class="sw-panel"><i></i><i></i></span><span class="sw-dots"><b></b><b></b></span><span class="sw-name">${esc(t.name)}</span></button>`);
+    b.onclick = () => { if (t.id === cur) return; setPref('palette', t.id); applyTheme(); render(true); };
+    row.appendChild(b);
+  }
+  return wrap;
+}
+// <<< themes
 /** Every other service with its one-line note, plus adding one of your own. */
 function moreServices(shownAlready) {
   const rest = brain.PROVIDERS.filter((p) => !shownAlready.has(p.id));
@@ -778,7 +797,12 @@ function customService(editing) {
 function askText(title, body, value, save) {
   sheet({ title, body, primary: 'Save', html: `<input class="field" id="v" value="${esc(value)}">`, onPrimary: (o) => { save(o.querySelector('#v').value); render(true); return true; } });
 }
-function applyTheme() { document.documentElement.dataset.theme = pref('theme', 'dark'); }
+function applyTheme() {
+  document.documentElement.dataset.theme = pref('theme', 'dark');
+  // >>> themes: the colour theme, kept on this PC only (prefs.json is never synced)
+  const id = pref('palette', THEME_DEFAULT);
+  document.documentElement.dataset.palette = THEMES.some((t) => t.id === id) ? id : THEME_DEFAULT;
+}
 
 // ------------------------------------------------------------------ alarms and notifications
 
@@ -896,7 +920,7 @@ brain.ui.settingsText = () => {
   const on = (b) => (b ? 'on' : 'off'); const eng = voice.engine();
   return [`- speak_replies (on/off) — now ${on(pref('speakReplies', false))}`,
     `- voice: now ${eng ? voice.current(eng).label : "Windows' voice"}; choices: ${voice.voices(eng).map((v) => v.label).join(', ')}`,
-    `- theme (dark/light) — now ${pref('theme', 'dark')}`, `- on_screen (on/off): the orb in the corner of the PC — now ${on(pref('onScreen', true))}`,
+    `- theme (dark/light) — now ${pref('theme', 'dark')}`, `- color_theme (${THEMES.map((t) => t.name).join(' / ')}): the app's colours on this PC — now ${(THEMES.find((t) => t.id === document.documentElement.dataset.palette) || THEMES[0]).name}`, `- on_screen (on/off): the orb in the corner of the PC — now ${on(pref('onScreen', true))}`,
     `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)', `- speaking_speed (slow/normal/fast): how fast Atlas talks — now ${voice.speed()}`, `- keep_listening (on/off): after a spoken answer, listen again — now ${on(pref('keepTalking', true))}`, `- listen_language (a code like en, en-GB, fr, yo, or auto) — now ${voice.language() || 'auto'}`, `- dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${on(brain.dontSwitch())}`].join('\n');
 };
 brain.ui.setting = async (name, value) => {
@@ -906,7 +930,8 @@ brain.ui.setting = async (name, value) => {
     switch (name) {
       case 'speak_replies': setPref('speakReplies', need()); return `Replies will ${flag ? '' : 'no longer '}be read aloud.`;
       case 'voice': { const eng = voice.engine(); if (!eng) return 'Natural voices need a Gemini or OpenAI key (Me → Brain).'; const n = value.toLowerCase(); const v = voice.voices(eng).find((x) => x.id === n || x.label.toLowerCase() === n || n.includes(x.id)) || voice.voices(eng).find((x) => x.about.split(/[ ,]+/).some((w) => w.length > 3 && n.includes(w))); if (!v) return `Error: no voice called "${value}".`; setPref('voice_' + eng, v.id); return `Voice set to ${v.label} (${v.about}).`; }
-      case 'theme': { const t = /light/i.test(value) ? 'light' : /dark/i.test(value) ? 'dark' : null; if (!t) return 'Error: theme is dark or light.'; setPref('theme', t); applyTheme(); return `Switched to ${t} mode.`; }
+      case 'color_theme': { const t = findTheme(value); if (!t) return `Error: the colour themes are ${THEMES.map((x) => x.name).join(', ')}.`; setPref('palette', t.id); applyTheme(); render(true); return `Switched to ${t.name}.`; }
+      case 'theme': { if (!/light|dark/i.test(value)) { const ct = findTheme(String(value).replace(/theme|the /gi, '').trim()); if (ct) { setPref('palette', ct.id); applyTheme(); render(true); return `Switched to ${ct.name}.`; } } const t = /light/i.test(value) ? 'light' : /dark/i.test(value) ? 'dark' : null; if (!t) return 'Error: theme is dark or light.'; setPref('theme', t); applyTheme(); return `Switched to ${t} mode.`; }
       case 'on_screen': setPref('onScreen', need()); host.showOrb(flag); return flag ? "I'm in the corner of your screen now." : "I'm off your screen.";
       case 'your_name': if (!value.trim()) return 'Error: give the name.'; db.state.settings.name = value.trim().slice(0, 40); store.saveState(); return `I'll call you ${value.trim()}.`;
       case 'alarm_sound': db.state.settings.sound = need(); store.saveState(); return `Alarm sound ${flag ? 'on' : 'off'}.`;
