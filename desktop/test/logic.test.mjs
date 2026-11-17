@@ -995,6 +995,7 @@ test('projects in the chat: through the capability registry, a risky step waits 
   const r = await aware.run({ name: 'project_run', args: { project: 'X', command: 'git push' } });
   const ref = (r.out.match(/\[(chat\d+)\]/) || [])[1];
   assert.ok(ref, r.out); assert.deepEqual(calls.at(-1), ['project_run', 'git push', false]);
+  aware.heard('yes, push it');   // the user's own words (aware.consent)
   const yes = await aware.run({ name: 'answer_approval', args: { ref, yes: true } });
   assert.equal(yes.out, 'ran git push'); assert.deepEqual(calls.at(-1), ['project_run', 'git push', true]);
   // the user's standing choice "always allow" runs it straight away
