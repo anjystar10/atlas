@@ -153,6 +153,16 @@ class SpeechTest {
         assertNull(Speech.wavPcm16Mono(d))                          // not a WAV
     }
 
+    @Test fun spokenMannerAsksInsteadOfGuessingAndSirIsOptional() {
+        val m = Speech.manner(false)
+        assertTrue(m.contains("language the user spoke"))
+        assertTrue(m.contains("instead of guessing"))
+        assertFalse(m.contains("\"sir\""))
+        assertTrue(Speech.manner(true).contains("\"sir\" now and then"))
+        // traits only: no real person or character is named
+        listOf("jarvis", "bettany", "stark", "marvel").forEach { assertFalse(Speech.manner(true).lowercase().contains(it)) }
+    }
+
     @Test fun leftoverOfTheWakeWordIsDropped() {
         assertEquals("Set a reminder for six", Speech.dropWakeLeftover("las, set a reminder for six"))
         assertEquals("What's the weather", Speech.dropWakeLeftover("Atlas what's the weather"))
