@@ -1311,7 +1311,8 @@ class MainActivity : Activity() {
     private fun bubble(m: Conversation.Msg, last: Boolean): View {
         val wrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = if (m.fromUser) Gravity.END else Gravity.START }
         val working = !m.fromUser && last && Conversation.busy
-        val copy = { _: View -> getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas", m.text)); showBanner("Copied"); true }
+        // >>> smooth: hold a message for Copy, Share, Remember, Ask Again
+        val copy = { _: View -> messageMenu(m); true }
         if (m.fromUser) {
             if (m.media.isNotEmpty()) wrap.addView(mediaStrip(m.media, dp(84)), LinearLayout.LayoutParams(WRAP, WRAP).apply { bottomMargin = dp(6) })
             wrap.addView(text(m.text, Type.READ, FG, READ, keepEmoji = true).apply {
@@ -1330,7 +1331,7 @@ class MainActivity : Activity() {
             Markdown.parse(m.text, st).forEachIndexed { i, block ->
                 val v: View = when (block) {
                     is Markdown.Prose -> TextView(this).apply {
-                        text = block.text; setTextColor(if (m.source == "error") MISS else FG); textSize = Type.READ; typeface = READ
+                        text = linkified(block.text); setTextColor(if (m.source == "error") MISS else FG); textSize = Type.READ; typeface = READ
                         setLineSpacing(0f, Type.LEAD_READ); linksClickable = true; movementMethod = android.text.method.LinkMovementMethod.getInstance()
                         setOnLongClickListener(copy)
                     }
@@ -1596,6 +1597,50 @@ class MainActivity : Activity() {
             copyLine = null; showTray(); updateSend()
         }
     }
+
+    // >>> smooth
+    /** Hold a message: Copy, Share, Remember (saves it to Atlas's memory), Ask Again (sends the question once more). */
+    private fun messageMenu(m: Conversation.Msg) {
+        haptic()
+        val ask = if (m.fromUser) m else Conversation.messages.let { all -> val i = all.indexOf(m); all.subList(0, maxOf(i, 0)).lastOrNull { it.fromUser } }
+        val opts = mutableListOf("Copy", "Share", "Remember This")
+        if (ask != null && !Conversation.busy) opts.add("Ask Again")
+        choose(if (m.fromUser) "Your Message" else "Atlas's Reply", opts) { i ->
+            when (opts[i]) {
+                "Copy" -> { getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas", m.text)); showBanner("Copied") }
+                "Share" -> try { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, m.text), null)) } catch (_: Exception) { showBanner("Couldn't share that.", MUTED) }
+                "Remember This" -> scope.launch {
+                    val txt = withContext(Dispatchers.IO) { Plain.memory(m.text.take(600)) }
+                    if (txt.isEmpty()) { showBanner("Nothing to remember there.", MUTED); return@launch }
+                    val saved = withContext(Dispatchers.IO) {
+                        val same = Store.read(this@MainActivity) { s -> s.memories.any { it.text.trim().equals(txt, ignoreCase = true) } }
+                        if (!same) { Store.edit(this@MainActivity) { Engine.remember(it, txt, System.currentTimeMillis()) }; ModelManager.markStale() }
+                        !same
+                    }
+                    showBanner(if (saved) "Remembered." else "Already remembered.")
+                }
+                "Ask Again" -> ask?.let { u -> sendMessage(u.text, media = u.media.filter { it.file.exists() }) }
+            }
+        }
+    }
+
+    /** Web addresses, emails and phone numbers in Atlas's words become tappable (links already in the text stay as they are). */
+    private fun linkified(t: CharSequence): CharSequence {
+        val sb = android.text.SpannableStringBuilder(t)
+        fun add(re: java.util.regex.Pattern, url: (String) -> String?) {
+            val mt = re.matcher(sb)
+            while (mt.find()) {
+                if (sb.getSpans(mt.start(), mt.end(), android.text.style.URLSpan::class.java).isNotEmpty()) continue
+                val u = url(mt.group()) ?: continue
+                sb.setSpan(android.text.style.URLSpan(u), mt.start(), mt.end(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+        }
+        add(android.util.Patterns.EMAIL_ADDRESS) { "mailto:$it" }
+        add(android.util.Patterns.WEB_URL) { LinkText.web(it) }
+        add(LinkText.PHONE) { LinkText.phone(it) }
+        return sb
+    }
+    // <<< smooth
 
     // >>> attachments
     private var copying: kotlinx.coroutines.Job? = null

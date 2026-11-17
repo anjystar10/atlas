@@ -233,6 +233,17 @@ textarea.field { resize: vertical; min-height: 64px; font: 400 var(--t-read)/1.4
 .latest-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .latest-chip { transition: none; } }
 
+/* >>> smooth: message actions on hover, the offline note */
+.msg { position: relative; }
+.msgacts { display: flex; gap: 2px; margin-top: 4px; opacity: 0; transition: opacity .15s; }
+.msg.you .msgacts { justify-content: flex-end; }
+.msg:hover .msgacts, .msgacts:focus-within { opacity: 1; }
+.msgacts button { background: none; border: none; color: var(--muted); font-size: 12px; padding: 3px 8px; border-radius: 99px; cursor: pointer; }
+.msgacts button:hover { color: var(--fg); background: var(--glass2); }
+#offline { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 70; padding: 8px 16px; border-radius: 999px; font-size: 13px;
+  background: color-mix(in srgb, var(--warm) 18%, var(--bg)); color: var(--fg); border: 1px solid color-mix(in srgb, var(--warm) 45%, transparent); }
+/* <<< smooth */
+
 /* >>> look picker: Me → Look, the colour theme picker (each swatch draws itself in its own colours) */
 .setting.look { align-items: flex-start; }
 .swatches { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }

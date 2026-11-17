@@ -159,6 +159,7 @@ function messageView(m, last) {
       v.appendChild(f);
     }
     v.appendChild(Object.assign(h('<div class="bubble"></div>'), { textContent: m.text }));
+    v.appendChild(msgActions(m));   // >>> smooth
     return v;
   }
   const v = h('<div class="msg atlas"></div>');
@@ -172,8 +173,26 @@ function messageView(m, last) {
   }
   const tag = working && m.text ? (brain.convo.status || 'Working') + '…' : (m.source === 'error' || m.source === 'Atlas' ? '' : m.source);
   if (tag) v.appendChild(h(`<div class="source">${esc(tag)}</div>`));
+  if (m.text && !working) v.appendChild(msgActions(m));   // >>> smooth
   return v;
 }
+// >>> smooth: on hover, a message offers Copy, Remember and Ask Again
+function msgActions(m) {
+  const row = h('<div class="msgacts"><button title="Copy">Copy</button><button title="Save it to Atlas\'s memory">Remember</button><button title="Send the question again">Ask Again</button></div>');
+  const [copy, keep, again] = row.children;
+  copy.onclick = () => { navigator.clipboard.writeText(m.text); toast('Copied'); };
+  keep.onclick = () => {
+    const t = plainMemory(String(m.text).slice(0, 600)); if (!t) return toast('Nothing to remember there.');
+    if (db.state.memories.some((x) => x.text.trim().toLowerCase() === t.toLowerCase())) return toast('Already remembered.');
+    store.remember(t); toast('Remembered.');
+  };
+  const i = db.chat.indexOf(m); const ask = m.user ? m : db.chat.slice(0, Math.max(i, 0)).reverse().find((x) => x.user);
+  if (!ask || !ask.text) again.remove();
+  // the question alone: whatever is waiting in the tray stays there for your next message
+  else again.onclick = () => { if (brain.convo.busy) return toast('Atlas is still answering.'); const keepAtt = attachments; attachments = []; submit(false, ask.text); attachments = keepAtt; showTray(); updateSend(); };
+  return row;
+}
+// <<< smooth
 
 // ---- Atlas Bot ----
 /** A small glass strip while bots are working (or recently done): click to see them. */
@@ -306,7 +325,7 @@ function buildComposer() {
     <div class="round" id="snap" title="Take a photo with the webcam">${ICON.camera}</div>
     <textarea id="ask" rows="1" placeholder="Ask anything…"></textarea>
     <div class="round go" id="go" title="Speak">${ICON.mic}</div></div>
-    <div class="hint">Enter to send · Shift+Enter for a new line · Ctrl+Shift+Space to talk from anywhere</div></div>`;
+    <div class="hint">Enter to send · Shift+Enter for a new line · Esc to stop · Ctrl+Shift+Space to talk from anywhere</div></div>`;
   const ta = $('#ask');
   ta.addEventListener('input', () => { autosize(); updateSend(); });
   ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
@@ -998,6 +1017,12 @@ async function main() {
   conn.init(); conn.state.listeners.add(() => { if (tab === 'me') render(true, true); });
   // <<< connections
   applyTheme();
+  // >>> smooth: Esc stops Atlas while it's answering (unless a sheet or overlay is open: Esc is theirs)
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && brain.convo.busy && !document.querySelector('.overlay')) { e.preventDefault(); brain.stop(); toast('Stopped.'); } });
+  // and a quiet note while the PC is offline: replies and sync wait for the connection
+  const offline = () => { let b = $('#offline'); if (navigator.onLine) { b?.remove(); return; } if (!b) { b = h('<div id="offline" role="status">Offline. Atlas answers again when you\'re back online.</div>'); document.body.appendChild(b); } };
+  window.addEventListener('online', offline); window.addEventListener('offline', offline); offline();
+  // <<< smooth
   document.querySelectorAll('.nav').forEach((n) => (n.onclick = () => { tab = n.dataset.tab; logFull = false; botView = null; render(); }));
   buildComposer();
   render();
