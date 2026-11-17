@@ -445,11 +445,9 @@ object Bots {
                                 if (j.dryRun) { j.verifyStatus = "skipped"; complete(j, report); return }
                                 val v = verify(j, p, report)
                                 if (!stillMine()) return
-                                when {
-                                    v == null -> { j.verifyStatus = "skipped"; j.step("Couldn't run the check this time"); complete(j, report); return }
-                                    v.first -> { j.verifyStatus = "passed"; j.step("Checked: the report holds up"); complete(j, report); return }
-                                }
-                                val problems = v!!.second.ifBlank { "It does not do the whole job yet." }
+                                if (v == null) { j.verifyStatus = "skipped"; j.step("Couldn't run the check this time"); complete(j, report); return }
+                                if (v.first) { j.verifyStatus = "passed"; j.step("Checked: the report holds up"); complete(j, report); return }
+                                val problems = v.second.ifBlank { "It does not do the whole job yet." }
                                 j.verifyRounds++; j.verifyNotes.add(problems); while (j.verifyNotes.size > 5) j.verifyNotes.removeAt(0)
                                 if (j.verifyRounds >= 3) { j.verifyStatus = "failed"; j.step("Still not confirmed after 3 checks"); complete(j, report); return }
                                 j.verifyStatus = "none"

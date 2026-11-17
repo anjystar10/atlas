@@ -65,6 +65,7 @@ class CrewTest {
 
     @Test fun onlyTheUsersOwnWordsAuthorize() {
         for (c in cases("userSaid")) assertEquals(c.getString("text"), c.opt("out").let { if (it == JSONObject.NULL) null else it }, Crew.userSaid(c.getString("text")))
+        for (c in cases("consent")) { val o = c.getJSONObject("out"); val k = Crew.consent(c.getString("text")); assertEquals(c.getString("text"), o.getBoolean("yes"), k.yes); assertEquals(c.getString("text"), o.getBoolean("always"), k.always); assertEquals(o.getString("why"), k.why) }
     }
 
     @Test fun dryRunAndMissions() {

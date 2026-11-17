@@ -2008,6 +2008,120 @@
    "out": "no"
   }
  ],
+ "consent": [
+  {
+   "text": "yes",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "please approve it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "ok, always allow that",
+   "out": {
+    "yes": true,
+    "always": true,
+    "why": ""
+   }
+  },
+  {
+   "text": "yes from now on",
+   "out": {
+    "yes": true,
+    "always": true,
+    "why": ""
+   }
+  },
+  {
+   "text": "no, wait",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "don't send it",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "what did the bot find?",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "👍 go",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "sure thing",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "Deny it",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "fine by me",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "can you check it first",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "Yes’ please",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  }
+ ],
  "dryRunSkips": [
   {
    "tool": "web_search",

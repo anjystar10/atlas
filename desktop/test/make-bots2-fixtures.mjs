@@ -44,6 +44,7 @@ const fx = {
     '',
   ].map((t) => ({ text: t, out: C.parsePlanTree(t) })),
   userSaid: ['yes', 'Yes please go ahead', 'ok', 'okay sure', 'go ahead', 'do it', '👍', 'no', "don't", 'Nope', 'stop that', 'wait a sec', 'maybe later?', 'what is it?', '', '  …yes', 'not now', 'approve', 'never mind'].map((t) => ({ text: t, out: C.userSaid(t) })),
+  consent: ['yes', 'please approve it', 'ok, always allow that', 'yes from now on', 'no, wait', "don't send it", 'what did the bot find?', '', '👍 go', 'sure thing', 'Deny it', 'fine by me', 'can you check it first', 'Yes’ please'].map((t) => ({ text: t, out: C.consent(t) })),
   dryRunSkips: [['web_search', false], ['browser_click', true], ['email_send', false], ['email_read', false], ['trade_order', false], ['trade_quote', false], ['make_document', false], ['mcp__x__y', false], ['browser_fill_login', false]]
     .map(([t, n]) => ({ tool: t, needsApproval: n, out: C.dryRunSkips(t, n) })),
   missionDefaults: [

@@ -1023,6 +1023,7 @@ test('bots v2: crew.js gives every answer in tools/bots2-fixtures.json (the phon
   for (const c of F.dayOf) assert.equal(C.dayOf(c.ms, c.offsetMin), c.out);
   for (const c of F.parsePlanTree) assert.deepEqual(C.parsePlanTree(c.text), c.out, c.text.slice(0, 40));
   for (const c of F.userSaid) assert.equal(C.userSaid(c.text), c.out, c.text);
+  for (const c of F.consent) assert.deepEqual(C.consent(c.text), c.out, c.text);
   for (const c of F.dryRunSkips) assert.equal(C.dryRunSkips(c.tool, c.needsApproval), c.out, c.tool);
   for (const c of F.missionDefaults) assert.deepEqual(C.missionDefaults(JSON.parse(JSON.stringify(c.in))), c.out, c.in.id);
   // no plan cap: a 120-step nested plan keeps every step

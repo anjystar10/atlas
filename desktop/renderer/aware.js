@@ -9,7 +9,7 @@
 //
 // It has no imports from the rest of the app: the app plugs its parts in with use(), so it stays testable on its own.
 
-import { userSaid } from './crew.js';
+import { userSaid, consent as crewConsent } from './crew.js';
 const caps = new Map();
 /** { id, tools: () => [declarations], run: async (call) => result | null, brief?: () => string | null, forBots?, forChat? } */
 export function register(cap) { caps.set(cap.id, { forChat: true, forBots: false, ...cap }); }
@@ -40,15 +40,8 @@ export function use(parts) { Object.assign(src, parts); }
 let heardText = '', heardAt = 0;
 export function heard(text) { heardText = String(text || ''); heardAt = Date.now(); }
 export const lastHeard = () => ({ text: heardText, at: heardAt });
-const YES_ANY = /(^|[^a-z])(yes|yeah|yep|yup|ok|okay|sure|go ahead|go for it|do it|approve|approved|allow|allowed|confirm|confirmed|send it|proceed|let it|let them|fine|alright)($|[^a-z])/;
-/** May a yes be given now? Only when the user's latest message itself says yes (a page, email or tool result never counts). */
-export function consent(text = heardText) {
-  const t = String(text || '').toLowerCase().replace(/’/g, "'");
-  const first = userSaid(t);
-  if (first === 'no') return { yes: false, always: false, why: 'their message says no' };
-  const yes = first === 'yes' || /👍|✅/.test(t) || YES_ANY.test(t);
-  return { yes, always: yes && /(^|[^a-z])(always|every time|from now on)($|[^a-z])/.test(t), why: yes ? '' : "their latest message doesn't say yes" };
-}
+/** May a yes be given now? Only when the user's latest message itself says yes (a page, email or tool result never counts). crew.js consent. */
+export const consent = (text = heardText) => crewConsent(text);
 
 // ------------------------------------------------------------------ waiting on the user
 

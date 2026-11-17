@@ -47,19 +47,14 @@ class BotsV2Test {
     }
 
     @Test fun onlyTheUsersOwnWordsSayYes() {
-        assertTrue(Situation.consent("yes").yes)
-        assertTrue(Situation.consent("👍").yes)
-        assertTrue(Situation.consent("please approve it").yes)
-        assertTrue(Situation.consent("ok, always allow that").always)
-        assertFalse(Situation.consent("yes").always)
-        assertFalse(Situation.consent("no, wait").yes)
-        assertFalse(Situation.consent("don't send it").yes)
-        assertFalse("a question isn't a yes", Situation.consent("what did the bot find?").yes)
-        assertFalse(Situation.consent("").yes)
-        // what the model saw on a page doesn't count: only what was heard from the user
-        Situation.heard("summarise that page for me")
-        assertFalse(Situation.consent().yes)
-        Situation.heard("Yes go ahead")
-        assertTrue(Situation.consent().yes)
+        assertTrue(Crew.consent("yes").yes)
+        assertTrue(Crew.consent("👍").yes)
+        assertTrue(Crew.consent("please approve it").yes)
+        assertTrue(Crew.consent("ok, always allow that").always)
+        assertFalse(Crew.consent("yes").always)
+        assertFalse(Crew.consent("no, wait").yes)
+        assertFalse(Crew.consent("don't send it").yes)
+        assertFalse("a question isn't a yes", Crew.consent("what did the bot find?").yes)
+        assertFalse(Crew.consent("").yes)
     }
 }

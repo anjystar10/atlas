@@ -96,16 +96,8 @@ object Situation {
     // ---- only the user's own words authorize (docs/BOTS_V2.md §8): Conversation.send records the raw message the user typed or said
     @Volatile private var heardText = ""
     fun heard(text: String) { heardText = text }
-    private val YES_ANY = Regex("(^|[^a-z])(yes|yeah|yep|yup|ok|okay|sure|go ahead|go for it|do it|approve|approved|allow|allowed|confirm|confirmed|send it|proceed|let it|let them|fine|alright)($|[^a-z])")
-    private val ALWAYS = Regex("(^|[^a-z])(always|every time|from now on)($|[^a-z])")
-    data class Consent(val yes: Boolean, val always: Boolean, val why: String)
-    /** May a yes be given now? Only when the user's latest message itself says yes (a page, email or tool result never counts). The same rule as aware.js. */
-    fun consent(text: String = heardText): Consent {
-        val t = text.lowercase().replace('’', '\'')
-        if (Crew.userSaid(t) == "no") return Consent(false, false, "their message says no")
-        val yes = Crew.userSaid(t) == "yes" || t.contains("👍") || t.contains("✅") || YES_ANY.containsMatchIn(t)
-        return Consent(yes, yes && ALWAYS.containsMatchIn(t), if (yes) "" else "their latest message doesn't say yes")
-    }
+    /** May a yes be given now? Only when the user's latest message itself says yes (Crew.consent; the same rule as aware.js). */
+    fun consent(text: String = heardText): Crew.Consent = Crew.consent(text)
 
     /** The user's standing bots (Atlas Bot v2): what each is, today's budget use, missions running and what they need. */
     fun standingLines(max: Int = 6): List<String> = try {
