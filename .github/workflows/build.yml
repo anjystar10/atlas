@@ -71,7 +71,8 @@ jobs:
       - name: Name the APK
         run: |
           mkdir -p out
-          cp app/build/outputs/apk/debug/app-debug.apk "out/Atlas-0.5.0-build${{ github.run_number }}.apk"
+          V=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -1)
+          cp app/build/outputs/apk/debug/app-debug.apk "out/Atlas-${V}-build${{ github.run_number }}.apk"
           ls -la out
 
       - uses: actions/upload-artifact@v4
@@ -101,6 +102,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          V=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -1)
           gh release create "build-${{ github.run_number }}" out/*.apk \
-            --title "Atlas 0.5.0 build ${{ github.run_number }}" \
+            --title "Atlas ${V} build ${{ github.run_number }}" \
             --notes "Debug build from commit ${GITHUB_SHA::7}." --target "$GITHUB_SHA"
