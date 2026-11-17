@@ -399,7 +399,7 @@ async function startListening(followUp = false) {
   const orb = new Orb(o.querySelector('#lorb'), { size: 220 }); orb.energy = 1;
   host.orbState({ energy: 1, listening: true });
   let cancelled = false;
-  listenCtl = voice.listen({ onLevel: (l) => { orb.level = l; host.orbState({ energy: 1, level: l, listening: true }); }, onState: () => { const el = o.querySelector('.heard'); if (el) el.textContent = 'One moment…'; } });
+  listenCtl = voice.listen({ onLevel: (l) => { orb.level = l; host.orbState({ energy: 1, level: l, listening: true }); }, onState: () => { const el = o.querySelector('.heard'); if (el) el.textContent = 'One moment…'; }, onPause: (p) => { const el = o.querySelector('.heard'); if (el && el.textContent !== 'One moment…') el.textContent = p ? 'Still listening…' : 'Listening…'; } });
   o.querySelector('[data-k=done]').onclick = () => listenCtl && listenCtl.stop();
   o.querySelector('[data-k=cancel]').onclick = () => { cancelled = true; listenCtl && listenCtl.stop(); };
   try {
@@ -688,7 +688,12 @@ function renderMe(page) {
   };
   chipRow('Speaking Speed', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']], voice.speed(), (k) => voice.setSpeed(k));
   vc.appendChild(settingRow('Keep Listening', pref('keepTalking', true), (on) => setPref('keepTalking', on), "After Atlas answers a spoken question it listens again, so you can just keep talking. Say “that's all” or stay quiet to stop."));
-  chipRow('Language You Speak', voice.LANGUAGES, voice.language() || 'auto', (k) => voice.setLanguage(k), 'Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.');
+  chipRow('Language You Speak', voice.LANGUAGES, voice.language() || 'auto', (k) => voice.setLanguage(k), 'Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out (Atlas then answers in the language you speak).');
+  vc.appendChild(settingRow('Give Me Time to Finish', voice.patient(), (on) => { voice.setPatient(on); render(true); }, `Atlas waits much longer through pauses before it takes it you've finished: for a stammer, a slow or careful way of speaking, or thinking mid-sentence. It also learns your pace by itself (now ${(voice.endSilenceMs() / 1000).toFixed(1)} s).`));
+  { const wr = h(`<div style="margin-top:14px">Words Atlas Should Know</div>`); vc.appendChild(wr);
+    const ta = h(`<textarea class="field" rows="3" style="width:100%;margin-top:8px" placeholder="One per line: names, places, words from your work"></textarea>`); ta.value = voice.taughtWords().join('\n');
+    ta.onchange = () => voice.setTaughtWords(ta.value.split('\n')); vc.appendChild(ta);
+    vc.appendChild(h('<p class="small muted" style="margin-top:6px">The speech model is told to expect them, so they\'re written down right. They stay on this PC.</p>')); }
 
   // >>> vault: sign-ins Atlas Bot may use in its browser (desktop/vault.js; passwords never reach this page unless shown)
   if (host.vault) {

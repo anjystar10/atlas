@@ -5,7 +5,7 @@
 import { keyFor, readyKey, byId, modelOf, keys as poolKeys } from './brain.js';
 import { applyPcm } from './finish.js';
 import { pref, setPref, db } from './store.js';
-import { Endpointer, chunks, fixHeard, names, rate, pace, speed as speedOf } from './speech.js';
+import { Endpointer, Pace, minVoiceFor, heardFrom, chunks, fixHeard, names, rate, pace, speed as speedOf } from './speech.js';
 import { plainSpoken } from './plain.js';
 const host = window.atlasHost;
 
@@ -273,14 +273,30 @@ async function openAiSpeech(text, v) {
 const RATE = 16000, FRAME = RATE * 20 / 1000;
 /** The speech models that can write down what's said, fastest first: [id, key]. */
 const ears = () => ['groq', 'openai', 'gemini'].map((id) => [id, readyKey(id)]).filter(([, k]) => k && k !== 'local');
+// how this person talks, learned as they do (the same rules as the phone): their pace, how loud, words to expect
+export const talkPace = () => Pace.parse(pref('hearPace', ''));
+export const patient = () => pref('hearPatient', false);
+export const setPatient = (on) => setPref('hearPatient', !!on);
+export const endSilenceMs = () => talkPace().endSilenceMs(patient());
+export const taughtWords = () => (Array.isArray(pref('hearWords', [])) ? pref('hearWords', []) : []);
+export const setTaughtWords = (ws) => setPref('hearWords', [...new Map(ws.map((w) => String(w).trim()).filter(Boolean).map((w) => [w.toLowerCase(), w])).values()].slice(0, 60));
+const voiceLevel = () => { const [l, n] = String(pref('hearLevel', '') || '').split(',').map(Number); return n >= 3 ? l : null; };
+function learn(ep) {
+  if (ep.pauses.length) setPref('hearPace', talkPace().learn(ep.pauses).save());
+  if (ep.voiceLevel > 0) { const [l = 0, n = 0] = String(pref('hearLevel', '') || '').split(',').map(Number); setPref('hearLevel', `${l + (ep.voiceLevel - l) / (Math.min(n || 0, 20) + 1)},${(n || 0) + 1}`); }
+}
+/** What the last thing heard was like: its language and whether the speech model was unsure (Atlas's instructions take these in). */
+export const lastHeard = { language: null, unsure: false, at: 0 };
+
 /** Names and words Atlas should expect to hear, so they're spelled right. */
 export function hint() {
   const words = new Set(['Atlas']);
   try {
     const name = (db.state.settings.name || '').trim(); if (name) words.add(name);
+    taughtWords().forEach((w) => words.add(w));
     [...db.state.memories.slice(-40).map((m) => m.text), ...db.state.tasks.slice(-40).map((t) => t.title)].forEach((t) => names(t).forEach((w) => words.add(w)));
   } catch {}
-  return [...words].slice(0, 40).join(', ');
+  let out = ''; for (const w of words) { if (out.length + w.length + 2 > 500) break; out += (out ? ', ' : '') + w; } return out;
 }
 
 /**
@@ -288,7 +304,7 @@ export function hint() {
  * while a speech model writes it down, then resolves to the words heard ('' for silence). Throws with a sentence
  * for the user when it can't.
  */
-export function listen({ onLevel = () => {}, onState = () => {}, maxMs = 60000 } = {}) {
+export function listen({ onLevel = () => {}, onState = () => {}, onPause = () => {}, maxMs = 60000 } = {}) {
   // stopped before the microphone was even ready (Cancel straight away): don't start recording at all
   let stopped = false;
   let stopFn = () => { stopped = true; };
@@ -298,7 +314,7 @@ export function listen({ onLevel = () => {}, onState = () => {}, maxMs = 60000 }
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); }
     catch { throw new Error("Atlas can't use the microphone. Check Windows Settings → Privacy → Microphone."); }
     if (stopped) { stream.getTracks().forEach((t) => t.stop()); return ''; }
-    let ctx = null; const ep = new Endpointer({ maxMs }); const pcm = []; let verdict = 'going';
+    let ctx = null; const ep = new Endpointer({ maxMs, endSilenceMs: endSilenceMs(), minVoice: minVoiceFor(voiceLevel()) }); const pcm = []; let verdict = 'going'; let cued = false;
     try {
       ctx = new AudioContext({ sampleRate: RATE });
       const src = ctx.createMediaStreamSource(stream);
@@ -315,6 +331,7 @@ export function listen({ onLevel = () => {}, onState = () => {}, maxMs = 60000 }
           for (; o + FRAME <= all.length && verdict === 'going'; o += FRAME) {
             const f = all.subarray(o, o + FRAME); let sum = 0; for (const v of f) sum += v * v; const rms = Math.sqrt(sum / FRAME);
             pcm.push(f.slice()); verdict = ep.feed(rms);
+            if (ep.pausing !== cued) { cued = ep.pausing; onPause(cued); }   // a long pause: show "still listening"
             shown += (Math.min(1, rms * 9) - shown) * 0.5;
           }
           carry = all.slice(o); onLevel(shown);
@@ -327,14 +344,21 @@ export function listen({ onLevel = () => {}, onState = () => {}, maxMs = 60000 }
     const from = Math.max(0, ep.startFrame - 15);
     const b64 = wavBase64(pcm.slice(from));
     onState('writing');
-    const h = hint(); let last = null;
+    // the first speech model that manages it; when it's unsure, the next one listens too and the sure one is kept
+    const h = hint(); let last = null, unsure = null, got = null;
     for (const [id, key] of ears()) {
       try {
-        const t = id === 'gemini' ? await transcribeGemini(key, b64, h) : await transcribeWhisper(id, key, b64, h);
-        return fixHeard(t, ep.speechMs, h);
+        const t = id === 'gemini' ? { text: await transcribeGemini(key, b64, h), language: null, unsure: false } : heardFrom(await transcribeWhisper(id, key, b64, h));
+        if (!t.unsure || !t.text) { got = !t.text && unsure ? unsure : t; break; }
+        if (!unsure) { unsure = t; continue; }
+        got = unsure; break;
       } catch (e) { last = e; }
     }
-    throw last || new Error("Couldn't make out the words.");
+    got = got || unsure;
+    if (!got) throw last || new Error("Couldn't make out the words.");
+    const text = fixHeard(got.text, ep.speechMs, h);
+    if (text) { learn(ep); Object.assign(lastHeard, { language: got.language || (language().slice(0, 2).toLowerCase() || null), unsure: got.unsure, at: Date.now() }); }
+    return text;
   })();
   return { done, stop: () => stopFn() };
 }
@@ -372,7 +396,7 @@ let openAiSkip = 0;
 /** The form for one transcription request (exported for the tests). */
 export function transcribeForm(model, h, lang, file) {
   const newer = model === 'gpt-transcribe';
-  const f = { model, response_format: 'json', ...(newer ? {} : { temperature: '0' }), ...(h ? { prompt: h } : {}) };
+  const f = { model, response_format: model.startsWith('whisper-large') ? 'verbose_json' : 'json', ...(newer ? {} : { temperature: '0' }), ...(h ? { prompt: h } : {}) };
   if (newer) {
     const kw = h ? h.split(', ').map((w) => w.trim()).filter(Boolean).slice(0, 30) : [];
     if (kw.length) f['keywords[]'] = kw;
@@ -387,7 +411,7 @@ async function transcribeWhisper(id, key, b64, h) {
   const call = (model) => host.fetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + key }, timeout: 30000,
     form: transcribeForm(model, h, whisperLang(), { base64: b64, type: 'audio/wav', name: 'speech.wav' }) });
   let r;
-  if (groq) r = await call('whisper-large-v3-turbo');
+  if (groq) r = await call('whisper-large-v3');   // the full model: 10.3% word error rate against turbo's 12% (Groq's figures)
   else {
     for (let i = Math.min(openAiSkip, OPENAI_EARS.length - 1); ; i++) {
       r = await call(OPENAI_EARS[i]);
@@ -396,7 +420,7 @@ async function transcribeWhisper(id, key, b64, h) {
     }
   }
   if (!r.ok) throw new Error(`Couldn't make out the words (${groq ? 'Groq' : 'OpenAI'} ${r.status || r.error}).`);
-  return (JSON.parse(r.text).text || '').trim();
+  return r.text;   // the whole answer: heardFrom reads the words, the language and how sure it was
 }
 
 /** Plays a voice right away (Me → Voice → Hear It). */

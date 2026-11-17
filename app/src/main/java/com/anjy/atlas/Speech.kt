@@ -23,6 +23,8 @@ object Speech {
         private val endSilenceMs: Int = 1300,
         private val noSpeechMs: Int = 7000,
         private val maxMs: Int = 60_000,
+        /** The quietest a voice frame can be (a soft-spoken person's, learned in "Teach Atlas Your Voice", is lower). */
+        private val minVoice: Float = 0.012f,
     ) {
         private var frames = 0
         private var floor = -1f
@@ -33,9 +35,24 @@ object Speech {
         /** The frame speech began at (-1 before any). */
         var startFrame = -1; private set
         private var quietMs = 0
+        private var runMs = 0               // the current (or last) stretch of voice
+        private var lastRunMs = 0
+        /** The pauses inside what was said (ms), for learning how this person talks ([Pace]); the final silence isn't one. */
+        val pauses = mutableListOf<Int>()
+        /** Loudness of the voice (mean rms of voiced frames), for the calibration in "Teach Atlas Your Voice". */
+        var voiceLevel = 0f; private set
+        private var voicedFrames = 0
+        /** True while the speaker has paused long enough that a cue ("still listening") helps, but not long enough to end. */
+        var pausing = false; private set
 
         /** The loudness above which a frame counts as voice. */
-        val threshold: Float get() = maxOf((if (floor < 0f) 0.004f else floor) * 3f, 0.012f)
+        val threshold: Float get() = maxOf((if (floor < 0f) 0.004f else floor) * 3f, minVoice)
+
+        /**
+         * The silence that ends a turn now. Longer after a short false start or a stammered fragment ("I… I want"),
+         * and after very little speech ("um"), so a speaker who needs a moment isn't cut off.
+         */
+        val needMs: Int get() = if (speechMs < 700 || (lastRunMs in 1..349 && speechMs < 2500)) endSilenceMs * 3 / 2 else endSilenceMs
 
         /** [rms]: this frame's loudness, 0..1 (root mean square of the samples, full scale = 1). */
         fun feed(rms: Float): Heard {
@@ -47,18 +64,138 @@ object Speech {
             else if (!speaking && frames > 150 && speechMs == 0) floor += (rms.coerceAtMost(0.05f) - floor) * 0.01f   // a steady drone that never became speech is the room
             recent = ((recent shl 1) or (if (loud) 1 else 0)) and 0xFF
             val steady = Integer.bitCount(recent) >= 5
-            if (loud) { quietMs = 0 } else quietMs += FRAME_MS
+            if (loud) {
+                if (speaking && quietMs >= 200) pauses.add(quietMs)
+                if (quietMs >= 200) runMs = 0
+                quietMs = 0; runMs += FRAME_MS
+            } else { if (quietMs == 0 && runMs > 0) lastRunMs = runMs; quietMs += FRAME_MS }
             if (!speaking && steady) { speaking = true; if (startFrame < 0) startFrame = (frames - 8).coerceAtLeast(0) }
-            if (speaking && loud) speechMs += FRAME_MS
+            if (speaking && loud) { speechMs += FRAME_MS; voicedFrames++; voiceLevel += (rms - voiceLevel) / voicedFrames }
+            pausing = speaking && speechMs >= 200 && quietMs >= 700 && quietMs < needMs
             val ms = frames * FRAME_MS
             return when {
                 ms >= maxMs -> if (speechMs > 0) Heard.DONE else Heard.NOTHING
-                speaking && speechMs >= 200 && quietMs >= endSilenceMs -> Heard.DONE
-                speaking && speechMs < 200 && quietMs >= endSilenceMs -> { speaking = false; speechMs = 0; startFrame = -1; Heard.GOING }   // a click, not a voice
+                speaking && speechMs >= 200 && quietMs >= needMs -> Heard.DONE
+                speaking && speechMs < 200 && quietMs >= endSilenceMs -> { speaking = false; speechMs = 0; startFrame = -1; pauses.clear(); Heard.GOING }   // a click, not a voice
                 !speaking && speechMs == 0 && ms >= noSpeechMs -> Heard.NOTHING
                 else -> Heard.GOING
             }
         }
+    }
+
+    /**
+     * How long this person pauses mid-sentence, learned on the phone from what they say (and from "Teach Atlas Your
+     * Voice"): the end-of-speech silence is set well above their usual long pause, so a slow or careful speaker, or one
+     * who stammers, isn't cut off, and a brisk one isn't kept waiting. [p90]: their 90th-percentile pause (ms), [n]: how
+     * many pauses it's learned from. [patient]: "Give Me Time to Finish" in Me → Voice (longer still).
+     */
+    /** The lowest voice threshold for someone whose voice measured [level] (mean rms): a quarter of it, between 0.006 and the usual 0.012. */
+    fun minVoiceFor(level: Float?): Float = if (level == null || level <= 0f) 0.012f else (level / 4f).coerceIn(0.006f, 0.012f)
+
+    class Pace(val p90: Int = 0, val n: Int = 0) {
+        fun endSilenceMs(patient: Boolean = false): Int {
+            val base = if (n < 8) 1300 else (p90 * 3 / 2 + 300).coerceIn(1100, 2800)
+            return if (patient) (base * 8 / 5).coerceIn(2200, 4500) else base
+        }
+        /** Takes in the pauses of one turn (the 90th percentile of the turn, blended in; a lone turn moves it a little). */
+        fun learn(turn: List<Int>): Pace {
+            val ps = turn.filter { it in 200..4000 }.sorted()
+            if (ps.isEmpty()) return this
+            val q = ps[(ps.size * 9 + 9) / 10 - 1]   // nearest-rank 90th percentile
+            val w = minOf(ps.size, 6).toFloat() / (minOf(n, 60) + minOf(ps.size, 6))
+            return Pace(if (n == 0) q else (p90 + (q - p90) * w).toInt(), minOf(n + ps.size, 1000))
+        }
+        fun save() = "$p90,$n"
+        companion object {
+            fun parse(s: String?): Pace = s?.split(",")?.mapNotNull { it.trim().toIntOrNull() }?.takeIf { it.size == 2 }?.let { Pace(it[0], it[1]) } ?: Pace()
+        }
+    }
+
+    /**
+     * What a speech model wrote down, with how sure it was. [language]: the language it heard (ISO 639-1) if it said.
+     * [unsure]: the model's own scores say it may have misheard (Whisper's average log-probability is low, its
+     * text repeats itself, or it thinks there was no speech), so Atlas checks before acting rather than guessing.
+     */
+    class Transcript(val text: String, val language: String? = null, val unsure: Boolean = false)
+
+    /** Reads Whisper's verbose_json (Groq) or gpt-transcribe's json (OpenAI: "languages": [{"code": …}]). */
+    fun heardFrom(json: String): Transcript {
+        val o = org.json.JSONObject(json)
+        val text = o.optString("text").trim()
+        var lang: String? = o.optString("language").trim().takeIf { it.isNotEmpty() }
+        if (lang == null) lang = o.optJSONArray("languages")?.optJSONObject(0)?.optString("code")?.trim()?.takeIf { it.isNotEmpty() }
+        val segs = o.optJSONArray("segments")
+        var unsure = false
+        if (segs != null && segs.length() > 0) {
+            var weight = 0.0; var lp = 0.0; var rep = false; var silent = true
+            for (i in 0 until segs.length()) {
+                val g = segs.optJSONObject(i) ?: continue
+                val d = (g.optDouble("end", 0.0) - g.optDouble("start", 0.0)).coerceAtLeast(0.1)
+                weight += d; lp += d * g.optDouble("avg_logprob", 0.0)
+                if (g.optDouble("compression_ratio", 1.0) > 2.4) rep = true
+                if (g.optDouble("no_speech_prob", 0.0) < 0.6) silent = false
+            }
+            unsure = (weight > 0 && lp / weight < -0.7) || rep || silent
+        }
+        return Transcript(text, isoName(lang), unsure)
+    }
+
+    /** "english" / "en" / "en-GB" → "en"; unknown → null. Whisper names the language in words, gpt-transcribe by code. */
+    fun isoName(lang: String?): String? {
+        val l = lang?.trim()?.lowercase() ?: return null
+        if (Regex("^[a-z]{2}([-_][a-z]{2,4})?$").matches(l)) return l.take(2)
+        return LANG_NAMES[l]
+    }
+    private val LANG_NAMES = mapOf("english" to "en", "french" to "fr", "spanish" to "es", "portuguese" to "pt", "arabic" to "ar", "hausa" to "ha",
+        "yoruba" to "yo", "igbo" to "ig", "german" to "de", "italian" to "it", "dutch" to "nl", "chinese" to "zh", "japanese" to "ja", "korean" to "ko",
+        "hindi" to "hi", "russian" to "ru", "turkish" to "tr", "swahili" to "sw", "polish" to "pl", "ukrainian" to "uk", "urdu" to "ur", "bengali" to "bn",
+        "indonesian" to "id", "vietnamese" to "vi", "thai" to "th", "persian" to "fa", "hebrew" to "he", "greek" to "el", "swedish" to "sv", "tagalog" to "tl")
+
+    /**
+     * Words from "Teach Atlas Your Voice": those in the phrase that the speech model didn't write down as said, so
+     * they're given to it as words to expect from then on. Compared without case or punctuation.
+     */
+    fun missedWords(expected: String, heard: String): List<String> {
+        fun words(s: String) = s.split(Regex("""[^\p{L}\p{N}']+""")).filter { it.isNotBlank() }
+        val got = words(heard).map { it.lowercase() }.toSet()
+        return words(expected).filter { it.length >= 3 && it.lowercase() !in got }.distinct()
+    }
+
+    /**
+     * What to read aloud in "Teach Atlas Your Voice": everyday requests with numbers, times, names and a natural pause,
+     * using the user's own name and up to two of the words they've told Atlas to know.
+     */
+    fun teachPhrases(name: String, words: List<String>): List<String> {
+        val who = words.getOrNull(0)?.takeIf { it.isNotBlank() } ?: "Tunde"
+        val what = words.getOrNull(1)?.takeIf { it.isNotBlank() }
+        val me = name.trim().split(" ").firstOrNull()?.takeIf { it.length >= 2 }
+        return listOfNotNull(
+            "Hey Atlas, what's on my calendar for tomorrow morning?",
+            "Set a reminder for half past six to call my sister.",
+            "Send a message to $who saying I'll be about ten minutes late.",
+            what?.let { "Remind me about $it on Friday at four." },
+            "What's the weather going to be like this weekend? And will it rain on Sunday?",
+            "Play something relaxing, and turn the volume down a little.",
+            me?.let { "My name is $it, and I'd like you to keep my answers short." },
+        )
+    }
+
+    /** The names in a teaching phrase that weren't heard as said (capitalised words after the first), to expect from then on. */
+    fun missedNames(phrase: String, heard: String): List<String> {
+        val first = phrase.split(Regex("""[^\p{L}\p{N}']+""")).firstOrNull { it.isNotBlank() }
+        return missedWords(phrase, heard).filter { it[0].isUpperCase() && it != first && it != "Atlas" && it != "I'd" && it != "I'll" }
+    }
+
+    /** Joins word lists for the speech model's hint: in order, no repeats (any case), at most [max] words and [chars] characters. */
+    fun hintOf(groups: List<List<String>>, max: Int = 50, chars: Int = 700): String {
+        val out = LinkedHashMap<String, String>()
+        for (g in groups) for (w in g) { val t = w.trim(); if (t.isNotEmpty() && t.length <= 40) out.putIfAbsent(t.lowercase(), t) }
+        val sb = StringBuilder()
+        for ((i, w) in out.values.withIndex()) {
+            if (i >= max || sb.length + w.length + 2 > chars) break
+            if (sb.isNotEmpty()) sb.append(", "); sb.append(w)
+        }
+        return sb.toString()
     }
 
     /** Loudness (0..1) of 16-bit samples. */
@@ -159,7 +296,6 @@ object Speech {
 
     // ---------------------------------------------------------------- talking while Atlas works
 
-    /** What something said while Atlas is working means. */
     /**
      * How Atlas answers a spoken request (one line of its instructions; the PC's speech.js has the same words): short,
      * in the language the user spoke, the composed butler's manner, and a question instead of a guess when it didn't
@@ -176,6 +312,12 @@ object Speech {
         "and if it still could mean two different things that matter, ask one short question (\"Tunde or Tunji?\") instead of guessing." +
         (if (sir) " Address the user as \"sir\" now and then: at most once in a reply, and not in every reply." else "")
 
+    /** What the speech model noticed about this request, for Atlas's instructions ("" when nothing to add). */
+    fun heardNote(language: String?, unsure: Boolean): String =
+        (if (language != null && language != "en") " The speech model heard this in the language with code \"$language\"; reply in it." else "") +
+        (if (unsure) " The speech model was unsure of these words: if the request doesn't make clear sense, or a name or number in it could be misheard and matters, ask in one short question before acting." else "")
+
+    /** What something said while Atlas is working means. */
     enum class WhileWorking { STOP, END_TALK, PASS_ON }
 
     private val STOP_WORK = Regex("""^(please[, ]+)?(stop( it| that| now| everything| working)?|cancel( it| that)?|abort|halt|hold on,? stop|wait,? stop|don'?t do (it|that)|never ?mind,? stop)([, ]+(please|atlas|now))*$""", RegexOption.IGNORE_CASE)

@@ -52,3 +52,29 @@ test('PCM in, PCM out', () => {
   x.forEach((v, i) => dv.setInt16(2 * i, Math.round(v * 32767), true));
   const out = applyPcm(b, fs); assert.equal(out.length, b.length + 2 * Math.floor(TAIL_S * fs)); assert.ok(out.some((v) => v !== 0));
 });
+
+// hearing everyone well: the same rules as the phone's Speech.kt (SpeechTest)
+import { Endpointer, Pace, heardFrom, heardNote, minVoiceFor, manner } from '../renderer/speech.js';
+const feed = (ep, steps) => { let v = 'going'; for (const [lvl, ms] of steps) for (let i = 0; i < ms / 20; i++) if (v === 'going') v = ep.feed(lvl); return v; };
+test('a stammer or false start gets more time, and pauses are kept', () => {
+  const ep = new Endpointer();
+  assert.equal(feed(ep, [[0.003, 300], [0.08, 500], [0.003, 1500]]), 'going'); assert.ok(ep.pausing);
+  assert.equal(feed(ep, [[0.08, 1500]]), 'going'); assert.equal(feed(ep, [[0.003, 1400]]), 'done');
+  assert.deepEqual(ep.pauses, [1500]);
+});
+test('pace is learned like on the phone', () => {
+  let p = new Pace(); for (let i = 0; i < 5; i++) p = p.learn([300, 400, 500, 1200]);
+  assert.equal(p.p90, 1200); assert.equal(p.endSilenceMs(), 2100); assert.equal(p.endSilenceMs(true), 3360);
+  assert.equal(new Pace().endSilenceMs(), 1300); assert.equal(Pace.parse(p.save()).save(), p.save());
+});
+test('a soft voice is heard once learned', () => {
+  assert.equal(feed(new Endpointer(), [[0.002, 300], [0.01, 1500], [0.002, 6000]]), 'nothing');
+  assert.equal(feed(new Endpointer({ minVoice: minVoiceFor(0.03) }), [[0.002, 300], [0.01, 1500], [0.002, 1500]]), 'done');
+});
+test('transcript language and confidence; the note and manner', () => {
+  const m = heardFrom({ text: 'call tundy', language: 'english', segments: [{ start: 0, end: 1, avg_logprob: -1.1, compression_ratio: 1, no_speech_prob: 0.1 }] });
+  assert.equal(m.language, 'en'); assert.ok(m.unsure);
+  assert.equal(heardFrom({ text: 'Bonjour', languages: [{ code: 'fr' }] }).language, 'fr');
+  assert.equal(heardNote('en', false), ''); assert.ok(heardNote('yo', true).includes('"yo"'));
+  assert.ok(manner(true).includes('"sir" now and then') && !manner(false).includes('"sir"'));
+});

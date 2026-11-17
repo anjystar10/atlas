@@ -251,8 +251,9 @@ class VoiceInput(
             .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, ctx.packageName)
             // a pause for breath shouldn't end the sentence (phones that honour these wait a little longer)
-            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
-            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            // (as long as this person needs: their learned pace, or longer with "Give Me Time to Finish")
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, maxOf(1500L, Hear.endSilenceMs(ctx).toLong()))
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, maxOf(1500L, Hear.endSilenceMs(ctx).toLong()))
         Hear.language(ctx)?.let { i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, it) }
         try {
             r.startListening(i)

@@ -37,6 +37,81 @@ class SpeechTest {
         assertEquals(Speech.Heard.DONE, run(ep, listOf(0.02f to 600, 0.15f to 1000, 0.02f to 1600)))
     }
 
+    @Test fun aStammerOrFalseStartGetsMoreTime() {
+        // "I… I want": a short fragment, then a pause longer than the usual end: still listening
+        val ep = Speech.Endpointer()
+        assertEquals(Speech.Heard.GOING, run(ep, listOf(0.003f to 300, 0.08f to 500, 0.003f to 1500)))
+        assertTrue(ep.pausing)
+        assertEquals(Speech.Heard.GOING, run(ep, listOf(0.08f to 1500)))   // and carries on
+        assertEquals(Speech.Heard.DONE, run(ep, listOf(0.003f to 1400)))
+        assertEquals(listOf(1500), ep.pauses)
+    }
+
+    @Test fun aLongerEndForASlowSpeakerOrWhenAsked() {
+        val ep = Speech.Endpointer(endSilenceMs = 2400)
+        assertEquals(Speech.Heard.GOING, run(ep, listOf(0.003f to 300, 0.08f to 1500, 0.003f to 2000)))
+        assertEquals(Speech.Heard.DONE, run(ep, listOf(0.003f to 500)))
+    }
+
+    @Test fun aSoftVoiceIsHeardOnceLearned() {
+        // a soft speaker (0.01) in a quiet room: missed at the usual threshold, heard with theirs
+        assertEquals(Speech.Heard.NOTHING, run(Speech.Endpointer(), listOf(0.002f to 300, 0.01f to 1500, 0.002f to 6000)))
+        assertEquals(Speech.Heard.DONE, run(Speech.Endpointer(minVoice = Speech.minVoiceFor(0.03f)), listOf(0.002f to 300, 0.01f to 1500, 0.002f to 1500)))
+        assertEquals(0.012f, Speech.minVoiceFor(null), 0f); assertEquals(0.006f, Speech.minVoiceFor(0.001f), 0f); assertEquals(0.012f, Speech.minVoiceFor(0.5f), 0f)
+    }
+
+    @Test fun paceIsLearnedFromPauses() {
+        assertEquals(1300, Speech.Pace().endSilenceMs())                      // nothing learned yet: the default
+        var p = Speech.Pace()
+        repeat(5) { p = p.learn(listOf(300, 400, 500, 1200)) }               // someone who takes long pauses
+        assertTrue(p.n >= 8)
+        assertEquals(1200, p.p90)
+        assertEquals(2100, p.endSilenceMs())                                  // 1200 × 1.5 + 300
+        assertEquals(3360, p.endSilenceMs(patient = true))
+        var q = Speech.Pace()
+        repeat(5) { q = q.learn(listOf(250, 300, 300, 350)) }                 // a brisk speaker
+        assertEquals(1100, q.endSilenceMs())
+        assertEquals(2800, Speech.Pace(5000, 50).endSilenceMs())              // never longer than this unless asked
+        assertEquals(p.save(), Speech.Pace.parse(p.save()).save())
+        assertEquals(0, Speech.Pace.parse("junk").n)
+        assertEquals(p.n, p.learn(listOf(50, 9000)).n)                        // clicks and long silences aren't pauses
+    }
+
+    @Test fun transcriptLanguageAndConfidence() {
+        val sure = Speech.heardFrom("""{"text":" Set a reminder for six ","language":"english","segments":[{"start":0,"end":2.1,"avg_logprob":-0.18,"compression_ratio":1.1,"no_speech_prob":0.01}]}""")
+        assertEquals("Set a reminder for six", sure.text); assertEquals("en", sure.language); assertFalse(sure.unsure)
+        val mumble = Speech.heardFrom("""{"text":"call tundy","language":"en","segments":[{"start":0,"end":1.0,"avg_logprob":-1.1,"compression_ratio":1.0,"no_speech_prob":0.1}]}""")
+        assertTrue(mumble.unsure)
+        val loop = Speech.heardFrom("""{"text":"the the the the","segments":[{"start":0,"end":3,"avg_logprob":-0.2,"compression_ratio":3.1,"no_speech_prob":0.1}]}""")
+        assertTrue(loop.unsure)
+        val openAi = Speech.heardFrom("""{"text":"Bonjour, quelle heure est-il ?","languages":[{"code":"fr"}]}""")
+        assertEquals("fr", openAi.language); assertFalse(openAi.unsure)
+        assertNull(Speech.heardFrom("""{"text":"hi"}""").language)
+        assertEquals("yo", Speech.isoName("Yoruba")); assertEquals("en", Speech.isoName("en-GB")); assertNull(Speech.isoName("klingon"))
+    }
+
+    @Test fun heardNoteOnlyWhenItMatters() {
+        assertEquals("", Speech.heardNote(null, false))
+        assertEquals("", Speech.heardNote("en", false))
+        assertTrue(Speech.heardNote("yo", false).contains("\"yo\""))
+        assertTrue(Speech.heardNote("en", true).contains("ask in one short question"))
+    }
+
+    @Test fun teachingPhrasesUseTheUsersOwnWords() {
+        val p = Speech.teachPhrases("Anjy Star", listOf("Chidinma", "the Ikeja invoice"))
+        assertTrue(p.any { it.contains("Chidinma") }); assertTrue(p.any { it.contains("the Ikeja invoice") }); assertTrue(p.any { it.contains("Anjy,") })
+        assertEquals(5, Speech.teachPhrases("", emptyList()).size)
+        assertEquals(listOf("Chidinma"), Speech.missedNames("Send a message to Chidinma saying I'll be late.", "send a message to chidi nma saying i'll be late"))
+        assertEquals(emptyList<String>(), Speech.missedNames("Hey Atlas, what's on my calendar?", "hey at last what's on my calendar"))
+    }
+
+    @Test fun enrolmentFindsTheWordsToExpect() {
+        assertEquals(listOf("Tunde", "Ikorodu"), Speech.missedWords("Call Tunde about the Ikorodu trip.", "call tundy about the ecorodo trip"))
+        assertEquals(emptyList<String>(), Speech.missedWords("What's the weather today?", "what's the weather today"))
+        assertEquals("Atlas, Tunde, Ada", Speech.hintOf(listOf(listOf("Atlas", "Tunde"), listOf("tunde", "Ada", " "))))
+        assertEquals("a1, a2", Speech.hintOf(listOf((1..10).map { "a$it" }), max = 2))
+    }
+
     @Test fun sentencesKeepAbbreviationsAndNumbers() {
         assertEquals(listOf("Dr. Ade is at 3.5 km.", "Is that fine?", "Good!"), Speech.sentences("Dr. Ade is at 3.5 km. Is that fine? Good!"))
     }

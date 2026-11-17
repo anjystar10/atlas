@@ -37,6 +37,37 @@ object Hear {
     fun handsFree(ctx: Context) = !Store.getFlag(ctx, "no_hands_free")
     fun setHandsFree(ctx: Context, on: Boolean) = Store.setFlag(ctx, "no_hands_free", !on)
 
+    /** How this person paces their speech, learned as they talk (see [Speech.Pace]). */
+    fun pace(ctx: Context) = Speech.Pace.parse(Store.getString(ctx, "hear_pace"))
+    private fun learnPace(ctx: Context, pauses: List<Int>) { if (pauses.isNotEmpty()) Store.putString(ctx, "hear_pace", pace(ctx).learn(pauses).save()) }
+    /** "Give Me Time to Finish": a much longer pause is allowed before Atlas takes it that you've finished. */
+    fun patient(ctx: Context) = Store.getFlag(ctx, "hear_patient")
+    fun setPatient(ctx: Context, on: Boolean) = Store.setFlag(ctx, "hear_patient", on)
+    /** How loud this person's voice usually is (mean rms of voiced frames), learned as they talk; null until it's known. */
+    fun voiceLevel(ctx: Context): Float? = Store.getString(ctx, "hear_level")?.split(",")?.mapNotNull { it.toFloatOrNull() }?.takeIf { it.size == 2 && it[1] >= 3 }?.get(0)
+    private fun learnLevel(ctx: Context, level: Float) {
+        if (level <= 0f) return
+        val (l, n) = Store.getString(ctx, "hear_level")?.split(",")?.mapNotNull { it.toFloatOrNull() }?.takeIf { it.size == 2 }?.let { it[0] to it[1] } ?: (0f to 0f)
+        val w = 1f / (minOf(n, 20f) + 1f)
+        Store.putString(ctx, "hear_level", "${l + (level - l) * w},${n + 1}")
+    }
+    /** The silence that ends what you say, for this person now (ms). */
+    fun endSilenceMs(ctx: Context) = pace(ctx).endSilenceMs(patient(ctx))
+
+    /** Words taught in "Teach Atlas Your Voice" (and added there by hand): always given to the speech model to expect. */
+    fun taughtWords(ctx: Context): List<String> = (Store.getString(ctx, "hear_words") ?: "").split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+    fun setTaughtWords(ctx: Context, words: List<String>) = Store.putString(ctx, "hear_words", words.map { it.trim() }.filter { it.isNotEmpty() }.distinctBy { it.lowercase() }.take(60).joinToString("\n"))
+
+    /**
+     * What the last thing heard was like: its language (ISO 639-1, from the speech model) and whether the model was
+     * unsure of it. Atlas's instructions take these in, so it answers in that language and checks rather than guesses.
+     */
+    @Volatile var lastLanguage: String? = null; private set
+    @Volatile var lastUnsure = false; private set
+    @Volatile private var lastAt = 0L
+    /** [lastUnsure] for a request made just now (within a minute), else false. */
+    fun unsureNow() = lastUnsure && System.currentTimeMillis() - lastAt < 60_000
+
     /** "auto": a speech model when there's a key for one; "phone": always the phone's own recognition. */
     fun mode(ctx: Context) = if (Store.getString(ctx, "hearing") == "phone") "phone" else "auto"
     fun setMode(ctx: Context, v: String) = Store.putString(ctx, "hearing", if (v.contains("phone", true)) "phone" else "auto")
@@ -87,16 +118,35 @@ object Hear {
         }.start()
     }
 
-    /** Names and words Atlas should expect to hear, so they're spelled right: "Atlas", your name, names from your Log. */
+    /**
+     * Names and words Atlas should expect to hear, so they're spelled right: "Atlas", your name, the words you taught
+     * it, your favourite contacts' names, names from your Log. Whisper reads at most 224 tokens of it, so it's kept short.
+     */
     fun hint(ctx: Context): String = try {
-        val words = LinkedHashSet<String>()
-        words.add("Atlas")
+        val own = mutableListOf("Atlas")
+        val log = mutableListOf<String>()
         Store.read(ctx) { st ->
-            st.settings.name.trim().takeIf { it.isNotEmpty() }?.let { words.add(it) }
-            (st.memories.takeLast(40).map { it.text } + st.tasks.takeLast(40).map { it.title }).forEach { words.addAll(names(it)) }
+            st.settings.name.trim().takeIf { it.isNotEmpty() }?.let { own.add(it) }
+            (st.memories.takeLast(40).map { it.text } + st.tasks.takeLast(40).map { it.title }).forEach { log.addAll(names(it)) }
         }
-        words.take(40).joinToString(", ")
+        Speech.hintOf(listOf(own, taughtWords(ctx), contactNames(ctx), log), chars = 500)
     } catch (e: Exception) { "Atlas" }
+
+    @Volatile private var contactsCache: Pair<Long, List<String>>? = null
+    /** First names of the people starred in the phone's contacts (only with the contacts permission); kept for ten minutes. */
+    private fun contactNames(ctx: Context): List<String> {
+        contactsCache?.let { (at, l) -> if (System.currentTimeMillis() - at < 600_000L) return l }
+        val out = LinkedHashSet<String>()
+        try {
+            if (ctx.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                ctx.contentResolver.query(android.provider.ContactsContract.Contacts.CONTENT_URI, arrayOf(android.provider.ContactsContract.Contacts.DISPLAY_NAME_PRIMARY),
+                    "${android.provider.ContactsContract.Contacts.STARRED} = 1", null, "${android.provider.ContactsContract.Contacts.DISPLAY_NAME_PRIMARY} ASC")?.use { c ->
+                    while (c.moveToNext() && out.size < 15) c.getString(0)?.trim()?.split(" ")?.firstOrNull()?.takeIf { it.length >= 2 && it.first().isLetter() }?.let { out.add(it) }
+                }
+            }
+        } catch (e: Exception) { Log.w(TAG, "contacts for hearing", e) }
+        return out.toList().also { contactsCache = System.currentTimeMillis() to it }
+    }
 
     /** Capitalised words that aren't just the start of a sentence: likely names. */
     internal fun names(text: String): List<String> {
@@ -111,24 +161,33 @@ object Hear {
         return out
     }
 
-    /** [wav] written down by the first speech model that manages it. Throws when none can. */
-    fun transcribe(ctx: Context, wav: ByteArray, hint: String): String {
+    /**
+     * [wav] written down by the first speech model that manages it. When that model says it's unsure (an accent, a
+     * stammer, a noisy room), the next one there's a key for listens too and the sure one is kept; if both are unsure
+     * the answer is marked so Atlas checks with you. Throws when none can.
+     */
+    fun transcribe(ctx: Context, wav: ByteArray, hint: String): Speech.Transcript {
         var last: Exception? = null
+        var unsure: Speech.Transcript? = null
         for ((id, key) in engines(ctx)) {
             try {
                 val t = when (id) {
-                    "groq" -> whisper("https://api.groq.com/openai/v1/audio/transcriptions", key, "whisper-large-v3-turbo", wav, hint, language(ctx), "Groq")
-                    "openai" -> openAi(key, wav, hint, language(ctx))
-                    else -> gemini(ctx, key, wav, hint)
+                    // the full large-v3 (Groq: 10.3% word error rate against 12% for turbo), with its scores and the language it heard
+                    "groq" -> Speech.heardFrom(whisper("https://api.groq.com/openai/v1/audio/transcriptions", key, "whisper-large-v3", wav, hint, language(ctx), "Groq", verbose = true))
+                    "openai" -> Speech.heardFrom(openAi(key, wav, hint, language(ctx)))
+                    else -> Speech.Transcript(gemini(ctx, key, wav, hint))
                 }
                 Providers.worked(ctx, id, key)
-                return t
+                if (!t.unsure || t.text.isBlank()) return if (t.text.isBlank() && unsure != null) unsure else t
+                if (unsure == null) { unsure = t; continue }   // a second opinion
+                return unsure
             } catch (e: Gemini.Failure) {
                 Log.w(TAG, "$id couldn't transcribe: ${e.message}")
                 if (Providers.keyExhausted(e)) Providers.rest(ctx, id, key, e.code, e.message ?: "")
                 last = e
             } catch (e: Exception) { Log.w(TAG, "$id couldn't transcribe", e); last = e }
         }
+        unsure?.let { return it }
         throw last ?: IllegalStateException("no speech model has a key")
     }
 
@@ -158,11 +217,11 @@ object Hear {
      * The OpenAI-style transcription endpoint (OpenAI, Groq): a multipart form with the sound file. [newer]: OpenAI's
      * gpt-transcribe, which takes the expected names as `keywords` and the language as `languages` (a list).
      */
-    private fun whisper(url: String, key: String, model: String, wav: ByteArray, hint: String, lang: String?, service: String, newer: Boolean = false): String {
+    private fun whisper(url: String, key: String, model: String, wav: ByteArray, hint: String, lang: String?, service: String, newer: Boolean = false, verbose: Boolean = false): String {
         val boundary = "atlas" + System.nanoTime()
         val out = ByteArrayOutputStream()
         fun field(name: String, value: String) = out.write("--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n".toByteArray())
-        field("model", model); field("response_format", "json")
+        field("model", model); field("response_format", if (verbose) "verbose_json" else "json")
         if (!newer) field("temperature", "0")
         if (hint.isNotBlank()) field("prompt", hint)
         if (newer) {
@@ -178,7 +237,7 @@ object Hear {
             con.setFixedLengthStreamingMode(out.size())
             val code = try { con.outputStream.use { out.writeTo(it) }; con.responseCode } catch (e: java.io.IOException) { throw Gemini.Failure("Couldn't reach $service.", offline = true) }
             if (code !in 200..299) throw Gemini.Failure(Providers.explain("$service hearing", code, con.errorStream?.use { String(it.readBytes()) } ?: ""), code = code)
-            return JSONObject(con.inputStream.use { String(it.readBytes()) }).optString("text").trim()
+            return con.inputStream.use { String(it.readBytes()) }   // the whole answer: [Speech.heardFrom] reads it
         } finally { con.disconnect() }
     }
 
@@ -231,7 +290,8 @@ object Hear {
             var rec: AudioRecord? = null
             var ns: NoiseSuppressor? = null; var agc: AutomaticGainControl? = null
             val pcm = ByteArrayOutputStream()
-            val ep = Speech.Endpointer()
+            val ep = Speech.Endpointer(endSilenceMs = endSilenceMs(ctx), minVoice = Speech.minVoiceFor(voiceLevel(ctx)))
+            var cued = false
             var verdict = Speech.Heard.GOING
             var usedTail = false
             // after "Hey Atlas": the wake listener kept what was said after the phrase until it let go of the
@@ -286,6 +346,8 @@ object Hear {
                     pcm.write(bytes)
                     val level = Speech.rms(buf)
                     verdict = ep.feed(level)
+                    // a long pause mid-sentence: show that Atlas is still listening, so there's no rush
+                    if (ep.pausing != cued) { cued = ep.pausing; val c = cued; toMain { onPartial(if (c) "Still listening…" else "Listening…") } }
                     val l = (level * 9f).coerceIn(0f, 1f); shown += (l - shown) * 0.5f
                     val s = shown; toMain { onLevel(s) }
                 }
@@ -308,8 +370,13 @@ object Hear {
             toMain { onPartial("…") }
             val hint = hint(ctx)
             try {
-                var text = Speech.fixHeard(transcribe(ctx, wav, hint), ep.speechMs, hint)
+                val heard = transcribe(ctx, wav, hint)
+                var text = Speech.fixHeard(heard.text, ep.speechMs, hint)
                 if (usedTail) text = Speech.dropWakeLeftover(text)
+                if (text.isNotBlank()) {
+                    learnPace(ctx, ep.pauses.toList()); learnLevel(ctx, ep.voiceLevel)
+                    lastLanguage = heard.language ?: iso(language(ctx)); lastUnsure = heard.unsure; lastAt = System.currentTimeMillis()
+                }
                 toMain { onDone(text.ifBlank { null }) }
             } catch (e: Exception) {
                 cloudDownUntil = System.currentTimeMillis() + 10 * 60_000L

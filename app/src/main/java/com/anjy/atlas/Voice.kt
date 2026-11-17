@@ -458,6 +458,7 @@ object Voice {
      * can't make files, or makes a kind the finish can't read, it simply speaks the rest as it is.
      */
     private fun sayFinished(ctx: Context, text: String, mine: Int, onDone: (() -> Unit)?) {
+        phoneLanguage(ctx)
         val t = tts ?: run { sayPlain(ctx, text, mine, onDone); return }
         val app = ctx.applicationContext
         val parts = Speech.chunks(text)
@@ -509,8 +510,22 @@ object Voice {
         synth(0)
     }
 
+    /** The language the phone's voice is set to (null: its best English voice, see [pickVoice]). */
+    private var phoneLang: String? = null
+    /** The phone's voice speaks the language the user last spoke in, when the phone has that language; else English. */
+    private fun phoneLanguage(ctx: Context) {
+        val t = tts ?: return
+        val want = Hear.lastLanguage?.takeIf { it != "en" }
+        if (want == phoneLang) return
+        try {
+            if (want != null && t.isLanguageAvailable(Locale(want)) >= TextToSpeech.LANG_AVAILABLE) { t.setLanguage(Locale(want)); phoneLang = want }
+            else if (phoneLang != null) { phoneLang = null; pickVoice(ctx) }
+        } catch (e: Exception) { Log.w(TAG, "phone voice language", e) }
+    }
+
     /** The phone's voice takes a limited length at a time, so a long reply is queued in pieces; [onDone] follows the last. */
     private fun sayPlain(ctx: Context, text: String, mine: Int, onDone: (() -> Unit)?) {
+        phoneLanguage(ctx)
         val t = tts
         val fail = { speaking = false; onDone?.let { main.post { if (mine == gen) it() } }; Unit }
         if (t == null) { fail(); return }

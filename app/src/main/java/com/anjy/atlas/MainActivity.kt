@@ -1621,6 +1621,50 @@ class MainActivity : Activity() {
         vi.start()
     }
 
+    /**
+     * "Teach Atlas Your Voice": a few phrases read aloud, one at a time. Each reading teaches Atlas your pace and
+     * how loud you speak (as every request does, see [Hear]); the names it didn't write down as said become words to
+     * expect. Nothing leaves the phone except the readings themselves, written down by the same speech model as always.
+     */
+    private fun teachVoice(step: Int = 0, learned: MutableList<String> = mutableListOf()) {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC); return
+        }
+        val phrases = Speech.teachPhrases(Store.read(this) { it.settings.name }, Hear.taughtWords(this))
+        if (step >= phrases.size) {
+            if (learned.isNotEmpty()) Hear.setTaughtWords(this, Hear.taughtWords(this) + learned)
+            sheet(null, "Thank You", (if (learned.isEmpty()) "Atlas heard every name as you said it." else "Atlas will now expect: ${learned.joinToString(", ")}.") +
+                " It waits ${"%.1f".format(Hear.endSilenceMs(this) / 1000f)} s of quiet before it takes it you've finished, and keeps learning as you talk.")
+            if (tab == 2) render(keepScroll = true)
+            return
+        }
+        Conversation.hush(); Voice.hush()
+        AvatarService.holdMic(this, true)
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        val orb = OrbView(this).apply { energy = 1f; still = Prefs.reduceMotion(this@MainActivity) }
+        col.addView(orb, LinearLayout.LayoutParams(dp(120), dp(120)))
+        col.add(text("“${phrases[step]}”", 19f, FG, MED).apply { gravity = Gravity.CENTER }, 10)
+        val heard = text("Listening…", 14f, MUTED).apply { gravity = Gravity.CENTER; minLines = 2 }
+        col.add(heard, 10)
+        var over = false
+        var close: () -> Unit = {}
+        val vi = Hear.open(this,
+            onPartial = { t -> heard.text = t },
+            onLevel = { l -> orb.level = l },
+            onDone = { t ->
+                if (over) return@open
+                over = true; AvatarService.holdMic(this, false); close()
+                if (t.isNullOrBlank()) { showBanner("I didn't hear that one. Let's try it again.", MUTED); body.postDelayed({ teachVoice(step, learned) }, 700); return@open }
+                Speech.missedNames(phrases[step], t).forEach { w -> if (learned.none { it.equals(w, true) }) learned.add(w) }
+                body.postDelayed({ teachVoice(step + 1, learned) }, 500)
+            },
+            onError = { msg -> if (!over) { over = true; AvatarService.holdMic(this, false); close(); showBanner(msg, MUTED) } })
+        close = sheet(null, "Teach Atlas Your Voice · ${step + 1} of ${phrases.size}", "Read this aloud the way you'd normally say it. Take your time.", content = col,
+            primaryLabel = "Done", onPrimary = { keepSheet = true; heard.text = "One moment…"; vi.finish() },
+            secondaryLabel = "Stop", onSecondary = { if (!over) { over = true; vi.cancel(); AvatarService.holdMic(this, false) } })
+        vi.start()
+    }
+
     private fun stopVoice() {
         voiceInput?.cancel(); voiceInput = null
         closeVoiceSheet?.invoke(); closeVoiceSheet = null
@@ -2193,7 +2237,20 @@ class MainActivity : Activity() {
         vc.add(text("Now: ${Hear.describe(this)}.", 13f, MUTED), 6)
         vc.add(text("Language You Speak", 16f, FG, MED), 14)
         vc.add(chipGroup(Hear.LANGUAGES, { it == (Hear.language(this) ?: "auto") }) { Hear.setLanguage(this, it); render(keepScroll = true) }, 8)
-        vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.", 13f, MUTED), 6)
+        vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out (Atlas then answers in the language you speak).", 13f, MUTED), 6)
+        // hearing everyone well: time to finish, the words to expect, and a short reading to learn your voice
+        vc.add(switchRow(null, "Give Me Time to Finish", Hear.patient(this)) { on -> Hear.setPatient(this, on) }, 14)
+        vc.add(text("Atlas waits much longer through pauses before it takes it you've finished: for a stammer, a slow or careful way of speaking, or thinking mid-sentence. It also learns your usual pace by itself (now it waits ${"%.1f".format(Hear.endSilenceMs(this) / 1000f)} s).", 13f, MUTED), 6)
+        val taught = Hear.taughtWords(this)
+        vc.add(settingRow("Words Atlas Should Know", if (taught.isEmpty()) "Names, places, words you use" else taught.take(4).joinToString(", ") + if (taught.size > 4) " and ${taught.size - 4} more" else "") {
+            var v = taught.joinToString("\n")
+            sheet(null, "Words Atlas Should Know", "One per line: people's names, places, brands, words from your work. The speech model is told to expect them, so they're written down right.",
+                content = field("e.g. Chidinma", v, multi = true) { v = it }, primaryLabel = "Save", onPrimary = {
+                    Hear.setTaughtWords(this, v.split("\n")); render(keepScroll = true)
+                }, secondaryLabel = "Cancel")
+        }, 10)
+        vc.add(secondary("Teach Atlas Your Voice") { teachVoice() }, 10)
+        vc.add(text("Read ${Speech.teachPhrases(st.name, taught).size} short phrases aloud (about a minute). Atlas learns your pace and how loud you speak, and the names it mishears become words it expects. It all stays on this phone.", 13f, MUTED), 6)
         body.add(vc, 8)
 
         // >>> email (EmailUi.kt)

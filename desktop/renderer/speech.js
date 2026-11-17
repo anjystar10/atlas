@@ -9,10 +9,13 @@ export const FRAME_MS = 20;
  * waits for a real pause before finishing.
  */
 export class Endpointer {
-  constructor({ endSilenceMs = 1300, noSpeechMs = 7000, maxMs = 60000 } = {}) {
-    Object.assign(this, { endSilenceMs, noSpeechMs, maxMs, frames: 0, floor: -1, recent: 0, speaking: false, speechMs: 0, startFrame: -1, quietMs: 0 });
+  constructor({ endSilenceMs = 1300, noSpeechMs = 7000, maxMs = 60000, minVoice = 0.012 } = {}) {
+    Object.assign(this, { endSilenceMs, noSpeechMs, maxMs, minVoice, frames: 0, floor: -1, recent: 0, speaking: false, speechMs: 0, startFrame: -1, quietMs: 0,
+      runMs: 0, lastRunMs: 0, pauses: [], voiceLevel: 0, voicedFrames: 0, pausing: false });
   }
-  get threshold() { return Math.max((this.floor < 0 ? 0.004 : this.floor) * 3, 0.012); }
+  get threshold() { return Math.max((this.floor < 0 ? 0.004 : this.floor) * 3, this.minVoice); }
+  /** Longer after a short false start or a stammered fragment, and after very little speech ("um"). */
+  get needMs() { return this.speechMs < 700 || (this.lastRunMs > 0 && this.lastRunMs < 350 && this.speechMs < 2500) ? Math.floor(this.endSilenceMs * 3 / 2) : this.endSilenceMs; }
   feed(rms) {
     this.frames++;
     if (this.floor < 0) this.floor = Math.min(rms, 0.02);
@@ -21,17 +24,71 @@ export class Endpointer {
     else if (!this.speaking && this.frames > 150 && this.speechMs === 0) this.floor += (Math.min(rms, 0.05) - this.floor) * 0.01;
     this.recent = ((this.recent << 1) | (loud ? 1 : 0)) & 0xff;
     let bits = 0; for (let b = this.recent; b; b >>= 1) bits += b & 1;
-    if (loud) this.quietMs = 0; else this.quietMs += FRAME_MS;
+    if (loud) {
+      if (this.speaking && this.quietMs >= 200) this.pauses.push(this.quietMs);
+      if (this.quietMs >= 200) this.runMs = 0;
+      this.quietMs = 0; this.runMs += FRAME_MS;
+    } else { if (this.quietMs === 0 && this.runMs > 0) this.lastRunMs = this.runMs; this.quietMs += FRAME_MS; }
     if (!this.speaking && bits >= 5) { this.speaking = true; if (this.startFrame < 0) this.startFrame = Math.max(0, this.frames - 8); }
-    if (this.speaking && loud) this.speechMs += FRAME_MS;
+    if (this.speaking && loud) { this.speechMs += FRAME_MS; this.voicedFrames++; this.voiceLevel += (rms - this.voiceLevel) / this.voicedFrames; }
+    this.pausing = this.speaking && this.speechMs >= 200 && this.quietMs >= 700 && this.quietMs < this.needMs;
     const ms = this.frames * FRAME_MS;
     if (ms >= this.maxMs) return this.speechMs > 0 ? 'done' : 'nothing';
-    if (this.speaking && this.speechMs >= 200 && this.quietMs >= this.endSilenceMs) return 'done';
-    if (this.speaking && this.speechMs < 200 && this.quietMs >= this.endSilenceMs) { this.speaking = false; this.speechMs = 0; this.startFrame = -1; return 'going'; }
+    if (this.speaking && this.speechMs >= 200 && this.quietMs >= this.needMs) return 'done';
+    if (this.speaking && this.speechMs < 200 && this.quietMs >= this.endSilenceMs) { this.speaking = false; this.speechMs = 0; this.startFrame = -1; this.pauses = []; return 'going'; }
     if (!this.speaking && this.speechMs === 0 && ms >= this.noSpeechMs) return 'nothing';
     return 'going';
   }
 }
+
+/** How this person pauses mid-sentence (the same rules as the phone's Speech.Pace): [p90] ms over [n] pauses. */
+export class Pace {
+  constructor(p90 = 0, n = 0) { this.p90 = p90; this.n = n; }
+  endSilenceMs(patient = false) {
+    const base = this.n < 8 ? 1300 : Math.min(2800, Math.max(1100, Math.trunc(this.p90 * 3 / 2) + 300));
+    return patient ? Math.min(4500, Math.max(2200, Math.trunc(base * 8 / 5))) : base;
+  }
+  learn(turn) {
+    const ps = turn.filter((p) => p >= 200 && p <= 4000).sort((a, b) => a - b);
+    if (!ps.length) return this;
+    const q = ps[Math.trunc((ps.length * 9 + 9) / 10) - 1];
+    const w = Math.min(ps.length, 6) / (Math.min(this.n, 60) + Math.min(ps.length, 6));
+    return new Pace(this.n === 0 ? q : Math.trunc(this.p90 + (q - this.p90) * w), Math.min(this.n + ps.length, 1000));
+  }
+  save() { return `${this.p90},${this.n}`; }
+  static parse(s) { const v = String(s || '').split(',').map((x) => parseInt(x.trim(), 10)); return v.length === 2 && v.every((x) => Number.isFinite(x)) ? new Pace(v[0], v[1]) : new Pace(); }
+}
+export const minVoiceFor = (level) => (!level || level <= 0 ? 0.012 : Math.min(0.012, Math.max(0.006, level / 4)));
+
+const LANG_NAMES = { english: 'en', french: 'fr', spanish: 'es', portuguese: 'pt', arabic: 'ar', hausa: 'ha', yoruba: 'yo', igbo: 'ig', german: 'de', italian: 'it', dutch: 'nl', chinese: 'zh', japanese: 'ja', korean: 'ko',
+  hindi: 'hi', russian: 'ru', turkish: 'tr', swahili: 'sw', polish: 'pl', ukrainian: 'uk', urdu: 'ur', bengali: 'bn', indonesian: 'id', vietnamese: 'vi', thai: 'th', persian: 'fa', hebrew: 'he', greek: 'el', swedish: 'sv', tagalog: 'tl' };
+export function isoName(lang) {
+  const l = String(lang || '').trim().toLowerCase(); if (!l) return null;
+  if (/^[a-z]{2}([-_][a-z]{2,4})?$/.test(l)) return l.slice(0, 2);
+  return LANG_NAMES[l] || null;
+}
+/** What a speech model wrote down, its language and whether it was unsure (the same rules as the phone's Speech.heardFrom). */
+export function heardFrom(json) {
+  const o = typeof json === 'string' ? JSON.parse(json) : json;
+  const text = String(o.text || '').trim();
+  let lang = String(o.language || '').trim() || ((o.languages || [])[0] || {}).code || null;
+  let unsure = false;
+  const segs = Array.isArray(o.segments) ? o.segments : [];
+  if (segs.length) {
+    let weight = 0, lp = 0, rep = false, silent = true;
+    for (const g of segs) {
+      const d = Math.max(0.1, (g.end || 0) - (g.start || 0)); weight += d; lp += d * (g.avg_logprob || 0);
+      if ((g.compression_ratio ?? 1) > 2.4) rep = true;
+      if ((g.no_speech_prob ?? 0) < 0.6) silent = false;
+    }
+    unsure = (weight > 0 && lp / weight < -0.7) || rep || silent;
+  }
+  return { text, language: isoName(lang), unsure };
+}
+/** What the speech model noticed, for Atlas's instructions (the same words as the phone's Speech.heardNote). */
+export const heardNote = (language, unsure) =>
+  (language && language !== 'en' ? ` The speech model heard this in the language with code "${language}"; reply in it.` : '') +
+  (unsure ? ' The speech model was unsure of these words: if the request doesn\'t make clear sense, or a name or number in it could be misheard and matters, ask in one short question before acting.' : '');
 
 const ABBREV = new Set(['mr', 'mrs', 'ms', 'dr', 'prof', 'sr', 'jr', 'st', 'vs', 'etc', 'e.g', 'i.e', 'no', 'approx', 'a.m', 'p.m']);
 const CLOSERS = '.!?…"\')”’';
