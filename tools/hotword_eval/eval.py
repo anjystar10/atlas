@@ -144,6 +144,41 @@ def run_variant(model, v, audio_bytes):
             utt = bytearray()
     return False, t
 
+def cut_points(r):
+    """Candidate places where the request starts, from the check's word times."""
+    ws = r.get("result", [])
+    for k, w in enumerate(ws):
+        if w.get("word") == "atlas":
+            end = w["end"]; nxt = ws[k + 1]["start"] if k + 1 < len(ws) else None
+            return {"atlas end": end, "atlas end - 0.15s": end - 0.15, "atlas end - 0.30s": end - 0.30,
+                    "next word start - 0.10s": (nxt - 0.10) if nxt is not None else end,
+                    "min(end, next start) - 0.20s": (min(end, nxt) if nxt is not None else end) - 0.20}
+    return None
+
+def tail_check(md, pos):
+    """Does the request said right after "atlas" survive the cut? First word heard, and how often "las" leaks in."""
+    model = Model(md)
+    stats = {}
+    total = 0
+    for text, a in pos:
+        rest = text.split("atlas", 1)[1].strip(" ,")
+        if not rest: continue
+        y = pcm(mix(a, "clean", 0))
+        chk = KaldiRecognizer(model, RATE); chk.SetWords(True); chk.AcceptWaveform(y)
+        cuts = cut_points(json.loads(chk.FinalResult()))
+        if cuts is None: continue
+        total += 1
+        first = rest.split()[0].strip(",'").lower().replace("'", "")
+        for name, t in cuts.items():
+            tail = y[max(0, int(t * RATE)) * 2:]
+            dec = KaldiRecognizer(model, RATE); dec.AcceptWaveform(tail)
+            got = json.loads(dec.FinalResult()).get("text", "").replace("'", "")
+            st = stats.setdefault(name, [0, 0])
+            if first[:3] in got[:14]: st[0] += 1
+            if "atlas" in got.split()[:1] or got.startswith(("las", "les", "lis")): st[1] += 1
+    lines = [f"| {n} | {v[0]}/{total} | {v[1]} |" for n, v in stats.items()]
+    return "\n\nRequest after \"atlas\" (clean clips): where to cut | first word kept | leftover of \"atlas\" heard\n|---|---|---|\n" + "\n".join(lines)
+
 def main():
     global BABBLE_SRC
     model_dirs = [d for d in sys.argv[1:]]
@@ -161,7 +196,11 @@ def main():
     BABBLE_SRC = [a for _, a in neg[: 40]]
     conds = [("clean", None), ("babble", 15), ("pink", 10), ("babble", 5)]
     rows = []
-    for md in model_dirs:
+    if os.environ.get("TAIL_ONLY"):
+        model_dirs_run = []
+    else:
+        model_dirs_run = model_dirs
+    for md in model_dirs_run:
         model = Model(md)
         for v in VARIANTS:
             res = {}
@@ -182,26 +221,7 @@ def main():
                 res[(kind, snr)] = (hit / len(pos), fa, secs, (sorted(lat)[len(lat) // 2] if lat else float("nan")))
             rows.append((os.path.basename(md.rstrip("/")), v.name, res))
             print(f"done {md} / {v.name}", flush=True)
-    # the words after "Hey Atlas": cut where the check says "atlas" ends, decode the rest
-    model = Model(model_dirs[0])
-    kept = 0; total = 0; lost_examples = []
-    for text, a in pos:
-        rest = text.split("atlas", 1)[1].strip(" ,")
-        if not rest: continue
-        total += 1
-        y = pcm(mix(a, "clean", 0))
-        chk = KaldiRecognizer(model, RATE); chk.SetWords(True); chk.AcceptWaveform(y)
-        r = json.loads(chk.FinalResult()); end = None
-        for w in r.get("result", []):
-            if w.get("word") == "atlas": end = w["end"]
-        if end is None: continue
-        tail = y[int(end * RATE) * 2:]
-        dec = KaldiRecognizer(model, RATE); dec.AcceptWaveform(tail)
-        got = json.loads(dec.FinalResult()).get("text", "")
-        first = rest.split()[0].strip(",'").lower().replace("'", "")
-        if first and first[:3] in got.replace("'", "")[:12]: kept += 1
-        elif len(lost_examples) < 4: lost_examples.append(f"said '{rest}', after the cut heard '{got}'")
-    tail_line = f"\nRequest kept after the cut at the end of \"atlas\": first word heard in {kept}/{total} clean clips." + ("" if not lost_examples else " Missed: " + "; ".join(lost_examples))
+    tail_line = tail_check(model_dirs[0], pos)
     out = ["| model | variant | " + " | ".join(f"{k}{'' if s is None else ' '+str(s)+'dB'}: hits / false wakes" for k, s in conds) + " | median wake delay (clean) |",
            "|---|---|" + "---|" * len(conds) + "---|"]
     for m, name, res in rows:
