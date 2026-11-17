@@ -134,6 +134,12 @@
             android:exported="false"
             android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
+        <!-- Snap: the camera app writes one photo or video into Atlas through this (not exported; access per capture) -->
+        <provider
+            android:name=".SnapProvider"
+            android:authorities="com.anjy.atlas.snap"
+            android:exported="false"
+            android:grantUriPermissions="true" />
         <provider
             android:name=".BotFileProvider"
             android:authorities="com.anjy.atlas.botfiles"

@@ -9,37 +9,42 @@ import android.net.Uri
 import android.util.Base64
 import java.io.File
 import java.util.UUID
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /**
- * Pictures, videos and files sent with a message. Kept to sensible limits so a message stays quick to send and
- * within what the AI services accept: up to [MAX_PHOTOS] items (photos resized to at most [PHOTO_EDGE] pixels;
- * files up to [FILE_MAX_MB] MB), or one video up to [VIDEO_MAX_SECONDS] seconds and [VIDEO_MAX_MB] MB.
- * PDFs go to the AI service as they are; text files and Word documents are read into text, so they work with
- * every service. Copies live in Atlas's own storage.
+ * Pictures, videos and files sent with a message. Any file can be attached, of any size the phone has room for:
+ * pictures are shrunk (at most [PHOTO_EDGE] pixels) and kept with the chat; everything else is copied as it is,
+ * streamed (never held whole in memory), into the Library's "uploads" folder, so Atlas's tools and bots can use it
+ * later. How the AI service then reads each file (inline, uploaded, stills, text, in parts…) is [AttachRules] and
+ * [AttachSend]. Word, Excel and PowerPoint files get their text read out once, into a hidden ".name.txt" beside them.
  */
 object Attach {
-    const val MAX_PHOTOS = 4
+    /** Items in one message. */
+    const val MAX_ITEMS = 10
     const val PHOTO_EDGE = 1600
-    const val VIDEO_MAX_SECONDS = 60
-    const val VIDEO_MAX_MB = 15
-    const val FILE_MAX_MB = 10
-    /** Text read from a file is cut here (about 50 pages), so one file can't swamp the conversation. */
-    const val TEXT_MAX_CHARS = 120_000
+    /** Text read from a file is cut here when it goes into the message (longer text is read in parts). */
+    const val TEXT_MAX_CHARS = AttachRules.TEXT_INLINE_CHARS
+    /** Copying stops if the phone would have less than this left. */
+    const val RESERVE = 200L * 1024 * 1024
 
-    /** [name]: the file's own name (for files). A text or Word file is kept as the text read from it (mime text/plain). */
+    /** [name]: the file's own name. Its kind, size and text are worked out from the file (see [AttachRules]). */
     class Item(val path: String, val mime: String, val name: String = "") {
-        val video get() = mime.startsWith("video/")
-        val image get() = mime.startsWith("image/")
-        val pdf get() = mime == "application/pdf"
-        val textFile get() = mime == "text/plain"
-        val isFile get() = pdf || textFile
+        val kind get() = AttachRules.kind(name.ifEmpty { path }, mime)
+        val video get() = kind == "video"
+        val image get() = kind == "image"
+        val pdf get() = kind == "pdf"
+        /** Text Atlas reads (a text file, or the text read out of Word, Excel or PowerPoint). */
+        val textFile get() = AttachRules.readsAsText(kind)
+        /** Anything that isn't a picture or a video: shown as a file tile. */
+        val isFile get() = !image && !video
         val file get() = File(path)
+        val size get() = file.length()
+        /** Where its text is: the hidden sidecar for Office files, else the file itself. */
+        val textSource: File get() = sidecar(file).takeIf { it.exists() } ?: file
     }
 
-    private val TEXT_TYPES = setOf("application/json", "application/xml", "application/javascript", "application/x-yaml", "application/csv",
-        "application/x-sh", "application/sql", "application/rtf")
-    private val TEXT_EXT = setOf("txt", "md", "markdown", "csv", "tsv", "json", "xml", "yaml", "yml", "html", "htm", "log", "ini", "toml",
-        "kt", "kts", "java", "py", "js", "ts", "tsx", "jsx", "c", "h", "cpp", "cs", "go", "rs", "rb", "php", "swift", "sh", "sql", "lua", "dart", "css")
+    fun sidecar(f: File) = File(f.parentFile, ".${f.name}.txt")
 
     private fun nameOf(ctx: Context, uri: Uri): String = try {
         ctx.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
@@ -49,48 +54,28 @@ object Attach {
     class TooBig(msg: String) : Exception(msg)
 
     internal fun dir(ctx: Context) = File(ctx.filesDir, "attachments").apply { mkdirs() }
+    /** Kept files: inside the bots' folder, so the Library lists them and tools may read them. */
+    internal fun uploads(ctx: Context) = File(ctx.filesDir, "bot/uploads").apply { mkdirs() }
 
-    /** Copies what the user picked or pasted into Atlas. Throws [TooBig] (with a sentence for the user) past the limits. */
-    fun take(ctx: Context, uri: Uri): Item {
+    /** True if [f] is something attached (or a bot file): the only files Atlas's file_read / file_search may open. */
+    fun readable(ctx: Context, f: File): Boolean = try {
+        val c = f.canonicalPath
+        listOf(dir(ctx), File(ctx.filesDir, "bot")).any { c.startsWith(it.canonicalPath + File.separator) } && f.isFile
+    } catch (_: Exception) { false }
+
+    /**
+     * Copies what the user picked, pasted or snapped into Atlas. [progress] (bytes so far, total or -1) is called as
+     * it goes; cancelling the coroutine stops the copy and removes the part copied. Throws [TooBig] (a sentence for
+     * the user) only when the phone hasn't the room.
+     */
+    suspend fun take(ctx: Context, uri: Uri, progress: (Long, Long) -> Unit = { _, _ -> }): Item {
+        val cx = currentCoroutineContext()
         val cr = ctx.contentResolver
         val name = nameOf(ctx, uri)
-        val ext = name.substringAfterLast('.', "").lowercase()
-        val mime = cr.getType(uri) ?: when (ext) { "pdf" -> "application/pdf"; "jpg", "jpeg", "png", "webp", "heic" -> "image/jpeg"; else -> "application/octet-stream" }
-        val isText = mime.startsWith("text/") || mime in TEXT_TYPES || ext in TEXT_EXT
-        val isWord = ext == "docx" || mime == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        if (mime == "application/pdf" || isText || isWord) {
-            val size = cr.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
-            if (size > FILE_MAX_MB * 1024L * 1024L) throw TooBig("“$name” is ${size / (1024 * 1024)} MB; files can be up to $FILE_MAX_MB MB.")
-            if (mime == "application/pdf") {
-                val out = File(dir(ctx), "${UUID.randomUUID()}.pdf")
-                cr.openInputStream(uri)?.use { i -> out.outputStream().use { i.copyTo(it) } } ?: throw TooBig("Couldn't read “$name”.")
-                return Item(out.absolutePath, "application/pdf", name)
-            }
-            // read with a cap: some apps don't say how big a file is, and reading a huge one whole would run Atlas out of memory
-            val raw = cr.openInputStream(uri)?.use { readCapped(it, FILE_MAX_MB * 1024L * 1024L) { "“$name” is over $FILE_MAX_MB MB; files can be up to $FILE_MAX_MB MB." } }
-                ?: throw TooBig("Couldn't read “$name”.")
-            var text = if (isWord) wordText(raw) else String(raw, Charsets.UTF_8)
-            if (text.isBlank()) throw TooBig("“$name” has no text I can read.")
-            if (text.length > TEXT_MAX_CHARS) text = text.take(TEXT_MAX_CHARS) + "\n…(the rest of the file was cut: it's very long)"
-            val out = File(dir(ctx), "${UUID.randomUUID()}.txt")
-            out.writeText(text)
-            return Item(out.absolutePath, "text/plain", name)
-        }
-        if (!mime.startsWith("image/") && !mime.startsWith("video/"))
-            throw TooBig("Atlas can take pictures, videos, PDFs, text files and Word documents. “$name” is none of those.")
-        return if (mime.startsWith("video/")) {
-            val size = cr.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
-            if (size > VIDEO_MAX_MB * 1024L * 1024L) throw TooBig("That video is ${size / (1024 * 1024)} MB; the limit is $VIDEO_MAX_MB MB. Trim it or send a shorter clip.")
-            val secs = try {
-                MediaMetadataRetriever().run { setDataSource(ctx, uri); val d = extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L; release(); d / 1000 }
-            } catch (_: Exception) { 0L }
-            if (secs > VIDEO_MAX_SECONDS) throw TooBig("That video is ${secs}s long; the limit is $VIDEO_MAX_SECONDS seconds.")
-            val out = File(dir(ctx), "${UUID.randomUUID()}.mp4")
-            try { cr.openInputStream(uri)?.use { i -> out.outputStream().use { copyCapped(i, it, VIDEO_MAX_MB * 1024L * 1024L) { "That video is over $VIDEO_MAX_MB MB; the limit is $VIDEO_MAX_MB MB. Trim it or send a shorter clip." } } } ?: throw TooBig("Couldn't read that video.") }
-            catch (e: TooBig) { out.delete(); throw e }
-            Item(out.absolutePath, if (mime == "video/mp4" || mime == "video/webm" || mime == "video/quicktime") mime else "video/mp4")
-        } else if (mime.startsWith("image/")) {
-            // decode (any format the phone reads), shrink, and save as JPEG: small, and accepted everywhere
+        val type = cr.getType(uri)
+        val kind = AttachRules.kind(name, type)
+        if (kind == "image") {
+            // decode (any format the phone reads) straight at the smaller size, and save as JPEG: small, and accepted everywhere
             val bmp = try {
                 ImageDecoder.decodeBitmap(ImageDecoder.createSource(cr, uri)) { d, info, _ ->
                     val w = info.size.width; val h = info.size.height
@@ -98,15 +83,57 @@ object Attach {
                     d.setTargetSize((w * scale).toInt().coerceAtLeast(1), (h * scale).toInt().coerceAtLeast(1))
                     d.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 }
-            } catch (e: Exception) { throw TooBig("Couldn't open that picture.") }
-            val out = File(dir(ctx), "${UUID.randomUUID()}.jpg")
-            out.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 85, it) }
-            bmp.recycle()
-            Item(out.absolutePath, "image/jpeg")
-        } else throw TooBig("Atlas can take pictures and videos.")
+            } catch (e: Exception) { null }
+            if (bmp != null) {
+                val out = File(dir(ctx), "${UUID.randomUUID()}.jpg")
+                out.outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+                bmp.recycle()
+                return Item(out.absolutePath, "image/jpeg", name)
+            }
+            // a picture the phone can't decode is still attached, as a file
+        }
+        val total = try { cr.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L } catch (_: Exception) { -1L }
+        val up = uploads(ctx)
+        if (total > 0 && total + RESERVE > up.usableSpace)
+            throw TooBig("Not enough room on the phone for “$name” (${AttachRules.size(total)}): ${AttachRules.size((up.usableSpace - RESERVE).coerceAtLeast(0))} is free to use.")
+        val safe = BrowserRules.safeFileName(name, "file")
+        val out = synchronized(this) { File(up, BotFileRules.freshName(safe) { File(up, it).exists() }).also { it.createNewFile() } }
+        try {
+            val ins = cr.openInputStream(uri) ?: throw TooBig("Couldn't read “$name”.")
+            ins.use { i -> out.outputStream().use { o -> copyStream(i, o, total, progress) { cx.ensureActive(); if (up.usableSpace < RESERVE) throw TooBig("The phone ran out of room copying “$name”.") } } }
+            val mime = type?.takeIf { it != "application/octet-stream" } ?: guessMime(out.name, kind)
+            if (kind == "docx" || kind == "xlsx" || kind == "pptx") try { OfficeText.extract(out, kind, sidecar(out)) } catch (e: Exception) { sidecar(out).delete() }
+            BotFiles.keepUpload(ctx, out, name)
+            return Item(out.absolutePath, mime, name)
+        } catch (e: Throwable) { out.delete(); sidecar(out).delete(); throw e }
     }
 
-    private const val WORD_XML_MAX = 40L * 1024 * 1024
+    private fun guessMime(name: String, kind: String): String = when (kind) {
+        "pdf" -> "application/pdf"; "text" -> "text/plain"; "zip" -> "application/zip"
+        "video" -> when (AttachRules.ext(name)) { "webm" -> "video/webm"; "mov" -> "video/quicktime"; "3gp" -> "video/3gpp"; else -> "video/mp4" }
+        "audio" -> when (AttachRules.ext(name)) { "wav" -> "audio/wav"; "ogg", "oga", "opus" -> "audio/ogg"; "flac" -> "audio/flac"; "m4a", "aac" -> "audio/aac"; else -> "audio/mpeg" }
+        "image" -> when (AttachRules.ext(name)) { "png" -> "image/png"; "gif" -> "image/gif"; "webp" -> "image/webp"; else -> "image/jpeg" }
+        "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        "pptx" -> "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+        else -> android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(AttachRules.ext(name)) ?: "application/octet-stream"
+    }
+
+    /**
+     * [ins] to [out] in 256 KB steps: [progress] after each step, [check] (throws to stop) every 8 MB and at the end.
+     * Nothing is held but the one buffer, so any size copies in constant memory.
+     */
+    internal fun copyStream(ins: java.io.InputStream, out: java.io.OutputStream, total: Long, progress: (Long, Long) -> Unit, check: () -> Unit): Long {
+        val buf = ByteArray(256 * 1024); var done = 0L; var nextCheck = 0L
+        while (true) {
+            if (done >= nextCheck) { check(); nextCheck = done + 8L * 1024 * 1024 }
+            val n = ins.read(buf); if (n < 0) break
+            out.write(buf, 0, n); done += n
+            progress(done, total)
+        }
+        check()
+        return done
+    }
 
     /** Everything from [ins], or [TooBig] with [why] once it passes [max] bytes (nothing past the cap is held). */
     internal fun readCapped(ins: java.io.InputStream, max: Long, why: () -> String): ByteArray {
@@ -125,28 +152,27 @@ object Attach {
         }
     }
 
-    /** The words in a Word (.docx) file: its paragraphs, read from the document inside the zip. */
-    private fun wordText(bytes: ByteArray): String {
-        java.util.zip.ZipInputStream(bytes.inputStream()).use { z ->
-            while (true) {
-                val e = z.nextEntry ?: break
-                if (e.name == "word/document.xml") {
-                    // capped: a Word file is a zip, and a doctored one can unpack to gigabytes
-                    val xml = String(readCapped(z, WORD_XML_MAX) { "That Word document is too large to read." }, Charsets.UTF_8)
-                    return xml.replace(Regex("</w:p>"), "\n").replace(Regex("<w:tab/>"), "\t").replace(Regex("<[^>]+>"), "")
-                        .replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'")
-                        .lines().joinToString("\n") { it.trimEnd() }.replace(Regex("\n{3,}"), "\n\n").trim()
-                }
-            }
-        }
-        return ""
+    /** A text file's contents, put into the message itself (works with every service, offline too). */
+    fun inlineText(item: Item): String {
+        val t = readChars(item.textSource, TEXT_MAX_CHARS + 1)
+        val cut = t.length > TEXT_MAX_CHARS
+        return "\n\n[File: ${item.name.ifEmpty { item.file.name }}]\n" + t.take(TEXT_MAX_CHARS) + (if (cut) "\n…(only the start is here: the file is longer)" else "") + "\n[End of ${item.name}]"
     }
 
-    /** A text file's contents, put into the message itself (works with every service, offline too). */
-    fun inlineText(item: Item): String = "\n\n[File: ${item.name}]\n" + item.file.readText() + "\n[End of ${item.name}]"
+    /** Up to [max] characters of [f] as UTF-8 text (bad bytes become �), read without loading the rest. */
+    fun readChars(f: File, max: Int): String {
+        val out = StringBuilder(); val buf = CharArray(64 * 1024)
+        java.io.InputStreamReader(f.inputStream(), Charsets.UTF_8).use { r ->
+            while (out.length < max) { val n = r.read(buf, 0, minOf(buf.size, max - out.length)); if (n < 0) break; out.append(buf, 0, n) }
+        }
+        return out.toString()
+    }
 
     /** The bytes for the AI service. */
-    fun media(item: Item): Providers.Media = Providers.Media(item.mime, Base64.encodeToString(item.file.readBytes(), Base64.NO_WRAP), item.name)
+    fun media(item: Item): Providers.Media {
+        check(item.size <= AttachRules.INLINE_MAX) { "too big to send inline" }
+        return Providers.Media(item.mime, Base64.encodeToString(item.file.readBytes(), Base64.NO_WRAP), item.name)
+    }
 
     /** A small picture to show in the chat (a video's first frame). */
     fun thumb(item: Item, edge: Int): Bitmap? = try {

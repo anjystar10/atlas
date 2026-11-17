@@ -297,7 +297,8 @@ object Providers {
     }
 
     /** A picture, video or PDF sent with a message: its type, its bytes as base64, and (for files) its name. */
-    class Media(val mime: String, val base64: String, val name: String = "") {
+    /** [fileUri]: a file already uploaded to Gemini's Files API (then [base64] is empty; Gemini only). */
+    class Media(val mime: String, val base64: String, val name: String = "", val fileUri: String = "") {
         val video get() = mime.startsWith("video/")
         val pdf get() = mime == "application/pdf"
     }
@@ -324,7 +325,10 @@ object Providers {
             history.forEach { (u, t) -> add(if (u) Gemini.userText(t) else Gemini.modelText(t)) }
             if (media.isEmpty()) add(Gemini.userText(user)) else {
                 val parts = JSONArray()
-                media.forEach { m -> parts.put(JSONObject().put("inline_data", JSONObject().put("mime_type", m.mime).put("data", m.base64))) }
+                media.forEach { m ->
+                    if (m.fileUri.isNotEmpty()) parts.put(JSONObject().put("file_data", JSONObject().put("mime_type", m.mime).put("file_uri", m.fileUri)))
+                    else parts.put(JSONObject().put("inline_data", JSONObject().put("mime_type", m.mime).put("data", m.base64)))
+                }
                 parts.put(JSONObject().put("text", user))
                 add(JSONObject().put("role", "user").put("parts", parts))
             }

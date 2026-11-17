@@ -800,7 +800,7 @@ class MainActivity : Activity() {
     private var brainShown: String? = null
 
     companion object {
-        private const val REQ_MODEL = 11; private const val REQ_IMPORT = 13; private const val REQ_NOTIF = 14; private const val REQ_MIC = 15; private const val REQ_MIC_WAKE = 16; private const val REQ_MEDIA = 17
+        private const val REQ_MODEL = 11; private const val REQ_IMPORT = 13; private const val REQ_NOTIF = 14; private const val REQ_MIC = 15; private const val REQ_MIC_WAKE = 16; private const val REQ_MEDIA = 17; private const val REQ_SNAP = 18
         const val AI_STUDIO_KEYS = "https://aistudio.google.com/apikey"
     }
 
@@ -1444,7 +1444,7 @@ class MainActivity : Activity() {
                 // a file: its type and name on a glass tile
                 val f = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(dp(6), dp(6), dp(6), dp(6))
                     background = Finish(SURFACE, dp(14).toFloat(), dark, density, glass = true) }
-                f.addView(text(if (it.pdf) "PDF" else it.name.substringAfterLast('.', "TXT").uppercase().take(4), 12f, ACCENT, SEMI).apply { gravity = Gravity.CENTER })
+                f.addView(text(if (it.pdf) "PDF" else AttachRules.ext(it.name).uppercase().take(4).ifEmpty { "FILE" }, 12f, ACCENT_INK, SEMI).apply { gravity = Gravity.CENTER })
                 f.addView(text(it.name, 11f, FG).apply { gravity = Gravity.CENTER; maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
                 cell.addView(f, FrameLayout.LayoutParams(MATCH, MATCH))
             } else {
@@ -1471,16 +1471,27 @@ class MainActivity : Activity() {
 
     private fun buildComposer(): LinearLayout {
         val outer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; elevation = dp(8).toFloat() }
-        val t = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; visibility = View.GONE; setPadding(dp(4), 0, 0, dp(8)) }
+        val t = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE; setPadding(dp(4), 0, 0, dp(8)) }
         tray = t
         outer.addView(t, LinearLayout.LayoutParams(MATCH, WRAP))
         val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val attach = FrameLayout(this).apply {
             background = quietBg(); isClickable = true; contentDescription = "Add a picture, video or file"
             addView(LineIcon(this@MainActivity, "plus").apply { color = quietInk() }, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
-            setOnClickListener { choose("Add to Your Message", listOf("Photos & Videos", "Files (PDF, Word, text)")) { i -> if (i == 0) pickMedia() else pickFiles() } }
+            setOnClickListener { choose("Add to Your Message", listOf("Photos & Videos", "Files (any kind)", "Take a Photo", "Record a Video")) { i ->
+                when (i) { 0 -> pickMedia(); 1 -> pickFiles(); 2 -> snap(false); else -> snap(true) } } }
             pressFx()
         }
+        // >>> attachments: Snap, right in the bar (it steps aside while you type, to give the words room)
+        val cam = FrameLayout(this).apply {
+            background = quietBg(); isClickable = true; contentDescription = "Take a photo (hold for a video)"
+            addView(LineIcon(this@MainActivity, "camera").apply { color = quietInk() }, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
+            setOnClickListener { snap(false) }
+            setOnLongClickListener { haptic(); snap(true); true }
+            pressFx()
+        }
+        snapKey = cam
+        // <<< attachments
         composerField = EditText(this).apply {
             hint = "Ask anything…"; setTextColor(FG); setHintTextColor(MUTED); textSize = Type.READ; typeface = READ
             background = rounded(if (dark) SURFACE2 else Color.parseColor(LIGHT_FIELD), 999, LINE)
@@ -1502,7 +1513,7 @@ class MainActivity : Activity() {
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                 override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-                override fun afterTextChanged(s: Editable?) { updateSend() }
+                override fun afterTextChanged(s: Editable?) { updateSend(); snapKey?.visibility = if (s.isNullOrBlank()) View.VISIBLE else View.GONE }
             })
         }
         val icon = LineIcon(this@MainActivity, "mic").apply { color = Palette.DARK.onPrimary; tag = "mic" }
@@ -1520,6 +1531,7 @@ class MainActivity : Activity() {
             pressFx()
         }
         bar.addView(attach, LinearLayout.LayoutParams(dp(48), dp(48)))
+        bar.addView(cam, LinearLayout.LayoutParams(dp(48), dp(48)).apply { leftMargin = dp(6) })
         bar.addView(composerField, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8); rightMargin = dp(8) })
         bar.addView(send, LinearLayout.LayoutParams(dp(48), dp(48)))
         outer.addView(bar, LinearLayout.LayoutParams(MATCH, WRAP))
@@ -1528,7 +1540,7 @@ class MainActivity : Activity() {
     }
 
     private fun roomLeft(): Boolean {
-        if (pending.any { it.video } || pending.size >= Attach.MAX_PHOTOS) { showBanner("That's the limit for one message.", MUTED); return false }
+        if (pending.size >= Attach.MAX_ITEMS) { showBanner("That's the limit for one message: ${Attach.MAX_ITEMS} things.", MUTED); return false }
         return true
     }
 
@@ -1536,7 +1548,7 @@ class MainActivity : Activity() {
         if (!roomLeft()) return
         try {
             startActivityForResult(Intent(android.provider.MediaStore.ACTION_PICK_IMAGES)
-                .putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX, (Attach.MAX_PHOTOS - pending.size).coerceAtLeast(2)), REQ_MEDIA)
+                .putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX, (Attach.MAX_ITEMS - pending.size).coerceIn(2, android.provider.MediaStore.getPickImagesMaxLimit())), REQ_MEDIA)
         } catch (e: Exception) {
             startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).setType("*/*").putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
                 .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_MEDIA)
@@ -1545,9 +1557,8 @@ class MainActivity : Activity() {
 
     private fun pickFiles() {
         if (!roomLeft()) return
+        // any kind of file (Atlas reads each the best way it can: see AttachRules)
         startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
-            .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/pdf", "text/*", "application/json", "application/xml", "application/csv",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/octet-stream"))
             .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_MEDIA)
     }
 
@@ -1555,30 +1566,86 @@ class MainActivity : Activity() {
      * Takes picked or pasted pictures, videos and files, within the limits. One at a time, in order: copying takes a
      * moment, and the limits are checked against what's already been taken (several at once would all pass the check).
      */
-    private fun addMedia(uris: List<Uri>) {
-        scope.launch {
+    private fun addMedia(uris: List<Uri>, afterEach: (Uri) -> Unit = {}) {
+        // one batch after another: a second pick waits for the first to finish copying (Stop stops the one copying now)
+        val before = copying
+        copying = scope.launch {
+            before?.join()
             for (uri in uris) {
                 try {
-                    val isVideo = contentResolver.getType(uri)?.startsWith("video/") == true
-                    if (isVideo && pending.isNotEmpty()) { showBanner("A video goes on its own. Send the others first.", MUTED); continue }
-                    if (pending.any { it.video } || pending.size >= Attach.MAX_PHOTOS) { showBanner("Up to ${Attach.MAX_PHOTOS} per message.", MUTED); break }
-                    val item = withContext(Dispatchers.IO) { Attach.take(applicationContext, uri) }
-                    pending.add(item); showTray(); updateSend()
-                } catch (e: kotlinx.coroutines.CancellationException) { throw e
+                    if (pending.size >= Attach.MAX_ITEMS) { showBanner("Up to ${Attach.MAX_ITEMS} per message.", MUTED); break }
+                    copyLine = "Adding…"; showTray()
+                    var last = 0L
+                    val item = withContext(Dispatchers.IO) {
+                        Attach.take(applicationContext, uri) { done, total ->
+                            val now = System.currentTimeMillis()
+                            if (now - last > 250) { last = now
+                                val line = "Adding · " + (if (total > 0) "${done * 100 / total}% of ${AttachRules.size(total)}" else AttachRules.size(done)) + " · tap to stop"
+                                runOnUiThread { copyLine = line; copyView?.text = line } }
+                        }
+                    }
+                    // what Atlas will actually read of it, with the service chosen now, said plainly
+                    val note = withContext(Dispatchers.IO) { attachNote(item) }
+                    if (note.isNotEmpty()) notes[item.path] = note
+                    pending.add(item); haptic()
+                } catch (e: kotlinx.coroutines.CancellationException) { copyLine = null; showTray(); throw e
                 } catch (e: Attach.TooBig) { showBanner(e.message ?: "Too big.", MUTED)
-                } catch (e: Exception) { showBanner("Couldn't add that.", MUTED) }
+                } catch (e: Exception) { showBanner("Couldn't add that.", MUTED)
+                } finally { afterEach(uri) }
             }
+            copyLine = null; showTray(); updateSend()
         }
     }
 
+    // >>> attachments
+    private var copying: kotlinx.coroutines.Job? = null
+    private var copyLine: String? = null
+    private var copyView: TextView? = null
+    private var snapKey: View? = null
+    private var snapFile: java.io.File? = null
+    private val notes = HashMap<String, String>()
+
+    private fun attachNote(item: Attach.Item): String {
+        val p = Providers.active(this) ?: return ""
+        val route = AttachRules.route(item.kind, item.size, p.style, if (item.textFile) AttachSend.chars(item.textSource) else 0)
+        return AttachRules.note(item.kind, route, p.name)
+    }
+
+    /** Snap: the camera app takes a photo (or a video) straight into Atlas (no camera permission needed for this). */
+    private fun snap(video: Boolean) {
+        if (!roomLeft()) return
+        val f = SnapProvider.newFile(this, if (video) "mp4" else "jpg")
+        val uri = SnapProvider.uriFor(f)
+        snapFile = f
+        val i = Intent(if (video) android.provider.MediaStore.ACTION_VIDEO_CAPTURE else android.provider.MediaStore.ACTION_IMAGE_CAPTURE)
+            .putExtra(android.provider.MediaStore.EXTRA_OUTPUT, uri)
+            .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        i.clipData = android.content.ClipData.newRawUri("snap", uri)
+        if (video) i.putExtra(android.provider.MediaStore.EXTRA_DURATION_LIMIT, 300)
+        try { startActivityForResult(i, REQ_SNAP) } catch (e: android.content.ActivityNotFoundException) { snapFile = null; f.delete(); showBanner("There's no camera app on this phone.", MUTED) }
+    }
+    // <<< attachments
+
     private fun showTray() {
         val t = tray ?: return
-        t.removeAllViews()
-        if (pending.isEmpty()) { t.visibility = View.GONE; return }
+        t.removeAllViews(); copyView = null
+        if (pending.isEmpty() && copyLine == null) { t.visibility = View.GONE; return }
         t.visibility = View.VISIBLE
-        t.addView(mediaStrip(pending.toList(), dp(64)) { item -> pending.remove(item); item.file.delete(); showTray(); updateSend() })
-        if (pending.any { it.video }) t.addView(text("Video: up to ${Attach.VIDEO_MAX_SECONDS}s · Gemini", 12f, MUTED).apply { setPadding(dp(10), 0, 0, 0); gravity = Gravity.CENTER_VERTICAL },
-            LinearLayout.LayoutParams(WRAP, dp(64)))
+        if (pending.isNotEmpty()) t.addView(android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false; clipToPadding = false
+            addView(mediaStrip(pending.toList(), dp(64)) { item -> pending.remove(item); notes.remove(item.path); if (!Attach.uploads(this@MainActivity).let { item.path.startsWith(it.path) }) item.file.delete(); showTray(); updateSend() })
+        }, LinearLayout.LayoutParams(MATCH, WRAP))
+        // honest about what Atlas will read of a big or unusual file
+        pending.mapNotNull { notes[it.path]?.let { n -> "${it.name.ifEmpty { "Video" }}: $n" } }.distinct().take(3).forEach { n ->
+            t.addView(text(n, 12f, MUTED).apply { setPadding(dp(6), dp(6), dp(6), 0) })
+        }
+        copyLine?.let { line ->
+            t.addView(text(line, 12f, ACCENT_INK, SEMI).apply {
+                setPadding(dp(6), dp(6), dp(6), 0); isClickable = true; contentDescription = "Stop adding"
+                setOnClickListener { copying?.cancel(); copyLine = null; showTray(); showBanner("Stopped.", MUTED) }
+                copyView = this
+            })
+        }
     }
 
     /** The round key: stop while Atlas works, send when there's something to send, else talk. */
@@ -1589,7 +1656,7 @@ class MainActivity : Activity() {
         val want = when { Conversation.busy -> "stop"; typed || pending.isNotEmpty() -> "arrow"; else -> "mic" }
         if (old.tag == want) return
         parent.removeView(old)
-        val icon = LineIcon(this, want).apply { color = Color.WHITE; rotation = if (want == "arrow") -90f else 0f; tag = want }
+        val icon = LineIcon(this, want).apply { color = Palette.DARK.onPrimary; rotation = if (want == "arrow") -90f else 0f; tag = want }
         parent.addView(icon, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
         parent.contentDescription = when (want) { "stop" -> "Stop"; "arrow" -> "Send"; else -> "Speak" }
         sendIcon = icon
@@ -2444,6 +2511,13 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        // >>> attachments: a snap comes back with no data (the photo is already in the file we gave the camera)
+        if (requestCode == REQ_SNAP) {
+            val f = snapFile; snapFile = null
+            if (resultCode == RESULT_OK && f != null && f.length() > 0) addMedia(listOf(Uri.fromFile(f))) { f.delete() } else f?.delete()
+            return
+        }
+        // <<< attachments
         if (resultCode != RESULT_OK || data == null) return
         when (requestCode) {
             REQ_MEDIA -> {

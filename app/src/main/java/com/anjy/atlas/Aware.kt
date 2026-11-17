@@ -43,6 +43,7 @@ object Capabilities {
         // ---- new subsystems register here, one line each (e.g. register(Email.cap))
         register(Email.cap)   // >>> email (Email.kt)
         register(Messages.cap)   // >>> background first: messages from notifications, texts (Messages.kt)
+        register(AttachTools.cap)   // >>> attachments: file_read / file_search over attached and Library files (AttachSend.kt)
     }
 
     fun all(): List<Cap> = caps.toList()
