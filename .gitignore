@@ -7,3 +7,6 @@ llama.cpp/
 app/src/main/assets/vosk-model/
 # the Windows app's icons live here (electron-builder buildResources), unlike other build/ folders
 !desktop/build/
+
+# the signing key is only ever decrypted inside the build (see build.yml); never commit it
+signing/atlas.jks

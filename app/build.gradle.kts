@@ -21,10 +21,13 @@ android {
     // One fixed key for every build, so each new APK installs over the last one instead of being refused.
     signingConfigs {
         getByName("debug") {
+            // The key lives in the repository only encrypted (signing/atlas.jks.enc); the build decrypts it with the
+            // ATLAS_KEYSTORE_PASSWORD secret. Same key as always, so every APK still installs over the last one.
             storeFile = rootProject.file("signing/atlas.jks")
-            storePassword = "atlas-android"
+            val pass = System.getenv("ATLAS_KEYSTORE_PASSWORD") ?: ""
+            storePassword = pass
             keyAlias = "atlas"
-            keyPassword = "atlas-android"
+            keyPassword = pass
         }
     }
 
