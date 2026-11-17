@@ -20,6 +20,8 @@ import { renderEmail } from './mailui.js';   // >>> email: Me → Email
 import * as trade from './trade.js';   // >>> trading (Me → Trading; the tools register themselves)
 import * as LW from './linkwire.js';   // >>> device link (control across devices)
 import { THEMES, DEFAULT as THEME_DEFAULT, findTheme } from './themes.js';   // >>> themes (Me → Look)
+import * as AR from './attachrules.js';   // >>> attachments: what a file is, how Atlas reads it
+import { progressTo } from './attachsend.js';
 import { renderDevices } from './linkui.js';
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
 const host = window.atlasHost;
@@ -59,6 +61,7 @@ const ICON = {
   mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
   up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
   stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
 };
 
 // ------------------------------------------------------------------ the screens
@@ -299,7 +302,8 @@ function renderBots(page) {
 function buildComposer() {
   const c = $('#composer');
   c.innerHTML = `<div class="column"><div id="tray"></div><div class="askbar">
-    <div class="round" id="attach" title="Add pictures, a video or files">${ICON.plus}</div>
+    <div class="round" id="attach" title="Add pictures, videos or any file">${ICON.plus}</div>
+    <div class="round" id="snap" title="Take a photo with the webcam">${ICON.camera}</div>
     <textarea id="ask" rows="1" placeholder="Ask anything…"></textarea>
     <div class="round go" id="go" title="Speak">${ICON.mic}</div></div>
     <div class="hint">Enter to send · Shift+Enter for a new line · Ctrl+Shift+Space to talk from anywhere</div></div>`;
@@ -308,6 +312,7 @@ function buildComposer() {
   ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
   ta.addEventListener('paste', (e) => { const files = [...(e.clipboardData?.files || [])]; if (files.length) { e.preventDefault(); files.forEach(addFileObject); } });
   $('#attach').onclick = async () => { for (const p of await host.pickFiles()) await addPath(p); };
+  $('#snap').onclick = () => webcamSnap();
   $('#go').onclick = () => { const k = $('#go').dataset.k; if (k === 'stop') brain.stop(); else if (k === 'send') submit(); else startListening(); };
   // drag and drop anywhere on the window
   const drop = $('#drop'); let depth = 0;
@@ -328,7 +333,7 @@ async function addFileObject(file) {
   const p = host.pathOf(file); if (p) return addPath(p);
   // a pasted screenshot (or a picture dragged from a browser) has no file on disk: it's read here instead
   if (file && /^image\//.test(file.type)) {
-    if (attachments.some((a) => a.kind === 'video') || attachments.length >= 4) return toast('Up to 4 per message (a video goes on its own).');
+    if (attachments.length >= MAX_ITEMS) return toast(`Up to ${MAX_ITEMS} per message.`);
     try { const a = await pictureFrom(file); attachments.push(a); showTray(); updateSend(); } catch { toast("Couldn't add that picture."); }
     return;
   }
@@ -359,23 +364,61 @@ function videoSeconds(a) {
     v.src = `data:${a.mime};base64,${a.base64}`;
   });
 }
-async function addPath(p) {
-  if (attachments.some((a) => a.kind === 'video') || attachments.length >= 4) return toast('Up to 4 per message (a video goes on its own).');
+// >>> attachments: any file, any size; copied (streamed) into the Library with progress and Stop
+const MAX_ITEMS = 10;
+let adding = null;   // { id, name, line }
+let addQueue = Promise.resolve();
+function addPath(p) { addQueue = addQueue.then(() => addOne(p)); return addQueue; }
+async function addOne(p) {
+  if (attachments.length >= MAX_ITEMS) return toast(`Up to ${MAX_ITEMS} per message.`);
+  const id = 'add-' + Math.random().toString(36).slice(2), name = String(p).split(/[\\/]/).pop();
+  adding = { id, name, line: `Adding ${name}…` }; showTray();
+  const off = progressTo(id, (d, t) => { if (!adding || adding.id !== id) return; adding.line = `Adding ${name} · ${t ? Math.floor(d * 100 / t) : 0}% of ${AR.sizeText(t)} · click to stop`; const el = $('#tray .adding'); if (el) el.textContent = adding.line; });
   try {
-    const a = await host.loadFile(p);
-    if (a.kind === 'video' && attachments.length) return toast('A video goes on its own. Send the others first.');
-    if (a.kind === 'video') { const secs = await videoSeconds(a); if (secs > 61) return toast(`That video is ${Math.round(secs)} seconds; videos can be up to a minute.`); }
-    if (a.kind === 'image') a.thumb = 'data:image/jpeg;base64,' + a.base64;
-    attachments.push(a); showTray(); updateSend();
-  } catch (e) { toast(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); }
+    const a = await host.attach.take(p, id);
+    if (a.kind === 'image' && a.base64) a.thumb = 'data:image/jpeg;base64,' + a.base64;
+    const pr = brain.active();
+    a.note = pr ? AR.note(a.kind, AR.route(a.kind, a.size || 0, pr.style, a.chars || 0), pr.name) : '';
+    attachments.push(a); updateSend();
+  } catch (e) { const m = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); if (m !== 'Stopped.') toast(m, 4000); }
+  finally { off(); if (adding && adding.id === id) adding = null; showTray(); }
 }
+/** Snap on the PC: the webcam, a live preview, one click for a photo. */
+async function webcamSnap() {
+  if (attachments.length >= MAX_ITEMS) return toast(`Up to ${MAX_ITEMS} per message.`);
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1600 } }, audio: false }); }
+  catch { return toast("Couldn't open a camera on this PC.", 3500); }
+  const o = h(`<div class="overlay"><div class="card snapbox"><video autoplay playsinline muted></video>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="btn" data-k="cancel">Cancel</button><button class="btn primary" data-k="take">Take Photo</button></div></div></div>`);
+  document.body.appendChild(o);
+  const v = o.querySelector('video'); v.srcObject = stream;
+  const close = () => { stream.getTracks().forEach((t) => t.stop()); o.remove(); };
+  o.querySelector('[data-k=cancel]').onclick = close;
+  o.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); }); o.tabIndex = -1; o.focus();
+  o.querySelector('[data-k=take]').onclick = () => {
+    const k = Math.min(1, 1600 / Math.max(v.videoWidth || 1, v.videoHeight || 1));
+    const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * k) || 1; c.height = Math.round(v.videoHeight * k) || 1;
+    c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+    const data = c.toDataURL('image/jpeg', 0.85);
+    const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '.');
+    attachments.push({ kind: 'image', mime: 'image/jpeg', name: `Photo ${stamp}.jpg`, base64: data.split(',')[1], thumb: data, size: Math.floor(data.length * 0.75) });
+    close(); showTray(); updateSend();
+  };
+}
+// <<< attachments
 function showTray() {
-  const t = $('#tray'); t.innerHTML = '';
+  const t = $('#tray'); if (!t) return; t.innerHTML = '';
+  const row = h('<div class="atts"></div>'); t.appendChild(row);
   attachments.forEach((a, i) => {
-    const cell = h(`<div class="att">${a.thumb ? `<img class="thumb" src="${a.thumb}" alt="">` : `<div class="card filetile"><b>${esc(a.kind === 'pdf' ? 'PDF' : a.kind === 'video' ? 'VIDEO' : a.name.split('.').pop().toUpperCase().slice(0, 4))}</b>${esc(a.name)}</div>`}<button class="x" title="Remove">✕</button></div>`);
+    const label = a.kind === 'pdf' ? 'PDF' : a.kind === 'video' ? 'VIDEO' : (AR.ext(a.name) || 'file').toUpperCase().slice(0, 4);
+    const cell = h(`<div class="att">${a.thumb ? `<img class="thumb" src="${a.thumb}" alt="">` : `<div class="card filetile"><b>${esc(label)}</b>${esc(a.name)}${a.size ? `<span class="small muted">${esc(AR.sizeText(a.size))}</span>` : ''}</div>`}<button class="x" title="Remove">✕</button></div>`);
     cell.querySelector('.x').onclick = () => { attachments.splice(i, 1); showTray(); updateSend(); };
-    t.appendChild(cell);
+    row.appendChild(cell);
   });
+  // honest about what Atlas will read of a big or unusual file
+  [...new Set(attachments.filter((a) => a.note).map((a) => `${a.name}: ${a.note}`))].slice(0, 3).forEach((n) => t.appendChild(h(`<div class="small muted attnote">${esc(n)}</div>`)));
+  if (adding) { const el = h(`<div class="small adding" title="Stop adding" role="button">${esc(adding.line)}</div>`); el.onclick = () => { host.attach.cancel(adding.id); }; t.appendChild(el); }
 }
 async function submit(spoken = false, textOverride) {
   const ta = $('#ask');

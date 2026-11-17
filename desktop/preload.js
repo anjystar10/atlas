@@ -20,6 +20,17 @@ contextBridge.exposeInMainWorld('atlasHost', {
   openExternal: (url) => ipcRenderer.invoke('open:external', url),
   pickFiles: () => ipcRenderer.invoke('file:pick'),
   loadFile: (p) => ipcRenderer.invoke('file:load', p),
+  // >>> attachments
+  attach: {
+    take: (p, id) => ipcRenderer.invoke('attach:take', p, id),
+    cancel: (id) => ipcRenderer.invoke('attach:cancel', id),
+    bytes: (p) => ipcRenderer.invoke('attach:bytes', p),
+    upload: (key, p, mime, name, id) => ipcRenderer.invoke('attach:upload', key, p, mime, name, id),
+    read: (p, offset, length, member) => ipcRenderer.invoke('attach:read', p, offset, length, member),
+    search: (p, query, max) => ipcRenderer.invoke('attach:search', p, query, max),
+    onProgress: (fn) => ipcRenderer.on('attach:progress', (_e, id, done, total) => fn(id, done, total)),
+  },
+  // <<< attachments
   pathOf: (file) => { try { return webUtils.getPathForFile(file); } catch { return null; } },
   pc: (name, args) => ipcRenderer.invoke('pc:run', name, args),
   // >>> bot browser
