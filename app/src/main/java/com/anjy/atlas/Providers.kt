@@ -364,7 +364,7 @@ object Providers {
             // OpenAI's GPT-6 models only call functions in this API with reasoning off (their docs)
             if (p.id == "openai" && model.startsWith("gpt-6")) body.put("reasoning_effort", "none")
             val headers = mutableMapOf("Authorization" to "Bearer $key")
-            if (p.id == "openrouter") { headers["HTTP-Referer"] = "https://github.com/anjystar10/atlas-app"; headers["X-Title"] = "Atlas" }
+            if (p.id == "openrouter") { headers["HTTP-Referer"] = "https://github.com/anjystar10/atlas"; headers["X-Title"] = "Atlas" }
             val r = post("$base/chat/completions", headers, body, p.name)
             val choice = r.optJSONArray("choices")?.optJSONObject(0) ?: throw Gemini.Failure("${p.name} sent back an empty answer.")
             val m = choice.optJSONObject("message") ?: throw Gemini.Failure("${p.name} sent back an empty answer.")

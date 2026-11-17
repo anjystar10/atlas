@@ -462,7 +462,7 @@ async function startListening(followUp = false) {
   const orb = new Orb(o.querySelector('#lorb'), { size: 220 }); orb.energy = 1;
   host.orbState({ energy: 1, listening: true });
   let cancelled = false;
-  listenCtl = voice.listen({ onLevel: (l) => { orb.level = l; host.orbState({ energy: 1, level: l, listening: true }); }, onState: () => { const el = o.querySelector('.heard'); if (el) el.textContent = 'One moment…'; } });
+  listenCtl = voice.listen({ onLevel: (l) => { orb.level = l; host.orbState({ energy: 1, level: l, listening: true }); }, onState: () => { const el = o.querySelector('.heard'); if (el) el.textContent = 'One moment…'; }, onPause: (p) => { const el = o.querySelector('.heard'); if (el && el.textContent !== 'One moment…') el.textContent = p ? 'Still listening…' : 'Listening…'; } });
   o.querySelector('[data-k=done]').onclick = () => listenCtl && listenCtl.stop();
   o.querySelector('[data-k=cancel]').onclick = () => { cancelled = true; listenCtl && listenCtl.stop(); };
   try {
@@ -714,7 +714,15 @@ function renderMe(page) {
   vc.appendChild(settingRow('Speak Replies', pref('speakReplies', false), (on) => setPref('speakReplies', on), 'Spoken questions always get a spoken answer.'));
   vc.appendChild(settingRow('Natural Voice', pref('voiceNatural', true), (on) => { setPref('voiceNatural', on); render(true); }));
   const eng = voice.engine();
-  vc.appendChild(h(`<p class="small muted">${!pref('voiceNatural', true) ? "Using Windows' own voice." : eng === 'gemini' ? 'A human-sounding voice from Gemini.' : eng === 'openai' ? 'A human-sounding voice from OpenAI.' : 'Natural voices come from Gemini or OpenAI: add one of their keys. Until then, the best Windows voice.'}${voice.state.lastSpoke ? ' Last reply: ' + esc(voice.state.lastSpoke) + '.' : ''}${voice.state.lastProblem ? ' The natural voice failed last time (' + esc(voice.state.lastProblem) + ').' : ''}</p>`));
+  vc.appendChild(h(`<p class="small muted">${!pref('voiceNatural', true) ? "Using Windows' own voice." : eng === 'elevenlabs' ? "Atlas's own voice, designed for it on ElevenLabs from a description (made once, then kept)." : eng === 'gemini' ? 'A human-sounding voice from Gemini.' : eng === 'openai' ? 'A human-sounding voice from OpenAI.' : 'Natural voices come from ElevenLabs, Gemini or OpenAI: add one of their keys. Until then, the best Windows voice.'}${voice.state.lastSpoke ? ' Last reply: ' + esc(voice.state.lastSpoke) + '.' : ''}${voice.state.lastProblem ? ' The natural voice failed last time (' + esc(voice.state.lastProblem) + ').' : ''}</p>`));
+  const engs = voice.engines();
+  if (engs.length > 1) {
+    vc.appendChild(h('<div style="margin-top:16px">Voice Service</div>'));
+    const cs = h('<div class="chips" style="margin-top:8px"></div>');
+    for (const e of engs) { const c = h(`<span class="chip ${e === eng ? 'on' : ''}">${esc(voice.engineName(e))}</span>`); c.onclick = () => { voice.setEngine(e); render(true); }; cs.appendChild(c); }
+    vc.appendChild(cs);
+    vc.appendChild(h('<p class="small muted" style="margin-top:6px">If it fails, the next one says the reply, so a reply is never lost.</p>'));
+  }
   if (eng) {
     const l = h('<div class="list"></div>'); const cur = voice.current(eng).id;
     for (const v of voice.voices(eng)) {
@@ -724,6 +732,15 @@ function renderMe(page) {
     }
     vc.appendChild(l);
   }
+  // the "AI system" sound on every reply, "sir", and the ElevenLabs key for Atlas's designed voice
+  vc.appendChild(settingRow('AI System Finish', voice.finishOn(), (on) => voice.setFinish(on), 'A light finish on every natural-voice reply: a little presence, a faint digital sheen and a small room. Words stay clear first. (Windows\' own voice plays as Windows makes it.)'));
+  vc.appendChild(settingRow('Call Me “Sir”', voice.sir(), (on) => voice.setSir(on), 'Spoken replies now and then address you as “sir”, the way a butler would.'));
+  const elPool = brain.keys('elevenlabs');
+  const er = h(`<div class="row" style="margin-top:14px"><input class="field grow" type="password" placeholder="ElevenLabs key (optional)"><button class="btn primary">Add Key</button><button class="btn">${elPool.length ? 'Remove Keys' : 'Get a Key'}</button></div>`);
+  vc.appendChild(er);
+  er.children[1].onclick = () => { const k = er.children[0].value.trim(); if (k.length < 20) return toast("That doesn't look like a whole key."); brain.addKey('elevenlabs', k); voice.setEngine('elevenlabs'); toast('ElevenLabs key added. Atlas designs its voice the first time it speaks.', 4000); render(true); };
+  er.children[2].onclick = () => { if (!elPool.length) return host.openExternal('https://elevenlabs.io/app/settings/api-keys'); for (const e of elPool) brain.removeKey('elevenlabs', e.key); render(true); };
+  vc.appendChild(h(`<p class="small muted" style="margin-top:6px">${elPool.length ? `${elPool.length} ElevenLabs key${elPool.length === 1 ? '' : 's'} added.` : 'With an ElevenLabs key Atlas designs its own voice there (refined, calm, British) and speaks with it. Voice Design may need a paid ElevenLabs plan.'}</p>`));
   // how fast Atlas talks, whether a spoken chat keeps going, and the language it listens for
   const chipRow = (title, options, current, pick, note) => {
     vc.appendChild(h(`<div style="margin-top:16px">${esc(title)}</div>`));
@@ -734,7 +751,12 @@ function renderMe(page) {
   };
   chipRow('Speaking Speed', [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']], voice.speed(), (k) => voice.setSpeed(k));
   vc.appendChild(settingRow('Keep Listening', pref('keepTalking', true), (on) => setPref('keepTalking', on), "After Atlas answers a spoken question it listens again, so you can just keep talking. Say “that's all” or stay quiet to stop."));
-  chipRow('Language You Speak', voice.LANGUAGES, voice.language() || 'auto', (k) => voice.setLanguage(k), 'Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.');
+  chipRow('Language You Speak', voice.LANGUAGES, voice.language() || 'auto', (k) => voice.setLanguage(k), 'Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out (Atlas then answers in the language you speak).');
+  vc.appendChild(settingRow('Give Me Time to Finish', voice.patient(), (on) => { voice.setPatient(on); render(true); }, `Atlas waits much longer through pauses before it takes it you've finished: for a stammer, a slow or careful way of speaking, or thinking mid-sentence. It also learns your pace by itself (now ${(voice.endSilenceMs() / 1000).toFixed(1)} s).`));
+  { const wr = h(`<div style="margin-top:14px">Words Atlas Should Know</div>`); vc.appendChild(wr);
+    const ta = h(`<textarea class="field" rows="3" style="width:100%;margin-top:8px" placeholder="One per line: names, places, words from your work"></textarea>`); ta.value = voice.taughtWords().join('\n');
+    ta.onchange = () => voice.setTaughtWords(ta.value.split('\n')); vc.appendChild(ta);
+    vc.appendChild(h('<p class="small muted" style="margin-top:6px">The speech model is told to expect them, so they\'re written down right. They stay on this PC.</p>')); }
 
   // >>> vault: sign-ins Atlas Bot may use in its browser (desktop/vault.js; passwords never reach this page unless shown)
   if (host.vault) {
@@ -991,7 +1013,7 @@ brain.ui.setting = async (name, value) => {
   try {
     switch (name) {
       case 'speak_replies': setPref('speakReplies', need()); return `Replies will ${flag ? '' : 'no longer '}be read aloud.`;
-      case 'voice': { const eng = voice.engine(); if (!eng) return 'Natural voices need a Gemini or OpenAI key (Me → Brain).'; const n = value.toLowerCase(); const v = voice.voices(eng).find((x) => x.id === n || x.label.toLowerCase() === n || n.includes(x.id)) || voice.voices(eng).find((x) => x.about.split(/[ ,]+/).some((w) => w.length > 3 && n.includes(w))); if (!v) return `Error: no voice called "${value}".`; setPref('voice_' + eng, v.id); return `Voice set to ${v.label} (${v.about}).`; }
+      case 'voice': { const eng = voice.engine(); if (!eng) return 'Natural voices need an ElevenLabs, Gemini or OpenAI key (Me).'; const n = value.toLowerCase(); const v = voice.voices(eng).find((x) => x.id === n || x.label.toLowerCase() === n || n.includes(x.id)) || voice.voices(eng).find((x) => x.about.split(/[ ,]+/).some((w) => w.length > 3 && n.includes(w))); if (!v) return `Error: no voice called "${value}".`; setPref('voice_' + eng, v.id); return `Voice set to ${v.label} (${v.about}).`; }
       case 'color_theme': { const t = findTheme(value); if (!t) return `Error: the colour themes are ${THEMES.map((x) => x.name).join(', ')}.`; setPref('palette', t.id); applyTheme(); render(true); return `Switched to ${t.name}.`; }
       case 'theme': { if (!/light|dark/i.test(value)) { const ct = findTheme(String(value).replace(/theme|the /gi, '').trim()); if (ct) { setPref('palette', ct.id); applyTheme(); render(true); return `Switched to ${ct.name}.`; } } const t = /light/i.test(value) ? 'light' : /dark/i.test(value) ? 'dark' : null; if (!t) return 'Error: theme is dark or light.'; setPref('theme', t); applyTheme(); return `Switched to ${t} mode.`; }
       case 'on_screen': setPref('onScreen', need()); host.showOrb(flag); return flag ? "I'm in the corner of your screen now." : "I'm off your screen.";

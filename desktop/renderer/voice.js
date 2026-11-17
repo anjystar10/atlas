@@ -1,9 +1,11 @@
 // Atlas's ears and voice on the PC.
 // Listening: records until you stop talking, then a Gemini (or OpenAI) key turns it into words.
-// Speaking: the same natural voices as on the phone (Gemini's or OpenAI's), else the best English voice Windows has.
-import { keyFor, readyKey, byId, modelOf } from './brain.js';
+// Speaking: the same natural voices as on the phone (Atlas's designed ElevenLabs voice, Gemini's, OpenAI's), with the
+// same "AI system" finish (finish.js), else the best English voice Windows has (which plays as Windows makes it).
+import { keyFor, readyKey, byId, modelOf, keys as poolKeys } from './brain.js';
+import { applyPcm } from './finish.js';
 import { pref, setPref, db } from './store.js';
-import { Endpointer, chunks, fixHeard, names, rate, pace, speed as speedOf } from './speech.js';
+import { Endpointer, Pace, minVoiceFor, heardFrom, chunks, fixHeard, names, rate, pace, speed as speedOf } from './speech.js';
 import { plainSpoken } from './plain.js';
 const host = window.atlasHost;
 
@@ -34,8 +36,29 @@ export const OPENAI_VOICES = [
   { id: 'marin', label: 'Marin', about: 'natural (female)', voice: 'marin', style: 'Natural and warm, like a friend.' },
   { id: 'nova', label: 'Nova', about: 'bright (female)', voice: 'nova', style: 'Bright and upbeat.' },
 ];
-export const engine = () => (!pref('voiceNatural', true) ? null : readyKey('gemini') || keyFor('gemini') ? 'gemini' : keyFor('openai') ? 'openai' : null);
-export const voices = (eng = engine()) => (eng === 'openai' ? OPENAI_VOICES : GEMINI_VOICES);
+// ElevenLabs: one voice, Atlas's own, designed there from a description of traits (no one's voice is copied).
+// Checked against ElevenLabs' API reference (November 2026); the same calls, seed and description as the phone's ElevenLabs.kt.
+export const ELEVEN_DESIGN = 'A refined British man in his mid-forties with a crisp, educated Received Pronunciation accent. ' +
+  'A calm, low, smooth baritone with precise diction; unhurried, composed and quietly confident, with an understated dry wit. ' +
+  'Courteous and warm but reserved, like a polished butler who is also a highly capable AI assistant. ' +
+  'Clean studio recording, close microphone, no background noise.';
+const ELEVEN_SEED = 1096043603, ELEVEN = 'https://api.elevenlabs.io/v1';
+export const ELEVEN_VOICES = [{ id: 'atlas', label: 'Atlas', about: 'designed for Atlas: British, calm, refined', voice: '', style: '' }];
+/** The natural voices, best first. */
+export const ENGINES = ['elevenlabs', 'gemini', 'openai'];
+export const engineName = (e) => ({ elevenlabs: 'ElevenLabs', gemini: 'Gemini', openai: 'OpenAI' }[e] || 'Windows');
+/** The natural voices there's a key for, best first (none when Natural Voice is off). */
+export const engines = () => (!pref('voiceNatural', true) ? [] : ENGINES.filter((e) => keyFor(e)));
+/** The one chosen in Me → Voice if its key is there, else the best there's a key for; null: Windows' voice. */
+export const engine = () => { const have = engines(); const pick = pref('voiceEngine', ''); return have.includes(pick) ? pick : have[0] || null; };
+export const setEngine = (e) => setPref('voiceEngine', e);
+/** The "AI system" finish on every spoken reply (on unless switched off). */
+export const finishOn = () => pref('voiceFinish', true);
+export const setFinish = (on) => setPref('voiceFinish', !!on);
+/** Spoken replies may address the user as "sir" now and then. */
+export const sir = () => pref('voiceSir', false);
+export const setSir = (on) => setPref('voiceSir', !!on);
+export const voices = (eng = engine()) => (eng === 'openai' ? OPENAI_VOICES : eng === 'elevenlabs' ? ELEVEN_VOICES : GEMINI_VOICES);
 export const current = (eng = engine()) => voices(eng).find((v) => v.id === pref('voice_' + (eng || 'gemini'), 'atlas')) || voices(eng)[0];
 // busy: from the moment Atlas is asked to speak until it has finished or been hushed (so also while the voice is fetched)
 export const state = { speaking: false, busy: false, lastSpoke: null, lastProblem: null };
@@ -57,14 +80,22 @@ export async function speak(text, onDone) {
   const eng = engine();
   const parts = chunks(say);
   if (!eng) return systemSpeak(parts, finish, mine);
-  const v = current(eng);
-  const fetchPart = (i) => (eng === 'gemini' ? geminiSpeech(parts[i], v) : openAiSpeech(parts[i], v)).then((clip) => ({ clip }), (e) => ({ error: e }));
+  // each piece from the chosen voice; if it fails, the next natural voice there's a key for says that piece
+  const fetchPart = async (i) => {
+    let error = null;
+    for (const e of [eng, ...engines().filter((x) => x !== eng)]) {
+      if (mine !== gen) break;
+      try { return { clip: await speechClip(e, parts[i], parts[i - 1], parts[i + 1]), used: e }; }
+      catch (err) { error = err; state.lastProblem = `${engineName(e)}: ${err.message || String(err)}`; }
+    }
+    return { error: error || new Error('stopped') };
+  };
   let next = fetchPart(0);
   for (let i = 0; i < parts.length; i++) {
     const got = await next;
     if (mine !== gen) { free(got.clip); return; }
-    if (got.error) { state.lastProblem = got.error.message || String(got.error); return systemSpeak(parts.slice(i), finish, mine); }
-    if (i === 0) { state.lastProblem = null; state.lastSpoke = `${v.label} (${eng === 'gemini' ? 'Gemini' : 'OpenAI'})`; }
+    if (got.error) return systemSpeak(parts.slice(i), finish, mine);
+    if (i === 0) { if (got.used === eng) state.lastProblem = null; state.lastSpoke = `${current(got.used).label} (${engineName(got.used)})`; }
     next = i + 1 < parts.length ? fetchPart(i + 1) : null;
     const ok = await play(got.clip, mine);
     if (mine !== gen) { if (next) next.then((n) => free(n.clip)); return; }
@@ -103,6 +134,60 @@ function systemSpeak(parts, finish, mine) {
     try { speechSynthesis.speak(u); } catch { finish(); }
   };
   one();
+}
+
+/** One piece of speech from [eng], finished, as a playable WAV clip. */
+async function speechClip(eng, text, before, after) {
+  const v = current(eng);
+  const { pcm, rate: hz } = eng === 'elevenlabs' ? await elevenSpeech(text, before, after) : eng === 'openai' ? await openAiSpeech(text, v) : await geminiSpeech(text, v);
+  if (!pcm || pcm.length < 200) throw new Error(`${engineName(eng)} sent no audio`);
+  return URL.createObjectURL(new Blob([wav(finishOn() ? applyPcm(pcm, hz) : pcm, hz)], { type: 'audio/wav' }));
+}
+const bytesOf = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+/** ElevenLabs' errors come as {"detail": {"message": …}}. */
+function elevenError(r) {
+  let msg = ''; try { const o = JSON.parse(r.text || '{}'); msg = (o.detail && (o.detail.message || (Array.isArray(o.detail) && o.detail[0] && o.detail[0].msg))) || (typeof o.detail === 'string' ? o.detail : ''); } catch {}
+  const e = new Error(`ElevenLabs ${r.status || r.error}${msg ? ': ' + String(msg).slice(0, 160) : ''}`); e.code = r.status || 0; return e;
+}
+async function elevenPost(key, url, body, binary) {
+  const r = await host.fetch(url, { method: 'POST', binary, headers: { 'xi-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body), timeout: 90000 });
+  if (!r.ok) { if (binary && !r.text && r.base64) try { r.text = atob(r.base64); } catch {} throw elevenError(r); }
+  return r;
+}
+/** Atlas's designed voice on this key: made the first time (design → create), then remembered with the key it belongs to. */
+async function elevenVoice(key) {
+  const tag = key.slice(-6); const saved = String(pref('elevenVoice', '') || '').split('|');
+  if (saved.length === 2 && saved[0] === tag) { if (saved[1] === '-') throw Object.assign(new Error("ElevenLabs couldn't design Atlas's voice on this key."), { code: 403 }); if (saved[1]) return saved[1]; }
+  try {
+    const d = await elevenPost(key, `${ELEVEN}/text-to-voice/design?output_format=mp3_22050_32`, { voice_description: ELEVEN_DESIGN, model_id: 'eleven_ttv_v3', auto_generate_text: true, seed: ELEVEN_SEED });
+    const gen = ((JSON.parse(d.text).previews || [])[0] || {}).generated_voice_id; if (!gen) throw new Error('ElevenLabs designed no voice.');
+    const m = await elevenPost(key, `${ELEVEN}/text-to-voice`, { voice_name: 'Atlas', voice_description: ELEVEN_DESIGN, generated_voice_id: gen, labels: { made_by: 'Atlas' } });
+    const id = JSON.parse(m.text).voice_id; if (!id) throw new Error('ElevenLabs saved no voice.');
+    setPref('elevenVoice', `${tag}|${id}`); return id;
+  } catch (e) {
+    // turned down (not the key itself, not a limit, not the network): don't ask again on this key
+    if (e.code >= 400 && e.code < 500 && ![401, 408, 409, 429].includes(e.code)) setPref('elevenVoice', `${tag}|-`);
+    throw e;
+  }
+}
+async function elevenSpeech(text, before, after) {
+  let key = keyFor('elevenlabs');
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const id = await elevenVoice(key);
+      const body = { text, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.55, similarity_boost: 0.8, style: 0, use_speaker_boost: true } };
+      if (before) body.previous_text = before.slice(-600); if (after) body.next_text = after.slice(0, 600);
+      let r;
+      try { r = await elevenPost(key, `${ELEVEN}/text-to-speech/${id}/stream?output_format=pcm_24000`, body, true); }
+      catch (e) { if (e.code === 404) setPref('elevenVoice', ''); throw e; }   // the voice was removed: designed again next time
+      return { pcm: bytesOf(r.base64), rate: 24000 };
+    } catch (e) {
+      // a key that's turned down or out of credit: the next key in the pool tries once
+      const other = [401, 402, 403, 429].includes(e.code) && attempt === 0 ? poolKeys('elevenlabs').find((k) => !k.bad && k.key !== key)?.key : null;
+      if (!other) throw e;
+      key = other;
+    }
+  }
 }
 
 /** The `voice_…` id in a voice-design answer (it may come as "id" or as a resource name ending in it). */
@@ -154,11 +239,23 @@ async function geminiSpeech(text, v) {
   let best = null;
   (function walk(x) { if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object') for (const [k, val] of Object.entries(x)) { if (k === 'data' && typeof val === 'string' && val.length > (best ? best.length : 200)) best = val; else walk(val); } })(JSON.parse(r.text));
   if (!best) throw new Error('Gemini sent no audio');
-  const bytes = Uint8Array.from(atob(best), (c) => c.charCodeAt(0));
-  const isWav = bytes[0] === 0x52 && bytes[1] === 0x49;
-  return URL.createObjectURL(new Blob([isWav ? bytes : wav(bytes, 24000)], { type: 'audio/wav' }));
+  return wavData(bytesOf(best));
 }
-function wav(pcm, rate) {
+/** (rate, sound) of a WAV file's "data" chunk; anything that isn't one is raw 16-bit sound at 24 kHz (what Gemini sends). */
+export function wavData(b) {
+  const tag = (at, t) => at + 4 <= b.length && String.fromCharCode(b[at], b[at + 1], b[at + 2], b[at + 3]) === t;
+  const le32 = (at) => (b[at] | (b[at + 1] << 8) | (b[at + 2] << 16) | (b[at + 3] << 24)) >>> 0;
+  if (!(tag(0, 'RIFF') && tag(8, 'WAVE'))) return { pcm: b, rate: 24000 };
+  let rate = 24000, at = 12;
+  while (at + 8 <= b.length) {
+    const len = le32(at + 4);
+    if (tag(at, 'fmt ') && at + 16 <= b.length) rate = le32(at + 12);
+    if (tag(at, 'data')) return { pcm: b.subarray(at + 8, Math.min(b.length, at + 8 + len)), rate };
+    at += 8 + len + (len & 1);
+  }
+  return { pcm: new Uint8Array(0), rate };
+}
+export function wav(pcm, rate) {
   const h = new DataView(new ArrayBuffer(44)); const w = (o, s) => [...s].forEach((c, i) => h.setUint8(o + i, c.charCodeAt(0)));
   w(0, 'RIFF'); h.setUint32(4, 36 + pcm.length, true); w(8, 'WAVE'); w(12, 'fmt '); h.setUint32(16, 16, true); h.setUint16(20, 1, true); h.setUint16(22, 1, true);
   h.setUint32(24, rate, true); h.setUint32(28, rate * 2, true); h.setUint16(32, 2, true); h.setUint16(34, 16, true); w(36, 'data'); h.setUint32(40, pcm.length, true);
@@ -166,9 +263,9 @@ function wav(pcm, rate) {
 }
 async function openAiSpeech(text, v) {
   const r = await host.fetch('https://api.openai.com/v1/audio/speech', { method: 'POST', binary: true, headers: { Authorization: 'Bearer ' + keyFor('openai'), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: 'gpt-4o-mini-tts', input: text, voice: v.voice, instructions: v.style + ' Natural, never robotic.' + (pace(speed()) ? ' Pace: ' + pace(speed()) + '.' : ''), response_format: 'mp3' }), timeout: 60000 });
+    body: JSON.stringify({ model: 'gpt-4o-mini-tts', input: text, voice: v.voice, instructions: v.style + ' Natural, never robotic.' + (pace(speed()) ? ' Pace: ' + pace(speed()) + '.' : ''), response_format: 'pcm' }), timeout: 60000 });
   if (!r.ok) throw new Error(`OpenAI voice: ${r.status || r.error}`);
-  return 'data:audio/mpeg;base64,' + r.base64;
+  return { pcm: bytesOf(r.base64), rate: 24000 };   // raw 24 kHz 16-bit mono
 }
 
 // ------------------------------------------------------------------ listening
@@ -176,14 +273,30 @@ async function openAiSpeech(text, v) {
 const RATE = 16000, FRAME = RATE * 20 / 1000;
 /** The speech models that can write down what's said, fastest first: [id, key]. */
 const ears = () => ['groq', 'openai', 'gemini'].map((id) => [id, readyKey(id)]).filter(([, k]) => k && k !== 'local');
+// how this person talks, learned as they do (the same rules as the phone): their pace, how loud, words to expect
+export const talkPace = () => Pace.parse(pref('hearPace', ''));
+export const patient = () => pref('hearPatient', false);
+export const setPatient = (on) => setPref('hearPatient', !!on);
+export const endSilenceMs = () => talkPace().endSilenceMs(patient());
+export const taughtWords = () => (Array.isArray(pref('hearWords', [])) ? pref('hearWords', []) : []);
+export const setTaughtWords = (ws) => setPref('hearWords', [...new Map(ws.map((w) => String(w).trim()).filter(Boolean).map((w) => [w.toLowerCase(), w])).values()].slice(0, 60));
+const voiceLevel = () => { const [l, n] = String(pref('hearLevel', '') || '').split(',').map(Number); return n >= 3 ? l : null; };
+function learn(ep) {
+  if (ep.pauses.length) setPref('hearPace', talkPace().learn(ep.pauses).save());
+  if (ep.voiceLevel > 0) { const [l = 0, n = 0] = String(pref('hearLevel', '') || '').split(',').map(Number); setPref('hearLevel', `${l + (ep.voiceLevel - l) / (Math.min(n || 0, 20) + 1)},${(n || 0) + 1}`); }
+}
+/** What the last thing heard was like: its language and whether the speech model was unsure (Atlas's instructions take these in). */
+export const lastHeard = { language: null, unsure: false, at: 0 };
+
 /** Names and words Atlas should expect to hear, so they're spelled right. */
 export function hint() {
   const words = new Set(['Atlas']);
   try {
     const name = (db.state.settings.name || '').trim(); if (name) words.add(name);
+    taughtWords().forEach((w) => words.add(w));
     [...db.state.memories.slice(-40).map((m) => m.text), ...db.state.tasks.slice(-40).map((t) => t.title)].forEach((t) => names(t).forEach((w) => words.add(w)));
   } catch {}
-  return [...words].slice(0, 40).join(', ');
+  let out = ''; for (const w of words) { if (out.length + w.length + 2 > 500) break; out += (out ? ', ' : '') + w; } return out;
 }
 
 /**
@@ -191,7 +304,7 @@ export function hint() {
  * while a speech model writes it down, then resolves to the words heard ('' for silence). Throws with a sentence
  * for the user when it can't.
  */
-export function listen({ onLevel = () => {}, onState = () => {}, maxMs = 60000 } = {}) {
+export function listen({ onLevel = () => {}, onState = () => {}, onPause = () => {}, maxMs = 60000 } = {}) {
   // stopped before the microphone was even ready (Cancel straight away): don't start recording at all
   let stopped = false;
   let stopFn = () => { stopped = true; };
@@ -201,7 +314,7 @@ export function listen({ onLevel = () => {}, onState = () => {}, maxMs = 60000 }
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); }
     catch { throw new Error("Atlas can't use the microphone. Check Windows Settings → Privacy → Microphone."); }
     if (stopped) { stream.getTracks().forEach((t) => t.stop()); return ''; }
-    let ctx = null; const ep = new Endpointer({ maxMs }); const pcm = []; let verdict = 'going';
+    let ctx = null; const ep = new Endpointer({ maxMs, endSilenceMs: endSilenceMs(), minVoice: minVoiceFor(voiceLevel()) }); const pcm = []; let verdict = 'going'; let cued = false;
     try {
       ctx = new AudioContext({ sampleRate: RATE });
       const src = ctx.createMediaStreamSource(stream);
@@ -218,6 +331,7 @@ export function listen({ onLevel = () => {}, onState = () => {}, maxMs = 60000 }
           for (; o + FRAME <= all.length && verdict === 'going'; o += FRAME) {
             const f = all.subarray(o, o + FRAME); let sum = 0; for (const v of f) sum += v * v; const rms = Math.sqrt(sum / FRAME);
             pcm.push(f.slice()); verdict = ep.feed(rms);
+            if (ep.pausing !== cued) { cued = ep.pausing; onPause(cued); }   // a long pause: show "still listening"
             shown += (Math.min(1, rms * 9) - shown) * 0.5;
           }
           carry = all.slice(o); onLevel(shown);
@@ -230,14 +344,21 @@ export function listen({ onLevel = () => {}, onState = () => {}, maxMs = 60000 }
     const from = Math.max(0, ep.startFrame - 15);
     const b64 = wavBase64(pcm.slice(from));
     onState('writing');
-    const h = hint(); let last = null;
+    // the first speech model that manages it; when it's unsure, the next one listens too and the sure one is kept
+    const h = hint(); let last = null, unsure = null, got = null;
     for (const [id, key] of ears()) {
       try {
-        const t = id === 'gemini' ? await transcribeGemini(key, b64, h) : await transcribeWhisper(id, key, b64, h);
-        return fixHeard(t, ep.speechMs, h);
+        const t = id === 'gemini' ? { text: await transcribeGemini(key, b64, h), language: null, unsure: false } : heardFrom(await transcribeWhisper(id, key, b64, h));
+        if (!t.unsure || !t.text) { got = !t.text && unsure ? unsure : t; break; }
+        if (!unsure) { unsure = t; continue; }
+        got = unsure; break;
       } catch (e) { last = e; }
     }
-    throw last || new Error("Couldn't make out the words.");
+    got = got || unsure;
+    if (!got) throw last || new Error("Couldn't make out the words.");
+    const text = fixHeard(got.text, ep.speechMs, h);
+    if (text) { learn(ep); Object.assign(lastHeard, { language: got.language || (language().slice(0, 2).toLowerCase() || null), unsure: got.unsure, at: Date.now() }); }
+    return text;
   })();
   return { done, stop: () => stopFn() };
 }
@@ -275,7 +396,7 @@ let openAiSkip = 0;
 /** The form for one transcription request (exported for the tests). */
 export function transcribeForm(model, h, lang, file) {
   const newer = model === 'gpt-transcribe';
-  const f = { model, response_format: 'json', ...(newer ? {} : { temperature: '0' }), ...(h ? { prompt: h } : {}) };
+  const f = { model, response_format: model.startsWith('whisper-large') ? 'verbose_json' : 'json', ...(newer ? {} : { temperature: '0' }), ...(h ? { prompt: h } : {}) };
   if (newer) {
     const kw = h ? h.split(', ').map((w) => w.trim()).filter(Boolean).slice(0, 30) : [];
     if (kw.length) f['keywords[]'] = kw;
@@ -290,7 +411,7 @@ async function transcribeWhisper(id, key, b64, h) {
   const call = (model) => host.fetch(url, { method: 'POST', headers: { Authorization: 'Bearer ' + key }, timeout: 30000,
     form: transcribeForm(model, h, whisperLang(), { base64: b64, type: 'audio/wav', name: 'speech.wav' }) });
   let r;
-  if (groq) r = await call('whisper-large-v3-turbo');
+  if (groq) r = await call('whisper-large-v3');   // the full model: 10.3% word error rate against turbo's 12% (Groq's figures)
   else {
     for (let i = Math.min(openAiSkip, OPENAI_EARS.length - 1); ; i++) {
       r = await call(OPENAI_EARS[i]);
@@ -299,7 +420,7 @@ async function transcribeWhisper(id, key, b64, h) {
     }
   }
   if (!r.ok) throw new Error(`Couldn't make out the words (${groq ? 'Groq' : 'OpenAI'} ${r.status || r.error}).`);
-  return (JSON.parse(r.text).text || '').trim();
+  return r.text;   // the whole answer: heardFrom reads the words, the language and how sure it was
 }
 
 /** Plays a voice right away (Me → Voice → Hear It). */

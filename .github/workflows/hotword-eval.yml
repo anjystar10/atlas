@@ -1,0 +1,40 @@
+name: Hey Atlas evaluation
+
+# Measures the wake word with the real Vosk engine on synthesized speech and noise (tools/hotword_eval/eval.py).
+on:
+  workflow_dispatch:
+    inputs:
+      tail_only:
+        description: only the request-cut check
+        required: false
+        default: ''
+  push:
+    branches: [v08-hey]
+    paths: ["tools/hotword_eval/**", ".github/workflows/hotword-eval.yml"]
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q espeak-ng ffmpeg > /dev/null
+          pip install -q vosk==0.3.45 numpy
+          pip install -q piper-tts==1.2.0 || echo "piper not available"
+      - name: Models
+        run: |
+          mkdir -p /tmp/hw/voices && cd /tmp/hw
+          curl -sSL -o small.zip https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip && unzip -q small.zip
+          for v in en_US-lessac-medium en_GB-alan-medium; do
+            lang=${v%%-*}; name=$(echo $v | cut -d- -f2); q=$(echo $v | cut -d- -f3)
+            base="https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/${lang%%_*}/$lang/$name/$q"
+            curl -sSfL -o voices/$v.onnx "$base/$v.onnx" && curl -sSfL -o voices/$v.onnx.json "$base/$v.onnx.json" || rm -f voices/$v.onnx
+          done
+          ls -la /tmp/hw /tmp/hw/voices
+      - name: Evaluate
+        env:
+          WORK: /tmp/hw
+          TAIL_ONLY: ${{ github.event.inputs.tail_only }}
+        run: python tools/hotword_eval/eval.py /tmp/hw/vosk-model-small-en-us-0.15

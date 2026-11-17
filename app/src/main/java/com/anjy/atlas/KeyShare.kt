@@ -79,7 +79,8 @@ object KeyShare {
     // ------------------------------------------------------------------ the pool
 
     private fun json(ctx: Context, pref: String) = try { JSONObject(Store.getString(ctx, pref) ?: "{}") } catch (_: Exception) { JSONObject() }
-    private fun services() = Providers.all.map { it.id }
+    /** The AI services, and the voice-only ones whose keys live in the same pool (ElevenLabs). */
+    private fun services() = Providers.all.map { it.id } + ElevenLabs.ID
     private fun pool(ctx: Context, id: String) = Providers.keys(ctx, id).map { it.key }
 
     /** Our records: one per service that has (or had) keys. */
@@ -102,7 +103,7 @@ object KeyShare {
 
     /** Takes in the other device's record for a service: merged with ours, and the pool made to match. */
     @Synchronized private fun take(ctx: Context, id: String, rec: JSONObject) {
-        if (Providers.byId(id) == null) return
+        if (Providers.byId(id) == null && id != ElevenLabs.ID) return
         val meta = json(ctx, PREF_META)
         val m = meta.optJSONObject(id) ?: JSONObject()
         val seen = m.optJSONArray("seen")?.let { a -> (0 until a.length()).map { a.getString(it) } } ?: emptyList()

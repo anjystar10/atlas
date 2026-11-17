@@ -79,7 +79,7 @@ class AvatarService : Service() {
             ACTION_CELEBRATE -> celebrate()
             ACTION_MIC -> apply(fromUser = true)
             ACTION_STOP_TASK -> Conversation.stop()
-            ACTION_WAKE -> wake()
+            ACTION_WAKE -> { fromWakeWord = intent?.getBooleanExtra(EXTRA_FROM_WAKE_WORD, false) == true; wake() }
             else -> apply(fromUser = false)
         }
         return START_STICKY
@@ -103,9 +103,9 @@ class AvatarService : Service() {
             HotwordService.clearOff(this)
             wakeOn = false
         }
-        if (!avatarOn && !wakeOn) { HotwordService.stop(this); stopSelf(); return }
-        if (avatarOn && Settings.canDrawOverlays(this)) addOrb() else removeOrb()
-        orbFrame?.visibility = if (appInFront && !talking) View.GONE else View.VISIBLE
+        if (!avatarOn && !wakeOn && panel == null) { HotwordService.stop(this); stopSelf(); return }
+        if (avatarOn && Settings.canDrawOverlays(this)) addOrb() else if (panel == null) removeOrb()
+        orbFrame?.visibility = if ((appInFront && !talking) || panel != null) View.GONE else View.VISIBLE
         val micOk = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         if (wakeOn && micOk && HotwordFiles.ready(this)) {
             // talking back after "Hey Atlas" uses the microphone from here too
@@ -207,7 +207,8 @@ class AvatarService : Service() {
         }
         try {
             wm?.addView(frame, params)
-            orbFrame = frame; orb = o; orbParams = params
+            orbFrame = frame; orbParams = params
+            if (panel == null) orb = o else { floatingOrb = o; frame.visibility = View.GONE }   // the panel's orb stands in while it's open
         } catch (e: Exception) { Log.e(TAG, "Could not show Atlas on screen", e) }
     }
 
@@ -267,10 +268,121 @@ class AvatarService : Service() {
 
     // ---------------------------------------------------------------- talking in place
 
-    /** "Hey Atlas" (or a tap): grow and listen. Without Atlas on screen, the panel opens instead. */
+    // ---------------------------------------------------------------- the mini panel
+
+    private var panel: MiniPanel? = null
+    /** A note shown in the panel's status line until something new happens ("Still listening…", "I didn't catch that."). */
+    private var panelNote: String? = null
+    private var ticks = 0
+    /** The floating orb while the panel's own orb stands in for it. */
+    private var floatingOrb: OrbView? = null
+
+    /**
+     * Opens the mini panel over the app in front (or brings it back): the conversation shows there instead of the
+     * caption by the orb. False when Android doesn't let Atlas draw over other apps.
+     */
+    private fun openPanel(): Boolean {
+        panel?.let { if (it.shown) return true }
+        if (!Settings.canDrawOverlays(this)) return false
+        val wmm = wm ?: return false
+        val p = MiniPanel(this, wmm,
+            onMic = { panelMic() },
+            onSend = { t -> panelSend(t) },
+            onAnswer = { yes -> panelAnswer(yes) },
+            onOpenApp = { closePanel(); try { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { Log.w(TAG, "open Atlas", e) } },
+            onDismiss = { closePanel() })
+        p.show()
+        if (!p.shown) return false
+        panel = p
+        hideCaption()
+        floatingOrb = orbFrame?.let { orb }
+        orb = p.orb
+        orbFrame?.visibility = View.GONE
+        p.status("Listening…")
+        panelRefresh()
+        return true
+    }
+
+    /** Puts the panel away: listening stops; anything Atlas is doing carries on (the pill shows it when it's on screen). */
+    private fun closePanel() {
+        val p = panel ?: return
+        panel = null
+        handler.removeCallbacks(panelIdle)
+        p.close()
+        orb = floatingOrb; floatingOrb = null
+        endTalk()
+        orbFrame?.visibility = if (appInFront || orbParams == null) View.GONE else View.VISIBLE
+        updatePill()
+    }
+
+    /** After a quiet spell with nothing going on (and you not typing), the panel goes by itself. */
+    private val panelIdle = Runnable { val p = panel ?: return@Runnable; if (!talking && !Conversation.busy && !Voice.busy && !p.typing) closePanel() else armPanelIdle() }
+    private fun armPanelIdle() { handler.removeCallbacks(panelIdle); if (panel != null) handler.postDelayed(panelIdle, 30_000) }
+
+    /** The mic: done talking (send it now), cut in while Atlas speaks, or start talking again. */
+    private fun panelMic() {
+        when {
+            voice != null && !alongside -> voice?.finish()
+            Voice.busy -> { Conversation.hush(); if (!talking) startTalk() else listen() }
+            else -> if (!talking) startTalk() else { voice?.cancel(); voice = null; listen() }
+        }
+    }
+
+    /** Typed in the panel: sent as a written request (a reply that's shown; spoken only if Speak Replies is on). */
+    private fun panelSend(t: String) {
+        voice?.cancel(); voice = null; alongside = false
+        panel?.heard(t)
+        if (Conversation.busy) Conversation.interject(this, t, onSpoken = {}) else Conversation.send(this, t, spoken = false)
+        armPanelIdle()
+    }
+
+    /** Allow / Deny in the panel: a bot's request is answered directly; the chat's own is answered in words, as you'd say it. */
+    private fun panelAnswer(yes: Boolean) {
+        val bot = try { Bots.visible().firstOrNull { it.state == BotRules.AWAITING_APPROVAL } } catch (_: Exception) { null }
+        if (bot != null) Bots.approve(bot.id, yes)
+        else Conversation.send(this, if (yes) "Yes, allow it." else "No, don't do that.", spoken = talking)
+        panel?.waitingOn(null)
+    }
+
+    /** Brings the panel up to date with the conversation: status, the reply, anything waiting on you, stepping aside. */
+    private fun panelRefresh() {
+        val p = panel ?: return
+        p.stepAside(Conversation.busy && Conversation.usingPhone)
+        val bot = try { Bots.visible().firstOrNull { it.state == BotRules.AWAITING_APPROVAL } } catch (_: Exception) { null }
+        p.waitingOn(bot?.approval?.what ?: ChatAsk.list().lastOrNull()?.what)
+        p.status(panelNote ?: when {
+            voice != null && !alongside -> "Listening…"
+            Voice.speaking -> "Speaking"
+            Conversation.busy -> "${Conversation.status ?: "Thinking"}…"
+            voice != null -> "Working · still listening"
+            else -> "Tap the mic to talk, or type"
+        })
+        p.listening(voice != null && !alongside)
+    }
+
+    /** Starts a spoken conversation (the panel's mic, the orb, "Hey Atlas"). */
+    private fun startTalk(afterWake: Boolean = false) {
+        HotwordService.hold(this, true)
+        Conversation.hush()
+        talking = true; turns = 0; hearFails = 0
+        handler.removeCallbacks(pulse); handler.post(pulse)
+        Hear.prewarm(this)
+        listen(afterWake = afterWake)
+    }
+
+    /**
+     * "Hey Atlas", the assist gesture or a tap on the orb: the mini panel opens over the app in front and listens.
+     * Without "Display over other apps", the panel opens as a small sheet instead ([AssistActivity]); the full app
+     * opens only when you ask for it.
+     */
     private fun wake() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && openPanel()) {
+            startTalk(afterWake = fromWakeWord)
+            fromWakeWord = false
+            return
+        }
         if (orbFrame == null || checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            try { startActivity(Intent(this, AssistActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("listen", true)) }
+            try { startActivity(Intent(this, AssistActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("listen", true).putExtra(EXTRA_FROM_WAKE_WORD, fromWakeWord)); fromWakeWord = false }
             catch (e: Exception) { Log.w(TAG, "couldn't open the panel", e); HotwordService.hold(this, false) }
             return
         }
@@ -280,18 +392,63 @@ class AvatarService : Service() {
         orbFrame?.visibility = View.VISIBLE
         setGrown(true)
         handler.post(pulse)
-        listen()
+        Hear.prewarm(this)
+        listen(afterWake = fromWakeWord)
+        fromWakeWord = false
     }
 
-    private var hearFails = 0
+    /** Set when "Hey Atlas" (not a tap) woke it: the wake listener hands over what was said right after the phrase. */
+    private var fromWakeWord = false
 
-    private fun listen() {
+    private var hearFails = 0
+    /** Listening while Atlas works (it carries on; what's said is passed on to it), not waiting for an answer. */
+    private var alongside = false
+    /** Atlas's own voice paused the listening while it works: listen again once it has finished speaking. */
+    private var resumeAfterVoice = false
+
+    /**
+     * While Atlas works on something you asked for by voice, the conversation goes on: it keeps listening (except
+     * while it speaks, so it doesn't hear itself), "stop" stops the work, "that's all" ends the talk (the work goes
+     * on), and anything else is passed on to it as it works.
+     */
+    private fun listenAlongside() {
+        if (!talking || !Conversation.busy || Voice.busy || voice != null) return
+        alongside = true
+        orb?.energy = 1f
+        voice = Hear.open(this,
+            onPartial = { t -> if (!Conversation.usingPhone) say(t, who = "You") },
+            onLevel = { l -> orb?.level = l },
+            onDone = { t ->
+                voice = null; alongside = false; orb?.level = 0f
+                if (!talking) return@open
+                if (t.isNullOrBlank()) { handler.postDelayed({ listenAlongside() }, 250); return@open }
+                when (Speech.whileWorking(t)) {
+                    Speech.WhileWorking.STOP -> { Conversation.stop(); Voice.speak(this, "Stopped."); handler.postDelayed({ listen() }, 900) }
+                    Speech.WhileWorking.END_TALK -> { if (!Conversation.usingPhone) say(t, who = "You"); handler.postDelayed({ endTalk() }, 700) }
+                    Speech.WhileWorking.PASS_ON -> {
+                        turns++
+                        if (!Conversation.usingPhone) say(t, who = "You")
+                        Conversation.interject(this, t, onSpoken = { if (talking) handler.postDelayed({ listen() }, 400) })
+                        handler.postDelayed({ listenAlongside() }, 300)
+                    }
+                }
+            },
+            onError = { _ ->
+                voice = null; alongside = false; orb?.level = 0f
+                // listening alongside is a bonus: a hiccup just means a short pause before trying again
+                if (talking) handler.postDelayed({ listenAlongside() }, 2500)
+            })
+        voice?.start()
+    }
+
+    private fun listen(afterWake: Boolean = false) {
         if (!talking) return
         Conversation.hush()
+        alongside = false; resumeAfterVoice = false
         orb?.energy = 1f
         say("Listening…", who = "You", dim = true)
         voice?.cancel()
-        voice = Hear.open(this,
+        voice = Hear.open(this, afterWake = afterWake,
             onPartial = { t -> say(t, who = "You") },
             onLevel = { l -> orb?.level = l },
             onDone = { t ->
@@ -307,6 +464,8 @@ class AvatarService : Service() {
                 say(t, who = "You")
                 // listen again once Atlas has finished speaking (a short gap, so the tail of its own voice isn't heard)
                 Conversation.send(this, t, spoken = true, onSpoken = { if (talking) handler.postDelayed({ listen() }, 400) })
+                // the conversation goes on while it works
+                handler.postDelayed({ listenAlongside() }, 700)
             },
             onError = { msg ->
                 voice = null; orb?.level = 0f; say(msg, dim = true)
@@ -318,6 +477,12 @@ class AvatarService : Service() {
 
     /** While Atlas thinks and answers, the caption shows its reply as it comes. */
     private fun conversationMoved() {
+        panel?.let { p ->
+            val last = Conversation.messages.lastOrNull()
+            if (last != null && !last.fromUser && last.text.isNotBlank()) { panelNote = null; p.reply(last.text) }
+            panelRefresh(); armPanelIdle()
+            return
+        }
         if (!talking) return
         if (Conversation.busy && Conversation.usingPhone) { hideCaption(); return }
         val last = Conversation.messages.lastOrNull() ?: return
@@ -330,10 +495,12 @@ class AvatarService : Service() {
         handler.removeCallbacksAndMessages(null)
         handler.postDelayed(syncTick, 10 * 60_000L)   // (the line above also cleared the sync timer)
         voice?.cancel(); voice = null
+        alongside = false; resumeAfterVoice = false
         orb?.level = 0f; orb?.energy = 0f
         hideCaption()
-        setGrown(false)
+        if (panel == null) setGrown(false)
         HotwordService.hold(this, false)
+        panelRefresh(); armPanelIdle()
     }
 
     private var captionWho: TextView? = null
@@ -344,6 +511,17 @@ class AvatarService : Service() {
      * A change of speaker fades the words in, so the conversation reads smoothly.
      */
     private fun say(text: String, who: String = "Atlas", dim: Boolean = false) {
+        panel?.let { p ->
+            when {
+                who == "You" && text == "Listening…" -> { panelNote = null; p.heard(null) }
+                who == "You" && text == "Still listening…" -> panelNote = text
+                who == "You" -> { panelNote = null; p.heard(text) }
+                dim -> panelNote = text                      // "I didn't catch that.", a hiccup
+                else -> { panelNote = null; p.reply(text) }
+            }
+            panelRefresh()
+            return
+        }
         // your words as heard; Atlas's without formatting symbols
         val shown = if (who == "You" || text.trimEnd().endsWith("…")) text.trim() else Plain.spoken(text)
         val card = caption ?: run {
@@ -414,10 +592,17 @@ class AvatarService : Service() {
             t += 0.05f
             // A talk can't move on by itself if its answer was stopped or cut off by other speech (the "listen again"
             // never comes): when nothing is listening, thinking or speaking for a while, the talk ends.
+            // listening alongside the work: Atlas's own voice pauses it (so it doesn't hear itself), then it resumes
+            if (alongside && voice != null && Voice.busy) { voice?.cancel(); voice = null; alongside = false; resumeAfterVoice = true }
+            else if (resumeAfterVoice && !Voice.busy && voice == null) {
+                resumeAfterVoice = false
+                if (Conversation.busy) handler.postDelayed({ listenAlongside() }, 400)
+            }
             if (voice == null && !Conversation.busy && !Voice.busy) {
                 idle += 50
                 if (idle >= 6000) { endTalk(); return }
             } else idle = 0
+            if (panel != null && ++ticks % 10 == 0) panelRefresh()   // twice a second
             if (Voice.speaking) {
                 val beat = (0.5f + 0.5f * sin(t * 9.0f)) * (0.6f + 0.4f * sin(t * 2.3f + 1f))
                 orb?.level = 0.12f + 0.38f * beat
@@ -452,6 +637,7 @@ class AvatarService : Service() {
     }
 
     override fun onDestroy() {
+        panel?.close(); panel = null
         Conversation.unlisten(onChat)
         handler.removeCallbacksAndMessages(null)
         removeOrb()
@@ -469,6 +655,7 @@ class AvatarService : Service() {
         const val ACTION_MIC = "com.anjy.atlas.AVATAR_MIC"
         const val ACTION_STOP_TASK = "com.anjy.atlas.STOP_TASK"
         const val ACTION_WAKE = "com.anjy.atlas.WAKE"
+        const val EXTRA_FROM_WAKE_WORD = "from_wake_word"
         @Volatile var running = false; private set
         @Volatile var appInFront = false; private set
         @Volatile private var instance: AvatarService? = null

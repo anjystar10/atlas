@@ -1777,6 +1777,50 @@ class MainActivity : Activity() {
         vi.start()
     }
 
+    /**
+     * "Teach Atlas Your Voice": a few phrases read aloud, one at a time. Each reading teaches Atlas your pace and
+     * how loud you speak (as every request does, see [Hear]); the names it didn't write down as said become words to
+     * expect. Nothing leaves the phone except the readings themselves, written down by the same speech model as always.
+     */
+    private fun teachVoice(step: Int = 0, learned: MutableList<String> = mutableListOf()) {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC); return
+        }
+        val phrases = Speech.teachPhrases(Store.read(this) { it.settings.name }, Hear.taughtWords(this))
+        if (step >= phrases.size) {
+            if (learned.isNotEmpty()) Hear.setTaughtWords(this, Hear.taughtWords(this) + learned)
+            sheet(null, "Thank You", (if (learned.isEmpty()) "Atlas heard every name as you said it." else "Atlas will now expect: ${learned.joinToString(", ")}.") +
+                " It waits ${"%.1f".format(Hear.endSilenceMs(this) / 1000f)} s of quiet before it takes it you've finished, and keeps learning as you talk.")
+            if (tab == 2) render(keepScroll = true)
+            return
+        }
+        Conversation.hush(); Voice.hush()
+        AvatarService.holdMic(this, true)
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+        val orb = OrbView(this).apply { energy = 1f; still = Prefs.reduceMotion(this@MainActivity) }
+        col.addView(orb, LinearLayout.LayoutParams(dp(120), dp(120)))
+        col.add(text("“${phrases[step]}”", 19f, FG, MED).apply { gravity = Gravity.CENTER }, 10)
+        val heard = text("Listening…", 14f, MUTED).apply { gravity = Gravity.CENTER; minLines = 2 }
+        col.add(heard, 10)
+        var over = false
+        var close: () -> Unit = {}
+        val vi = Hear.open(this,
+            onPartial = { t -> heard.text = t },
+            onLevel = { l -> orb.level = l },
+            onDone = { t ->
+                if (over) return@open
+                over = true; AvatarService.holdMic(this, false); close()
+                if (t.isNullOrBlank()) { showBanner("I didn't hear that one. Let's try it again.", MUTED); body.postDelayed({ teachVoice(step, learned) }, 700); return@open }
+                Speech.missedNames(phrases[step], t).forEach { w -> if (learned.none { it.equals(w, true) }) learned.add(w) }
+                body.postDelayed({ teachVoice(step + 1, learned) }, 500)
+            },
+            onError = { msg -> if (!over) { over = true; AvatarService.holdMic(this, false); close(); showBanner(msg, MUTED) } })
+        close = sheet(null, "Teach Atlas Your Voice · ${step + 1} of ${phrases.size}", "Read this aloud the way you'd normally say it. Take your time.", content = col,
+            primaryLabel = "Done", onPrimary = { keepSheet = true; heard.text = "One moment…"; vi.finish() },
+            secondaryLabel = "Stop", onSecondary = { if (!over) { over = true; vi.cancel(); AvatarService.holdMic(this, false) } })
+        vi.start()
+    }
+
     private fun stopVoice() {
         voiceInput?.cancel(); voiceInput = null
         closeVoiceSheet?.invoke(); closeVoiceSheet = null
@@ -2265,20 +2309,36 @@ class MainActivity : Activity() {
             st.wakeWord -> "Starting… If it stays like this, tap “Start listening” on Atlas's notification."
             else -> "Say “Hey Atlas” from anywhere to ask something without opening the app. It's heard on the phone only; nothing is recorded or sent. Switching it on downloads a ${HotwordFiles.MODEL_MB} MB speech model once."
         }, 13f, MUTED), 8)
+        if (st.wakeWord) {
+            // the listener reads this when it (re)starts: let go of the microphone and take it back
+            vc.add(switchRow(null, "Wake More Easily", HotwordFiles.sensitive(this)) { on ->
+                HotwordFiles.setSensitive(this, on)
+                AvatarService.holdMic(this, true); body.postDelayed({ AvatarService.holdMic(this, false) }, 700)
+            }, 8)
+            vc.add(text("For a noisy room or when it misses you. Look-alike words (“at last”) may wake it now and then.", 13f, MUTED), 6)
+        }
         vc.add(switchRow(null, "Speak Replies", st.speakReplies) { on -> Store.edit(this) { it.settings.speakReplies = on } }, 8)
         vc.add(text("Spoken questions always get a spoken answer.", 13f, MUTED), 6)
         vc.add(switchRow(null, "Natural Voice", Voice.natural(this)) { on -> Store.setFlag(this, "voice_natural", on); render(keepScroll = true) }, 10)
         val eng = Voice.engine(this)
         vc.add(text(when {
             !Voice.natural(this) -> "Using the phone's own voice."
+            eng == ElevenLabs.ID -> "Atlas's own voice, designed for it on ElevenLabs from a description (uses your ElevenLabs key; made once, then kept)."
             eng == "gemini" -> "A human-sounding voice from Gemini (uses your Gemini key)."
             eng == "openai" -> "A human-sounding voice from OpenAI (uses your OpenAI key)."
-            else -> "Natural voices come from Gemini or OpenAI: add one of their keys. Until then Atlas uses the phone's best voice."
+            else -> "Natural voices come from ElevenLabs, Gemini or OpenAI: add one of their keys. Until then Atlas uses the phone's best voice."
         } + (Voice.lastSpoke?.let { "\nLast reply was spoken by $it." } ?: "")
-          + (Voice.lastProblem?.let { "\nThe natural voice failed last time ($it), so the phone's voice stood in." } ?: ""), 13f, MUTED), 6)
+          + (Voice.lastProblem?.let { "\nThe natural voice failed last time ($it), so another voice stood in." } ?: ""), 13f, MUTED), 6)
+        // which natural voice speaks, when there's more than one key for one
+        val engs = Voice.engines(this)
+        if (engs.size > 1) {
+            vc.add(text("Voice Service", 16f, FG, MED), 12)
+            vc.add(chipGroup(engs.map { it to Voice.engineName(it) }, { it == eng }) { Voice.setEngine(this, it); render(keepScroll = true) }, 8)
+            vc.add(text("If it fails, the next one says the reply, so a reply is never lost.", 13f, MUTED), 6)
+        }
         if (eng != null) {
             // each voice in its own row: who it is, what it's like; tap to choose and hear it
-            val list = if (eng == "gemini") Voice.geminiChoices else Voice.openAiChoices
+            val list = when (eng) { "gemini" -> Voice.geminiChoices; ElevenLabs.ID -> Voice.elevenChoices; else -> Voice.openAiChoices }
             val chosen = Voice.current(this, eng).id
             val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             list.forEachIndexed { i, c ->
@@ -2296,6 +2356,32 @@ class MainActivity : Activity() {
             }
             vc.add(rows, 8)
         }
+        // the "AI system" sound on every reply, and the ElevenLabs key for Atlas's designed voice
+        vc.add(switchRow(null, "AI System Finish", Voice.finish(this)) { on -> Voice.setFinish(this, on) }, 12)
+        vc.add(text("A light finish on every spoken reply: a little presence, a faint digital sheen and a small room, so Atlas sounds like a well-made assistant. Words stay clear first.", 13f, MUTED), 6)
+        vc.add(switchRow(null, "Call Me “Sir”", Voice.sir(this)) { on -> Voice.setSir(this, on) }, 12)
+        vc.add(text("Spoken replies now and then address you as “sir”, the way a butler would.", 13f, MUTED), 6)
+        val elKeys = Providers.keys(this, ElevenLabs.ID)
+        vc.add(text("ElevenLabs Key", 16f, FG, MED), 14)
+        vc.add(text(if (elKeys.isEmpty()) "Optional. With an ElevenLabs key Atlas designs its own voice there (refined, calm, British) and speaks with it. Voice Design may need a paid ElevenLabs plan."
+            else "${elKeys.size} key${if (elKeys.size == 1) "" else "s"} added." + (elKeys.firstOrNull { it.problem.isNotBlank() }?.let { " Last problem: ${it.problem}" } ?: ""), 13f, MUTED), 4)
+        var elDraft = ""
+        vc.add(field("Paste an ElevenLabs API key", "") { elDraft = it }.apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; setSingleLine(true)
+        }, 8)
+        val er = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        er.addView(primary("Add Key") {
+            val k = elDraft.trim()
+            if (k.length < 20) { showBanner("That doesn't look like a whole key.", MUTED); return@primary }
+            Providers.addKey(this, ElevenLabs.ID, k); Voice.setEngine(this, ElevenLabs.ID)
+            showBanner("ElevenLabs key added. Atlas designs its voice the first time it speaks.")
+            render(keepScroll = true)
+        }, LinearLayout.LayoutParams(0, WRAP, 1f))
+        er.addView(secondary(if (elKeys.isEmpty()) "Get a Key" else "Remove Keys") {
+            if (elKeys.isEmpty()) try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://elevenlabs.io/app/settings/api-keys"))) } catch (_: Exception) { showBanner("Open elevenlabs.io in your browser.", MUTED) }
+            else { elKeys.forEach { Providers.removeKey(this, ElevenLabs.ID, it.key) }; render(keepScroll = true) }
+        }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
+        vc.add(er, 8)
         // how fast Atlas talks, how it hears, and whether a spoken chat keeps going
         vc.add(hairline(), 10, MATCH, dp(1))
         vc.add(text("Speaking Speed", 16f, FG, MED), 12)
@@ -2307,7 +2393,20 @@ class MainActivity : Activity() {
         vc.add(text("Now: ${Hear.describe(this)}.", 13f, MUTED), 6)
         vc.add(text("Language You Speak", 16f, FG, MED), 14)
         vc.add(chipGroup(Hear.LANGUAGES, { it == (Hear.language(this) ?: "auto") }) { Hear.setLanguage(this, it); render(keepScroll = true) }, 8)
-        vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out.", 13f, MUTED), 6)
+        vc.add(text("Telling Atlas the language makes it hear names and accents better. “Any” lets it work it out (Atlas then answers in the language you speak).", 13f, MUTED), 6)
+        // hearing everyone well: time to finish, the words to expect, and a short reading to learn your voice
+        vc.add(switchRow(null, "Give Me Time to Finish", Hear.patient(this)) { on -> Hear.setPatient(this, on) }, 14)
+        vc.add(text("Atlas waits much longer through pauses before it takes it you've finished: for a stammer, a slow or careful way of speaking, or thinking mid-sentence. It also learns your usual pace by itself (now it waits ${"%.1f".format(Hear.endSilenceMs(this) / 1000f)} s).", 13f, MUTED), 6)
+        val taught = Hear.taughtWords(this)
+        vc.add(settingRow("Words Atlas Should Know", if (taught.isEmpty()) "Names, places, words you use" else taught.take(4).joinToString(", ") + if (taught.size > 4) " and ${taught.size - 4} more" else "") {
+            var v = taught.joinToString("\n")
+            sheet(null, "Words Atlas Should Know", "One per line: people's names, places, brands, words from your work. The speech model is told to expect them, so they're written down right.",
+                content = field("e.g. Chidinma", v, multi = true) { v = it }, primaryLabel = "Save", onPrimary = {
+                    Hear.setTaughtWords(this, v.split("\n")); render(keepScroll = true)
+                }, secondaryLabel = "Cancel")
+        }, 10)
+        vc.add(secondary("Teach Atlas Your Voice") { teachVoice() }, 10)
+        vc.add(text("Read ${Speech.teachPhrases(st.name, taught).size} short phrases aloud (about a minute). Atlas learns your pace and how loud you speak, and the names it mishears become words it expects. It all stays on this phone.", 13f, MUTED), 6)
         body.add(vc, 8)
 
         // >>> email (EmailUi.kt)

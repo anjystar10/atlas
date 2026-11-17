@@ -2,6 +2,8 @@
 // one runs out, and the tools: the Log, the web, its own settings, and the PC itself.
 import { db, pref, setPref, saveChat, changed, OPEN, findTask, createTask, updateTask, respond, cancelTask, deleteTask, remember, forget } from './store.js';
 import { plainReply, plainMemory } from './plain.js';
+import { manner, heardNote } from './speech.js';
+import { lastHeard } from './voice.js';
 import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // connections: MCP servers and web APIs
 import { PROJECTS_PROMPT, projectLabel } from './projects.js';   // >>> projects (the tools come through the capability registry) <<<
@@ -234,7 +236,7 @@ export function session(p, key, history, user, media, tools = TOOLS) {
       const body = { model, messages: [{ role: 'system', content: system }, ...trimScreens(messages)], tools: tools.map((f) => ({ type: 'function', function: { name: f.name, description: f.description, parameters: params(f) } })) };
       if (p.id === 'openai' && model.startsWith('gpt-6')) body.reasoning_effort = 'none';
       const headers = p.local ? {} : { Authorization: `Bearer ${this.key}` };
-      if (p.id === 'openrouter') { headers['HTTP-Referer'] = 'https://github.com/anjystar10/atlas-app'; headers['X-Title'] = 'Atlas'; }
+      if (p.id === 'openrouter') { headers['HTTP-Referer'] = 'https://github.com/anjystar10/atlas'; headers['X-Title'] = 'Atlas'; }
       const r = await post(`${base}/chat/completions`, headers, body, p.name, p.local ? 600000 : 180000);
       const choice = (r.choices || [])[0]; const m = choice && choice.message;
       if (!m) throw new Failure(`${p.name} sent back an empty answer.`);
@@ -512,7 +514,7 @@ How you talk:
   - After acting, report what the tool result confirms (the stored time, the file name, the number of items). If it shows an error or doesn't confirm it, say plainly it didn't happen and why.
   - If a request is ambiguous in a way that changes the result (which Sarah, which account, 7 am or pm), ask one short question instead of guessing. (<<< accuracy)
 - Never show code, ids, function or tool names, JSON, or how you work inside, unless they asked you for code. Say what you did in plain words.
-${spoken ? '- This came by voice and your answer will be read aloud: one to three short spoken sentences. No lists, no formatting, no links. Spoken, you are composed and courteous, the unflappable aide: precise, quietly warm, a touch of dry wit when it fits; never gushing.' : '- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler.'}
+${spoken ? manner(pref('voiceSir', false)) + heardNote(lastHeard.language, lastHeard.unsure && Date.now() - lastHeard.at < 60000) : '- Write neatly, clean and organized, every time. Short answers: a few clear sentences. Anything with several parts: a short heading where it helps, bullet or numbered lists, and **bold** for the key words, using Markdown. Keep paragraphs short. No filler.'}
 
 The Log (only what's worth keeping):
 - set_reminder when they want reminding or have something to do at a time. Pass the time as they said it ("tomorrow at 6pm", "in 90 minutes", "monday 9am") or as 'YYYY-MM-DD HH:MM'; Atlas works out the exact moment and tells you what it stored. If they gave a day but no time, ask what time unless it's obvious.

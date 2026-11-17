@@ -20,6 +20,14 @@ object HotwordFiles {
 
     fun dir(ctx: Context) = File(ctx.filesDir, "vosk-$VERSION")
 
+    /**
+     * "Wake more easily": the check after the phrase also accepts how the small model often splits "Atlas"
+     * ("at las"). A file, because the listener runs in its own process and can't read Atlas's stored data.
+     */
+    private fun sensitivityFile(ctx: Context) = File(ctx.filesDir, "hotword-sensitivity.txt")
+    fun sensitive(ctx: Context) = try { sensitivityFile(ctx).readText().trim() == "sensitive" } catch (_: Exception) { false }
+    fun setSensitive(ctx: Context, on: Boolean) { try { sensitivityFile(ctx).writeText(if (on) "sensitive" else "normal") } catch (_: Exception) {} }
+
     /** Whether the wake word model has been downloaded and unpacked. */
     fun ready(ctx: Context): Boolean = File(dir(ctx), ".complete").exists()
 

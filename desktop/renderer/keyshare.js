@@ -38,7 +38,8 @@ export async function observe(rec, seen, now, at) {
   return { added, removed };
 }
 
-const services = () => brain.PROVIDERS.filter((p) => !p.local).map((p) => p.id);
+// the AI services, and the voice-only ones whose keys live in the same pool (ElevenLabs)
+const services = () => [...brain.PROVIDERS.filter((p) => !p.local).map((p) => p.id), 'elevenlabs'];
 const pool = (id) => brain.keys(id).map((e) => e.key);
 let queue = Promise.resolve();
 const serial = (fn) => (queue = queue.then(fn, fn));
@@ -60,7 +61,7 @@ async function list() {
 
 /** Takes in the other device's record for a service: merged with ours, and the pool made to match. */
 async function take(id, rec) {
-  if (!brain.PROVIDERS.find((p) => p.id === id && !p.local)) return;
+  if (id !== 'elevenlabs' && !brain.PROVIDERS.find((p) => p.id === id && !p.local)) return;
   const meta = { ...pref('keyshareMeta', {}) }, m = meta[id] || {}, seen = Array.isArray(m.seen) ? m.seen : [];
   const mine = await observe(m, seen, pool(id), Date.now() + (sync.status.skew || 0));
   const merged = merge(mine, rec), want = new Set(await present(merged)), have = pool(id);

@@ -59,10 +59,10 @@ class HotwordService : Service() {
     private fun wake() {
         held = true
         // the floating Atlas grows and listens; without it, the panel opens
-        try { startService(Intent(this, AvatarService::class.java).setAction(AvatarService.ACTION_WAKE)) }
+        try { startService(Intent(this, AvatarService::class.java).setAction(AvatarService.ACTION_WAKE).putExtra(AvatarService.EXTRA_FROM_WAKE_WORD, true)) }
         catch (e: Exception) {
             Log.w(TAG, "couldn't reach Atlas on screen; opening the panel", e)
-            try { startActivity(Intent(this, AssistActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("listen", true)) }
+            try { startActivity(Intent(this, AssistActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("listen", true).putExtra(AvatarService.EXTRA_FROM_WAKE_WORD, true)) }
             catch (e2: Exception) { held = false; hotword?.start() }
         }
     }
