@@ -103,9 +103,9 @@ class AvatarService : Service() {
             HotwordService.clearOff(this)
             wakeOn = false
         }
-        if (!avatarOn && !wakeOn) { HotwordService.stop(this); stopSelf(); return }
-        if (avatarOn && Settings.canDrawOverlays(this)) addOrb() else removeOrb()
-        orbFrame?.visibility = if (appInFront && !talking) View.GONE else View.VISIBLE
+        if (!avatarOn && !wakeOn && panel == null) { HotwordService.stop(this); stopSelf(); return }
+        if (avatarOn && Settings.canDrawOverlays(this)) addOrb() else if (panel == null) removeOrb()
+        orbFrame?.visibility = if ((appInFront && !talking) || panel != null) View.GONE else View.VISIBLE
         val micOk = checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         if (wakeOn && micOk && HotwordFiles.ready(this)) {
             // talking back after "Hey Atlas" uses the microphone from here too
@@ -207,7 +207,8 @@ class AvatarService : Service() {
         }
         try {
             wm?.addView(frame, params)
-            orbFrame = frame; orb = o; orbParams = params
+            orbFrame = frame; orbParams = params
+            if (panel == null) orb = o else { floatingOrb = o; frame.visibility = View.GONE }   // the panel's orb stands in while it's open
         } catch (e: Exception) { Log.e(TAG, "Could not show Atlas on screen", e) }
     }
 
@@ -267,8 +268,119 @@ class AvatarService : Service() {
 
     // ---------------------------------------------------------------- talking in place
 
-    /** "Hey Atlas" (or a tap): grow and listen. Without Atlas on screen, the panel opens instead. */
+    // ---------------------------------------------------------------- the mini panel
+
+    private var panel: MiniPanel? = null
+    /** A note shown in the panel's status line until something new happens ("Still listening…", "I didn't catch that."). */
+    private var panelNote: String? = null
+    private var ticks = 0
+    /** The floating orb while the panel's own orb stands in for it. */
+    private var floatingOrb: OrbView? = null
+
+    /**
+     * Opens the mini panel over the app in front (or brings it back): the conversation shows there instead of the
+     * caption by the orb. False when Android doesn't let Atlas draw over other apps.
+     */
+    private fun openPanel(): Boolean {
+        panel?.let { if (it.shown) return true }
+        if (!Settings.canDrawOverlays(this)) return false
+        val wmm = wm ?: return false
+        val p = MiniPanel(this, wmm,
+            onMic = { panelMic() },
+            onSend = { t -> panelSend(t) },
+            onAnswer = { yes -> panelAnswer(yes) },
+            onOpenApp = { closePanel(); try { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { Log.w(TAG, "open Atlas", e) } },
+            onDismiss = { closePanel() })
+        p.show()
+        if (!p.shown) return false
+        panel = p
+        hideCaption()
+        floatingOrb = orbFrame?.let { orb }
+        orb = p.orb
+        orbFrame?.visibility = View.GONE
+        p.status("Listening…")
+        panelRefresh()
+        return true
+    }
+
+    /** Puts the panel away: listening stops; anything Atlas is doing carries on (the pill shows it when it's on screen). */
+    private fun closePanel() {
+        val p = panel ?: return
+        panel = null
+        handler.removeCallbacks(panelIdle)
+        p.close()
+        orb = floatingOrb; floatingOrb = null
+        endTalk()
+        orbFrame?.visibility = if (appInFront || orbParams == null) View.GONE else View.VISIBLE
+        updatePill()
+    }
+
+    /** After a quiet spell with nothing going on (and you not typing), the panel goes by itself. */
+    private val panelIdle = Runnable { val p = panel ?: return@Runnable; if (!talking && !Conversation.busy && !Voice.busy && !p.typing) closePanel() else armPanelIdle() }
+    private fun armPanelIdle() { handler.removeCallbacks(panelIdle); if (panel != null) handler.postDelayed(panelIdle, 30_000) }
+
+    /** The mic: done talking (send it now), cut in while Atlas speaks, or start talking again. */
+    private fun panelMic() {
+        when {
+            voice != null && !alongside -> voice?.finish()
+            Voice.busy -> { Conversation.hush(); if (!talking) startTalk() else listen() }
+            else -> if (!talking) startTalk() else { voice?.cancel(); voice = null; listen() }
+        }
+    }
+
+    /** Typed in the panel: sent as a written request (a reply that's shown; spoken only if Speak Replies is on). */
+    private fun panelSend(t: String) {
+        voice?.cancel(); voice = null; alongside = false
+        panel?.heard(t)
+        if (Conversation.busy) Conversation.interject(this, t, onSpoken = {}) else Conversation.send(this, t, spoken = false)
+        armPanelIdle()
+    }
+
+    /** Allow / Deny in the panel: a bot's request is answered directly; the chat's own is answered in words, as you'd say it. */
+    private fun panelAnswer(yes: Boolean) {
+        val bot = try { Bots.visible().firstOrNull { it.state == BotRules.AWAITING_APPROVAL } } catch (_: Exception) { null }
+        if (bot != null) Bots.approve(bot.id, yes)
+        else Conversation.send(this, if (yes) "Yes, allow it." else "No, don't do that.", spoken = talking)
+        panel?.waitingOn(null)
+    }
+
+    /** Brings the panel up to date with the conversation: status, the reply, anything waiting on you, stepping aside. */
+    private fun panelRefresh() {
+        val p = panel ?: return
+        p.stepAside(Conversation.busy && Conversation.usingPhone)
+        val bot = try { Bots.visible().firstOrNull { it.state == BotRules.AWAITING_APPROVAL } } catch (_: Exception) { null }
+        p.waitingOn(bot?.approval?.what ?: ChatAsk.list().lastOrNull()?.what)
+        p.status(panelNote ?: when {
+            voice != null && !alongside -> "Listening…"
+            Voice.speaking -> "Speaking"
+            Conversation.busy -> "${Conversation.status ?: "Thinking"}…"
+            voice != null -> "Working · still listening"
+            else -> "Tap the mic to talk, or type"
+        })
+        p.listening(voice != null && !alongside)
+    }
+
+    /** Starts a spoken conversation (the panel's mic, the orb, "Hey Atlas"). */
+    private fun startTalk(afterWake: Boolean = false) {
+        HotwordService.hold(this, true)
+        Conversation.hush()
+        talking = true; turns = 0; hearFails = 0
+        handler.removeCallbacks(pulse); handler.post(pulse)
+        Hear.prewarm(this)
+        listen(afterWake = afterWake)
+    }
+
+    /**
+     * "Hey Atlas", the assist gesture or a tap on the orb: the mini panel opens over the app in front and listens.
+     * Without "Display over other apps", the panel opens as a small sheet instead ([AssistActivity]); the full app
+     * opens only when you ask for it.
+     */
     private fun wake() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && openPanel()) {
+            startTalk(afterWake = fromWakeWord)
+            fromWakeWord = false
+            return
+        }
         if (orbFrame == null || checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             try { startActivity(Intent(this, AssistActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("listen", true).putExtra(EXTRA_FROM_WAKE_WORD, fromWakeWord)); fromWakeWord = false }
             catch (e: Exception) { Log.w(TAG, "couldn't open the panel", e); HotwordService.hold(this, false) }
@@ -365,6 +477,12 @@ class AvatarService : Service() {
 
     /** While Atlas thinks and answers, the caption shows its reply as it comes. */
     private fun conversationMoved() {
+        panel?.let { p ->
+            val last = Conversation.messages.lastOrNull()
+            if (last != null && !last.fromUser && last.text.isNotBlank()) { panelNote = null; p.reply(last.text) }
+            panelRefresh(); armPanelIdle()
+            return
+        }
         if (!talking) return
         if (Conversation.busy && Conversation.usingPhone) { hideCaption(); return }
         val last = Conversation.messages.lastOrNull() ?: return
@@ -380,8 +498,9 @@ class AvatarService : Service() {
         alongside = false; resumeAfterVoice = false
         orb?.level = 0f; orb?.energy = 0f
         hideCaption()
-        setGrown(false)
+        if (panel == null) setGrown(false)
         HotwordService.hold(this, false)
+        panelRefresh(); armPanelIdle()
     }
 
     private var captionWho: TextView? = null
@@ -392,6 +511,17 @@ class AvatarService : Service() {
      * A change of speaker fades the words in, so the conversation reads smoothly.
      */
     private fun say(text: String, who: String = "Atlas", dim: Boolean = false) {
+        panel?.let { p ->
+            when {
+                who == "You" && text == "Listening…" -> { panelNote = null; p.heard(null) }
+                who == "You" && text == "Still listening…" -> panelNote = text
+                who == "You" -> { panelNote = null; p.heard(text) }
+                dim -> panelNote = text                      // "I didn't catch that.", a hiccup
+                else -> { panelNote = null; p.reply(text) }
+            }
+            panelRefresh()
+            return
+        }
         // your words as heard; Atlas's without formatting symbols
         val shown = if (who == "You" || text.trimEnd().endsWith("…")) text.trim() else Plain.spoken(text)
         val card = caption ?: run {
@@ -472,6 +602,7 @@ class AvatarService : Service() {
                 idle += 50
                 if (idle >= 6000) { endTalk(); return }
             } else idle = 0
+            if (panel != null && ++ticks % 10 == 0) panelRefresh()   // twice a second
             if (Voice.speaking) {
                 val beat = (0.5f + 0.5f * sin(t * 9.0f)) * (0.6f + 0.4f * sin(t * 2.3f + 1f))
                 orb?.level = 0.12f + 0.38f * beat
@@ -506,6 +637,7 @@ class AvatarService : Service() {
     }
 
     override fun onDestroy() {
+        panel?.close(); panel = null
         Conversation.unlisten(onChat)
         handler.removeCallbacksAndMessages(null)
         removeOrb()
