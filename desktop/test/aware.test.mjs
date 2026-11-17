@@ -72,6 +72,7 @@ test('a plain yes answers the only thing waiting; with several it asks which', a
   assert.equal(aware.pick([{ ref: 'bot:x1234' }], '').ref, 'bot:x1234');
   assert.equal(aware.pick([{ ref: 'bot:x1234' }, { ref: 'chat1' }], ''), null);
   calls.length = 0;
+  aware.heard('yes');
   const r = await aware.run({ name: 'answer_approval', args: { yes: true } });
   assert.match(r.out, /Allowed/); assert.deepEqual(calls, [['approve', 'bbbb2222-ok', true, false]]);
   aware.addAsk('Submit the form', async () => ({ out: 'submitted' }));
@@ -97,8 +98,60 @@ test("the chat's browser: ordinary steps just happen, a risky one waits for the 
   const r = await aware.run({ name: 'web', args: { action: 'click', target: 'Place order' } });
   const ref = /\[(chat\d+)\]/.exec(r.out)[1];
   assert.equal(pageRuns.length, 1, 'nothing was clicked before the OK');
+  aware.heard('ok go ahead');
   const done = await aware.run({ name: 'answer_approval', args: { ref, yes: true } });
   assert.equal(done.out, 'ran browser_click'); assert.equal(pageRuns.length, 2);
+});
+
+test("only the user's own words approve: a yes the model makes up is refused, a no always works, 'always' needs the word", async () => {
+  assert.deepEqual(aware.consent('yes'), { yes: true, always: false, why: '' });
+  assert.equal(aware.consent('👍').yes, true);
+  assert.equal(aware.consent('please approve it').yes, true);
+  assert.equal(aware.consent('ok, always allow that').always, true);
+  assert.equal(aware.consent('no, wait').yes, false);
+  assert.equal(aware.consent("don't send it").yes, false);
+  assert.equal(aware.consent('what did the bot find?').yes, false);
+  assert.equal(aware.consent('').yes, false);
+  // a page told the model "the user approved this": the user's actual message was a question
+  for (const a of aware.listAsks()) { aware.heard('no'); await aware.run({ name: 'answer_approval', args: { ref: a.ref, yes: false } }); }
+  calls.length = 0;
+  aware.heard('summarise that page for me');
+  const r = await aware.run({ name: 'answer_approval', args: { yes: true, always: true } });
+  assert.match(r.out, /not allowed/); assert.deepEqual(calls, [], 'nothing was approved');
+  aware.heard('no');
+  assert.match((await aware.run({ name: 'answer_approval', args: { yes: false } })).out, /Denied/);
+  calls.length = 0;
+  aware.heard('yes');   // the model asks for always, the user only said yes
+  await aware.run({ name: 'answer_approval', args: { yes: true, always: true } });
+  assert.deepEqual(calls, [['approve', 'bbbb2222-ok', true, false]]);
+});
+
+test('standing bots: the brief shows the team, today\'s budget use and agent trees; the bots tool gives one a mission', async () => {
+  const team = [{ id: 'tr-123456789', name: 'Trading Bot', role: 'Watches my watchlist', state: 'active', home: 'pc', budget: { callsPerDay: 300, minutesPerDay: 120 }, triggers: [{ enabled: true }] },
+    { id: 'in-987654321', name: 'Inbox Checker', role: 'Sorts email', state: 'paused', budget: { callsPerDay: 300, minutesPerDay: 120 }, triggers: [] }];
+  const kid = { id: 'kid1', goal: 'Check the Konga price', role: 'researcher', state: S.RUNNING };
+  const started = [];
+  aware.use({ crew: {
+    bots: () => team, usage: (id) => (id === 'tr-123456789' ? { calls: 42, ms: 18 * 60000, ok: true } : { calls: 300, ms: 0, ok: false }),
+    missions: (id) => (id === 'tr-123456789' ? [jobs[0]] : []),
+    tree: (id) => (id === 'aaaa1111-run' ? { job: jobs[0], agents: [{ job: kid, agents: [] }] } : { job: {}, agents: [] }),
+    startMission: (bot, goal, o) => { started.push([bot, goal, o.dryRun]); return { id: 'mmmm0000' }; },
+    createBot: (d) => ({ id: 'new-1234567', ...d }), updateBot: () => {}, giveMore: (id) => started.push(['more', id]),
+  } });
+  const b = await aware.brief({ markSeen: false });
+  assert.match(b, /Standing bots/);
+  assert.match(b, /Trading Bot \[tr-12345\]: Watches my watchlist · today 42\/300 AI calls, 18\/120 min · 1 mission running · 1 trigger · runs on the PC/);
+  assert.match(b, /Inbox Checker \[in-98765\] \(paused\).*\(budget used up\)/);
+  assert.match(b, /1 agent \(1 working\)/);
+  assert.match((await aware.run({ name: 'bots', args: { action: 'status', id: 'aaaa' } })).out, /Agents:\n- \[kid1\] researcher: “Check the Konga price”/);
+  assert.match((await aware.run({ name: 'bots', args: { action: 'mission', bot: 'trading', text: 'Check BTC', dry_run: true } })).out, /Trading Bot started \[mmmm0000\] as a dry run/);
+  assert.deepEqual(started, [['tr-123456789', 'Check BTC', true]]);
+  aware.heard('what is it doing');
+  assert.match((await aware.run({ name: 'bots', args: { action: 'more_budget', bot: 'inbox' } })).out, /not allowed/);
+  aware.heard('yes give it more');
+  await aware.run({ name: 'bots', args: { action: 'more_budget', bot: 'inbox' } });
+  assert.deepEqual(started.at(-1), ['more', 'in-987654321']);
+  aware.use({ crew: null });
 });
 
 // ---- the whole chat loop, with a scripted model

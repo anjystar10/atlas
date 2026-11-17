@@ -234,7 +234,7 @@ brain.ui.botTeam = () => [skillsIndex(extras.data.skills), teamIndex(extras.data
 registerProjects(aware);   // >>> projects: their tools in the chat and for bots, and a line in the brief <<<
 let chatBrowserTimer = null;
 aware.use({
-  bots, S: BOT_S, labels: BOT_LABELS, final: BOT_FINAL,
+  bots, crew, S: BOT_S, labels: BOT_LABELS, final: BOT_FINAL,
   conn: () => conn.state.snapshot,
   library: async () => { if (!host.botFiles) return []; const l = await host.botFiles.library(); return (Array.isArray(l) ? l : []).map((f) => ({ title: f.title || f.name, kind: f.kind, at: f.at || f.mtime })); },
   services: () => ({ ready: brain.PROVIDERS.filter((p) => brain.readyKey(p.id)).map((p) => p.name), dontSwitch: brain.dontSwitch() }),
