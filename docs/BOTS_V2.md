@@ -268,3 +268,10 @@ API (PC `crew` from botwire.js; phone `Crew` object):
 
 The main Atlas's situation brief lists standing bots (state, today's use vs budget, running missions, what they need
 from the user) and its `bots` tool can list/inspect/steer/stop missions and agent trees, create and update bots.
+
+## 11. Status of the build (v08-bots2)
+
+- PC: `crew.js` (rules), `bots.js` (engine), `botwire.js` (`crew` API, `crew-usage.json`, `crew-actions.json`), `aware.js` (standing bots and agent trees in the brief; `bots` tool actions `team`, `mission`, `create_bot`, `update_bot`, `more_budget`; `answer_approval` and `more_budget` need `consent()` from the user's raw latest message, recorded by `brain.send` via `aware.heard`).
+- Phone: `Crew.kt` (the same rules, checked against `tools/bots2-fixtures.json`), `BotJournal.kt` (v2 mission fields), `Bots.kt` (nested open plans, daily budgets with stop-and-ask and `giveMore`, `spawn_agent`, access, dry run, checker), `Aware.kt` (`Situation.heard/consent`, standing bots in the brief).
+- Difference: a dry run on the phone is stricter than on the PC. It writes down every action that changes something outside the job folder (taps, typing, reminders), not only risky ones.
+- `consent(text)` → {yes, always, why}. A yes counts only when the user's own message says one. A no always counts. "always" needs the word itself, and money is never covered by "always".
