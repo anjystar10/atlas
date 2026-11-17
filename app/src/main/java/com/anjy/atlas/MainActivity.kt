@@ -91,23 +91,28 @@ class MainActivity : Activity() {
         // screen) must put every dark colour back, not just the ones a fresh start happens to begin with
         // every colour comes from the one palette (Design.kt); both looks are set in full every time, so switching
         // back from light to dark (without restarting the screen) puts every colour back
+        // >>> themes: the chosen colour theme (Me → Look) supplies both looks; see tools/themes.json
+        Themes.load(this)
         val p = if (dark) Palette.DARK else Palette.LIGHT
         BG = p.bg; SURFACE = p.surface; SURFACE2 = p.surface2; LINE = p.line; FG = p.fg; MUTED = p.muted; FAINT = p.faint
         DONE = p.done; MISS = p.danger; ACCENT = p.accent; ACCENT_INK = p.accentInk; GOLD = p.blue; WARM = p.warm
+        ON = p.bg; BLUE = p.fg   // ON is the ink on BLUE (= fg) pills, so the page colour reads on it at full contrast
         if (!dark) {
-            // by day: frosted glass panels on a lavender-blue page, navy-black ink, dark glass buttons
-            ON = Color.WHITE; BLUE = p.fg
-            STEEL = Color.parseColor("#E6E7F8"); NAVBG = p.fg; BTN2 = p.fg
+            // by day: frosted glass panels on the theme's page colour, dark ink, dark glass buttons
+            STEEL = p.surface2; NAVBG = p.fg; BTN2 = p.fg
         } else {
-            ON = Color.parseColor("#06061A"); BLUE = p.fg
-            STEEL = p.surface2; NAVBG = Color.parseColor("#15162E"); BTN2 = p.surface
+            STEEL = p.surface2; NAVBG = p.nav; BTN2 = p.surface
         }
+        LIGHT_GLASS = hex(Palette.LIGHT.surface); LIGHT_FIELD = hex(Palette.LIGHT.surface2)
+        // <<< themes
     }
 
+    private fun hex(c: Int) = String.format("#%06X", c and 0xFFFFFF)
+
     /** Light mode's panels: frosted glass (white at about 45%) seen over the lavender-blue page. */
-    internal val LIGHT_GLASS = "#DDDFF5"
+    internal var LIGHT_GLASS = "#DDDFF5"
     /** Light mode's text fields: clearer glass, a shade brighter than the panels they sit on. */
-    internal val LIGHT_FIELD = "#E9EAF9"
+    internal var LIGHT_FIELD = "#E9EAF9"
 
     /** A quieter button's background: glass at night, black glass by day. [radius] < 0 means a pill. */
     internal fun quietBg(radius: Float = -1f): android.graphics.drawable.Drawable = if (dark) finished(SURFACE, radius, glass = true) else finished(BTN2, radius)
@@ -319,7 +324,7 @@ class MainActivity : Activity() {
         plain = true
         text = L.t(label); textSize = 16f; typeface = MED; gravity = Gravity.CENTER
         val plain = color == SURFACE2 || color == SURFACE || color == STEEL
-        setTextColor(when { plain -> quietInk(); color == BLUE -> ON; dark && (color == DONE || color == GOLD) -> Color.parseColor("#050505"); else -> Color.WHITE })
+        setTextColor(when { plain -> quietInk(); color == BLUE -> ON; else -> inkOn(color) })
         background = if (plain) quietBg() else finished(color)
         minHeight = dp(56)
         setPadding(dp(20), dp(15), dp(20), dp(15))
@@ -399,12 +404,12 @@ class MainActivity : Activity() {
         root.findViewWithTag<View>("undoBar")?.let { root.removeView(it) }
         val bar = LinearLayout(this).apply {
             tag = "undoBar"; orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            background = Finish(if (dark) Color.parseColor("#22244A") else Color.parseColor("#0A0B1F"), -1f, dark, resources.displayMetrics.density)
+            background = Finish(if (dark) blend(SURFACE2, FG, 0.08f) else FG, -1f, dark, resources.displayMetrics.density)
             setPadding(dp(20), dp(10), dp(8), dp(10)); alpha = 0f; translationY = dp(14).toFloat()
         }
-        bar.addView(text(noEmoji(L.t(msg)), 14f, Color.WHITE, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, WRAP, 1f))
+        bar.addView(text(noEmoji(L.t(msg)), 14f, if (dark) FG else BG, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, WRAP, 1f))
         val gone = Runnable { bar.animate().alpha(0f).setDuration(200).withEndAction { root.removeView(bar) }.start() }
-        bar.addView(text("Undo", 14f, Color.parseColor("#B9A6FF"), SEMI).apply {
+        bar.addView(text("Undo", 14f, if (dark) ACCENT_INK else Palette.DARK.accentInk, SEMI).apply {
             setPadding(dp(14), dp(6), dp(14), dp(6))
             setOnClickListener { bar.removeCallbacks(gone); root.removeView(bar); undo() }
         })
@@ -421,7 +426,7 @@ class MainActivity : Activity() {
         banner.text = noEmoji(L.t(msg))
         // the same glass finish as the buttons, so a message looks like part of the app
         banner.background = Finish(color, -1f, dark, resources.displayMetrics.density)
-        banner.setTextColor(if (color == BLUE) ON else if (dark && (color == DONE || color == GOLD || color == MUTED)) Color.parseColor("#050505") else Color.WHITE)
+        banner.setTextColor(if (color == BLUE) ON else inkOn(color))
         banner.animate().cancel()
         // quick in, a moment to read, quick out
         banner.alpha = 0f; banner.translationY = -dp(12).toFloat()
@@ -706,7 +711,7 @@ class MainActivity : Activity() {
         root.setBackgroundColor(BG)
         val i = root.indexOfChild(aurora)
         root.removeView(aurora)
-        aurora = Backdrop(this, BG, dark, ACCENT).apply { still = Prefs.reduceMotion(this@MainActivity); scrollRef = scroll }
+        aurora = Backdrop(this, BG, dark, ACCENT, GOLD).apply { still = Prefs.reduceMotion(this@MainActivity); scrollRef = scroll }
         root.addView(aurora, i.coerceAtLeast(0), FrameLayout.LayoutParams(MATCH, MATCH))
         val mi = pageHost.indexOfChild(morph)
         pageHost.removeView(morph)
@@ -806,7 +811,7 @@ class MainActivity : Activity() {
                     child.translationZ = maxOf(child.translationZ, nav.elevation + dp(2))
             }
         }.apply { setBackgroundColor(BG) }
-        aurora = Backdrop(this, BG, dark, ACCENT).apply { still = Prefs.reduceMotion(this@MainActivity) }
+        aurora = Backdrop(this, BG, dark, ACCENT, GOLD).apply { still = Prefs.reduceMotion(this@MainActivity) }
         root.addView(aurora, FrameLayout.LayoutParams(MATCH, MATCH))
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         scroll = SwipeScrollView(this, object : SwipeScrollView.Listener {
@@ -1461,7 +1466,7 @@ class MainActivity : Activity() {
                 override fun afterTextChanged(s: Editable?) { updateSend() }
             })
         }
-        val icon = LineIcon(this@MainActivity, "mic").apply { color = Color.WHITE; tag = "mic" }
+        val icon = LineIcon(this@MainActivity, "mic").apply { color = Palette.DARK.onPrimary; tag = "mic" }
         sendIcon = icon
         val send = FrameLayout(this).apply {
             // Atlas's key: a glowing drop of blue and violet. Nothing typed: talk. Something to send: send. Working: stop.
@@ -1469,7 +1474,7 @@ class MainActivity : Activity() {
                 shape = GradientDrawable.OVAL; gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(34).toFloat()
                 colors = intArrayOf(Palette.DARK.primaryTop, Palette.DARK.primaryBottom)
             }
-            elevation = dp(8).toFloat(); outlineSpotShadowColor = Color.parseColor("#5B6CFF"); outlineAmbientShadowColor = Color.parseColor("#5B6CFF")
+            elevation = dp(8).toFloat(); outlineSpotShadowColor = Palette.DARK.accent; outlineAmbientShadowColor = Palette.DARK.accent
             isClickable = true; contentDescription = "Speak"
             addView(icon, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
             setOnClickListener { when (sendIcon?.tag) { "stop" -> Conversation.stop(); "arrow" -> submit(); else -> voice() } }

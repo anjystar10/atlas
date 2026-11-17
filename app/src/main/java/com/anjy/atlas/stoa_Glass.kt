@@ -259,7 +259,7 @@ internal fun MainActivity.renderNavBar() {
     val chipW = pillW - padP * 2 - item * (n - 1)
     val cellH = minOf(46, goD - padP * 2).coerceAtLeast(38)
 
-    val key = "$dark|${dm.widthPixels}|${dm.scaledDensity}|${L.t("Home")}|$labelSp|$n"
+    val key = "${Themes.current.id}|$dark|${dm.widthPixels}|${dm.scaledDensity}|${L.t("Home")}|$labelSp|$n"
     if (navKey != key || navPill == null) {
         navKey = key
         nav.removeAllViews(); nav.background = null; nav.setPadding(0, 0, 0, 0)
@@ -268,9 +268,9 @@ internal fun MainActivity.renderNavBar() {
         val pill = FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 cornerRadius = dp(999).toFloat()
-                if (dark) { setColor(Color.parseColor("#16172E")); setStroke(dp(1), Color.argb(30, 200, 205, 255)) }
+                if (dark) { setColor(NAVBG); setStroke(dp(1), withAlpha(ACCENT_INK, 30)) }
                 // by day, frosted glass: the page shows faintly through it, whiter at the top, with a bright white rim
-                else { colors = intArrayOf(Color.argb(214, 255, 255, 255), Color.argb(170, 238, 239, 252)); orientation = GradientDrawable.Orientation.TOP_BOTTOM; setStroke(dp(1), Color.argb(235, 255, 255, 255)) }
+                else { colors = intArrayOf(Color.argb(214, 255, 255, 255), withAlpha(blend(Color.WHITE, SURFACE2, 0.35f), 170)); orientation = GradientDrawable.Orientation.TOP_BOTTOM; setStroke(dp(1), Color.argb(235, 255, 255, 255)) }
             }
             // a shadow under see-through glass would show through it as a smudge, so the day bar floats without one
             elevation = if (dark) dp(6).toFloat() else 0f
@@ -313,7 +313,7 @@ internal fun MainActivity.renderNavBar() {
         // the round Start button
         val go = FrameLayout(this).apply {
             // ink, so the coloured drop in the bar stays the one bright thing
-            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(tint(BLUE, if (dark) Color.WHITE else Color.parseColor("#2A2C52"), 0.25f), BLUE)).apply { shape = GradientDrawable.OVAL }
+            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(tint(BLUE, if (dark) Color.WHITE else blend(BLUE, ACCENT, 0.5f), 0.25f), BLUE)).apply { shape = GradientDrawable.OVAL }
             elevation = dp(10).toFloat()
             contentDescription = L.t("Talk to Atlas")
             isClickable = true
@@ -336,7 +336,11 @@ internal fun MainActivity.renderNavBar() {
     }
 
     // the drop moves to the current tab: it stretches toward the new tab, the leading edge first, then settles
-    val iconOff = if (dark) Color.parseColor("#8E93BC") else Color.parseColor("#3E4170")
+    val iconOff = if (dark) FAINT else MUTED
+    // >>> themes: the drop takes the theme's colours; what sits on it takes whichever ink reads on that colour
+    val navCols = navColors(if (dark) Palette.DARK else Palette.LIGHT)
+    fun onDrop(t: Int) = inkOn(navCols[t])
+    // <<< themes
     val from = navShown; val to = tab
     navShown = to
     val d = dm.density
@@ -348,9 +352,9 @@ internal fun MainActivity.renderNavBar() {
     }
     navItems.forEach { c ->
         val on = c.tab == to
-        c.icon.color = if (on) Color.WHITE else iconOff
+        c.icon.color = if (on) onDrop(to) else iconOff
         c.icon.filled = on
-        c.label.setTextColor(Color.WHITE)
+        c.label.setTextColor(onDrop(to))
         c.cell.contentDescription = L.t(names[c.tab]) + if (on) ", " + L.t("current page") else ""
         c.label.visibility = if (on && showLabels) View.VISIBLE else View.GONE
         c.cell.background = null
@@ -359,29 +363,29 @@ internal fun MainActivity.renderNavBar() {
     val blob = navBlob ?: return
     if (from == -1 || from == to || Prefs.reduceMotion(this)) {
         navItems.forEach { setW(it.tab, if (it.tab == to) chipW else item.toFloat()) }
-        blob.place(rectFor(to), NAV_COLORS[to])
+        blob.place(rectFor(to), navCols[to])
     } else {
         navItems.forEach { if (it.tab != from && it.tab != to) setW(it.tab, item.toFloat()) }
         val lab = navItems.firstOrNull { it.tab == to }?.label
         val oldIcon = navItems.firstOrNull { it.tab == from }?.icon
         val newIcon = navItems.firstOrNull { it.tab == to }?.icon
         lab?.alpha = 0f
-        oldIcon?.color = Color.WHITE; newIcon?.color = iconOff
+        oldIcon?.color = onDrop(from); newIcon?.color = iconOff
         oldIcon?.filled = true; newIcon?.filled = false
-        blob.travel(rectFor(from), rectFor(to), NAV_COLORS[from], NAV_COLORS[to]) { f ->
+        blob.travel(rectFor(from), rectFor(to), navCols[from], navCols[to]) { f ->
             setW(from, chipW + (item - chipW) * f); setW(to, item + (chipW - item) * f)
             lab?.alpha = ((f - 0.45f) / 0.55f).coerceIn(0f, 1f)
-            oldIcon?.color = tint(Color.WHITE, iconOff, (f * 1.6f).coerceAtMost(1f))
-            newIcon?.color = tint(iconOff, Color.WHITE, ((f - 0.3f) / 0.5f).coerceIn(0f, 1f))
+            oldIcon?.color = tint(onDrop(from), iconOff, (f * 1.6f).coerceAtMost(1f))
+            newIcon?.color = tint(iconOff, onDrop(to), ((f - 0.3f) / 0.5f).coerceIn(0f, 1f))
             // outline ↔ fill swaps as the drop passes over
             oldIcon?.filled = f < 0.35f; newIcon?.filled = f > 0.45f
         }
     }
 }
 
-/** Each tab's light, in Atlas's blues and purples: Atlas violet, Log blue, Me purple. */
-// the three pages glow in three neighbours on the colour wheel (blue-violet, blue, violet), anchored on the logo's indigo
-internal val NAV_COLORS = intArrayOf(0xFF7C6CFF.toInt(), 0xFF4F86FF.toInt(), 0xFF9A6BFF.toInt(), 0xFF6C7CFF.toInt())
+/** Each tab's light, from the colour theme: the accent, the secondary, and the two blends between them (neighbours, so they sit together). */
+internal fun navColors(p: Palette) = intArrayOf(p.accent, p.blue, blend(p.accent, p.blue, 0.5f), blend(p.accent, p.warm, 0.35f))
+internal val NAV_COLORS: IntArray get() = navColors(Palette.DARK)
 
 /**
  * The drop of light behind the current tab. Moving, it stretches: the end heading for the new tab races ahead

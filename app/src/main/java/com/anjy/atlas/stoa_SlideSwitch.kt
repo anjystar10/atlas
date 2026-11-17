@@ -14,7 +14,10 @@ import android.view.animation.DecelerateInterpolator
 
 /** The glass navy of every switched-on setting. */
 internal object Navy {
-    fun of(dark: Boolean) = if (dark) Color.parseColor("#2C4C8C") else Color.parseColor("#1E3A72")
+    // >>> themes: the switched-on fill follows the theme (its secondary, deepened so white reads on it)
+    fun of(dark: Boolean) = (if (dark) Palette.DARK else Palette.LIGHT).let { p -> deepen(p.blue) }
+    private fun deepen(c: Int): Int { var x = c; var i = 0; while (i < 12 && luminance(x) > 0.16) { x = blend(x, 0xFF000000.toInt(), 0.12f); i++ }; return x }
+    // <<< themes
 }
 
 /**

@@ -1,0 +1,79 @@
+[
+ {
+  "id": "midnight",
+  "name": "Midnight & Gold",
+  "aliases": [
+   "gold",
+   "midnight",
+   "midnight and gold",
+   "midnight & gold",
+   "jarvis"
+  ],
+  "note": "Near-black navy against warm gold: a complementary pair (blue vs yellow-orange). Gold is kept for what matters; the cool blue is the quiet second voice.",
+  "swatch": [
+   "#0A0D16",
+   "#131826",
+   "#E8B65A",
+   "#7D97FF",
+   "#F3EFE6"
+  ]
+ },
+ {
+  "id": "graphite",
+  "name": "Graphite & Cyan",
+  "aliases": [
+   "cyan",
+   "graphite",
+   "graphite and cyan",
+   "graphite & cyan",
+   "electric"
+  ],
+  "note": "Neutral greys with one vivid cyan, plus a violet split-complement used sparingly: a cockpit-display feel.",
+  "swatch": [
+   "#0E1013",
+   "#171A1F",
+   "#2EE6D6",
+   "#9A8EFF",
+   "#ECEFF3"
+  ]
+ },
+ {
+  "id": "forest",
+  "name": "Forest & Coral",
+  "aliases": [
+   "coral",
+   "forest",
+   "forest and coral",
+   "forest & coral",
+   "green"
+  ],
+  "note": "Deep green-teal against coral: the complementary pair from the laptop's knot logo, with mint as a gentle neighbour.",
+  "swatch": [
+   "#0B1412",
+   "#12201D",
+   "#FF7A5C",
+   "#45D6B4",
+   "#EEF4F1"
+  ]
+ },
+ {
+  "id": "indigo",
+  "name": "Atlas Indigo",
+  "aliases": [
+   "indigo",
+   "atlas indigo",
+   "violet",
+   "purple",
+   "original",
+   "classic"
+  ],
+  "note": "The original Atlas look, calmer: ink indigo with a soft violet and a sky-blue neighbour, amber as the one warm call.",
+  "swatch": [
+   "#07071A",
+   "#11122E",
+   "#9D8CFF",
+   "#5FD3FF",
+   "#F0EFFF"
+  ]
+ }
+]

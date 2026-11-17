@@ -82,10 +82,10 @@ class AlarmActivity : Activity() {
 
         fun button(label: String, primary: Boolean, onTap: () -> Unit) = TextView(this).apply {
             text = label; textSize = if (primary) 17f else 15f; typeface = if (primary) semi else med; gravity = Gravity.CENTER
-            setTextColor(if (primary) Color.WHITE else Palette.NIGHT.fg)
+            setTextColor(if (primary) Palette.NIGHT.onPrimary else Palette.NIGHT.fg)
             setPadding(dp(14), dp(if (primary) 17 else 14), dp(14), dp(if (primary) 18 else 15))
             background = if (primary) Finish(Palette.NIGHT.primaryBottom, -1f, true, d) else Finish(Palette.NIGHT.surface2, -1f, true, d, glass = true)
-            if (primary) { elevation = dp(10).toFloat(); outlineSpotShadowColor = Color.parseColor("#6E5CFF"); outlineAmbientShadowColor = Color.parseColor("#6E5CFF") }
+            if (primary) { elevation = dp(10).toFloat(); outlineSpotShadowColor = Palette.NIGHT.accent; outlineAmbientShadowColor = Palette.NIGHT.accent }
             isClickable = true; setOnClickListener { onTap() }; pressFx()
         }
         col.addView(button("Doing It Now", true) { answer("now") }, LinearLayout.LayoutParams(-1, -2))
@@ -98,9 +98,9 @@ class AlarmActivity : Activity() {
         val root = FrameLayout(this).apply {
             // a deep night with a soft violet glow behind the orb
             background = android.graphics.drawable.LayerDrawable(arrayOf(
-                GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Color.parseColor("#0A0A20"), bg, Color.parseColor("#08061A"))),
+                GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(Palette.NIGHT.glowTop, bg, Palette.NIGHT.glowBottom)),
                 GradientDrawable().apply { gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(320).toFloat(); setGradientCenter(0.5f, 0.36f)
-                    colors = intArrayOf(Color.argb(70, 80, 70, 255), Color.argb(0, 80, 70, 255)) }))
+                    colors = intArrayOf(withAlpha(Palette.NIGHT.accent, 70), withAlpha(Palette.NIGHT.accent, 0)) }))
         }
         root.addView(col, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)

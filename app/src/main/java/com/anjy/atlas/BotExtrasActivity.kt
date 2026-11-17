@@ -64,7 +64,7 @@ class BotExtrasActivity : Activity() {
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(col) }
         val root = FrameLayout(this).apply {
             background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(Color.parseColor("#0B0B22"), BG, Color.parseColor("#0A0820")))
+                intArrayOf(Palette.NIGHT.glowTop, BG, Palette.NIGHT.glowBottom))
             addView(scroll, FrameLayout.LayoutParams(-1, -1))
         }
         setContentView(root)
@@ -92,13 +92,13 @@ class BotExtrasActivity : Activity() {
     }
     private fun button(label: String, primary: Boolean = false, onTap: () -> Unit) = TextView(this).apply {
         text = label; textSize = 15f; typeface = if (primary) semi else med; gravity = Gravity.CENTER
-        setTextColor(if (primary) Color.WHITE else FG); setPadding(dp(14), dp(12), dp(14), dp(13))
+        setTextColor(if (primary) Palette.NIGHT.onPrimary else FG); setPadding(dp(14), dp(12), dp(14), dp(13))
         background = Finish(if (primary) Palette.NIGHT.primaryBottom else SURFACE, -1f, true, resources.displayMetrics.density, glass = !primary)
         isClickable = true; setOnClickListener { onTap() }; pressFx()
     }
     private fun chip(label: String, on: Boolean, onTap: () -> Unit) = TextView(this).apply {
         text = label; textSize = 13f; typeface = if (on) semi else med; gravity = Gravity.CENTER
-        setTextColor(if (on) Color.WHITE else FG); setPadding(dp(12), dp(7), dp(12), dp(8))
+        setTextColor(if (on) Palette.NIGHT.onPrimary else FG); setPadding(dp(12), dp(7), dp(12), dp(8))
         background = Finish(if (on) Palette.NIGHT.primaryBottom else SURFACE, -1f, true, resources.displayMetrics.density, glass = !on)
         isClickable = true; setOnClickListener { onTap() }; contentDescription = label + if (on) ", chosen" else ""
     }

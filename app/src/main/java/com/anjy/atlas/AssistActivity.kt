@@ -65,7 +65,7 @@ class AssistActivity : Activity() {
                 gradientType = GradientDrawable.RADIAL_GRADIENT
                 gradientRadius = resources.displayMetrics.widthPixels * 0.9f
                 setGradientCenter(0.5f, 0.38f)
-                colors = intArrayOf(Color.parseColor("#0E1240"), BG)
+                colors = intArrayOf(Palette.NIGHT.glowTop, BG)
             }
         }
         val scroll = ScrollView(this).apply { isVerticalScrollBarEnabled = false; isFillViewport = true }
@@ -102,7 +102,7 @@ class AssistActivity : Activity() {
         // the ask bar
         val bar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            background = GradientDrawable().apply { cornerRadius = dp(999).toFloat(); setColor(Color.parseColor("#11132A")); setStroke(dp(1), Color.argb(40, 160, 170, 255)) }
+            background = GradientDrawable().apply { cornerRadius = dp(999).toFloat(); setColor(Palette.NIGHT.surface); setStroke(dp(1), withAlpha(Palette.NIGHT.accentInk, 40)) }
             setPadding(dp(6), dp(6), dp(6), dp(6))
         }
         micBtn = FrameLayout(this).apply {
@@ -119,10 +119,10 @@ class AssistActivity : Activity() {
             setOnEditorActionListener { _, id, _ -> if (id == EditorInfo.IME_ACTION_SEND) { submit(); true } else false }
         }
         sendBtn = FrameLayout(this).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(30).toFloat(); colors = intArrayOf(Color.parseColor("#5B7CFF"), Color.parseColor("#3A2BB8")) }
-            elevation = dp(6).toFloat(); outlineSpotShadowColor = Color.parseColor("#5B6CFF"); outlineAmbientShadowColor = Color.parseColor("#5B6CFF")
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(30).toFloat(); colors = intArrayOf(Palette.NIGHT.primaryTop, Palette.NIGHT.primaryBottom) }
+            elevation = dp(6).toFloat(); outlineSpotShadowColor = Palette.NIGHT.accent; outlineAmbientShadowColor = Palette.NIGHT.accent
             contentDescription = "Send"; isClickable = true
-            addView(LineIcon(this@AssistActivity, "arrow").apply { color = Color.WHITE; rotation = -90f }, FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER))
+            addView(LineIcon(this@AssistActivity, "arrow").apply { color = Palette.NIGHT.onPrimary; rotation = -90f }, FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER))
             setOnClickListener { if (Conversation.busy) Conversation.stop() else submit() }
         }
         bar.addView(micBtn, LinearLayout.LayoutParams(dp(44), dp(44)))

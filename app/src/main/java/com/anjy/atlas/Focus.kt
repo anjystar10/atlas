@@ -196,9 +196,9 @@ class FocusActivity : Activity() {
         row.addView(breakBtn, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(10) })
         col.addView(row, LinearLayout.LayoutParams(-1, -2))
         val end = TextView(this).apply {
-            text = "End"; textSize = 22f; typeface = semi; gravity = Gravity.CENTER; setTextColor(Color.WHITE)
+            text = "End"; textSize = 22f; typeface = semi; gravity = Gravity.CENTER; setTextColor(Palette.NIGHT.onPrimary)
             setPadding(dp(16), dp(22), dp(16), dp(23)); background = Finish(Palette.NIGHT.primaryBottom, -1f, true, d)
-            elevation = dp(10).toFloat(); outlineSpotShadowColor = Color.parseColor("#6E5CFF"); outlineAmbientShadowColor = Color.parseColor("#6E5CFF")
+            elevation = dp(10).toFloat(); outlineSpotShadowColor = Palette.NIGHT.accent; outlineAmbientShadowColor = Palette.NIGHT.accent
             isClickable = true; setOnClickListener { finishSession() }; pressFx()
             contentDescription = "End the session"
         }
@@ -206,7 +206,7 @@ class FocusActivity : Activity() {
 
         val root = FrameLayout(this).apply {
             background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                intArrayOf(Color.parseColor("#0B0B22"), bg, Color.parseColor("#0A0820")))
+                intArrayOf(Palette.NIGHT.glowTop, bg, Palette.NIGHT.glowBottom))
         }
         root.addView(col, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
