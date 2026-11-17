@@ -458,8 +458,14 @@ object Bots {
                             if (c.name !in toolNames && !Connections.owns(c.name) && c.name !in Capabilities.names(app, forBots = true)) { results.add(c to "Error: there's no tool called ${c.name}."); continue }
                             val label = if (c.name == "tap" || c.name == "long_press") withContext(Dispatchers.Default) { PhoneControl.labelOf(c.args.optInt("element", -1)) } else null
                             BotRules.phoneApproval(c.name, c.args, label)?.let { what ->
-                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label)); return
+                                // >>> background first: a text message asks every time, whatever the standing rules say
+                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label, mustAsk = c.name == "send_sms")); return
                             }
+                            // >>> background first: a heads-up before a bot uses the screen (ScreenGate.kt); "always allow" can cover it
+                            ScreenGate.botHeadsUp(app, j.id, c.name, c.args)?.let { what ->
+                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label, category = "screen")); return
+                            }
+                            // <<< background first
                             results.add(c to runTool(j, c))
                         }
                     }
@@ -479,9 +485,12 @@ object Bots {
         val what = label(c)
         j.current = what; j.pending = what; persistNow(); changed()
         // a connection tool reaching here was already cleared by the bot's approval rules
-        val r = if (Connections.owns(c.name)) Connections.run(app, c, approved = true, who = "bots")
+        val r = withContext(ScreenGate.Who(j.id)) {   // >>> background first: screen tools know a bot is calling
+            if (Connections.owns(c.name)) Connections.run(app, c, approved = true, who = "bots")
             else if (c.name in Email.names) Email.run(app, c, approved = true)   // >>> email: the bot's approval (if one was needed) is already given
+            else if (c.name in Messages.names) Messages.run(app, c, approved = true, forBot = true)   // >>> background first: replies/texts were approved above
             else Tools.run(app, c)
+        }
         // pictures the bot made go into its job folder (listed on the job page)
         r.media.forEach { m -> try { val d = BotBrowser.jobDir(app, j.id).apply { mkdirs() }; m.file.copyTo(java.io.File(d, m.file.name), overwrite = true) } catch (e: Exception) { Log.w(TAG, "picture", e) } }
         j.pending = null; j.toolCalls++
@@ -779,6 +788,11 @@ Files you hand over (kept in this job's folder on the phone):
 - When the job calls for something the user will keep, make the real file: make_document for a report, brief, letter or plan (a typeset PDF); make_spreadsheet for data, comparisons, budgets or trackers (Excel, with formulas where they help); make_page for an interactive view with tables to sort and filter and charts.
 - workspace_write / workspace_read / workspace_list keep drafts, notes and data in the job folder; downloads land there too.
 - The report still gives the answer itself (the key findings), then names the files you made. They show in Bots › Library.
+
+Background first (the user keeps using their phone while you work):
+- Do it without the screen whenever you can, in this order: a direct tool or connection (email, calendar, contacts, trading, connections, files) → Android directly (phone_alarm, phone_timer, send_sms) → your background browser on the app's website (browser_* tools) → the notification's own buttons (messages_recent, reply_message, mark_read) → the screen last.
+- The screen is a last resort: opening an app first points you at the background ways; open_app with use_screen=true when none can do it (the user gets a heads-up and can stop you).
+- If a tool says a permission is needed, the user has been asked; carry on with what you can and try again later.
 
 Using the phone (only when the job needs it):
 - open_app, then work from the numbered elements on the screen. Every action returns the new screen; check it. Numbers change after each action, so use numbers from the latest screen only.

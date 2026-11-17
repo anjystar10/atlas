@@ -80,7 +80,32 @@ function render(keepScroll, keepInputs) {
     if (k.f) { el.focus(); try { el.setSelectionRange(k.s, k.e); } catch {} }
   }
   if (keepScroll) page.scrollTop = y;
-  renderFoot();
+  else if (tab === 'atlas' && db.chat.length) toLatest();
+  renderFoot(); latestChip();
+}
+
+// ---- the chat opens at your latest messages ----
+let followUntil = 0, awaySince = 0;
+/** Jump to the newest messages, and keep following for a second while long replies and pictures finish laying out (unless you scroll). */
+function toLatest(smooth) {
+  const page = $('#page'); followUntil = Date.now() + 1200;
+  const go = () => { if (Date.now() <= followUntil) page.scrollTo({ top: page.scrollHeight, behavior: smooth ? 'smooth' : 'auto' }); };
+  go(); requestAnimationFrame(go);
+  const body = page.firstElementChild; if (!body || typeof ResizeObserver === 'undefined') return;
+  const ro = new ResizeObserver(() => { if (Date.now() > followUntil || tab !== 'atlas') ro.disconnect(); else page.scrollTop = page.scrollHeight; });
+  ro.observe(body); setTimeout(() => ro.disconnect(), 1300);
+}
+/** "Latest ↓" shows on the Atlas page once you've scrolled up more than about a screen. */
+function latestChip() {
+  const page = $('#page'); let chip = $('#latest');
+  const far = tab === 'atlas' && db.chat.length && page.scrollHeight - (page.scrollTop + page.clientHeight) > page.clientHeight * 0.8;
+  if (!chip) {
+    if (!far) return;
+    chip = document.createElement('button'); chip.id = 'latest'; chip.className = 'latest-chip'; chip.textContent = 'Latest ↓';
+    chip.setAttribute('aria-label', 'Jump to the latest messages'); chip.onclick = () => toLatest(true);
+    document.body.appendChild(chip);
+  }
+  chip.classList.toggle('on', !!far);
 }
 function renderFoot() {
   const s = sync.code() ? (sync.status.last || 'Syncing…') : 'Not linked to your phone';
@@ -908,11 +933,17 @@ async function main() {
   document.querySelectorAll('.nav').forEach((n) => (n.onclick = () => { tab = n.dataset.tab; logFull = false; botView = null; render(); }));
   buildComposer();
   render();
+  // the chat follows the latest messages: scrolling shows "Latest ↓"; touching the page stops the follow; back after a while → latest
+  const pg = $('#page');
+  pg.addEventListener('scroll', latestChip, { passive: true });
+  for (const ev of ['wheel', 'touchstart', 'mousedown', 'keydown']) pg.addEventListener(ev, () => { followUntil = 0; }, { passive: true });
+  window.addEventListener('blur', () => { awaySince = Date.now(); });
+  window.addEventListener('focus', () => { if (tab === 'atlas' && db.chat.length && awaySince && Date.now() - awaySince > 20000) toLatest(); });
   // the page scrolls to the newest message as the conversation moves
   onChange((what) => {
     if (what === 'chat') {
       updateSend();
-      if (tab === 'atlas') { if (!$('#chat') && db.chat.length) render(); else if (!db.chat.length && $('#chat')) render(); else { const p = $('#page'); const atBottom = p.scrollTop + p.clientHeight >= p.scrollHeight - 260; fillChat(); if (atBottom || brain.convo.busy) p.scrollTop = p.scrollHeight; } }
+      if (tab === 'atlas') { if (!$('#chat') && db.chat.length) render(); else if (!db.chat.length && $('#chat')) render(); else { const p = $('#page'); const atBottom = p.scrollTop + p.clientHeight >= p.scrollHeight - 260; fillChat(); if (atBottom || brain.convo.busy) toLatest(); else latestChip(); } }
       if (!brain.convo.busy) sync.syncSoon();
     }
     if (what === 'state') { sync.syncSoon(); if (tab === 'log') render(true, true); }

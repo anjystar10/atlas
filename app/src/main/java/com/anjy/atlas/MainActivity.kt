@@ -692,6 +692,7 @@ class MainActivity : Activity() {
      * (background, bars, nav, banner, page-turn layer) is rebuilt, and the page is drawn again where it was.
      */
     internal fun relook() {
+        latestChip?.let { (it.parent as? ViewGroup)?.removeView(it) }; latestChip = null   // re-made in the new colours
         applyPalette()
         window.statusBarColor = washTop(); window.navigationBarColor = BG
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(BG))
@@ -813,7 +814,8 @@ class MainActivity : Activity() {
             override fun onRelease(dx: Float, velocityX: Float, x: Float, y: Float) = releasePage(dx, velocityX, x, y)
         }).apply { isVerticalScrollBarEnabled = false; background = null }
         aurora.scrollRef = scroll
-        scroll.setOnScrollChangeListener { _, _, _, _, _ -> if (aurora.still) aurora.invalidate() }
+        scroll.setOnScrollChangeListener { _, _, _, _, _ -> if (aurora.still) aurora.invalidate(); updateLatestChip() }
+        scroll.setOnTouchListener { _, e -> if (e.actionMasked == android.view.MotionEvent.ACTION_DOWN) followUntil = 0L; false }
         body = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             val g = gutterDp()
@@ -893,12 +895,15 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         AvatarService.setAppInFront(this, true)
+        PermissionCenter.atlasInFront = true   // >>> background first: permission asks show here as a sheet
         Conversation.listen(onChat)
         Bots.listen(onBots)
         Sync.listen(onSync); Sync.syncSoon(this, 500); Sync.setForeground(this, true)
         if (Sync.linked(this)) SyncJob.schedule(this)
         Link.listen(onLink); Link.setForeground(this, true)   // >>> device link: listening while Atlas is open
         resumedNow = true
+        // back after a while (or the first time): open at the latest messages, not wherever the page was left
+        if (tab == 0 && Conversation.messages.isNotEmpty() && (pausedAt == 0L || System.currentTimeMillis() - pausedAt > 20_000)) toLatest()
         Connections.asker = connectionsAsker(); refreshConnections()   // >>> connections: chat asks here; tools checked again
         Trading.asker = tradingAsker()   // >>> trading: a LIVE order from chat waits for a tap here
         if (!Prefs.reduceMotion(this)) Tilt.start(this)
@@ -911,7 +916,9 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         ticker.removeCallbacks(tick); returnedFromSystem = true
+        pausedAt = System.currentTimeMillis()
         resumedNow = false
+        PermissionCenter.atlasInFront = false   // >>> background first
         Connections.asker = null   // >>> connections: nothing on screen to ask with
         Trading.asker = null   // >>> trading
         Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
@@ -970,6 +977,50 @@ class MainActivity : Activity() {
         scope.launch { ModelManager.load(applicationContext); if (tab == 2) render(keepScroll = true) }
     }
 
+    // ---------------------------------------------------------------- the chat opens at your latest messages
+    private var latestChip: TextView? = null
+    private var followUntil = 0L
+    private var pausedAt = 0L
+
+    /**
+     * Show the newest messages: now, and again while long replies and pictures finish laying out (about a second),
+     * unless you start scrolling. A jump made too early used to land short of the bottom.
+     */
+    private fun toLatest(smooth: Boolean = false) {
+        followUntil = android.os.SystemClock.uptimeMillis() + 1200
+        scroll.post { if (smooth) scroll.smoothScrollTo(0, body.height) else scroll.fullScroll(View.FOCUS_DOWN) }
+        val vto = body.viewTreeObserver
+        if (!vto.isAlive) return
+        vto.addOnGlobalLayoutListener(object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+            override fun onGlobalLayout() {
+                if (android.os.SystemClock.uptimeMillis() > followUntil || tab != 0) {
+                    if (body.viewTreeObserver.isAlive) body.viewTreeObserver.removeOnGlobalLayoutListener(this); return
+                }
+                scroll.post { if (android.os.SystemClock.uptimeMillis() <= followUntil) scroll.fullScroll(View.FOCUS_DOWN) }
+            }
+        })
+    }
+
+    /** "Latest ↓": shows on the Atlas tab once you've scrolled up more than about a screen; one tap takes you back down. */
+    private fun updateLatestChip() {
+        val far = tab == 0 && Conversation.messages.isNotEmpty() && body.height - (scroll.scrollY + scroll.height) > scroll.height * 0.8f
+        val chip = latestChip ?: run {
+            if (!far) return
+            val host = findViewById<ViewGroup>(android.R.id.content) ?: return
+            TextView(this).apply {
+                text = "Latest  ↓"; textSize = 14f; typeface = SEMI; setTextColor(ON)
+                setPadding(dp(18), dp(9), dp(18), dp(9))
+                background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(20).toFloat(); setColor(BLUE) }
+                elevation = dp(20).toFloat(); alpha = 0f; visibility = View.GONE
+                contentDescription = "Jump to the latest messages"
+                setOnClickListener { toLatest(smooth = true) }
+                host.addView(this, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(176) })
+            }.also { latestChip = it }
+        }
+        if (far && chip.visibility != View.VISIBLE) { chip.visibility = View.VISIBLE; chip.animate().alpha(1f).setDuration(160).start() }
+        else if (!far && chip.visibility == View.VISIBLE) chip.animate().alpha(0f).setDuration(120).withEndAction { if (chip.alpha == 0f) chip.visibility = View.GONE }.start()
+    }
+
     internal fun render(keepScroll: Boolean = false) {
         liveAnims.forEach { it.cancel() }; liveAnims.clear()
         val y = scroll.scrollY
@@ -990,7 +1041,8 @@ class MainActivity : Activity() {
         lastLogSig = logSignature()
         if (!keepScroll && !switching) enterPage()
         if (!Prefs.haptics(this)) { fun off(v: View) { v.isHapticFeedbackEnabled = false; if (v is ViewGroup) for (i in 0 until v.childCount) off(v.getChildAt(i)) }; off(body); off(nav) }
-        scroll.post { if (tab == 0 && !keepScroll && Conversation.messages.isNotEmpty()) scroll.fullScroll(View.FOCUS_DOWN) else scroll.scrollTo(0, if (keepScroll) y else 0) }
+        if (tab == 0 && !keepScroll && Conversation.messages.isNotEmpty()) toLatest() else scroll.post { scroll.scrollTo(0, if (keepScroll) y else 0) }
+        scroll.post { updateLatestChip() }
     }
 
     /** The round button beside the bar: talk to Atlas. */
@@ -1196,11 +1248,11 @@ class MainActivity : Activity() {
         statusLine?.text = brainLine()
         homeOrb?.energy = if (Conversation.busy || voiceInput != null) 1f else 0f
         val list = chatList
-        if (list == null) { if (Conversation.messages.isNotEmpty() || shownCount > 0) render(keepScroll = true).also { scroll.post { scroll.fullScroll(View.FOCUS_DOWN) } }; return }
+        if (list == null) { if (Conversation.messages.isNotEmpty() || shownCount > 0) render(keepScroll = true).also { toLatest() }; return }
         if (Conversation.messages.isEmpty()) { render(); return }
         val atBottom = scroll.scrollY + scroll.height >= body.height - dp(260)
         fillChat(list)
-        if (atBottom || Conversation.busy) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
+        if (atBottom || Conversation.busy) toLatest() else scroll.post { updateLatestChip() }
         if (!Conversation.busy && Conversation.messages.lastOrNull()?.steps?.any { it.startsWith("Marked") } == true) celebrate()
     }
 
@@ -2133,6 +2185,10 @@ class MainActivity : Activity() {
         body.add(eyebrow("Atlas Bot"), 16)
         val bp = card()
         bp.addView(settingRow("Bot Permissions", "Ask, always or never, per kind of action") { startActivity(BotExtrasActivity.intent(this, "permissions")) })
+        // >>> background first: what lets Atlas work while you use your phone (PermissionCenter.kt)
+        val permsOff = PermissionCenter.ALL.count { !PermissionCenter.granted(this, it.id) }
+        bp.addView(settingRow("Permissions", if (permsOff == 0) "All on: Atlas can work in the background" else "$permsOff off · what lets Atlas work in the background") { startActivity(Intent(this, PermissionsActivity::class.java)) })
+        // <<< background first
         body.add(bp, 8)
 
         // Phone and PC: one Atlas

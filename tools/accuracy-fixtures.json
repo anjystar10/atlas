@@ -1,0 +1,608 @@
+{
+ "_about": "Shared accuracy cases: the PC (desktop/test/accuracy.test.mjs) and the phone (AccuracyTest.kt) must give exactly these answers. Expected instants were computed independently with Python's zoneinfo. Regenerate with the script described in the test header.",
+ "when": [
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2026-11-14 18:00",
+   "local": "2026-11-14 18:00",
+   "ms": 1794675600000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2026-11-14T09:05",
+   "local": "2026-11-14 09:05",
+   "ms": 1794643500000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2026-11-14 09:05:30",
+   "local": "2026-11-14 09:05",
+   "ms": 1794643500000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2027-02-29 10:00",
+   "error": "isn't a real date"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2028-02-29 10:00",
+   "local": "2028-02-29 10:00",
+   "ms": 1835427600000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2026-04-31 10:00",
+   "error": "isn't a real date"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2026-11-14 25:00",
+   "error": "isn't a real time"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2026-11-14",
+   "error": "no time"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "in 90 minutes",
+   "local": "2026-11-12 19:50",
+   "ms": 1794509400000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "in 2 hours",
+   "local": "2026-11-12 20:20",
+   "ms": 1794511200000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "in 1h30m",
+   "local": "2026-11-12 19:50",
+   "ms": 1794509400000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "in 1 hour and 30 minutes",
+   "local": "2026-11-12 19:50",
+   "ms": 1794509400000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "in half an hour",
+   "local": "2026-11-12 18:50",
+   "ms": 1794505800000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "in an hour",
+   "local": "2026-11-12 19:20",
+   "ms": 1794507600000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "in 3 days",
+   "local": "2026-11-15 18:20",
+   "ms": 1794763200000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "tomorrow at 6pm",
+   "local": "2026-11-13 18:00",
+   "ms": 1794589200000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "tomorrow 6:30 pm",
+   "local": "2026-11-13 18:30",
+   "ms": 1794591000000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "Tomorrow at 12am",
+   "local": "2026-11-13 00:00",
+   "ms": 1794524400000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "tomorrow at 12pm",
+   "local": "2026-11-13 12:00",
+   "ms": 1794567600000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "today 8pm",
+   "local": "2026-11-12 20:00",
+   "ms": 1794510000000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "today at 9am",
+   "error": "already passed"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "tonight at 9",
+   "local": "2026-11-12 21:00",
+   "ms": 1794513600000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "6pm",
+   "local": "2026-11-13 18:00",
+   "ms": 1794589200000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "9:30pm",
+   "local": "2026-11-12 21:30",
+   "ms": 1794515400000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "18:00",
+   "local": "2026-11-13 18:00",
+   "ms": 1794589200000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "noon",
+   "local": "2026-11-13 12:00",
+   "ms": 1794567600000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "monday 9am",
+   "local": "2026-11-16 09:00",
+   "ms": 1794816000000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "Monday at 9:00",
+   "local": "2026-11-16 09:00",
+   "ms": 1794816000000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "thursday 8pm",
+   "local": "2026-11-12 20:00",
+   "ms": 1794510000000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "thursday 9am",
+   "local": "2026-11-19 09:00",
+   "ms": 1795075200000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "next thursday at 8pm",
+   "local": "2026-11-19 20:00",
+   "ms": 1795114800000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "fri noon",
+   "local": "2026-11-13 12:00",
+   "ms": 1794567600000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "on Saturday at 10:15am",
+   "local": "2026-11-14 10:15",
+   "ms": 1794647700000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "tomorrow at 7",
+   "error": "morning or the evening"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "tomorrow morning 7",
+   "local": "2026-11-13 07:00",
+   "ms": 1794549600000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "tomorrow",
+   "error": "no time"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "13pm",
+   "error": "isn't a real time"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2026-11-12 18:00",
+   "error": "already passed"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2026-11-12 18:20",
+   "local": "2026-11-12 18:20",
+   "ms": 1794504000000
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "2035-01-01 10:00",
+   "error": "five years"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "someday",
+   "error": "couldn't read"
+  },
+  {
+   "tz": "Africa/Lagos",
+   "now": 1794504000000,
+   "nowLocal": "2026-11-12 18:20",
+   "input": "",
+   "error": "no time was given"
+  },
+  {
+   "tz": "America/New_York",
+   "now": 1772902800000,
+   "nowLocal": "2026-03-07 12:00",
+   "input": "2026-03-08 02:30",
+   "local": "2026-03-08 03:30",
+   "ms": 1772955000000
+  },
+  {
+   "tz": "America/New_York",
+   "now": 1772902800000,
+   "nowLocal": "2026-03-07 12:00",
+   "input": "tomorrow at 2:30am",
+   "local": "2026-03-08 03:30",
+   "ms": 1772955000000
+  },
+  {
+   "tz": "America/New_York",
+   "now": 1793462400000,
+   "nowLocal": "2026-10-31 12:00",
+   "input": "2026-11-01 01:30",
+   "local": "2026-11-01 01:30",
+   "ms": 1793511000000
+  },
+  {
+   "tz": "Europe/London",
+   "now": 1774692000000,
+   "nowLocal": "2026-03-28 10:00",
+   "input": "in 24 hours",
+   "local": "2026-03-29 11:00",
+   "ms": 1774778400000
+  },
+  {
+   "tz": "Europe/London",
+   "now": 1774692000000,
+   "nowLocal": "2026-03-28 10:00",
+   "input": "tomorrow 10am",
+   "local": "2026-03-29 10:00",
+   "ms": 1774774800000
+  }
+ ],
+ "repeat": [
+  [
+   "",
+   "none"
+  ],
+  [
+   "none",
+   "none"
+  ],
+  [
+   "Daily",
+   "daily"
+  ],
+  [
+   "every day",
+   "daily"
+  ],
+  [
+   "weekdays",
+   "weekdays"
+  ],
+  [
+   "every weekday",
+   "weekdays"
+  ],
+  [
+   "Weekly",
+   "weekly"
+  ],
+  [
+   "monthly",
+   null
+  ],
+  [
+   "every 2 days",
+   null
+  ]
+ ],
+ "minutes": [
+  [
+   null,
+   1,
+   1440,
+   null
+  ],
+  [
+   "30",
+   1,
+   1440,
+   30
+  ],
+  [
+   45,
+   1,
+   1440,
+   45
+  ],
+  [
+   "1.5 hours",
+   1,
+   1440,
+   90
+  ],
+  [
+   "2h",
+   1,
+   1440,
+   120
+  ],
+  [
+   "0",
+   1,
+   1440,
+   "NaN"
+  ],
+  [
+   "5000",
+   1,
+   1440,
+   "NaN"
+  ],
+  [
+   "soon",
+   1,
+   1440,
+   "NaN"
+  ]
+ ],
+ "clock": [
+  [
+   "6pm",
+   [
+    18,
+    0
+   ]
+  ],
+  [
+   "6 pm",
+   [
+    18,
+    0
+   ]
+  ],
+  [
+   "12am",
+   [
+    0,
+    0
+   ]
+  ],
+  [
+   "12pm",
+   [
+    12,
+    0
+   ]
+  ],
+  [
+   "12:30 a.m.",
+   [
+    0,
+    30
+   ]
+  ],
+  [
+   "18.45",
+   [
+    18,
+    45
+   ]
+  ],
+  [
+   "0930",
+   [
+    9,
+    30
+   ]
+  ],
+  [
+   "midnight",
+   [
+    0,
+    0
+   ]
+  ],
+  [
+   "24:00",
+   "bad"
+  ],
+  [
+   "13pm",
+   "bad"
+  ],
+  [
+   "0pm",
+   "bad"
+  ],
+  [
+   "7",
+   null
+  ]
+ ],
+ "plain": [
+  [
+   "Logged reminder [3f2a9c1e-1111-2222-3333-444455556666] Call mum.",
+   "Logged reminder Call mum.",
+   null
+  ],
+  [
+   "Saved (id 3f2a9c1e-1111-2222-3333-444455556666).",
+   "Saved.",
+   null
+  ],
+  [
+   "Use the id 3f2a9c1e-1111-2222-3333-444455556666 in the form.",
+   "Use the id 3f2a9c1e-1111-2222-3333-444455556666 in the form.",
+   null
+  ],
+  [
+   "My licence key is 3f2a9c1e-1111-2222-3333-444455556666",
+   null,
+   "My licence key is 3f2a9c1e-1111-2222-3333-444455556666"
+  ],
+  [
+   "wait (just a sec) I am checking",
+   "wait (just a sec) I am checking",
+   null
+  ],
+  [
+   "Scroll (down) to the bottom.",
+   "Scroll (down) to the bottom.",
+   null
+  ],
+  [
+   "set_reminder(title=\"x\", when=\"y\")",
+   "",
+   null
+  ],
+  [
+   "Done.\nremember(text=\"milk\")",
+   "Done.",
+   null
+  ],
+  [
+   "I set it. (What I did: called set_reminder)",
+   "I set it.",
+   null
+  ],
+  [
+   "Price: $1,299.99 — 20% off (was $1,624).",
+   "Price: $1,299.99 — 20% off (was $1,624).",
+   null
+  ],
+  [
+   "Here is the code:\n```python\nprint(\"hi\")\n```\nDone.",
+   "Here is the code:\n```python\nprint(\"hi\")\n```\nDone.",
+   null
+  ],
+  [
+   "iPhone 15 is my phone",
+   null,
+   "iPhone 15 is my phone"
+  ],
+  [
+   "eBay account: anjy_257",
+   null,
+   "eBay account: anjy_257"
+  ],
+  [
+   "my name is anjy",
+   null,
+   "My name is anjy"
+  ],
+  [
+   "  likes   jollof rice  ",
+   null,
+   "Likes jollof rice"
+  ]
+ ]
+}

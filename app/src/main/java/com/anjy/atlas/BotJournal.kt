@@ -139,7 +139,7 @@ object BotRules {
         "tap", "long_press" -> elementLabel?.takeIf { riskyWords.containsMatchIn(it) }?.let { "${if (tool == "tap") "Tap" else "Press and hold"} “${it.take(60)}”" }
         "type_text" -> if (args.optBoolean("press_enter", false)) "Type “${args.optString("text").take(60)}” and press send/enter" else null
         // calendar changes and the like (PhoneData.kt)
-        else -> PhoneData.approval(tool, args) ?: Connections.approval(tool, args) ?: Email.approval(tool, args)   // connections: Connections.kt; email: Email.kt
+        else -> PhoneData.approval(tool, args) ?: Connections.approval(tool, args) ?: Email.approval(tool, args) ?: Messages.approval(tool, args)   // connections: Connections.kt; email: Email.kt; messages: Messages.kt
     }
 
     private val readOnlyCommand = Regex("^\\s*(get-[a-z]+|test-path|test-connection|select-string|measure-object|resolve-path|where\\.exe|where|dir|ls|cat|type|echo|hostname|whoami|ipconfig|systeminfo|tasklist|ping)\\b[^;|&>]*$", RegexOption.IGNORE_CASE)

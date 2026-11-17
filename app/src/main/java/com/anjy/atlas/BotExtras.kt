@@ -39,6 +39,7 @@ object BotExtras {
             Category("account", "Change an account, permission or security setting"),
             Category("terms", "Accept terms or sign up"),
             Category("command", "Run a command that changes things"),
+            Category("screen", "Use your screen to work in an app"),   // >>> background first (ScreenGate.kt)
             Category("other", "Anything else that needs an OK"),
         )
         val CATEGORY_IDS = CATEGORIES.map { it.id }
@@ -84,7 +85,7 @@ object BotExtras {
         fun categoryFor(tool: String?, args: JSONObject?): String = when (tool) {
             "run_command" -> "command"
             "write_file", "forget", "update_reminder", "calendar_change", "email_delete" -> "delete"
-            "email_send" -> "message"   // >>> email
+            "email_send", "reply_message", "send_sms" -> "message"   // >>> email; background first (Messages.kt)
             "open_link" -> "message"
             "press_keys", "type_text", "tap", "click", "long_press" -> guessCategory(args?.optString("label") ?: args?.optString("text")).let { if (it == "other") "message" else it }
             else -> "other"

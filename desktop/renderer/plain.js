@@ -3,11 +3,14 @@
 const TOOLS = ['set_reminder', 'update_reminder', 'remember', 'forget', 'read_log', 'open_app', 'open_link', 'read_screen', 'tap', 'long_press', 'type_text', 'scroll',
   'press_key', 'press_keys', 'wait', 'web_search', 'read_page', 'change_setting', 'start_focus', 'look_at_screen', 'click', 'run_command', 'write_file', 'read_file',
   'list_files', 'open_path', 'list_apps', 'default_api', 'tool_code', 'tool_call', 'function_call'];
-const UUID = /\[?\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b\]?/g;
+// Atlas's own ids, as tools print them: "[3f2a…]", "(3f2a…)", "(id 3f2a…)", "#3f2a…". A bare one in a sentence is kept:
+// it may be the user's own code or key, and dropping it would lose what they asked to keep.
+const UUID = /\s*(?:\[\s*|\(\s*(?:id[:\s]+)?|#)[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b(?:\s*[\])])?/g;
 const TOKENS = /<\|[^|>]{1,40}\|>|<\/?s>|<think>[\s\S]*?<\/think>|<\/?(start_of_turn|end_of_turn)>/g;
 const WHAT_I_DID = /\(What I did:[^)]*\)/g;
 const FENCE = /```([a-zA-Z_]*)\n?([\s\S]*?)```/g;
-const TOOL_LINE = new RegExp(`^\\s*(print\\()?\\s*(default_api\\.)?(${TOOLS.join('|')})\\s*\\(.*$`);
+// a tool call written out on a line: name( right after the name, with arguments — prose like "wait (just a sec)" stays
+const TOOL_LINE = new RegExp(`^\\s*(print\\()?\\s*(default_api\\.)?(${TOOLS.join('|')})\\((.*=.*|\\s*["'{].*|\\s*\\).*)$`);
 const looksLikeToolCall = (code) => { const c = code.trim(); return TOOLS.some((t) => c.includes(t + '(') || c.includes(`"${t}"`)) || (c.startsWith('{') && /"(name|args|arguments)"/.test(c)); };
 
 export function plainReply(s) {
@@ -20,7 +23,8 @@ export function plainMemory(s) {
   let t = plainReply(s);
   if (t.trimStart().startsWith('{')) t = [...t.matchAll(/"[^"]*"\s*:\s*"([^"]*)"/g)].map((m) => m[1]).join('. ');
   t = t.replace(FENCE, (m, l, b) => b).replace(/`/g, '').replace(/[{}[\]<>]/g, '').replace(/\s+/g, ' ').trim().replace(/^["']|["']$/g, '');
-  return t ? t[0].toUpperCase() + t.slice(1) : t;
+  // a capital to start, unless the first word is written its own way (iPhone, eBay, gRPC)
+  return t && !/[A-Z]/.test(t.split(/\s/)[0]) ? t[0].toUpperCase() + t.slice(1) : t;
 }
 export function plainSpoken(s) {
   let t = plainReply(s).replace(FENCE, " There's some code on screen. ");
