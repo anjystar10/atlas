@@ -308,6 +308,9 @@ function remove(file) {
   return true;
 }
 
+// >>> attachments: files sent in the chat are kept in the Library (Documents/Atlas Bot/Uploads)
+function keepUpload(file, title) { remember({ file, title, kind: 'file', job: null, goal: 'Sent in the chat', at: Date.now() }); }
+// <<< attachments
 // >>> projects (projects.js): a finished project's zip goes in the Library, under Documents/Atlas Bot/Projects
 function saveProjectZip(projectName, buf) {
   const dir = path.join(base(), 'Projects');
@@ -319,4 +322,4 @@ function saveProjectZip(projectName, buf) {
 }
 // <<< projects
 
-module.exports = { saveProjectZip, run, library, open, showInFolder, remove, folderFor, fileName, freshPath, inside, cleanSpec, documentHtml, pageFromSpec, NAMES: ['workspace_list', 'workspace_read', 'workspace_write', 'make_document', 'make_spreadsheet', 'make_page'] };
+module.exports = { keepUpload, saveProjectZip, run, library, open, showInFolder, remove, folderFor, fileName, freshPath, inside, cleanSpec, documentHtml, pageFromSpec, NAMES: ['workspace_list', 'workspace_read', 'workspace_write', 'make_document', 'make_spreadsheet', 'make_page'] };

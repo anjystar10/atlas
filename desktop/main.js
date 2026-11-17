@@ -199,10 +199,49 @@ ipcMain.handle('open:external', (e, url) => { if (fromMain(e)) openSafe(url); })
 
 ipcMain.handle('file:pick', async (e) => {
   if (!fromMain(e)) return [];
-  const r = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'],
-    filters: [{ name: 'Pictures, videos and files', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm', 'mov', 'pdf', 'txt', 'md', 'csv', 'json', 'docx', 'xml', 'html', 'js', 'ts', 'py', 'kt', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 'log'] }, { name: 'All files', extensions: ['*'] }] });
+  // any kind of file (attach.js and renderer/attachrules.js decide how Atlas reads each)
+  const r = await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'], filters: [{ name: 'All files', extensions: ['*'] }] });
   return r.canceled ? [] : r.filePaths;
 });
+// >>> attachments: any file, any size (attach.js)
+const attach = require('./attach');
+const MIME = { mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', m4v: 'video/mp4', mkv: 'video/x-matroska', avi: 'video/x-msvideo', '3gp': 'video/3gpp',
+  mp3: 'audio/mpeg', wav: 'audio/wav', m4a: 'audio/aac', aac: 'audio/aac', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', flac: 'audio/flac', amr: 'audio/amr', weba: 'audio/webm',
+  pdf: 'application/pdf', zip: 'application/zip', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' };
+let rulesP = null;
+// the renderer's ES module, loaded here as a data: module (this package is CommonJS, so a .js import would fail)
+const rules = () => rulesP || (rulesP = import('data:text/javascript;charset=utf-8,' + encodeURIComponent(fs.readFileSync(path.join(__dirname, 'renderer', 'attachrules.js'), 'utf8'))));
+ipcMain.handle('attach:take', async (e, p, id) => {
+  if (!fromMain(e)) throw new Error('not allowed');
+  p = String(p); const R = await rules(); const name = path.basename(p); const ext = R.ext(name);
+  const k = R.kind(name, MIME[ext] || '');
+  if (k === 'image') { try { return { ...pc.loadAttachment(p), size: fs.statSync(p).size }; } catch { /* a picture this PC can't open is still attached, as a file */ } }
+  const dest = await attach.copyIn(String(id), p, name, (done, total) => { try { e.sender.send('attach:progress', String(id), done, total); } catch {} });
+  const size = fs.statSync(dest).size;
+  const kind = k === 'image' ? 'binary' : k;
+  const out = { kind, mime: MIME[ext] || (R.readsAsText(kind) ? 'text/plain' : 'application/octet-stream'), name, path: dest, size, chars: 0 };
+  if (kind === 'docx' || kind === 'xlsx' || kind === 'pptx') { try { await attach.officeText(dest, kind); } catch { out.kind = 'binary'; } }
+  if (R.readsAsText(out.kind)) {
+    const src = fs.existsSync(attach.sidecar(dest)) ? attach.sidecar(dest) : dest;
+    out.chars = attach.chars(src);
+    if (out.chars <= R.TEXT_INLINE_CHARS) out.text = fs.readFileSync(src, 'utf8');
+  }
+  if (out.kind === 'zip') { try { out.listing = attach.listing(dest); } catch { out.kind = 'binary'; } }
+  if (out.kind === 'binary' || out.kind === 'audio' || out.kind === 'pdf') out.head = attach.describeHead(dest);
+  try { require('./botfiles').keepUpload(dest, name); } catch {}
+  return out;
+});
+ipcMain.handle('attach:cancel', (e, id) => { if (fromMain(e)) attach.cancel(String(id)); });
+ipcMain.handle('attach:bytes', (e, p) => { if (!fromMain(e)) throw new Error('not allowed'); return attach.bytes(String(p)); });
+ipcMain.handle('attach:upload', (e, key, p, mime, name, id) => {
+  if (!fromMain(e) || !attach.readable(String(p))) throw new Error('not allowed');
+  return attach.geminiUpload(String(key), String(p), String(mime), String(name), (done, total) => { try { e.sender.send('attach:progress', String(id), done, total); } catch {} });
+});
+ipcMain.handle('attach:read', (e, p, offset, length, member) => (fromMain(e) ? attach.read(String(p), Number(offset) || 0, Number(length) || 20000, String(member || '')) : 'Error: not allowed'));
+ipcMain.handle('attach:search', (e, p, query, max) => (fromMain(e) ? attach.search(String(p), String(query || ''), Number(max) || 30) : 'Error: not allowed'));
+// <<< attachments
 ipcMain.handle('file:load', (e, p) => { if (!fromMain(e)) throw new Error('not allowed'); return pc.loadAttachment(String(p)); });
 
 // ------------------------------------------------------------------ controlling the PC
@@ -361,7 +400,24 @@ ipcMain.handle('trade:test', (e, acc, secret) => (fromMain(e) && acc ? trade().t
 ipcMain.handle('trade:resume', (e) => (fromMain(e) ? trade().resume(BrowserWindow.fromWebContents(e.sender)) : false));
 // <<< trading
 
+// >>> attachments: atlasfile://f/?p=<path> plays an attached video from disk (for taking stills), Atlas Bot folder only
+const { protocol } = require('electron');
+protocol.registerSchemesAsPrivileged([{ scheme: 'atlasfile', privileges: { stream: true, supportFetchAPI: true } }]);
+// <<< attachments
 app.whenReady().then(() => {
+  protocol.handle('atlasfile', (request) => {   // >>> attachments
+    const p = new URL(request.url).searchParams.get('p') || '';
+    if (!attach.readable(p)) return new Response('not allowed', { status: 403 });
+    // byte ranges, so the video can seek (stills are taken all through it) without reading the whole file
+    const size = fs.statSync(p).size; const type = MIME[path.extname(p).slice(1).toLowerCase()] || 'application/octet-stream';
+    const m = /bytes=(\d*)-(\d*)/.exec(request.headers.get('range') || '');
+    const { Readable } = require('stream');
+    if (!m) return new Response(Readable.toWeb(fs.createReadStream(p)), { status: 200, headers: { 'Content-Type': type, 'Content-Length': String(size), 'Accept-Ranges': 'bytes' } });
+    let start = m[1] === '' ? Math.max(0, size - Number(m[2])) : Number(m[1]); let end = m[1] !== '' && m[2] !== '' ? Number(m[2]) : size - 1;
+    end = Math.min(end, size - 1);
+    if (start > end || start >= size) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+    return new Response(Readable.toWeb(fs.createReadStream(p, { start, end })), { status: 206, headers: { 'Content-Type': type, 'Content-Length': String(end - start + 1), 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes' } });
+  });
   if (!firstInstance) return;
   // the microphone (for talking to Atlas) and the screen (to look at it) are allowed for Atlas's own pages
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(['media', 'microphone', 'audioCapture', 'clipboard-read', 'clipboard-sanitized-write', 'notifications'].includes(perm)));

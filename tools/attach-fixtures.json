@@ -1,0 +1,25 @@
+{
+ "_": "What each attachment is and how Atlas reads it, for both apps (AttachRules.kt and desktop/renderer/attachrules.js must agree). MB = 1048576 bytes.",
+ "kinds": [
+  ["photo.JPG", "", "image"], ["shot.png", "image/png", "image"], ["x.heic", "", "image"], ["logo.svg", "image/svg+xml", "text"],
+  ["clip.mp4", "", "video"], ["clip.bin", "video/quicktime", "video"], ["voice.m4a", "", "audio"], ["song.mp3", "audio/mpeg", "audio"],
+  ["book.pdf", "", "pdf"], ["scan", "application/pdf", "pdf"],
+  ["notes.md", "", "text"], ["main.kt", "", "text"], ["data.csv", "application/octet-stream", "text"], ["page.html", "text/html", "text"],
+  ["Dockerfile", "", "text"], ["app.log", "", "text"], ["config.yaml", "", "text"], ["q.sql", "", "text"], ["x", "application/json", "text"],
+  ["report.docx", "", "docx"], ["sheet.xlsx", "", "xlsx"], ["deck.pptx", "", "pptx"],
+  ["bundle.zip", "", "zip"], ["x", "application/zip", "zip"],
+  ["setup.exe", "", "binary"], ["model.gguf", "application/octet-stream", "binary"], ["noext", "", "binary"]
+ ],
+ "routes": [
+  ["image", 30000000, "gemini", 0, "native"], ["image", 30000000, "openai", 0, "native"], ["image", 1000, "anthropic", 0, "native"],
+  ["video", 14680064, "gemini", 0, "native"], ["video", 14680065, "gemini", 0, "upload"], ["video", 2147483648, "gemini", 0, "upload"],
+  ["video", 2147483649, "gemini", 0, "frames"], ["video", 1000, "openai", 0, "frames"], ["video", 1000, "anthropic", 0, "frames"],
+  ["audio", 5000000, "gemini", 0, "native"], ["audio", 50000000, "gemini", 0, "upload"], ["audio", 5000000, "openai", 0, "describe"],
+  ["audio", 3000000000, "gemini", 0, "describe"],
+  ["pdf", 5000000, "gemini", 0, "native"], ["pdf", 40000000, "gemini", 0, "upload"], ["pdf", 5000000, "anthropic", 0, "native"],
+  ["pdf", 5000000, "openai", 0, "native"], ["pdf", 40000000, "openai", 0, "describe"], ["pdf", 3000000000, "gemini", 0, "describe"],
+  ["text", 900000000, "openai", 120000, "text"], ["text", 900000000, "openai", 120001, "chunks"], ["docx", 10, "gemini", 50, "text"],
+  ["xlsx", 10, "anthropic", 500000, "chunks"], ["pptx", 10, "gemini", 0, "text"],
+  ["zip", 10, "gemini", 0, "listing"], ["binary", 10, "gemini", 0, "describe"], ["binary", 9000000000, "openai", 0, "describe"]
+ ]
+}

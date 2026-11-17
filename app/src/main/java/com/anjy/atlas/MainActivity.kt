@@ -91,23 +91,29 @@ class MainActivity : Activity() {
         // screen) must put every dark colour back, not just the ones a fresh start happens to begin with
         // every colour comes from the one palette (Design.kt); both looks are set in full every time, so switching
         // back from light to dark (without restarting the screen) puts every colour back
+        // >>> themes: the chosen colour theme (Me → Look) supplies both looks; see tools/themes.json
+        Themes.load(this); shownTheme = Themes.current.id
         val p = if (dark) Palette.DARK else Palette.LIGHT
         BG = p.bg; SURFACE = p.surface; SURFACE2 = p.surface2; LINE = p.line; FG = p.fg; MUTED = p.muted; FAINT = p.faint
         DONE = p.done; MISS = p.danger; ACCENT = p.accent; ACCENT_INK = p.accentInk; GOLD = p.blue; WARM = p.warm
+        ON = p.bg; BLUE = p.fg   // ON is the ink on BLUE (= fg) pills, so the page colour reads on it at full contrast
         if (!dark) {
-            // by day: frosted glass panels on a lavender-blue page, navy-black ink, dark glass buttons
-            ON = Color.WHITE; BLUE = p.fg
-            STEEL = Color.parseColor("#E6E7F8"); NAVBG = p.fg; BTN2 = p.fg
+            // by day: frosted glass panels on the theme's page colour, dark ink, dark glass buttons
+            STEEL = p.surface2; NAVBG = p.fg; BTN2 = p.fg
         } else {
-            ON = Color.parseColor("#06061A"); BLUE = p.fg
-            STEEL = p.surface2; NAVBG = Color.parseColor("#15162E"); BTN2 = p.surface
+            STEEL = p.surface2; NAVBG = p.nav; BTN2 = p.surface
         }
+        LIGHT_GLASS = hex(Palette.LIGHT.surface); LIGHT_FIELD = hex(Palette.LIGHT.surface2)
+        // <<< themes
     }
 
+    private var shownTheme = ""
+    private fun hex(c: Int) = String.format("#%06X", c and 0xFFFFFF)
+
     /** Light mode's panels: frosted glass (white at about 45%) seen over the lavender-blue page. */
-    internal val LIGHT_GLASS = "#DDDFF5"
+    internal var LIGHT_GLASS = "#DDDFF5"
     /** Light mode's text fields: clearer glass, a shade brighter than the panels they sit on. */
-    internal val LIGHT_FIELD = "#E9EAF9"
+    internal var LIGHT_FIELD = "#E9EAF9"
 
     /** A quieter button's background: glass at night, black glass by day. [radius] < 0 means a pill. */
     internal fun quietBg(radius: Float = -1f): android.graphics.drawable.Drawable = if (dark) finished(SURFACE, radius, glass = true) else finished(BTN2, radius)
@@ -319,7 +325,7 @@ class MainActivity : Activity() {
         plain = true
         text = L.t(label); textSize = 16f; typeface = MED; gravity = Gravity.CENTER
         val plain = color == SURFACE2 || color == SURFACE || color == STEEL
-        setTextColor(when { plain -> quietInk(); color == BLUE -> ON; dark && (color == DONE || color == GOLD) -> Color.parseColor("#050505"); else -> Color.WHITE })
+        setTextColor(when { plain -> quietInk(); color == BLUE -> ON; else -> inkOn(color) })
         background = if (plain) quietBg() else finished(color)
         minHeight = dp(56)
         setPadding(dp(20), dp(15), dp(20), dp(15))
@@ -386,6 +392,43 @@ class MainActivity : Activity() {
         return box
     }
 
+    // >>> themes
+    /** The four colour themes side by side, each a small picture of itself in the current light/dark look. */
+    private fun themeSwatches(): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        Themes.ALL.forEachIndexed { i, t ->
+            val p = if (dark) t.dark else t.light
+            val on = t.id == Themes.current.id
+            val tile = LinearLayout(this@MainActivity).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(dp(6), dp(8), dp(6), dp(8))
+                background = rounded(p.bg, 16, if (on) p.accent else withAlpha(p.fg, 40), if (on) 2 else 1)
+                // a page, a panel with a line of text, and the theme's accent and secondary
+                val panel = LinearLayout(this@MainActivity).apply {
+                    orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(6), dp(6), dp(6)); background = rounded(p.surface, 10)
+                    addView(View(this@MainActivity).apply { background = rounded(p.fg, 99) }, LinearLayout.LayoutParams(MATCH, dp(4)))
+                    addView(View(this@MainActivity).apply { background = rounded(p.muted, 99) }, LinearLayout.LayoutParams(dp(22), dp(4)).apply { topMargin = dp(4) })
+                }
+                addView(panel, LinearLayout.LayoutParams(MATCH, WRAP))
+                val dots = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
+                dots.addView(View(this@MainActivity).apply { background = rounded(p.accent, 99) }, LinearLayout.LayoutParams(dp(14), dp(14)))
+                dots.addView(View(this@MainActivity).apply { background = rounded(p.blue, 99) }, LinearLayout.LayoutParams(dp(14), dp(14)).apply { leftMargin = dp(4) })
+                addView(dots, LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(8) })
+                addView(text(t.name.substringBefore(" & ").removePrefix("Atlas "), 12f, p.fg, if (on) SEMI else MED).apply {
+                    gravity = Gravity.CENTER; maxLines = 1; plain = true
+                }, LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(6) })
+                isClickable = true; pressFx()
+                contentDescription = t.name + if (on) ", " + L.t("chosen") else ""
+                setOnClickListener {
+                    if (t.id == Themes.current.id) return@setOnClickListener
+                    haptic(); Themes.set(this@MainActivity, t); relook()
+                }
+            }
+            addView(tile, LinearLayout.LayoutParams(0, WRAP, 1f).apply { if (i > 0) leftMargin = dp(8) })
+        }
+    }
+    // <<< themes
+
     internal fun haptic() {
         if (!Prefs.haptics(this)) return
         val v = window.decorView
@@ -399,12 +442,12 @@ class MainActivity : Activity() {
         root.findViewWithTag<View>("undoBar")?.let { root.removeView(it) }
         val bar = LinearLayout(this).apply {
             tag = "undoBar"; orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            background = Finish(if (dark) Color.parseColor("#22244A") else Color.parseColor("#0A0B1F"), -1f, dark, resources.displayMetrics.density)
+            background = Finish(if (dark) blend(SURFACE2, FG, 0.08f) else FG, -1f, dark, resources.displayMetrics.density)
             setPadding(dp(20), dp(10), dp(8), dp(10)); alpha = 0f; translationY = dp(14).toFloat()
         }
-        bar.addView(text(noEmoji(L.t(msg)), 14f, Color.WHITE, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, WRAP, 1f))
+        bar.addView(text(noEmoji(L.t(msg)), 14f, if (dark) FG else BG, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, WRAP, 1f))
         val gone = Runnable { bar.animate().alpha(0f).setDuration(200).withEndAction { root.removeView(bar) }.start() }
-        bar.addView(text("Undo", 14f, Color.parseColor("#B9A6FF"), SEMI).apply {
+        bar.addView(text("Undo", 14f, if (dark) ACCENT_INK else Palette.DARK.accentInk, SEMI).apply {
             setPadding(dp(14), dp(6), dp(14), dp(6))
             setOnClickListener { bar.removeCallbacks(gone); root.removeView(bar); undo() }
         })
@@ -421,7 +464,7 @@ class MainActivity : Activity() {
         banner.text = noEmoji(L.t(msg))
         // the same glass finish as the buttons, so a message looks like part of the app
         banner.background = Finish(color, -1f, dark, resources.displayMetrics.density)
-        banner.setTextColor(if (color == BLUE) ON else if (dark && (color == DONE || color == GOLD || color == MUTED)) Color.parseColor("#050505") else Color.WHITE)
+        banner.setTextColor(if (color == BLUE) ON else inkOn(color))
         banner.animate().cancel()
         // quick in, a moment to read, quick out
         banner.alpha = 0f; banner.translationY = -dp(12).toFloat()
@@ -706,7 +749,7 @@ class MainActivity : Activity() {
         root.setBackgroundColor(BG)
         val i = root.indexOfChild(aurora)
         root.removeView(aurora)
-        aurora = Backdrop(this, BG, dark, ACCENT).apply { still = Prefs.reduceMotion(this@MainActivity); scrollRef = scroll }
+        aurora = Backdrop(this, BG, dark, ACCENT, GOLD).apply { still = Prefs.reduceMotion(this@MainActivity); scrollRef = scroll }
         root.addView(aurora, i.coerceAtLeast(0), FrameLayout.LayoutParams(MATCH, MATCH))
         val mi = pageHost.indexOfChild(morph)
         pageHost.removeView(morph)
@@ -757,7 +800,7 @@ class MainActivity : Activity() {
     private var brainShown: String? = null
 
     companion object {
-        private const val REQ_MODEL = 11; private const val REQ_IMPORT = 13; private const val REQ_NOTIF = 14; private const val REQ_MIC = 15; private const val REQ_MIC_WAKE = 16; private const val REQ_MEDIA = 17
+        private const val REQ_MODEL = 11; private const val REQ_IMPORT = 13; private const val REQ_NOTIF = 14; private const val REQ_MIC = 15; private const val REQ_MIC_WAKE = 16; private const val REQ_MEDIA = 17; private const val REQ_SNAP = 18
         const val AI_STUDIO_KEYS = "https://aistudio.google.com/apikey"
     }
 
@@ -806,7 +849,7 @@ class MainActivity : Activity() {
                     child.translationZ = maxOf(child.translationZ, nav.elevation + dp(2))
             }
         }.apply { setBackgroundColor(BG) }
-        aurora = Backdrop(this, BG, dark, ACCENT).apply { still = Prefs.reduceMotion(this@MainActivity) }
+        aurora = Backdrop(this, BG, dark, ACCENT, GOLD).apply { still = Prefs.reduceMotion(this@MainActivity) }
         root.addView(aurora, FrameLayout.LayoutParams(MATCH, MATCH))
         val column = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         scroll = SwipeScrollView(this, object : SwipeScrollView.Listener {
@@ -1243,6 +1286,7 @@ class MainActivity : Activity() {
         if (!::composer.isInitialized) return
         // Atlas may have switched the theme itself (change_setting): follow it
         Store.getString(this, "theme2")?.let { want -> if ((want == "dark" && !dark) || (want == "light" && dark)) { relook(); return } }
+        if ((Store.getString(this, Themes.KEY) ?: ThemeData.DEFAULT) != shownTheme) { relook(); return }   // >>> themes: or the colour theme
         updateSend()
         if (tab != 0) return
         statusLine?.text = brainLine()
@@ -1267,7 +1311,8 @@ class MainActivity : Activity() {
     private fun bubble(m: Conversation.Msg, last: Boolean): View {
         val wrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = if (m.fromUser) Gravity.END else Gravity.START }
         val working = !m.fromUser && last && Conversation.busy
-        val copy = { _: View -> getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas", m.text)); showBanner("Copied"); true }
+        // >>> smooth: hold a message for Copy, Share, Remember, Ask Again
+        val copy = { _: View -> messageMenu(m); true }
         if (m.fromUser) {
             if (m.media.isNotEmpty()) wrap.addView(mediaStrip(m.media, dp(84)), LinearLayout.LayoutParams(WRAP, WRAP).apply { bottomMargin = dp(6) })
             wrap.addView(text(m.text, Type.READ, FG, READ, keepEmoji = true).apply {
@@ -1286,7 +1331,7 @@ class MainActivity : Activity() {
             Markdown.parse(m.text, st).forEachIndexed { i, block ->
                 val v: View = when (block) {
                     is Markdown.Prose -> TextView(this).apply {
-                        text = block.text; setTextColor(if (m.source == "error") MISS else FG); textSize = Type.READ; typeface = READ
+                        text = linkified(block.text); setTextColor(if (m.source == "error") MISS else FG); textSize = Type.READ; typeface = READ
                         setLineSpacing(0f, Type.LEAD_READ); linksClickable = true; movementMethod = android.text.method.LinkMovementMethod.getInstance()
                         setOnLongClickListener(copy)
                     }
@@ -1400,7 +1445,7 @@ class MainActivity : Activity() {
                 // a file: its type and name on a glass tile
                 val f = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(dp(6), dp(6), dp(6), dp(6))
                     background = Finish(SURFACE, dp(14).toFloat(), dark, density, glass = true) }
-                f.addView(text(if (it.pdf) "PDF" else it.name.substringAfterLast('.', "TXT").uppercase().take(4), 12f, ACCENT, SEMI).apply { gravity = Gravity.CENTER })
+                f.addView(text(if (it.pdf) "PDF" else AttachRules.ext(it.name).uppercase().take(4).ifEmpty { "FILE" }, 12f, ACCENT_INK, SEMI).apply { gravity = Gravity.CENTER })
                 f.addView(text(it.name, 11f, FG).apply { gravity = Gravity.CENTER; maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.MIDDLE })
                 cell.addView(f, FrameLayout.LayoutParams(MATCH, MATCH))
             } else {
@@ -1427,16 +1472,27 @@ class MainActivity : Activity() {
 
     private fun buildComposer(): LinearLayout {
         val outer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; elevation = dp(8).toFloat() }
-        val t = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; visibility = View.GONE; setPadding(dp(4), 0, 0, dp(8)) }
+        val t = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE; setPadding(dp(4), 0, 0, dp(8)) }
         tray = t
         outer.addView(t, LinearLayout.LayoutParams(MATCH, WRAP))
         val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val attach = FrameLayout(this).apply {
             background = quietBg(); isClickable = true; contentDescription = "Add a picture, video or file"
             addView(LineIcon(this@MainActivity, "plus").apply { color = quietInk() }, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
-            setOnClickListener { choose("Add to Your Message", listOf("Photos & Videos", "Files (PDF, Word, text)")) { i -> if (i == 0) pickMedia() else pickFiles() } }
+            setOnClickListener { choose("Add to Your Message", listOf("Photos & Videos", "Files (any kind)", "Take a Photo", "Record a Video")) { i ->
+                when (i) { 0 -> pickMedia(); 1 -> pickFiles(); 2 -> snap(false); else -> snap(true) } } }
             pressFx()
         }
+        // >>> attachments: Snap, right in the bar (it steps aside while you type, to give the words room)
+        val cam = FrameLayout(this).apply {
+            background = quietBg(); isClickable = true; contentDescription = "Take a photo (hold for a video)"
+            addView(LineIcon(this@MainActivity, "camera").apply { color = quietInk() }, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
+            setOnClickListener { snap(false) }
+            setOnLongClickListener { haptic(); snap(true); true }
+            pressFx()
+        }
+        snapKey = cam
+        // <<< attachments
         composerField = EditText(this).apply {
             hint = "Ask anything…"; setTextColor(FG); setHintTextColor(MUTED); textSize = Type.READ; typeface = READ
             background = rounded(if (dark) SURFACE2 else Color.parseColor(LIGHT_FIELD), 999, LINE)
@@ -1458,10 +1514,10 @@ class MainActivity : Activity() {
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                 override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-                override fun afterTextChanged(s: Editable?) { updateSend() }
+                override fun afterTextChanged(s: Editable?) { updateSend(); snapKey?.visibility = if (s.isNullOrBlank()) View.VISIBLE else View.GONE }
             })
         }
-        val icon = LineIcon(this@MainActivity, "mic").apply { color = Color.WHITE; tag = "mic" }
+        val icon = LineIcon(this@MainActivity, "mic").apply { color = Palette.DARK.onPrimary; tag = "mic" }
         sendIcon = icon
         val send = FrameLayout(this).apply {
             // Atlas's key: a glowing drop of blue and violet. Nothing typed: talk. Something to send: send. Working: stop.
@@ -1469,13 +1525,14 @@ class MainActivity : Activity() {
                 shape = GradientDrawable.OVAL; gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(34).toFloat()
                 colors = intArrayOf(Palette.DARK.primaryTop, Palette.DARK.primaryBottom)
             }
-            elevation = dp(8).toFloat(); outlineSpotShadowColor = Color.parseColor("#5B6CFF"); outlineAmbientShadowColor = Color.parseColor("#5B6CFF")
+            elevation = dp(8).toFloat(); outlineSpotShadowColor = Palette.DARK.accent; outlineAmbientShadowColor = Palette.DARK.accent
             isClickable = true; contentDescription = "Speak"
             addView(icon, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
             setOnClickListener { when (sendIcon?.tag) { "stop" -> Conversation.stop(); "arrow" -> submit(); else -> voice() } }
             pressFx()
         }
         bar.addView(attach, LinearLayout.LayoutParams(dp(48), dp(48)))
+        bar.addView(cam, LinearLayout.LayoutParams(dp(48), dp(48)).apply { leftMargin = dp(6) })
         bar.addView(composerField, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8); rightMargin = dp(8) })
         bar.addView(send, LinearLayout.LayoutParams(dp(48), dp(48)))
         outer.addView(bar, LinearLayout.LayoutParams(MATCH, WRAP))
@@ -1484,7 +1541,7 @@ class MainActivity : Activity() {
     }
 
     private fun roomLeft(): Boolean {
-        if (pending.any { it.video } || pending.size >= Attach.MAX_PHOTOS) { showBanner("That's the limit for one message.", MUTED); return false }
+        if (pending.size >= Attach.MAX_ITEMS) { showBanner("That's the limit for one message: ${Attach.MAX_ITEMS} things.", MUTED); return false }
         return true
     }
 
@@ -1492,7 +1549,7 @@ class MainActivity : Activity() {
         if (!roomLeft()) return
         try {
             startActivityForResult(Intent(android.provider.MediaStore.ACTION_PICK_IMAGES)
-                .putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX, (Attach.MAX_PHOTOS - pending.size).coerceAtLeast(2)), REQ_MEDIA)
+                .putExtra(android.provider.MediaStore.EXTRA_PICK_IMAGES_MAX, (Attach.MAX_ITEMS - pending.size).coerceIn(2, android.provider.MediaStore.getPickImagesMaxLimit())), REQ_MEDIA)
         } catch (e: Exception) {
             startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).setType("*/*").putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
                 .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_MEDIA)
@@ -1501,9 +1558,8 @@ class MainActivity : Activity() {
 
     private fun pickFiles() {
         if (!roomLeft()) return
+        // any kind of file (Atlas reads each the best way it can: see AttachRules)
         startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
-            .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/pdf", "text/*", "application/json", "application/xml", "application/csv",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/octet-stream"))
             .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true), REQ_MEDIA)
     }
 
@@ -1511,30 +1567,130 @@ class MainActivity : Activity() {
      * Takes picked or pasted pictures, videos and files, within the limits. One at a time, in order: copying takes a
      * moment, and the limits are checked against what's already been taken (several at once would all pass the check).
      */
-    private fun addMedia(uris: List<Uri>) {
-        scope.launch {
+    private fun addMedia(uris: List<Uri>, afterEach: (Uri) -> Unit = {}) {
+        // one batch after another: a second pick waits for the first to finish copying (Stop stops the one copying now)
+        val before = copying
+        copying = scope.launch {
+            before?.join()
             for (uri in uris) {
                 try {
-                    val isVideo = contentResolver.getType(uri)?.startsWith("video/") == true
-                    if (isVideo && pending.isNotEmpty()) { showBanner("A video goes on its own. Send the others first.", MUTED); continue }
-                    if (pending.any { it.video } || pending.size >= Attach.MAX_PHOTOS) { showBanner("Up to ${Attach.MAX_PHOTOS} per message.", MUTED); break }
-                    val item = withContext(Dispatchers.IO) { Attach.take(applicationContext, uri) }
-                    pending.add(item); showTray(); updateSend()
-                } catch (e: kotlinx.coroutines.CancellationException) { throw e
+                    if (pending.size >= Attach.MAX_ITEMS) { showBanner("Up to ${Attach.MAX_ITEMS} per message.", MUTED); break }
+                    copyLine = "Adding…"; showTray()
+                    var last = 0L
+                    val item = withContext(Dispatchers.IO) {
+                        Attach.take(applicationContext, uri) { done, total ->
+                            val now = System.currentTimeMillis()
+                            if (now - last > 250) { last = now
+                                val line = "Adding · " + (if (total > 0) "${done * 100 / total}% of ${AttachRules.size(total)}" else AttachRules.size(done)) + " · tap to stop"
+                                runOnUiThread { copyLine = line; copyView?.text = line } }
+                        }
+                    }
+                    // what Atlas will actually read of it, with the service chosen now, said plainly
+                    val note = withContext(Dispatchers.IO) { attachNote(item) }
+                    if (note.isNotEmpty()) notes[item.path] = note
+                    pending.add(item); haptic()
+                } catch (e: kotlinx.coroutines.CancellationException) { copyLine = null; showTray(); throw e
                 } catch (e: Attach.TooBig) { showBanner(e.message ?: "Too big.", MUTED)
-                } catch (e: Exception) { showBanner("Couldn't add that.", MUTED) }
+                } catch (e: Exception) { showBanner("Couldn't add that.", MUTED)
+                } finally { afterEach(uri) }
+            }
+            copyLine = null; showTray(); updateSend()
+        }
+    }
+
+    // >>> smooth
+    /** Hold a message: Copy, Share, Remember (saves it to Atlas's memory), Ask Again (sends the question once more). */
+    private fun messageMenu(m: Conversation.Msg) {
+        haptic()
+        val ask = if (m.fromUser) m else Conversation.messages.let { all -> val i = all.indexOf(m); all.subList(0, maxOf(i, 0)).lastOrNull { it.fromUser } }
+        val opts = mutableListOf("Copy", "Share", "Remember This")
+        if (ask != null && !Conversation.busy) opts.add("Ask Again")
+        choose(if (m.fromUser) "Your Message" else "Atlas's Reply", opts) { i ->
+            when (opts[i]) {
+                "Copy" -> { getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas", m.text)); showBanner("Copied") }
+                "Share" -> try { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, m.text), null)) } catch (_: Exception) { showBanner("Couldn't share that.", MUTED) }
+                "Remember This" -> scope.launch {
+                    val txt = withContext(Dispatchers.IO) { Plain.memory(m.text.take(600)) }
+                    if (txt.isEmpty()) { showBanner("Nothing to remember there.", MUTED); return@launch }
+                    val saved = withContext(Dispatchers.IO) {
+                        val same = Store.read(this@MainActivity) { s -> s.memories.any { it.text.trim().equals(txt, ignoreCase = true) } }
+                        if (!same) { Store.edit(this@MainActivity) { Engine.remember(it, txt, System.currentTimeMillis()) }; ModelManager.markStale() }
+                        !same
+                    }
+                    showBanner(if (saved) "Remembered." else "Already remembered.")
+                }
+                "Ask Again" -> ask?.let { u -> sendMessage(u.text, media = u.media.filter { it.file.exists() }) }
             }
         }
     }
 
+    /** Web addresses, emails and phone numbers in Atlas's words become tappable (links already in the text stay as they are). */
+    private fun linkified(t: CharSequence): CharSequence {
+        val sb = android.text.SpannableStringBuilder(t)
+        fun add(re: java.util.regex.Pattern, url: (String) -> String?) {
+            val mt = re.matcher(sb)
+            while (mt.find()) {
+                if (sb.getSpans(mt.start(), mt.end(), android.text.style.URLSpan::class.java).isNotEmpty()) continue
+                val u = url(mt.group()) ?: continue
+                sb.setSpan(android.text.style.URLSpan(u), mt.start(), mt.end(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+        }
+        add(android.util.Patterns.EMAIL_ADDRESS) { "mailto:$it" }
+        add(android.util.Patterns.WEB_URL) { LinkText.web(it) }
+        add(LinkText.PHONE) { LinkText.phone(it) }
+        return sb
+    }
+    // <<< smooth
+
+    // >>> attachments
+    private var copying: kotlinx.coroutines.Job? = null
+    private var copyLine: String? = null
+    private var copyView: TextView? = null
+    private var snapKey: View? = null
+    private var snapFile: java.io.File? = null
+    private val notes = HashMap<String, String>()
+
+    private fun attachNote(item: Attach.Item): String {
+        val p = Providers.active(this) ?: return ""
+        val route = AttachRules.route(item.kind, item.size, p.style, if (item.textFile) AttachSend.chars(item.textSource) else 0)
+        return AttachRules.note(item.kind, route, p.name)
+    }
+
+    /** Snap: the camera app takes a photo (or a video) straight into Atlas (no camera permission needed for this). */
+    private fun snap(video: Boolean) {
+        if (!roomLeft()) return
+        val f = SnapProvider.newFile(this, if (video) "mp4" else "jpg")
+        val uri = SnapProvider.uriFor(f)
+        snapFile = f
+        val i = Intent(if (video) android.provider.MediaStore.ACTION_VIDEO_CAPTURE else android.provider.MediaStore.ACTION_IMAGE_CAPTURE)
+            .putExtra(android.provider.MediaStore.EXTRA_OUTPUT, uri)
+            .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        i.clipData = android.content.ClipData.newRawUri("snap", uri)
+        if (video) i.putExtra(android.provider.MediaStore.EXTRA_DURATION_LIMIT, 300)
+        try { startActivityForResult(i, REQ_SNAP) } catch (e: android.content.ActivityNotFoundException) { snapFile = null; f.delete(); showBanner("There's no camera app on this phone.", MUTED) }
+    }
+    // <<< attachments
+
     private fun showTray() {
         val t = tray ?: return
-        t.removeAllViews()
-        if (pending.isEmpty()) { t.visibility = View.GONE; return }
+        t.removeAllViews(); copyView = null
+        if (pending.isEmpty() && copyLine == null) { t.visibility = View.GONE; return }
         t.visibility = View.VISIBLE
-        t.addView(mediaStrip(pending.toList(), dp(64)) { item -> pending.remove(item); item.file.delete(); showTray(); updateSend() })
-        if (pending.any { it.video }) t.addView(text("Video: up to ${Attach.VIDEO_MAX_SECONDS}s · Gemini", 12f, MUTED).apply { setPadding(dp(10), 0, 0, 0); gravity = Gravity.CENTER_VERTICAL },
-            LinearLayout.LayoutParams(WRAP, dp(64)))
+        if (pending.isNotEmpty()) t.addView(android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false; clipToPadding = false
+            addView(mediaStrip(pending.toList(), dp(64)) { item -> pending.remove(item); notes.remove(item.path); if (!Attach.uploads(this@MainActivity).let { item.path.startsWith(it.path) }) item.file.delete(); showTray(); updateSend() })
+        }, LinearLayout.LayoutParams(MATCH, WRAP))
+        // honest about what Atlas will read of a big or unusual file
+        pending.mapNotNull { notes[it.path]?.let { n -> "${it.name.ifEmpty { "Video" }}: $n" } }.distinct().take(3).forEach { n ->
+            t.addView(text(n, 12f, MUTED).apply { setPadding(dp(6), dp(6), dp(6), 0) })
+        }
+        copyLine?.let { line ->
+            t.addView(text(line, 12f, ACCENT_INK, SEMI).apply {
+                setPadding(dp(6), dp(6), dp(6), 0); isClickable = true; contentDescription = "Stop adding"
+                setOnClickListener { copying?.cancel(); copyLine = null; showTray(); showBanner("Stopped.", MUTED) }
+                copyView = this
+            })
+        }
     }
 
     /** The round key: stop while Atlas works, send when there's something to send, else talk. */
@@ -1545,7 +1701,7 @@ class MainActivity : Activity() {
         val want = when { Conversation.busy -> "stop"; typed || pending.isNotEmpty() -> "arrow"; else -> "mic" }
         if (old.tag == want) return
         parent.removeView(old)
-        val icon = LineIcon(this, want).apply { color = Color.WHITE; rotation = if (want == "arrow") -90f else 0f; tag = want }
+        val icon = LineIcon(this, want).apply { color = Palette.DARK.onPrimary; rotation = if (want == "arrow") -90f else 0f; tag = want }
         parent.addView(icon, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
         parent.contentDescription = when (want) { "stop" -> "Stop"; "arrow" -> "Send"; else -> "Speak" }
         sendIcon = icon
@@ -2279,6 +2435,15 @@ class MainActivity : Activity() {
         }, 8)
         body.add(you, 8)
 
+        // >>> themes: Look — the colour theme, per device (Atlas can switch it too: "switch to the gold theme")
+        body.add(eyebrow("Look"), 16)
+        val look = card()
+        look.addView(text(Themes.current.name, 20f, FG, HEAD))
+        look.add(text(L.t("Colours for this device. Light or dark stays on the switch at the top."), 14f, MUTED), 4)
+        look.add(themeSwatches(), 14)
+        body.add(look, 8)
+        // <<< themes
+
         // Reliability
         body.add(eyebrow("Make Atlas Reliable"), 16)
         val rel = card()
@@ -2391,6 +2556,13 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        // >>> attachments: a snap comes back with no data (the photo is already in the file we gave the camera)
+        if (requestCode == REQ_SNAP) {
+            val f = snapFile; snapFile = null
+            if (resultCode == RESULT_OK && f != null && f.length() > 0) addMedia(listOf(Uri.fromFile(f))) { f.delete() } else f?.delete()
+            return
+        }
+        // <<< attachments
         if (resultCode != RESULT_OK || data == null) return
         when (requestCode) {
             REQ_MEDIA -> {

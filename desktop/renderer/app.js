@@ -19,6 +19,9 @@ import { renderConnections } from './connui.js';
 import { renderEmail } from './mailui.js';   // >>> email: Me → Email
 import * as trade from './trade.js';   // >>> trading (Me → Trading; the tools register themselves)
 import * as LW from './linkwire.js';   // >>> device link (control across devices)
+import { THEMES, DEFAULT as THEME_DEFAULT, findTheme } from './themes.js';   // >>> themes (Me → Look)
+import * as AR from './attachrules.js';   // >>> attachments: what a file is, how Atlas reads it
+import { progressTo } from './attachsend.js';
 import { renderDevices } from './linkui.js';
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
 const host = window.atlasHost;
@@ -58,6 +61,7 @@ const ICON = {
   mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
   up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
   stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
 };
 
 // ------------------------------------------------------------------ the screens
@@ -155,6 +159,7 @@ function messageView(m, last) {
       v.appendChild(f);
     }
     v.appendChild(Object.assign(h('<div class="bubble"></div>'), { textContent: m.text }));
+    v.appendChild(msgActions(m));   // >>> smooth
     return v;
   }
   const v = h('<div class="msg atlas"></div>');
@@ -168,8 +173,26 @@ function messageView(m, last) {
   }
   const tag = working && m.text ? (brain.convo.status || 'Working') + '…' : (m.source === 'error' || m.source === 'Atlas' ? '' : m.source);
   if (tag) v.appendChild(h(`<div class="source">${esc(tag)}</div>`));
+  if (m.text && !working) v.appendChild(msgActions(m));   // >>> smooth
   return v;
 }
+// >>> smooth: on hover, a message offers Copy, Remember and Ask Again
+function msgActions(m) {
+  const row = h('<div class="msgacts"><button title="Copy">Copy</button><button title="Save it to Atlas\'s memory">Remember</button><button title="Send the question again">Ask Again</button></div>');
+  const [copy, keep, again] = row.children;
+  copy.onclick = () => { navigator.clipboard.writeText(m.text); toast('Copied'); };
+  keep.onclick = () => {
+    const t = plainMemory(String(m.text).slice(0, 600)); if (!t) return toast('Nothing to remember there.');
+    if (db.state.memories.some((x) => x.text.trim().toLowerCase() === t.toLowerCase())) return toast('Already remembered.');
+    store.remember(t); toast('Remembered.');
+  };
+  const i = db.chat.indexOf(m); const ask = m.user ? m : db.chat.slice(0, Math.max(i, 0)).reverse().find((x) => x.user);
+  if (!ask || !ask.text) again.remove();
+  // the question alone: whatever is waiting in the tray stays there for your next message
+  else again.onclick = () => { if (brain.convo.busy) return toast('Atlas is still answering.'); const keepAtt = attachments; attachments = []; submit(false, ask.text); attachments = keepAtt; showTray(); updateSend(); };
+  return row;
+}
+// <<< smooth
 
 // ---- Atlas Bot ----
 /** A small glass strip while bots are working (or recently done): click to see them. */
@@ -298,15 +321,17 @@ function renderBots(page) {
 function buildComposer() {
   const c = $('#composer');
   c.innerHTML = `<div class="column"><div id="tray"></div><div class="askbar">
-    <div class="round" id="attach" title="Add pictures, a video or files">${ICON.plus}</div>
+    <div class="round" id="attach" title="Add pictures, videos or any file">${ICON.plus}</div>
+    <div class="round" id="snap" title="Take a photo with the webcam">${ICON.camera}</div>
     <textarea id="ask" rows="1" placeholder="Ask anything…"></textarea>
     <div class="round go" id="go" title="Speak">${ICON.mic}</div></div>
-    <div class="hint">Enter to send · Shift+Enter for a new line · Ctrl+Shift+Space to talk from anywhere</div></div>`;
+    <div class="hint">Enter to send · Shift+Enter for a new line · Esc to stop · Ctrl+Shift+Space to talk from anywhere</div></div>`;
   const ta = $('#ask');
   ta.addEventListener('input', () => { autosize(); updateSend(); });
   ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
   ta.addEventListener('paste', (e) => { const files = [...(e.clipboardData?.files || [])]; if (files.length) { e.preventDefault(); files.forEach(addFileObject); } });
   $('#attach').onclick = async () => { for (const p of await host.pickFiles()) await addPath(p); };
+  $('#snap').onclick = () => webcamSnap();
   $('#go').onclick = () => { const k = $('#go').dataset.k; if (k === 'stop') brain.stop(); else if (k === 'send') submit(); else startListening(); };
   // drag and drop anywhere on the window
   const drop = $('#drop'); let depth = 0;
@@ -327,7 +352,7 @@ async function addFileObject(file) {
   const p = host.pathOf(file); if (p) return addPath(p);
   // a pasted screenshot (or a picture dragged from a browser) has no file on disk: it's read here instead
   if (file && /^image\//.test(file.type)) {
-    if (attachments.some((a) => a.kind === 'video') || attachments.length >= 4) return toast('Up to 4 per message (a video goes on its own).');
+    if (attachments.length >= MAX_ITEMS) return toast(`Up to ${MAX_ITEMS} per message.`);
     try { const a = await pictureFrom(file); attachments.push(a); showTray(); updateSend(); } catch { toast("Couldn't add that picture."); }
     return;
   }
@@ -358,23 +383,61 @@ function videoSeconds(a) {
     v.src = `data:${a.mime};base64,${a.base64}`;
   });
 }
-async function addPath(p) {
-  if (attachments.some((a) => a.kind === 'video') || attachments.length >= 4) return toast('Up to 4 per message (a video goes on its own).');
+// >>> attachments: any file, any size; copied (streamed) into the Library with progress and Stop
+const MAX_ITEMS = 10;
+let adding = null;   // { id, name, line }
+let addQueue = Promise.resolve();
+function addPath(p) { addQueue = addQueue.then(() => addOne(p)); return addQueue; }
+async function addOne(p) {
+  if (attachments.length >= MAX_ITEMS) return toast(`Up to ${MAX_ITEMS} per message.`);
+  const id = 'add-' + Math.random().toString(36).slice(2), name = String(p).split(/[\\/]/).pop();
+  adding = { id, name, line: `Adding ${name}…` }; showTray();
+  const off = progressTo(id, (d, t) => { if (!adding || adding.id !== id) return; adding.line = `Adding ${name} · ${t ? Math.floor(d * 100 / t) : 0}% of ${AR.sizeText(t)} · click to stop`; const el = $('#tray .adding'); if (el) el.textContent = adding.line; });
   try {
-    const a = await host.loadFile(p);
-    if (a.kind === 'video' && attachments.length) return toast('A video goes on its own. Send the others first.');
-    if (a.kind === 'video') { const secs = await videoSeconds(a); if (secs > 61) return toast(`That video is ${Math.round(secs)} seconds; videos can be up to a minute.`); }
-    if (a.kind === 'image') a.thumb = 'data:image/jpeg;base64,' + a.base64;
-    attachments.push(a); showTray(); updateSend();
-  } catch (e) { toast(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); }
+    const a = await host.attach.take(p, id);
+    if (a.kind === 'image' && a.base64) a.thumb = 'data:image/jpeg;base64,' + a.base64;
+    const pr = brain.active();
+    a.note = pr ? AR.note(a.kind, AR.route(a.kind, a.size || 0, pr.style, a.chars || 0), pr.name) : '';
+    attachments.push(a); updateSend();
+  } catch (e) { const m = String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''); if (m !== 'Stopped.') toast(m, 4000); }
+  finally { off(); if (adding && adding.id === id) adding = null; showTray(); }
 }
+/** Snap on the PC: the webcam, a live preview, one click for a photo. */
+async function webcamSnap() {
+  if (attachments.length >= MAX_ITEMS) return toast(`Up to ${MAX_ITEMS} per message.`);
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1600 } }, audio: false }); }
+  catch { return toast("Couldn't open a camera on this PC.", 3500); }
+  const o = h(`<div class="overlay"><div class="card snapbox"><video autoplay playsinline muted></video>
+    <div class="row" style="justify-content:center;margin-top:12px"><button class="btn" data-k="cancel">Cancel</button><button class="btn primary" data-k="take">Take Photo</button></div></div></div>`);
+  document.body.appendChild(o);
+  const v = o.querySelector('video'); v.srcObject = stream;
+  const close = () => { stream.getTracks().forEach((t) => t.stop()); o.remove(); };
+  o.querySelector('[data-k=cancel]').onclick = close;
+  o.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); }); o.tabIndex = -1; o.focus();
+  o.querySelector('[data-k=take]').onclick = () => {
+    const k = Math.min(1, 1600 / Math.max(v.videoWidth || 1, v.videoHeight || 1));
+    const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * k) || 1; c.height = Math.round(v.videoHeight * k) || 1;
+    c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+    const data = c.toDataURL('image/jpeg', 0.85);
+    const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '.');
+    attachments.push({ kind: 'image', mime: 'image/jpeg', name: `Photo ${stamp}.jpg`, base64: data.split(',')[1], thumb: data, size: Math.floor(data.length * 0.75) });
+    close(); showTray(); updateSend();
+  };
+}
+// <<< attachments
 function showTray() {
-  const t = $('#tray'); t.innerHTML = '';
+  const t = $('#tray'); if (!t) return; t.innerHTML = '';
+  const row = h('<div class="atts"></div>'); t.appendChild(row);
   attachments.forEach((a, i) => {
-    const cell = h(`<div class="att">${a.thumb ? `<img class="thumb" src="${a.thumb}" alt="">` : `<div class="card filetile"><b>${esc(a.kind === 'pdf' ? 'PDF' : a.kind === 'video' ? 'VIDEO' : a.name.split('.').pop().toUpperCase().slice(0, 4))}</b>${esc(a.name)}</div>`}<button class="x" title="Remove">✕</button></div>`);
+    const label = a.kind === 'pdf' ? 'PDF' : a.kind === 'video' ? 'VIDEO' : (AR.ext(a.name) || 'file').toUpperCase().slice(0, 4);
+    const cell = h(`<div class="att">${a.thumb ? `<img class="thumb" src="${a.thumb}" alt="">` : `<div class="card filetile"><b>${esc(label)}</b>${esc(a.name)}${a.size ? `<span class="small muted">${esc(AR.sizeText(a.size))}</span>` : ''}</div>`}<button class="x" title="Remove">✕</button></div>`);
     cell.querySelector('.x').onclick = () => { attachments.splice(i, 1); showTray(); updateSend(); };
-    t.appendChild(cell);
+    row.appendChild(cell);
   });
+  // honest about what Atlas will read of a big or unusual file
+  [...new Set(attachments.filter((a) => a.note).map((a) => `${a.name}: ${a.note}`))].slice(0, 3).forEach((n) => t.appendChild(h(`<div class="small muted attnote">${esc(n)}</div>`)));
+  if (adding) { const el = h(`<div class="small adding" title="Stop adding" role="button">${esc(adding.line)}</div>`); el.onclick = () => { host.attach.cancel(adding.id); }; t.appendChild(el); }
 }
 async function submit(spoken = false, textOverride) {
   const ta = $('#ask');
@@ -750,12 +813,30 @@ function renderMe(page) {
   pc.appendChild(settingRow('Alarm Sound', db.state.settings.sound !== false, (on) => { db.state.settings.sound = on; store.saveState(); }));
   const auto = settingRow('Start With Windows', false, (on) => host.autostart(on), 'Quietly, in the tray: reminders and sync keep going.'); pc.appendChild(auto);
   host.autostart().then((on) => auto.querySelector('.switch').classList.toggle('on', !!on));
-  pc.appendChild(settingRow('Light Look', document.documentElement.dataset.theme === 'light', (on) => { setPref('theme', on ? 'light' : 'dark'); applyTheme(); }));
+  pc.appendChild(settingRow('Light Look', document.documentElement.dataset.theme === 'light', (on) => { setPref('theme', on ? 'light' : 'dark'); applyTheme(); render(true); }));
+  pc.appendChild(themePicker());   // >>> themes
   const nm = h(`<div class="setting"><div class="grow">Your Name<div class="small muted">${esc(db.state.settings.name || 'Not set')}</div></div><button class="btn">Change</button></div>`);
   nm.querySelector('button').onclick = () => askText('Your Name', 'What Atlas calls you.', db.state.settings.name || '', (v) => { db.state.settings.name = v.trim().slice(0, 40); store.saveState(); });
   pc.appendChild(nm);
   host.info().then((i) => col.appendChild(h(`<p class="small muted" style="text-align:center;margin-top:24px">Atlas ${esc(i.version)} for Windows</p>`)));
 }
+// >>> themes
+/** Me → Look: the four colour themes side by side, each a small picture of itself in the current light/dark look. */
+function themePicker() {
+  const light = document.documentElement.dataset.theme === 'light';
+  const cur = document.documentElement.dataset.palette || THEME_DEFAULT;
+  const wrap = h(`<div class="setting look"><div class="grow">Colours<div class="small muted">${esc((THEMES.find((t) => t.id === cur) || THEMES[0]).name)} · on this PC only</div><div class="swatches" role="radiogroup" aria-label="Colour theme"></div></div></div>`);
+  const row = wrap.querySelector('.swatches');
+  for (const t of THEMES) {
+    const p = light ? t.light : t.dark;
+    const b = h(`<button class="swatch${t.id === cur ? ' on' : ''}" role="radio" aria-checked="${t.id === cur}" title="${esc(t.note)}" style="--s-bg:${p.bg};--s-surface:${p.surface};--s-fg:${p.fg};--s-muted:${p.muted};--s-accent:${p.accent};--s-blue:${p.blue}">
+      <span class="sw-panel"><i></i><i></i></span><span class="sw-dots"><b></b><b></b></span><span class="sw-name">${esc(t.name)}</span></button>`);
+    b.onclick = () => { if (t.id === cur) return; setPref('palette', t.id); applyTheme(); render(true); };
+    row.appendChild(b);
+  }
+  return wrap;
+}
+// <<< themes
 /** Every other service with its one-line note, plus adding one of your own. */
 function moreServices(shownAlready) {
   const rest = brain.PROVIDERS.filter((p) => !shownAlready.has(p.id));
@@ -778,7 +859,12 @@ function customService(editing) {
 function askText(title, body, value, save) {
   sheet({ title, body, primary: 'Save', html: `<input class="field" id="v" value="${esc(value)}">`, onPrimary: (o) => { save(o.querySelector('#v').value); render(true); return true; } });
 }
-function applyTheme() { document.documentElement.dataset.theme = pref('theme', 'dark'); }
+function applyTheme() {
+  document.documentElement.dataset.theme = pref('theme', 'dark');
+  // >>> themes: the colour theme, kept on this PC only (prefs.json is never synced)
+  const id = pref('palette', THEME_DEFAULT);
+  document.documentElement.dataset.palette = THEMES.some((t) => t.id === id) ? id : THEME_DEFAULT;
+}
 
 // ------------------------------------------------------------------ alarms and notifications
 
@@ -896,7 +982,7 @@ brain.ui.settingsText = () => {
   const on = (b) => (b ? 'on' : 'off'); const eng = voice.engine();
   return [`- speak_replies (on/off) — now ${on(pref('speakReplies', false))}`,
     `- voice: now ${eng ? voice.current(eng).label : "Windows' voice"}; choices: ${voice.voices(eng).map((v) => v.label).join(', ')}`,
-    `- theme (dark/light) — now ${pref('theme', 'dark')}`, `- on_screen (on/off): the orb in the corner of the PC — now ${on(pref('onScreen', true))}`,
+    `- theme (dark/light) — now ${pref('theme', 'dark')}`, `- color_theme (${THEMES.map((t) => t.name).join(' / ')}): the app's colours on this PC — now ${(THEMES.find((t) => t.id === document.documentElement.dataset.palette) || THEMES[0]).name}`, `- on_screen (on/off): the orb in the corner of the PC — now ${on(pref('onScreen', true))}`,
     `- your_name — now ${db.state.settings.name || 'not set'}`, `- alarm_sound (on/off) — now ${on(db.state.settings.sound !== false)}`, '- start_with_windows (on/off)', `- speaking_speed (slow/normal/fast): how fast Atlas talks — now ${voice.speed()}`, `- keep_listening (on/off): after a spoken answer, listen again — now ${on(pref('keepTalking', true))}`, `- listen_language (a code like en, en-GB, fr, yo, or auto) — now ${voice.language() || 'auto'}`, `- dont_switch (on/off): stay on the chosen AI service instead of moving to another when it fails or runs out (other keys of the same service still take over) — now ${on(brain.dontSwitch())}`].join('\n');
 };
 brain.ui.setting = async (name, value) => {
@@ -906,7 +992,8 @@ brain.ui.setting = async (name, value) => {
     switch (name) {
       case 'speak_replies': setPref('speakReplies', need()); return `Replies will ${flag ? '' : 'no longer '}be read aloud.`;
       case 'voice': { const eng = voice.engine(); if (!eng) return 'Natural voices need a Gemini or OpenAI key (Me → Brain).'; const n = value.toLowerCase(); const v = voice.voices(eng).find((x) => x.id === n || x.label.toLowerCase() === n || n.includes(x.id)) || voice.voices(eng).find((x) => x.about.split(/[ ,]+/).some((w) => w.length > 3 && n.includes(w))); if (!v) return `Error: no voice called "${value}".`; setPref('voice_' + eng, v.id); return `Voice set to ${v.label} (${v.about}).`; }
-      case 'theme': { const t = /light/i.test(value) ? 'light' : /dark/i.test(value) ? 'dark' : null; if (!t) return 'Error: theme is dark or light.'; setPref('theme', t); applyTheme(); return `Switched to ${t} mode.`; }
+      case 'color_theme': { const t = findTheme(value); if (!t) return `Error: the colour themes are ${THEMES.map((x) => x.name).join(', ')}.`; setPref('palette', t.id); applyTheme(); render(true); return `Switched to ${t.name}.`; }
+      case 'theme': { if (!/light|dark/i.test(value)) { const ct = findTheme(String(value).replace(/theme|the /gi, '').trim()); if (ct) { setPref('palette', ct.id); applyTheme(); render(true); return `Switched to ${ct.name}.`; } } const t = /light/i.test(value) ? 'light' : /dark/i.test(value) ? 'dark' : null; if (!t) return 'Error: theme is dark or light.'; setPref('theme', t); applyTheme(); return `Switched to ${t} mode.`; }
       case 'on_screen': setPref('onScreen', need()); host.showOrb(flag); return flag ? "I'm in the corner of your screen now." : "I'm off your screen.";
       case 'your_name': if (!value.trim()) return 'Error: give the name.'; db.state.settings.name = value.trim().slice(0, 40); store.saveState(); return `I'll call you ${value.trim()}.`;
       case 'alarm_sound': db.state.settings.sound = need(); store.saveState(); return `Alarm sound ${flag ? 'on' : 'off'}.`;
@@ -930,6 +1017,12 @@ async function main() {
   conn.init(); conn.state.listeners.add(() => { if (tab === 'me') render(true, true); });
   // <<< connections
   applyTheme();
+  // >>> smooth: Esc stops Atlas while it's answering (unless a sheet or overlay is open: Esc is theirs)
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && brain.convo.busy && !document.querySelector('.overlay')) { e.preventDefault(); brain.stop(); toast('Stopped.'); } });
+  // and a quiet note while the PC is offline: replies and sync wait for the connection
+  const offline = () => { let b = $('#offline'); if (navigator.onLine) { b?.remove(); return; } if (!b) { b = h('<div id="offline" role="status">Offline. Atlas answers again when you\'re back online.</div>'); document.body.appendChild(b); } };
+  window.addEventListener('online', offline); window.addEventListener('offline', offline); offline();
+  // <<< smooth
   document.querySelectorAll('.nav').forEach((n) => (n.onclick = () => { tab = n.dataset.tab; logFull = false; botView = null; render(); }));
   buildComposer();
   render();

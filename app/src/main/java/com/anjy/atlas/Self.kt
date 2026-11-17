@@ -18,6 +18,7 @@ object Self {
             "natural_voice (on/off): human-sounding AI voice instead of the phone's — now ${onOff(Voice.natural(ctx))}",
             "voice (a voice name): who Atlas sounds like — now ${Voice.currentLabel(ctx)}; choices: ${Voice.choices(ctx).joinToString(", ")}" + if (eng == null) " (natural voices need a Gemini or OpenAI key)" else "",
             "theme (dark/light) — now ${Store.getString(ctx, "theme2") ?: s.theme}",
+            "color_theme (${Themes.ALL.joinToString(" / ") { it.name }}): the app's colours on this device — now ${Themes.current.name}",
             "on_screen (on/off): Atlas floating over other apps — now ${onOff(s.avatarOn)}",
             "hey_atlas (on/off): listening for \"Hey Atlas\" — now ${onOff(s.wakeWord)}",
             "reduce_motion (on/off): keep the orb still — now ${onOff(Prefs.reduceMotion(ctx))}",
@@ -47,8 +48,15 @@ object Self {
                 "natural_voice" -> { val b = needFlag(); Store.setFlag(ctx, "voice_natural", b); if (b && Voice.engine(ctx) == null) "Natural voice is on, but it needs a Gemini or OpenAI key to work." else "Natural voice ${onOff(b)}." }
                 "voice" -> Voice.choose(ctx, v)
                 "theme" -> {
-                    val t = v.lowercase().let { if (it.contains("light")) "light" else if (it.contains("dark")) "dark" else throw AtlasError("Theme is dark or light.") }
+                    // "the gold theme" is a colour theme, not a mode
+                    val ct = Themes.find(v.lowercase().replace("theme", "").replace("the ", "").trim())
+                    if (ct != null && !v.lowercase().contains("light") && !v.lowercase().contains("dark")) { Themes.set(ctx, ct); return "Switched to ${ct.name}." }
+                    val t = v.lowercase().let { if (it.contains("light")) "light" else if (it.contains("dark")) "dark" else throw AtlasError("Theme is dark or light; colour themes are color_theme.") }
                     Store.putString(ctx, "theme2", t); "Switched to $t mode."
+                }
+                "color_theme" -> {
+                    val t = Themes.find(v) ?: throw AtlasError("The colour themes are ${Themes.ALL.joinToString(", ") { it.name }}.")
+                    Themes.set(ctx, t); "Switched to ${t.name}."
                 }
                 "on_screen" -> {
                     val b = needFlag()

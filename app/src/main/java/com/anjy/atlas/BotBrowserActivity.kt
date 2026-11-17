@@ -69,7 +69,7 @@ class BotBrowserActivity : Activity() {
         titles.addView(site)
         top.addView(titles, LinearLayout.LayoutParams(0, -2, 1f))
         key = TextView(this).apply {
-            textSize = 14f; typeface = Type.sansSemi(this@BotBrowserActivity); setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            textSize = 14f; typeface = Type.sansSemi(this@BotBrowserActivity); setTextColor(P.onPrimary); gravity = Gravity.CENTER
             setPadding(dp(16), dp(10), dp(16), dp(11))
             background = Finish(P.primaryBottom, -1f, true, resources.displayMetrics.density, glass = false)
             isClickable = true; setOnClickListener { if (mine) handBack() else takeOver() }

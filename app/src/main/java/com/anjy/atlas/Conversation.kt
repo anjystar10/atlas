@@ -321,9 +321,15 @@ ${Tools.logContext(ctx)}
     private suspend fun cloud(ctx: Context, first: Providers.Provider, q: String, spoken: Boolean, reply: Msg, media: List<Attach.Item> = emptyList()) {
         var p = first
         reply.source = p.name
-        val m = withContext(Dispatchers.IO) { media.filter { !it.textFile }.map { Attach.media(it) } }
-        // text and Word files go into the message itself, so every service can read them
-        val full = q + withContext(Dispatchers.IO) { media.filter { it.textFile }.joinToString("") { Attach.inlineText(it) } }
+        // >>> attachments: each file reaches this service the best way it can (AttachRules / AttachSend)
+        suspend fun prep(to: Providers.Provider) = withContext(Dispatchers.IO) {
+            val cx = currentCoroutineContext()
+            AttachSend.prepare(ctx, to, media, status = { st -> status = st; changed() }, check = { cx.ensureActive() })
+        }
+        var prepared = prep(p); var prepStyle = p.style
+        var m = prepared.media
+        var full = q + prepared.text
+        // <<< attachments
         // >>> connections: their tools are added while connected (they come and go)
         val tools = withContext(Dispatchers.IO) { JSONArray().apply {
             for (i in 0 until Tools.declarations.length()) put(Tools.declarations.get(i))
@@ -346,6 +352,7 @@ ${Tools.logContext(ctx)}
                 if (!tried.add(sw.to.id)) throw Gemini.Failure(sw.message ?: "All your keys have run out for now.")
                 p = sw.to; reply.source = p.name
                 status = "Switching to ${p.name}"; changed()
+                if (media.isNotEmpty() && p.style != prepStyle) { prepared = prep(p); prepStyle = p.style; m = prepared.media; full = q + prepared.text }   // >>> attachments
                 val done = if (reply.steps.isEmpty()) "" else "\n\n(Note for you, Atlas: you already did these steps for this request before the service changed, don't repeat them: ${reply.steps.joinToString("; ")}. Continue from there.)"
                 session = Providers.session(ctx, p, history.toList(), full + done, m, tools)
                 steps--

@@ -176,6 +176,10 @@ object BotFiles {
         writeIndex(ctx, out)
     }
 
+    // >>> attachments: files sent in the chat are kept in the Library (bot/uploads), so tools and bots can use them
+    fun keepUpload(ctx: Context, f: File, name: String) = remember(ctx, f, name, "file", "chat", "Sent in the chat")
+    // <<< attachments
+
     /** The files this job delivered (documents, spreadsheets, pages), by name, for its report. */
     fun madeBy(ctx: Context, jobId: String): List<String> = synchronized(lock) {
         val a = readIndex(ctx)

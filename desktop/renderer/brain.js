@@ -7,6 +7,7 @@ import * as conn from './connect.js';   // connections: MCP servers and web APIs
 import { PROJECTS_PROMPT, projectLabel } from './projects.js';   // >>> projects (the tools come through the capability registry) <<<
 import * as aware from './aware.js';   // what's going on + the capability registry (bots, approvals, the chat's browser, new subsystems)
 import * as mail from './mail.js';
+import { prepare as prepareAttachments } from './attachsend.js';   // >>> attachments: any file, any size
 import * as When from './when.js';   // exact times from what the user said, the same rules as the phone (When.kt)   // >>> email (mail.js registers its tools and brief line in aware.js)
 const host = window.atlasHost;
 
@@ -174,7 +175,7 @@ export function session(p, key, history, user, media, tools = TOOLS) {
   const model = modelOf(p), base = baseOf(p);
   if (p.style === 'gemini') {
     const contents = history.map(([u, t]) => ({ role: u ? 'user' : 'model', parts: [{ text: t }] }));
-    contents.push({ role: 'user', parts: [...media.map((m) => ({ inline_data: { mime_type: m.mime, data: m.base64 } })), { text: user }] });
+    contents.push({ role: 'user', parts: [...media.map((m) => (m.fileUri ? { file_data: { mime_type: m.mime, file_uri: m.fileUri } } : { inline_data: { mime_type: m.mime, data: m.base64 } })), { text: user }] });
     return {
       key, contents,
       async call(system) {
@@ -561,12 +562,15 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
   try {
     let p = active();
     if (!p) { reply.text = 'Add an AI key in **Me → Brain** (Gemini\'s is free), or start a local model, so I can think.'; reply.source = 'Atlas'; return reply; }
-    const media = attachments.filter((x) => x.kind !== 'text').map((x) => ({ mime: x.mime, base64: x.base64, name: x.name }));
-    if (media.some((m) => m.mime.startsWith('video/')) && p.style !== 'gemini') {
-      const g = byId('gemini'); if (readyKey('gemini')) p = g; else throw new Failure(`${p.name} can't watch videos. Gemini can: add a Gemini key, or send a picture instead.`);
-    }
-    const full = q + attachments.filter((x) => x.kind === 'text').map((x) => `\n\n[File: ${x.name}]\n${x.text}\n[End of ${x.name}]`).join('');
+    // a video is best watched by Gemini: use it when there's a key (otherwise the video is sent as stills)
+    if (attachments.some((x) => x.kind === 'video') && p.style !== 'gemini' && readyKey('gemini')) p = byId('gemini');
     p = await guardLocal(p);
+    // >>> attachments: each file reaches this service the best way it can (attachrules.js / attachsend.js)
+    const prep = async (to) => { const r = await prepareAttachments(attachments, to, keyFor(to.id), (st) => { convo.status = st; changed('chat'); }); return r; };
+    let prepared = attachments.length ? await prep(p) : { media: [], text: '' }; let prepStyle = p.style;
+    let media = prepared.media;
+    let full = q + prepared.text;
+    // <<< attachments
     reply.source = p.name;
     const tools = [...TOOLS, ...conn.declarations('chat'), ...aware.chatTools()];   // connections + the capability registry
     let sess = session(p, keyFor(p.id), hist, full, media, tools);
@@ -582,6 +586,7 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
         if (!(e instanceof Switch)) throw e;
         if (tried.has(e.to.id)) throw new Failure(e.message);
         tried.add(e.to.id); p = await guardLocal(e.to); tried.add(p.id); reply.source = p.name; convo.status = 'Switching to ' + p.name; changed('chat');
+        if (attachments.length && p.style !== prepStyle) { prepared = await prep(p); prepStyle = p.style; media = prepared.media; full = q + prepared.text; }   // >>> attachments
         const done = reply.steps.length ? `\n\n(Note for you, Atlas: you already did these steps for this request before the service changed, don't repeat them: ${reply.steps.join('; ')}. Continue from there.)` : '';
         sess = session(p, keyFor(p.id), hist, full + done, media, tools); steps--; continue;
       }
