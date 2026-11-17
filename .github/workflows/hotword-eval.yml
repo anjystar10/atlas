@@ -4,7 +4,10 @@ name: Hey Atlas evaluation
 on:
   workflow_dispatch:
     inputs:
-      tail_only: { description: 'only the request-cut check', required: false, default: '' }
+      tail_only:
+        description: only the request-cut check
+        required: false
+        default: ''
   push:
     branches: [v08-hey]
     paths: ["tools/hotword_eval/**", ".github/workflows/hotword-eval.yml"]
@@ -31,5 +34,7 @@ jobs:
           done
           ls -la /tmp/hw /tmp/hw/voices
       - name: Evaluate
-        env: { WORK: /tmp/hw, TAIL_ONLY: "${{ github.event.inputs.tail_only }}" }
+        env:
+          WORK: /tmp/hw
+          TAIL_ONLY: ${{ github.event.inputs.tail_only }}
         run: python tools/hotword_eval/eval.py /tmp/hw/vosk-model-small-en-us-0.15
