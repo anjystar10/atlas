@@ -98,7 +98,7 @@ object AttachSend {
     fun listing(it: Attach.Item, name: String): String = try {
         ZipFile(it.file).use { z ->
             val all = z.entries().toList().filter { e -> !e.isDirectory }
-            val lines = all.take(300).joinToString("\n") { e -> "  ${e.name}  (${AttachRules.size(maxOf(e.size, 0))})" }
+            val lines = all.take(300).joinToString("\n") { e -> "  ${e.name}  (${AttachRules.size(maxOf(e.size, 0L))})" }
             "\n\n[Archive: $name (${AttachRules.size(it.size)}), ${all.size} files:\n$lines${if (all.size > 300) "\n  …and ${all.size - 300} more" else ""}\n" +
                 "Open one with file_read(file, member = its path); file = \"${it.path}\"]"
         }
