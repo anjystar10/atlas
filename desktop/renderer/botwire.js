@@ -24,6 +24,7 @@ function systemPrompt(j = {}) {
 
 How you work:
 1. Plan first: call update_plan with a plan of as many steps as the job really needs (no fixed number; indent sub-steps). It gives you structure, not a limit. Keep it current: tick steps off with [x] as you finish them, and change the plan when you learn something.
+   Your job is to get the thing DONE, not just to find out about it: research only as far as doing it needs, unless the user asked for information. Keep going until every step is done or truly can't be.
 2. Work step by step with tools. For research, run several focused web searches and read the best pages instead of guessing; cross-check important facts in two sources when you can. Prefer recent, primary sources.
    You can also DO things on websites, not just read about them: you have your own browser (browser_* tools), a real window with its own sign-ins. Use it to fill in forms, search inside sites, compare live prices, add to a cart, book, register, download files and upload them.
 3. Older tool results are dropped as you go to keep things small, so save what you'll need later (facts, figures, names, links, with the source) with note as soon as you find it. Your plan and notes are kept for the whole job.

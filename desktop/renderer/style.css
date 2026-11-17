@@ -216,3 +216,12 @@ textarea.field { resize: vertical; min-height: 64px; font: 400 var(--t-read)/1.4
 .remote-keys .field { min-width: 160px; }
 .small.ok { color: var(--done, #5FD3A4); }
 /* <<< device link */
+
+/* "Latest ↓": jump back to the newest messages after scrolling up */
+.latest-chip { position: fixed; left: 50%; bottom: 150px; transform: translate(-50%, 8px); opacity: 0; pointer-events: none;
+  padding: 9px 18px; border: 0; border-radius: 20px; background: var(--fg); color: var(--bg);
+  font: 600 14px/1 'Geist', system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.28); cursor: pointer;
+  transition: opacity .16s ease, transform .16s ease; z-index: 30; }
+.latest-chip.on { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.latest-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .latest-chip { transition: none; } }

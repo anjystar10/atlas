@@ -37,8 +37,8 @@ import java.util.UUID
 object Bots {
     private const val TAG = "AtlasBot"
     /** The most tool steps one job may take, and the most working time. */
-    const val MAX_TOOL_CALLS = 80
-    const val MAX_WORK_MS = 30 * 60_000L
+    const val MAX_TOOL_CALLS = BotRules.MAX_TOOL_CALLS
+    const val MAX_WORK_MS = BotRules.MAX_WORK_MS
     /** After this many rounds the conversation with the model starts afresh from the journal (keeps it small). */
     private const val ROUNDS_PER_PART = 10
     /** Finished jobs kept in the journal. */
@@ -336,9 +336,9 @@ object Bots {
                 tick()
                 if (turn.calls.isEmpty()) {
                     // it answered in words instead of calling finish: take that as the report once it has done some work
-                    if (turn.text.isNotBlank() && (j.toolCalls > 0 || nudges >= 2 || wrapping)) { complete(j, turn.text); return }
+                    if (turn.text.isNotBlank() && BotRules.textEndsJob(nudges, wrapping)) { complete(j, turn.text); return }
                     nudges++
-                    extra = "\n\n(You replied without using a tool. Keep working with your tools, and call finish with the report when the job is done.)"
+                    extra = "\n\n" + BotRules.NUDGE
                     break
                 }
                 if (wrapping && turn.calls.none { it.name == "finish" }) { complete(j, compiled(j)); return }
@@ -351,6 +351,11 @@ object Bots {
                             if (busy.isNotEmpty() && !j.finishNudged && !wrapping) {
                                 j.finishNudged = true
                                 results.add(c to "${busy.size} of your helpers are still working. Call wait_for_helpers to get their reports first (or call finish again to finish without them)."); continue
+                            }
+                            val open = j.plan.count { !it.done }
+                            if (BotRules.remindOpenSteps(open, j.planNudged, wrapping)) {
+                                j.planNudged = true
+                                results.add(c to BotRules.openStepsReminder(open)); continue
                             }
                             busy.forEach { stop(it.id) }
                             complete(j, c.args.optString("report").ifBlank { turn.text.ifBlank { compiled(j) } }); return
@@ -392,7 +397,7 @@ object Bots {
                             if (lines.isNotEmpty()) {
                                 val first = j.plan.isEmpty()
                                 j.plan.clear()
-                                lines.take(12).forEach { l ->
+                                lines.take(BotRules.MAX_PLAN).forEach { l ->
                                     val done = Regex("^(\\d+[.)]\\s*)?\\[(x|X|✓)]").containsMatchIn(l)
                                     j.plan.add(PlanItem(Plain.memory(l.replace(Regex("^(\\d+[.)]\\s*)?(\\[[ xX✓]?]\\s*)?(\\d+[.)]\\s*)?"), "")).take(160), done))
                                 }
@@ -453,8 +458,14 @@ object Bots {
                             if (c.name !in toolNames && !Connections.owns(c.name) && c.name !in Capabilities.names(app, forBots = true)) { results.add(c to "Error: there's no tool called ${c.name}."); continue }
                             val label = if (c.name == "tap" || c.name == "long_press") withContext(Dispatchers.Default) { PhoneControl.labelOf(c.args.optInt("element", -1)) } else null
                             BotRules.phoneApproval(c.name, c.args, label)?.let { what ->
-                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label)); return
+                                // >>> background first: a text message asks every time, whatever the standing rules say
+                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label, mustAsk = c.name == "send_sms")); return
                             }
+                            // >>> background first: a heads-up before a bot uses the screen (ScreenGate.kt); "always allow" can cover it
+                            ScreenGate.botHeadsUp(app, j.id, c.name, c.args)?.let { what ->
+                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label, category = "screen")); return
+                            }
+                            // <<< background first
                             results.add(c to runTool(j, c))
                         }
                     }
@@ -474,9 +485,12 @@ object Bots {
         val what = label(c)
         j.current = what; j.pending = what; persistNow(); changed()
         // a connection tool reaching here was already cleared by the bot's approval rules
-        val r = if (Connections.owns(c.name)) Connections.run(app, c, approved = true, who = "bots")
+        val r = withContext(ScreenGate.Who(j.id)) {   // >>> background first: screen tools know a bot is calling
+            if (Connections.owns(c.name)) Connections.run(app, c, approved = true, who = "bots")
             else if (c.name in Email.names) Email.run(app, c, approved = true)   // >>> email: the bot's approval (if one was needed) is already given
+            else if (c.name in Messages.names) Messages.run(app, c, approved = true, forBot = true)   // >>> background first: replies/texts were approved above
             else Tools.run(app, c)
+        }
         // pictures the bot made go into its job folder (listed on the job page)
         r.media.forEach { m -> try { val d = BotBrowser.jobDir(app, j.id).apply { mkdirs() }; m.file.copyTo(java.io.File(d, m.file.name), overwrite = true) } catch (e: Exception) { Log.w(TAG, "picture", e) } }
         j.pending = null; j.toolCalls++
@@ -691,7 +705,7 @@ object Bots {
             // >>> files the bot hands over (BotFiles): its job folder, a PDF document, an Excel spreadsheet, an interactive page
             BotFiles.declarations.forEach { put(it) }
             // <<< files
-            put(fn("update_plan", "Write or update your plan for this job: 3 to 8 short steps, one per line, in order. Start a line with [x] when that step is done.",
+            put(fn("update_plan", "Write or update your plan for this job: as many short steps as the job needs (no fixed number), one per line, in order. Start a line with [x] when that step is done.",
                 JSONObject().put("plan", str("The steps, one per line, e.g. \"[x] Search for reviews\\n[ ] Compare prices\"")), listOf("plan")))
             put(fn("note", "Save something you'll need later: a fact, figure, name or link you found, with where it came from. Older tool results are dropped as you go, but notes are kept for the whole job.",
                 JSONObject().put("text", str("The note, short and specific")), listOf("text")))
@@ -745,7 +759,8 @@ object Bots {
 You are Atlas Bot, an agent that Atlas ($name's personal AI assistant) sends to do a job in the background on their Android phone. You're not chatting: nobody reads what you write until you finish. Work through the job with your tools, then call finish with the report.
 
 How you work:
-1. Plan first: call update_plan with a short plan (3 to 8 steps). Keep it current: tick steps off with [x] as you finish them, and change the plan when you learn something.
+1. Plan first: call update_plan with a plan of as many steps as the job really needs (a small job may need 3, a big one 30 or more; there's no fixed number). The plan gives you structure, not a limit: add, split or reorder steps whenever you learn something, and tick steps off with [x] as you finish them.
+   Your job is to get the thing DONE, not just to find out about it: research only as far as doing it needs, unless the user asked for information. Keep going until every step is done or truly can't be.
 2. Work step by step with tools. When the job is to get something done online (not just find out), do it in your browser. For research, run several focused web searches and read the best pages instead of guessing; cross-check important facts in two sources when you can. Prefer recent, primary sources.
 3. Older tool results are dropped as you go to keep things small, so save what you'll need later (facts, figures, names, links, with the source) with note as soon as you find it. Your plan and notes are kept for the whole job.
 4. Before you finish, check your work: does the report do the whole job? Is every number and claim backed by something you read or did?
@@ -773,6 +788,11 @@ Files you hand over (kept in this job's folder on the phone):
 - When the job calls for something the user will keep, make the real file: make_document for a report, brief, letter or plan (a typeset PDF); make_spreadsheet for data, comparisons, budgets or trackers (Excel, with formulas where they help); make_page for an interactive view with tables to sort and filter and charts.
 - workspace_write / workspace_read / workspace_list keep drafts, notes and data in the job folder; downloads land there too.
 - The report still gives the answer itself (the key findings), then names the files you made. They show in Bots › Library.
+
+Background first (the user keeps using their phone while you work):
+- Do it without the screen whenever you can, in this order: a direct tool or connection (email, calendar, contacts, trading, connections, files) → Android directly (phone_alarm, phone_timer, send_sms) → your background browser on the app's website (browser_* tools) → the notification's own buttons (messages_recent, reply_message, mark_read) → the screen last.
+- The screen is a last resort: opening an app first points you at the background ways; open_app with use_screen=true when none can do it (the user gets a heads-up and can stop you).
+- If a tool says a permission is needed, the user has been asked; carry on with what you can and try again later.
 
 Using the phone (only when the job needs it):
 - open_app, then work from the numbered elements on the screen. Every action returns the new screen; check it. Numbers change after each action, so use numbers from the latest screen only.

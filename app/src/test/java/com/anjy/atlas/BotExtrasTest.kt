@@ -85,7 +85,7 @@ class BotExtrasTest {
     }
 
     @Test fun helpersGetAShareOfTheBudgetAndWaitWithoutAWorkingSlot() {
-        val p = BotJob("p", "Big", "", 1).apply { toolCalls = 70 }
+        val p = BotJob("p", "Big", "", 1).apply { toolCalls = BotRules.MAX_TOOL_CALLS - 10 }
         assertEquals(8, BotRules.childBudget(p).first)
         assertEquals(30, BotRules.childBudget(BotJob("q", "x", "", 1)).first)
         val j = BotJob("p2", "x", "", 1).apply { state = BotRules.RUNNING }
