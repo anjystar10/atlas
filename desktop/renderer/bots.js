@@ -380,7 +380,7 @@ export function createBots(deps) {
     for (const k of (p.children || []).map(job).filter(Boolean)) {
       if (!FINAL.has(k.state) || k.reported) continue;
       k.reported = true;
-      const who = (specialistOf(k) || {}).name || 'A helper';
+      const who = k.role ? `The ${k.role} agent` : (specialistOf(k) || {}).name || 'A helper';
       const body = k.state === S.COMPLETED ? String(k.report || '').slice(0, 4000) : `It couldn't finish (${k.error || LABELS[k.state]}).`;
       p.notes.push(`${who} reported on "${k.goal}":\n${body}`);
       while (p.notes.length > 60) p.notes.shift();
@@ -688,7 +688,7 @@ export function createBots(deps) {
             j.children.push(k.id); step(j, `Handed to ${sp.name}: ${k.goal.slice(0, 100)}`); persist();
             results.push({ call: c, out: `${sp.name} is on it. Keep working on other parts; call wait_for_helpers when you need its report.` }); continue;
           }
-          if (ex && c.name === 'wait_for_helpers') {
+          if (c.name === 'wait_for_helpers') {   // agents (spawn_agent) work without the extras store too
             const busy = (j.children || []).map(job).filter((k) => k && !FINAL.has(k.state));
             if (!busy.length) { takeHelperReports(j); results.push({ call: c, out: (j.children || []).length ? 'All your helpers have reported: their reports are in your notes now.' : "You haven't handed anything to a helper." }); fresh = true; continue; }
             sess.results([...results, { call: c, out: 'Waiting for your helpers.' }]);
