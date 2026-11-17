@@ -1070,6 +1070,7 @@ test('bots: talking without a tool after some work is nudged, not taken as the r
   assert.equal(j.state, B.S.COMPLETED);
   assert.equal(j.report, 'Cheapest: X.');
   assert.deepEqual(w.ran.map((r) => r[0]), ['web_search', 'web_search']);
+});
 
 // ------------------------------------------------------------------ Atlas Bot v2 triggers: the rules (desktop/renderer/trigrules.js)
 test('triggers: every fixture case gives the answer the phone must also give', async () => {
