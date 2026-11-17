@@ -45,6 +45,18 @@ jobs:
       - name: Unit tests (task and reminder engine, Gemini messages)
         run: ./gradlew --no-daemon :app:testDebugUnitTest
 
+      - name: Unlock the signing key
+        # the key is committed only encrypted; the password lives in the repository secret ATLAS_KEYSTORE_PASSWORD
+        env:
+          ATLAS_KEYSTORE_PASSWORD: ${{ secrets.ATLAS_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$ATLAS_KEYSTORE_PASSWORD" ]; then
+            echo "::error::Add the repository secret ATLAS_KEYSTORE_PASSWORD (Settings > Secrets and variables > Actions)"; exit 1
+          fi
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:ATLAS_KEYSTORE_PASSWORD \
+            -in signing/atlas.jks.enc -out signing/atlas.jks
+          echo "ATLAS_KEYSTORE_PASSWORD=$ATLAS_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+
       - name: Build APK
         # the model runtime downloads a dependency from GitHub while configuring; retry if that download times out
         run: |
