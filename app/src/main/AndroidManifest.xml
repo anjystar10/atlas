@@ -169,6 +169,13 @@
             android:windowSoftInputMode="adjustResize"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
+        <!-- The Bots tab's pages: a bot's own conversation or a group chat, a bot's details, New Bot, New Group -->
+        <activity
+            android:name=".CrewActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode" />
         <activity
             android:name=".BotActivity"
             android:exported="false"

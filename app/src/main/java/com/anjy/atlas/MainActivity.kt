@@ -831,6 +831,7 @@ class MainActivity : Activity() {
         Reminders.channels(this)
         Conversation.load(applicationContext)
         Bots.init(applicationContext)
+        Threads.init(applicationContext)   // conversations with bots (the Bots tab)
         Link.init(applicationContext); LinkTasks.watchJobs()   // >>> device link: report on jobs the laptop sent
         if (Link.reachable(this)) LinkService.start(this)
         if (Build.VERSION.SDK_INT >= 33) onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT) { handleBack() }
@@ -940,7 +941,7 @@ class MainActivity : Activity() {
         AvatarService.setAppInFront(this, true)
         PermissionCenter.atlasInFront = true   // >>> background first: permission asks show here as a sheet
         Conversation.listen(onChat)
-        Bots.listen(onBots)
+        Bots.listen(onBots); Threads.listen(onBots); BotExtras.listen(onBots)
         Sync.listen(onSync); Sync.syncSoon(this, 500); Sync.setForeground(this, true)
         if (Sync.linked(this)) SyncJob.schedule(this)
         Link.listen(onLink); Link.setForeground(this, true)   // >>> device link: listening while Atlas is open
@@ -964,7 +965,7 @@ class MainActivity : Activity() {
         PermissionCenter.atlasInFront = false   // >>> background first
         Connections.asker = null   // >>> connections: nothing on screen to ask with
         Trading.asker = null   // >>> trading
-        Conversation.unlisten(onChat); Bots.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
+        Conversation.unlisten(onChat); Bots.unlisten(onBots); Threads.unlisten(onBots); BotExtras.unlisten(onBots); Sync.unlisten(onSync); Sync.setForeground(this, false)
         Link.unlisten(onLink); Link.setForeground(this, false)   // >>> device link
         stopVoice()
         AvatarService.setAppInFront(this, false)
@@ -2035,20 +2036,32 @@ class MainActivity : Activity() {
     // ================================================================ BOTS
 
     private var botDraft = ""
-    /** The Bots tab: send a bot, and every job with where it stands. A job opens on its own page. */
+    /**
+     * The Bots tab, built like Grok Bot's: a list of conversations. Atlas (the chief of staff) is starred at the top,
+     * then the standing bots (most recent first), then group chats. Each row shows the bot's job, where it stands (a live
+     * dot), its last message and a badge for what's unread or waiting for your OK. A row opens that bot's own
+     * conversation (CrewActivity); its details, triggers, budget and work are a tap away from there.
+     */
     private fun renderBots() {
+        val newKeys = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        newKeys.addView(secondary("New Group") { startActivity(CrewActivity.newGroup(this)) }, LinearLayout.LayoutParams(WRAP, WRAP))
+        newKeys.addView(primary("New Bot") { startActivity(CrewActivity.newBot(this)) }.apply { minHeight = dp(50); setPadding(dp(18), dp(12), dp(18), dp(12)) }, LinearLayout.LayoutParams(WRAP, WRAP).apply { leftMargin = dp(8) })
         pageTitle("Bots")
-        body.add(text("Jobs Atlas sent a bot to do. They keep working when you leave, and each report lands in your chat.", 15f, MUTED), 6)
-        val sc = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
-        lateinit var send: TextView
-        val f = field("Send a bot to… (e.g. find the three best budget laptops for coding, with sources)", botDraft, multi = true) { botDraft = it; send.alpha = if (it.isBlank()) 0.5f else 1f }
-        sc.addView(f, LinearLayout.LayoutParams(MATCH, WRAP))
-        send = primary("Send a Bot") {
-            val goal = botDraft.trim()
-            if (goal.isNotEmpty()) { botDraft = ""; Bots.deploy(applicationContext, goal, ""); showBanner("Bot sent"); render(keepScroll = true) }
-        }.apply { alpha = if (botDraft.isBlank()) 0.5f else 1f }
-        sc.addView(send, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
-        body.add(sc, 20)
+        body.add(text("Your team. Each bot has its own conversation: tell it what you need, and it works in the background and reports back there.", 15f, MUTED), 6)
+        body.add(newKeys, 14, WRAP)
+
+        val list = card().apply { setPadding(dp(6), dp(6), dp(6), dp(6)) }
+        list.addView(crewRow(ThreadRules.ATLAS, true))
+        val bots = BotExtras.specialists.toList().sortedByDescending { b -> maxOf(Threads.directOf(b.optString("id"))?.updatedAt ?: 0L, b.optLong("updatedAt")) }
+        bots.forEach { list.addView(crewRow(it.optString("id"), false)) }
+        body.add(list, 18)
+        if (bots.isEmpty()) body.add(text("No other bots yet. New Bot makes one in a tap: a trader, an inbox checker, a reel poster, a researcher… or describe your own.", 13f, MUTED), 8)
+
+        body.add(eyebrow("Group Chats"), 22)
+        val gs = Threads.groups()
+        if (gs.isEmpty()) body.add(card().apply { addView(text("You and several bots in one conversation: @mention one to give it the job, and they hand work to each other. New Group starts one.", 15f, MUTED)) }, 8)
+        else { val gl = card().apply { setPadding(dp(6), dp(6), dp(6), dp(6)) }; gs.forEach { gl.addView(groupRow(it)) }; body.add(gl, 8) }
+
         // >>> library: everything bots made (LibraryActivity)
         body.add(card().apply {
             isClickable = true; pressFx(); contentDescription = "Library: documents, spreadsheets, pages and downloads your bots made"
@@ -2057,35 +2070,104 @@ class MainActivity : Activity() {
             add(text("Documents, spreadsheets, pages and downloads your bots made", 13f, MUTED, MED), 4)
         }, 12)
         // <<< library
-        // routines, skills and the specialist team (BotExtrasActivity)
+        // the older routines and skills (the team is the list above now)
         val ex = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("Routines" to "routines", "Skills" to "skills", "Team" to "team").forEachIndexed { i, (l, pg) ->
+        listOf("Routines" to "routines", "Skills" to "skills").forEachIndexed { i, (l, pg) ->
             ex.addView(secondary(l) { startActivity(BotExtrasActivity.intent(this, pg)) }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { if (i > 0) leftMargin = dp(8) })
         }
         body.add(ex, 12)
-        val all = Bots.visible()
         val elsewhere = try { BotMirror.others(this) } catch (_: Exception) { emptyList() }
-        if (all.isEmpty()) {
-            body.add(card().apply {
-                addView(text("No bots yet", 18f, FG, HEAD))
-                add(text("Ask Atlas for something bigger, like “research the best phone under $300 for photos and send me a report”, or say “send a bot to…”.", 15f, MUTED), 6)
-            }, 22)
-            renderBotsElsewhere(elsewhere)
-            return
-        }
-        body.add(eyebrow("Jobs"), 22)
-        all.forEach { j ->
-            val c = card().apply {
-                isClickable = true; pressFx()
-                setOnClickListener { startActivity(Intent(this@MainActivity, BotActivity::class.java).putExtra(BotActivity.EXTRA_ID, j.id)) }
-            }
-            c.addView(text(j.goal, 17f, FG, HEAD).apply { maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END })
-            val line = listOfNotNull(BotRules.label(j.state), if (j.state == BotRules.RUNNING) j.current else null,
-                if (j.plan.isNotEmpty()) "plan ${j.plan.count { it.done }}/${j.plan.size}" else null).joinToString(" · ")
-            c.add(text(line, 13f, MUTED, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, 6)
-            body.add(c, 10)
-        }
         renderBotsElsewhere(elsewhere)
+    }
+
+    /** A bot's face for the list: the orb for Atlas, its icon on glass for the others, and a live dot. */
+    private fun crewFace(botId: String?, tone: String?): View {
+        val f = FrameLayout(this)
+        val face: View = if (botId == null || botId == ThreadRules.ATLAS) View(this).apply {
+            background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; gradientType = android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT
+                gradientRadius = dp(46) * 0.75f; setGradientCenter(0.34f, 0.28f); colors = intArrayOf(Color.parseColor("#DDE6FF"), Palette.NIGHT.blue, Palette.NIGHT.accent, BG) }
+        } else TextView(this).apply {
+            val b = BotExtras.specialist(botId)
+            text = b?.optString("icon")?.ifBlank { null } ?: b?.optString("name")?.trim()?.take(1)?.uppercase() ?: "•"
+            textSize = 19f; gravity = Gravity.CENTER; setTextColor(FG); typeface = SEMI
+            background = quietBg()
+        }
+        face.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        f.addView(face, FrameLayout.LayoutParams(dp(46), dp(46)))
+        if (tone != null) {
+            val c = when (tone) { "live" -> DONE; "warn" -> WARM; "off" -> Color.TRANSPARENT; else -> FAINT }
+            f.addView(View(this).apply { background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(c); setStroke(dp(2), if (tone == "off") FAINT else BG) } },
+                FrameLayout.LayoutParams(dp(13), dp(13), Gravity.END or Gravity.BOTTOM))
+        }
+        return f
+    }
+
+    private fun crewAgo(ms: Long): String {
+        if (ms <= 0) return ""
+        val s = (System.currentTimeMillis() - ms) / 1000
+        return when { s < 60 -> "now"; s < 3600 -> "${s / 60}m"; s < 86400 -> "${s / 3600}h"; else -> java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(java.util.Date(ms)) }
+    }
+
+    private fun crewBadge(threadId: String?, extraWaiting: Int): View? {
+        val ap = (threadId?.let { Threads.approvalsWaiting(it) } ?: 0) + extraWaiting
+        val un = threadId?.let { Threads.unread(it) } ?: 0
+        if (ap == 0 && un == 0) return null
+        return TextView(this).apply {
+            text = if (ap > 0) "$ap" else if (un > 99) "99+" else "$un"
+            textSize = 12f; typeface = SEMI; gravity = Gravity.CENTER; minWidth = dp(22); setPadding(dp(7), dp(2), dp(7), dp(3))
+            setTextColor(if (ap > 0) inkOn(WARM) else ON)
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(11).toFloat(); setColor(if (ap > 0) WARM else BLUE) }
+            contentDescription = if (ap > 0) "$ap waiting for your OK" else "$un unread"
+        }
+    }
+
+    private fun crewRowShell(face: View, title: String, line1: CharSequence, line2: String, at: Long, badge: View?, onTap: () -> Unit): View {
+        val r = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(10), dp(10), dp(10), dp(10)); minimumHeight = dp(64)
+            isClickable = true; isFocusable = true; pressFx()
+            setOnClickListener { performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); onTap() }
+        }
+        r.addView(face, LinearLayout.LayoutParams(WRAP, WRAP))
+        val mid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, dp(8), 0) }
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        top.addView(text(title, 16f, FG, MED, keepEmoji = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, WRAP, 1f))
+        top.addView(text(crewAgo(at), 12f, FAINT))
+        mid.addView(top)
+        mid.addView(text("", 13f, MUTED).apply { text = line1; maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+        mid.addView(text(line2, 13f, FAINT, keepEmoji = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+        r.addView(mid, LinearLayout.LayoutParams(0, WRAP, 1f))
+        if (badge != null) r.addView(badge, LinearLayout.LayoutParams(WRAP, WRAP))
+        r.contentDescription = "$title. $line1. $line2"
+        return r
+    }
+
+    private fun crewRow(botId: String, starred: Boolean): View {
+        val atlas = botId == ThreadRules.ATLAS
+        val b = if (atlas) null else BotExtras.specialist(botId)
+        val t = Threads.directOf(botId)
+        val (label, tone) = if (atlas) (if (Threads.missionsOf(botId).any { !it.final && it.state !in BotRules.WAITING_ON_USER && it.state != BotRules.PAUSED }) "Working" to "live"
+            else if (Threads.missionsOf(botId).any { it.state in BotRules.WAITING_ON_USER }) "Waiting on you" to "warn" else "Idle" to "idle") else CrewActivity.statusOf(botId)
+        val role = if (atlas) "Your chief of staff" else b?.optString("role")?.ifBlank { null } ?: "A bot of yours"
+        val line1 = android.text.SpannableStringBuilder("$role · ").apply {
+            val s = length; append(label)
+            if (tone == "live" || tone == "warn") setSpan(android.text.style.ForegroundColorSpan(if (tone == "live") DONE else WARM), s, length, 0)
+        }
+        val p = ThreadRules.preview(t)
+        val last = if (p == null) "No messages yet. Say what you need." else (if (p.from == ThreadRules.USER) "You: " else "") + p.text.replace(Regex("\\s+"), " ").take(140)
+        val waitingElsewhere = if (t == null) Threads.missionsOf(botId).count { it.state in BotRules.WAITING_ON_USER } else 0
+        return crewRowShell(crewFace(botId, tone), (if (atlas) "Atlas" else b?.optString("name") ?: "Bot") + if (starred) "  ★" else "", line1, last, p?.at ?: 0L, crewBadge(t?.id, waitingElsewhere)) {
+            startActivity(CrewActivity.bot(this, botId))
+        }
+    }
+
+    private fun groupRow(t: ThreadRules.Thread): View {
+        val who = t.participants.filter { it != ThreadRules.USER }
+        val working = who.any { CrewActivity.statusOf(it).second == "live" }
+        val p = ThreadRules.preview(t)
+        val last = if (p == null) "No messages yet." else "${Threads.nameOf(p.from)}: ${p.text.replace(Regex("\\s+"), " ").take(140)}"
+        return crewRowShell(crewFace(who.firstOrNull(), if (working) "live" else null), t.title, who.joinToString(", ") { Threads.nameOf(it) } + " + Atlas", last, p?.at ?: t.updatedAt, crewBadge(t.id, 0)) {
+            startActivity(CrewActivity.thread(this, t.id))
+        }
     }
 
     /** Bots working on the other device (read-only here: each job runs where it was started). Tap one for its report. */
