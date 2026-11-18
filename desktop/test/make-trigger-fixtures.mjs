@@ -67,7 +67,7 @@ out.app = [
   [{ app: '' }, { pkg: 'com.whatsapp', app: 'WhatsApp' }],
   [{ app: 'Chrome' }, { pkg: 'com.whatsapp', app: 'WhatsApp' }],
 ].map(([cfg, o]) => ({ cfg, o, at: T0 + 125000, out: R.appMatches(cfg, o), event: R.appEvent(o, T0 + 125000) }));
-out.clean.push(...[{ type: 'app', config: { app: '  Instagram ' } }, { type: 'app', config: {} }].map((t, i) => { const c = R.cleanTrigger(t, 20 + i); return { input: t, i: 20 + i, out: c, summary: R.summary(c) }; }));
+out.clean.push(...[{ type: 'app', config: { app: '  Instagram ' } }, { type: 'app', config: {} }, { type: 'schedule', config: { schedule: 'every 30 minutes', goal: 'check' } }, { type: 'schedule', config: { schedule: 'every day at 7am', parsed: { kind: 'interval', everyMin: 45 } } }].map((t, i) => { const c = R.cleanTrigger(t, 20 + i); return { input: t, i: 20 + i, out: c, summary: R.summary(c) }; }));
 
 out.glob = [['*.pdf', 'Report.PDF'], ['*.pdf', 'a.pdf.tmp'], ['report*', 'report-2026.xlsx'], ['*', 'x'], ['a?c.txt', 'abc.txt'], ['a?c.txt', 'abbc.txt'], ['(x).txt', '(x).txt']].map(([p, n]) => ({ pattern: p, name: n, out: R.globMatch(p, n) }));
 

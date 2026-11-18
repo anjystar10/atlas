@@ -15,7 +15,12 @@ export function words(x) { return (Array.isArray(x) ? x : String(x || '').split(
 
 /** Every trigger type: what it's called, what it watches, and how to describe it. */
 export const TYPES = {
-  schedule: { label: 'On a schedule', where: 'any', clean: (c) => { const s = c.schedule && typeof c.schedule === 'object' ? c.schedule : c.text ? parseSchedule(c.text) : null; return { text: clip(c.text, 120), schedule: s && !s.error ? s : null }; },
+  schedule: { label: 'On a schedule', where: 'any', clean: (c) => {
+      // the schedule may come as the parsed object, as words ("every day at 7am", how templates write it) or as text
+      const text = clip(c.text || (typeof c.schedule === 'string' ? c.schedule : ''), 120);
+      const s = c.schedule && typeof c.schedule === 'object' ? c.schedule : c.parsed && typeof c.parsed === 'object' ? c.parsed : text ? parseSchedule(text) : null;
+      return { text, schedule: s && !s.error ? s : null };
+    },
     summary: (c) => (c.schedule ? describeSchedule(c.schedule) : 'On a schedule (not set yet)') },
   email: { label: 'When an email arrives', where: 'any', clean: (c) => ({ from: clip(c.from, 200), subject: clip(c.subject, 200), folder: clip(c.folder, 80) || 'INBOX', unreadOnly: c.unreadOnly !== false }),
     summary: (c) => 'When an email ' + [c.from ? `from ${c.from}` : '', c.subject ? `about “${c.subject}”` : ''].filter(Boolean).join(' ') + (c.from || c.subject ? ' arrives' : 'arrives') },

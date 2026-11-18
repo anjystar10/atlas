@@ -29,14 +29,17 @@ object TriggerRules {
 
     class Type(val label: String, val where: String, val clean: (JSONObject) -> JSONObject, val summary: (JSONObject) -> String)
 
+    /** The words of a schedule: "text", or "schedule" when it is written as words (how templates write it). */
+    private fun scheduleText(c: JSONObject): String = clip(c.opt("text")?.takeIf { it != JSONObject.NULL && it.toString().isNotEmpty() } ?: (c.opt("schedule") as? String) ?: "", 120)
     private fun scheduleOf(c: JSONObject): JSONObject? {
-        val s = c.optJSONObject("schedule") ?: if (clip(c.opt("text"), 120).isNotEmpty()) BotExtras.Rules.parseSchedule(c.optString("text")) else null
+        val text = scheduleText(c)
+        val s = c.optJSONObject("schedule") ?: c.optJSONObject("parsed") ?: if (text.isNotEmpty()) BotExtras.Rules.parseSchedule(text) else null
         return if (s == null || s.has("error")) null else s
     }
 
     val TYPES: LinkedHashMap<String, Type> = linkedMapOf(
         "schedule" to Type("On a schedule", "any",
-            { c -> JSONObject().put("text", clip(c.opt("text"), 120)).put("schedule", scheduleOf(c) ?: JSONObject.NULL) },
+            { c -> JSONObject().put("text", scheduleText(c)).put("schedule", scheduleOf(c) ?: JSONObject.NULL) },
             { c -> c.optJSONObject("schedule")?.let { BotExtras.Rules.describeSchedule(it) } ?: "On a schedule (not set yet)" }),
         "email" to Type("When an email arrives", "any",
             { c -> JSONObject().put("from", clip(c.opt("from"), 200)).put("subject", clip(c.opt("subject"), 200)).put("folder", clip(c.opt("folder"), 80).ifEmpty { "INBOX" }).put("unreadOnly", c.opt("unreadOnly") != false) },

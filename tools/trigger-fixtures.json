@@ -283,6 +283,61 @@
     "enabled": true
    },
    "summary": "When you open an app"
+  },
+  {
+   "input": {
+    "type": "schedule",
+    "config": {
+     "schedule": "every 30 minutes",
+     "goal": "check"
+    }
+   },
+   "i": 22,
+   "out": {
+    "id": "tr-22",
+    "type": "schedule",
+    "config": {
+     "v": 1,
+     "text": "every 30 minutes",
+     "schedule": {
+      "kind": "interval",
+      "everyMin": 30
+     },
+     "goal": "check",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "Every 30 minutes"
+  },
+  {
+   "input": {
+    "type": "schedule",
+    "config": {
+     "schedule": "every day at 7am",
+     "parsed": {
+      "kind": "interval",
+      "everyMin": 45
+     }
+    }
+   },
+   "i": 23,
+   "out": {
+    "id": "tr-23",
+    "type": "schedule",
+    "config": {
+     "v": 1,
+     "text": "every day at 7am",
+     "schedule": {
+      "kind": "interval",
+      "everyMin": 45
+     },
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "Every 45 minutes"
   }
  ],
  "goal": [

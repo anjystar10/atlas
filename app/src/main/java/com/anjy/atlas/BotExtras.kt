@@ -253,9 +253,11 @@ object BotExtras {
         fun cleanSpecialist(x: JSONObject, now: Long, id: String): JSONObject {
             val groups = x.optJSONArray("groups")?.let { a -> List(a.length()) { a.optString(it) } }?.filter { g -> TOOL_GROUPS.any { it.id == g } } ?: emptyList()
             val notes = x.optJSONArray("notes")?.let { a -> List(a.length()) { clip(a.optString(it), 400) } }?.filter { it.isNotEmpty() }?.takeLast(40) ?: emptyList()
-            return JSONObject().put("id", x.optString("id").ifEmpty { id }).put("name", clip(x.optString("name"), 40).ifEmpty { "Helper Bot" })
-                .put("role", clip(x.optString("role"), 200)).put("instructions", clip(x.optString("instructions"), 2000))
-                .put("groups", JSONArray(groups)).put("notes", JSONArray(notes)).put("updatedAt", now)
+            // the v2 standing-bot shape (Crew.normalizeBot), like the PC's botx.cleanSpecialist: triggers, access, budget, icon,
+            // home and state survive a save on the phone (they used to be dropped, which lost what the PC had set)
+            val src = JSONObject(x.toString()).put("groups", JSONArray(groups)).put("updatedAt", now)
+            val b = Crew.normalizeBot(src, now, x.optString("id").ifEmpty { id })
+            return b.put("notes", JSONArray(notes))
         }
         val DEFAULT_SPECIALISTS = listOf(
             JSONObject().put("id", "sp-research").put("name", "Research Bot").put("role", "Finds things out and backs them with sources")
