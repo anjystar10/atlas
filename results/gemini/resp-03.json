@@ -1,0 +1,23 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "role": "model",
+    "parts": [
+     {
+      "functionCall": {
+       "name": "set_reminder",
+       "args": {
+        "title": "Pick up my sister",
+        "when": "2031-01-16 16:00",
+        "duration_min": 30
+       }
+      },
+      "thoughtSignature": "SIG-rem"
+     }
+    ]
+   },
+   "finishReason": "STOP"
+  }
+ ]
+}

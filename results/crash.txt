@@ -1,0 +1,41 @@
+--------- beginning of crash
+11-18 23:10:16.810  7811  7830 F libc    : Fatal signal 4 (SIGILL), code -6 (SI_TKILL) in tid 7830 (atlas-hotword), pid 7811 (y.atlas:hotword)
+11-18 23:10:17.092  7835  7835 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+11-18 23:10:17.092  7835  7835 F DEBUG   : Build fingerprint: 'google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys'
+11-18 23:10:17.092  7835  7835 F DEBUG   : Revision: '0'
+11-18 23:10:17.092  7835  7835 F DEBUG   : ABI: 'x86_64'
+11-18 23:10:17.092  7835  7835 F DEBUG   : Timestamp: 2026-11-18 23:10:16.847214094+0000
+11-18 23:10:17.092  7835  7835 F DEBUG   : Process uptime: 2s
+11-18 23:10:17.092  7835  7835 F DEBUG   : Cmdline: com.anjy.atlas:hotword
+11-18 23:10:17.092  7835  7835 F DEBUG   : pid: 7811, tid: 7830, name: atlas-hotword  >>> com.anjy.atlas:hotword <<<
+11-18 23:10:17.092  7835  7835 F DEBUG   : uid: 10192
+11-18 23:10:17.092  7835  7835 F DEBUG   : signal 4 (SIGILL), code -6 (SI_TKILL), fault addr --------
+11-18 23:10:17.092  7835  7835 F DEBUG   :     rax 0000000000000000  rbx 000070e6bcba8050  rcx 000070e69b94bf77  rdx 0000000000000004
+11-18 23:10:17.092  7835  7835 F DEBUG   :     r8  0000000000000001  r9  0000000000000001  r10 00007fff84dc80a0  r11 0000000000000206
+11-18 23:10:17.092  7835  7835 F DEBUG   :     r12 ffffffffffffffc0  r13 000070e3927cdad0  r14 0000000000000ad0  r15 000070e392683c94
+11-18 23:10:17.092  7835  7835 F DEBUG   :     rdi 0000000000001e83  rsi 0000000000001e96
+11-18 23:10:17.092  7835  7835 F DEBUG   :     rbp 000070e6bcba8050  rsp 000070e39905a338  rip 000070e69b94bf77
+11-18 23:10:17.092  7835  7835 F DEBUG   : 2 total frames
+11-18 23:10:17.092  7835  7835 F DEBUG   : backtrace:
+11-18 23:10:17.092  7835  7835 F DEBUG   :       #00 pc 00000000000b7f77  /apex/com.android.runtime/lib64/bionic/libc.so (tgkill+7) (BuildId: fa337969c798946280caa45e2d71a2e7)
+11-18 23:10:17.092  7835  7835 F DEBUG   :       #01 pc 00000000003aee76  <anonymous:70e3a16da000>
+11-18 23:10:18.418  7850  7869 F libc    : Fatal signal 4 (SIGILL), code -6 (SI_TKILL) in tid 7869 (atlas-hotword), pid 7850 (y.atlas:hotword)
+11-18 23:10:18.560  7874  7874 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+11-18 23:10:18.560  7874  7874 F DEBUG   : Build fingerprint: 'google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys'
+11-18 23:10:18.560  7874  7874 F DEBUG   : Revision: '0'
+11-18 23:10:18.560  7874  7874 F DEBUG   : ABI: 'x86_64'
+11-18 23:10:18.560  7874  7874 F DEBUG   : Timestamp: 2026-11-18 23:10:18.446755489+0000
+11-18 23:10:18.560  7874  7874 F DEBUG   : Process uptime: 1s
+11-18 23:10:18.560  7874  7874 F DEBUG   : Cmdline: com.anjy.atlas:hotword
+11-18 23:10:18.560  7874  7874 F DEBUG   : pid: 7850, tid: 7869, name: atlas-hotword  >>> com.anjy.atlas:hotword <<<
+11-18 23:10:18.560  7874  7874 F DEBUG   : uid: 10192
+11-18 23:10:18.560  7874  7874 F DEBUG   : signal 4 (SIGILL), code -6 (SI_TKILL), fault addr --------
+11-18 23:10:18.560  7874  7874 F DEBUG   :     rax 0000000000000000  rbx 000070e6bcba8050  rcx 000070e69b94bf77  rdx 0000000000000004
+11-18 23:10:18.560  7874  7874 F DEBUG   :     r8  0000000000000001  r9  0000000000000001  r10 00007fff84dc80a0  r11 0000000000000206
+11-18 23:10:18.560  7874  7874 F DEBUG   :     r12 ffffffffffffffc0  r13 000070e39c1d8ad0  r14 0000000000000ad0  r15 000070e39c08ec94
+11-18 23:10:18.560  7874  7874 F DEBUG   :     rdi 0000000000001eaa  rsi 0000000000001ebd
+11-18 23:10:18.560  7874  7874 F DEBUG   :     rbp 000070e6bcba8050  rsp 000070e3a06b2338  rip 000070e69b94bf77
+11-18 23:10:18.560  7874  7874 F DEBUG   : 2 total frames
+11-18 23:10:18.560  7874  7874 F DEBUG   : backtrace:
+11-18 23:10:18.560  7874  7874 F DEBUG   :       #00 pc 00000000000b7f77  /apex/com.android.runtime/lib64/bionic/libc.so (tgkill+7) (BuildId: fa337969c798946280caa45e2d71a2e7)
+11-18 23:10:18.560  7874  7874 F DEBUG   :       #01 pc 00000000003af046  <anonymous:70e3a16da000>

@@ -1,0 +1,23 @@
+    RTC_WAKEUP #21: Alarm{91263df type 0 origWhen 1795050539000 whenElapsed 7482264 com.anjy.atlas}
+      tag=*walarm*:com.anjy.atlas.TICK
+      type=RTC_WAKEUP origWhen=2026-11-19 01:08:59.000 window=0 exactAllowReason=policy_permission repeatInterval=0 count=0 flags=0x3
+      policyWhenElapsed: requester=+1h59m39s810ms app_standby=-3s3ms device_idle=-- battery_saver=-- tare=-3s3ms
+      whenElapsed=+1h59m39s810ms maxWhenElapsed=+1h59m39s810ms
+--
+        showIntent=PendingIntent{4bca82c: PendingIntentRecord{d9932f5 com.anjy.atlas startActivity}}
+      operation=PendingIntent{63f888a: PendingIntentRecord{9635efb com.anjy.atlas broadcastIntent}}
+      idle-options=Bundle[{android.pendingIntent.backgroundActivityAllowed=false, android:broadcast.temporaryAppAllowlistReasonCode=301, android:broadcast.temporaryAppAllowlistDuration=10000, android:broadcast.temporaryAppAllowlistReason=, android:broadcast.temporaryAppAllowlistType=0, android:broadcast.flags=8}]
+    ELAPSED #22: Alarm{7621b18 type 3 origWhen 14497883 whenElapsed 14497883 com.google.android.gms}
+      tag=*alarm*:CMAlarm
+--
+  Next wake from idle: Alarm{91263df type 0 origWhen 1795050539000 whenElapsed 7482264 com.anjy.atlas}
+    tag=*walarm*:com.anjy.atlas.TICK
+    type=RTC_WAKEUP origWhen=2026-11-19 01:08:59.000 window=0 exactAllowReason=policy_permission repeatInterval=0 count=0 flags=0x3
+    policyWhenElapsed: requester=+1h59m39s810ms app_standby=-3s3ms device_idle=-- battery_saver=-- tare=-3s3ms
+    whenElapsed=+1h59m39s810ms maxWhenElapsed=+1h59m39s810ms
+--
+      showIntent=PendingIntent{4bca82c: PendingIntentRecord{d9932f5 com.anjy.atlas startActivity}}
+    operation=PendingIntent{63f888a: PendingIntentRecord{9635efb com.anjy.atlas broadcastIntent}}
+    idle-options=Bundle[{android.pendingIntent.backgroundActivityAllowed=false, android:broadcast.temporaryAppAllowlistReasonCode=301, android:broadcast.temporaryAppAllowlistDuration=10000, android:broadcast.temporaryAppAllowlistReason=, android:broadcast.temporaryAppAllowlistType=0, android:broadcast.flags=8}]
+  
+  Past-due non-wakeup alarms: (none)

@@ -1,0 +1,167 @@
+screen 320x640
+== install apk/Atlas-latest.apk
+== first launch, empty state
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 3531
+WaitTime: 3578
+Complete
+== open atlas (dark)
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 2261
+WaitTime: 2285
+Complete
+== open log (dark)
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 2241
+WaitTime: 2301
+Complete
+== open me (dark)
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 3224
+WaitTime: 3257
+Complete
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 2593
+WaitTime: 2596
+Complete
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1749
+WaitTime: 1752
+Complete
+== open atlas (light)
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 2048
+WaitTime: 2062
+Complete
+== open log (light)
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 2704
+WaitTime: 2719
+Complete
+== open me (light)
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1871
+WaitTime: 1872
+Complete
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1801
+WaitTime: 1807
+Complete
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1600
+WaitTime: 1611
+Complete
+== offline chat commands
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1549
+WaitTime: 1552
+Complete
+== gemini conversation with phone control (stand-in server)
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1814
+WaitTime: 1817
+Complete
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1611
+WaitTime: 1675
+Complete
+== phone control connected
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1686
+WaitTime: 1690
+Complete
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1638
+WaitTime: 1661
+Complete
+== assist panel
+Starting: Intent { cmp=com.anjy.atlas/.AssistActivity }
+== alarm
+Broadcasting: Intent { act=com.anjy.atlas.TICK flg=0x400000 cmp=com.anjy.atlas/.AlarmReceiver }
+Broadcast completed: result=0
+== lighter reminder came as a notification
+== alarm answered: doing it now
+== focus session ended
+alarm task status: done
+Broadcasting: Intent { act=android.intent.action.BOOT_COMPLETED flg=0x400000 cmp=com.anjy.atlas/.BootReceiver }
+Broadcast completed: result=0
+== atlas on screen and wake
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1594
+WaitTime: 1600
+Complete
+Starting service: Intent { act=com.anjy.atlas.WAKE cmp=com.anjy.atlas/.AvatarService }
+== hey atlas model download
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 1834
+WaitTime: 1838
+Complete
+== hey atlas switch found: 1
+== hey atlas model ready
+== EMULATOR LIMIT: the wake word engine (ARM code) hit an instruction this x86 emulator can't translate
+== wake word engine crashes: 2 (it runs in its own process, which may not restart the microphone in the background, so it should stop at 1); setting now: "wakeWord":true
+== main app still running after the wake word engine: yes
+== sync
+Starting: Intent { cmp=com.anjy.atlas/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.anjy.atlas/.MainActivity
+TotalTime: 2054
+WaitTime: 2076
+Complete
+== sync code: 
+== RESULT: NO CRASHES
