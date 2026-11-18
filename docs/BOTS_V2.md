@@ -307,7 +307,7 @@ Status: **Have** = built and tested; **Partial** = built with a known gap; **No*
 | Hidden Bots, sections | — | No: the list is short enough; can be added |
 | X @bot entry | — | No: needs an always-on endpoint and X API access |
 | Templates gallery and duplicates | Seven named templates (Rex, Ivy, Remi, Sage, Bo, Quinn, Otto); Duplicate copies job, access, triggers and routines but not memory | Have |
-| Model router hidden from the user | Atlas shows which service and key handled the work, with daily budgets per bot | Have (Atlas is more open) |
+| Model router hidden from the user | Each job records which AI service ran it, and every bot has a visible daily budget | Partial: no per-bot model choice yet |
 
 What Atlas does that Grok Bot doesn't: per-bot access in code (read vs act per capability), hard daily budgets per bot,
 inspectable memory and work logs, trading and spend limits enforced in code, deep Android reach (notifications, the
