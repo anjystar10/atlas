@@ -17,7 +17,7 @@ const acc = (o) => { const a = {}; for (const id of [...CAP_IDS, 'other']) a[id]
 
 export const TEMPLATES = [
   {
-    id: 'trader', tv: 1, name: 'Trader', icon: '📈', home: 'any',
+    id: 'trader', tv: 1, name: 'Rex', title: 'Trader', face: { shape: 'diamond', color: 2 }, persona: "Disciplined. I trade the plan inside your limits, report every move, and never promise profit.", icon: '📈', home: 'any',
     role: 'Trades your connected accounts inside your limits, and reports every move',
     instructions: [
       'You trade the user\'s connected accounts (Bybit spot, ProjectX futures) through the trading tools. Atlas\'s risk engine enforces the user\'s limits in code; you never try to get around them, and you never change them.',
@@ -39,7 +39,7 @@ export const TEMPLATES = [
     match: { words: ['trade', 'trading', 'trader', 'forex', 'futures', 'crypto', 'bitcoin', 'btc', 'eth', 'stocks', 'scalp', 'invest', 'portfolio', 'nq', 'es', 'gold'], phrases: ['trade this money', 'trade for me', 'manage my trades', 'run my trading'] },
   },
   {
-    id: 'inbox', tv: 1, name: 'Inbox', icon: '📥', home: 'any',
+    id: 'inbox', tv: 1, name: 'Ivy', title: 'Inbox', face: { shape: 'squircle', color: 1 }, persona: "Brisk and discreet. I keep your email under control and draft replies in your voice for your OK.", icon: '📥', home: 'any',
     role: 'Keeps your email under control: triage, summaries and ready-to-send replies',
     instructions: [
       'You look after the user\'s email through the email tools.',
@@ -60,7 +60,7 @@ export const TEMPLATES = [
     match: { words: ['email', 'emails', 'inbox', 'mail', 'gmail', 'outlook', 'unread'], phrases: ['check my email', 'my inbox', 'reply to emails', 'email digest', 'what my email says'] },
   },
   {
-    id: 'reels', tv: 1, name: 'Reel Poster', icon: '🎬', home: 'pc',
+    id: 'reels', tv: 1, name: 'Remi', title: 'Reels', face: { shape: 'petal', color: 3 }, persona: "Creative but tidy. I write hooks that land, learn what performs, and never post without your OK.", icon: '🎬', home: 'pc',
     role: 'Prepares and posts your Instagram reels: caption, hashtags, timing',
     instructions: [
       'You post Instagram reels for the user.',
@@ -87,7 +87,7 @@ export const TEMPLATES = [
     match: { words: ['instagram', 'reel', 'reels', 'ig', 'insta'], phrases: ['post a reel', 'post reels', 'post to instagram', 'post on instagram', 'instagram reel'] },
   },
   {
-    id: 'research', tv: 1, name: 'Researcher', icon: '🔎', home: 'any',
+    id: 'research', tv: 1, name: 'Sage', title: 'Deep Research', face: { shape: 'orb', color: 5 }, persona: "Thorough and sceptical. I go deep, separate fact from opinion, and deliver a clean document with sources.", icon: '🔎', home: 'any',
     role: 'Deep research with sources, delivered as a clean document',
     instructions: [
       'You do thorough research and deliver it as a document in the Library.',
@@ -103,7 +103,7 @@ export const TEMPLATES = [
     match: { words: ['research', 'investigate', 'compare', 'analysis', 'analyse', 'analyze', 'report', 'sources', 'study'], phrases: ['find out', 'deep research', 'look into', 'research for me', 'write a report'] },
   },
   {
-    id: 'builder', tv: 1, name: 'Builder', icon: '🛠️', home: 'pc',
+    id: 'builder', tv: 1, name: 'Bo', title: 'Builder', face: { shape: 'hex', color: 7 }, persona: "Hands-on. I build in small steps until it runs and passes its checks, and I tell you what is not done.", icon: '🛠️', home: 'pc',
     role: 'Builds software projects on your laptop until they run and pass their checks',
     instructions: [
       'You build software for the user on the laptop, in a project (Documents/Atlas Projects).',
@@ -120,7 +120,7 @@ export const TEMPLATES = [
     match: { words: ['build', 'code', 'coding', 'app', 'website', 'script', 'program', 'software', 'project', 'bot', 'api', 'develop'], phrases: ['build me', 'build this', 'make me an app', 'make a website', 'write a script', 'code this'] },
   },
   {
-    id: 'chief', tv: 1, name: 'Chief of Staff', icon: '🗂️', home: 'any',
+    id: 'chief', tv: 1, name: 'Quinn', title: 'Chief of Staff', face: { shape: 'hex', color: 2 }, persona: "Warm and direct. I plan your day around what matters most and tell you honestly when it is overloaded.", icon: '🗂️', home: 'any',
     role: 'Plans your day each morning and closes it each evening',
     instructions: [
       'You keep the user\'s days organised.',
@@ -139,7 +139,7 @@ export const TEMPLATES = [
     match: { words: ['plan', 'planner', 'schedule', 'organise', 'organize', 'productivity', 'routine', 'brief', 'day'], phrases: ['plan my day', 'daily plan', 'morning brief', 'organise my day', 'keep me on track', 'daily briefing'] },
   },
   {
-    id: 'markets', tv: 1, name: 'Market Watcher', icon: '📰', home: 'any',
+    id: 'markets', tv: 1, name: 'Otto', title: 'Markets', face: { shape: 'diamond', color: 6 }, persona: "Alert and level-headed. I report what moved and why, and I never dress a guess up as a signal.", icon: '📰', home: 'any',
     role: 'Watches the markets and news you care about, and tells you what matters',
     instructions: [
       'You watch markets and news for the user. You never trade: you read prices and the web, and you report.',
@@ -221,7 +221,7 @@ export function instantiate(templateId, opts = {}, now = Date.now(), id) {
   for (const tr of triggers) if (tr.type === 'schedule') { const p = parseSchedule(tr.config.schedule, now); if (p && !p.error) tr.config.parsed = p; }
   const instructions = opts.extraInstructions ? `${t.instructions}\n\nFrom the user when this bot was made: ${String(opts.extraInstructions).slice(0, 600)}` : t.instructions;
   return normalizeBot({
-    v: 2, id, name: opts.name || t.name, role: t.role, instructions, icon: t.icon, home: t.home,
+    v: 2, id, name: opts.name || t.name, title: t.title || '', face: t.face ? { ...t.face } : undefined, persona: t.persona || '', role: t.role, instructions, icon: t.icon, home: t.home,
     access: { ...t.access }, triggers, budget: { ...DEFAULT_BUDGET }, notes: [], log: [], state: 'active',
     createdBy: opts.createdBy === 'user' ? 'user' : 'atlas', template: { id: t.id, tv: t.tv },
   }, now, id);

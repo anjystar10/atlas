@@ -47,6 +47,8 @@ object BotTemplates {
         }
         val bot = JSONObject().put("v", 2).put("id", id).put("name", name?.trim()?.ifEmpty { null } ?: t.optString("name"))
             .put("role", t.optString("role")).put("instructions", t.optString("instructions")).put("icon", t.optString("icon"))
+            .put("title", t.optString("title")).put("persona", t.optString("persona"))
+            .apply { t.optJSONObject("face")?.let { put("face", JSONObject(it.toString())) } }   // >>> named bots: who it is (BotFace)
             .put("home", t.optString("home").ifEmpty { "any" }).put("access", JSONObject(t.optJSONObject("access")?.toString() ?: "{}"))
             .put("triggers", triggers).put("budget", JSONObject(Crew.DEFAULT_BUDGET.toString())).put("notes", JSONArray()).put("log", JSONArray())
             .put("state", "active").put("createdBy", "user").put("template", JSONObject().put("id", t.optString("id")).put("tv", t.optInt("tv", 1)))

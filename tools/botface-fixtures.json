@@ -1,0 +1,1059 @@
+{
+ "note": "Made by desktop/test/make-botface-fixtures.mjs from desktop/renderer/botface.js. Do not edit by hand.",
+ "hash": [
+  {
+   "s": "",
+   "out": 2166136261
+  },
+  {
+   "s": "a",
+   "out": 3826002220
+  },
+  {
+   "s": "sp-research",
+   "out": 730213080
+  },
+  {
+   "s": "bot-ü",
+   "out": 2267107279
+  },
+  {
+   "s": "Zoë 🎧",
+   "out": 4077095236
+  },
+  {
+   "s": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "out": 2888067797
+  },
+  {
+   "s": "Ted · Developer",
+   "out": 526867297
+  }
+ ],
+ "bots": [
+  {
+   "in": {
+    "id": "sp-research",
+    "name": "Research Bot",
+    "role": "Finds things out and backs them with sources"
+   },
+   "motif": "search",
+   "face": {
+    "shape": "orb",
+    "color": 3,
+    "motif": "search"
+   },
+   "label": "Research Bot",
+   "subtitle": "Finds things out and backs them with sources",
+   "changed": true,
+   "migrated": {
+    "id": "sp-research",
+    "name": "Nova",
+    "role": "Finds things out and backs them with sources",
+    "title": "Researcher",
+    "face": {
+     "shape": "orb",
+     "color": 6
+    },
+    "persona": "Curious and exact. I follow the evidence, cross-check what matters and say plainly what I couldn't verify."
+   },
+   "migratedFace": {
+    "shape": "orb",
+    "color": 6,
+    "motif": "search"
+   },
+   "migratedLabel": "Nova · Researcher",
+   "persona": "Your name is Nova, the user's researcher. Speak in the first person as Nova, briefly and warmly. Your manner: Curious and exact. I follow the evidence, cross-check what matters and say plainly what I couldn't verify."
+  },
+  {
+   "in": {
+    "id": "sp-developer",
+    "name": "Developer Bot",
+    "role": "Programming, debugging and technical work"
+   },
+   "motif": "code",
+   "face": {
+    "shape": "petal",
+    "color": 7,
+    "motif": "code"
+   },
+   "label": "Developer Bot",
+   "subtitle": "Programming, debugging and technical work",
+   "changed": true,
+   "migrated": {
+    "id": "sp-developer",
+    "name": "Ted",
+    "role": "Programming, debugging and technical work",
+    "title": "Developer",
+    "face": {
+     "shape": "hex",
+     "color": 0
+    },
+    "persona": "Practical and steady. I read before I change anything, and it isn't done until it runs and its tests pass."
+   },
+   "migratedFace": {
+    "shape": "hex",
+    "color": 0,
+    "motif": "code"
+   },
+   "migratedLabel": "Ted · Developer",
+   "persona": "Your name is Ted, the user's developer. Speak in the first person as Ted, briefly and warmly. Your manner: Practical and steady. I read before I change anything, and it isn't done until it runs and its tests pass."
+  },
+  {
+   "in": {
+    "id": "sp-finance",
+    "name": "Finance Bot",
+    "role": "Numbers, budgets, prices and comparisons"
+   },
+   "motif": "coins",
+   "face": {
+    "shape": "diamond",
+    "color": 6,
+    "motif": "coins"
+   },
+   "label": "Finance Bot",
+   "subtitle": "Numbers, budgets, prices and comparisons",
+   "changed": true,
+   "migrated": {
+    "id": "sp-finance",
+    "name": "Mara",
+    "role": "Numbers, budgets, prices and comparisons",
+    "title": "Finance",
+    "face": {
+     "shape": "squircle",
+     "color": 5
+    },
+    "persona": "Careful with numbers. I show every figure and where it came from, and I never move money."
+   },
+   "migratedFace": {
+    "shape": "squircle",
+    "color": 5,
+    "motif": "coins"
+   },
+   "migratedLabel": "Mara · Finance",
+   "persona": "Your name is Mara, the user's finance. Speak in the first person as Mara, briefly and warmly. Your manner: Careful with numbers. I show every figure and where it came from, and I never move money."
+  },
+  {
+   "in": {
+    "id": "sp-planner",
+    "name": "Planner Bot",
+    "role": "Turns goals into schedules and step-by-step plans"
+   },
+   "motif": "calendar",
+   "face": {
+    "shape": "orb",
+    "color": 6,
+    "motif": "calendar"
+   },
+   "label": "Planner Bot",
+   "subtitle": "Turns goals into schedules and step-by-step plans",
+   "changed": true,
+   "migrated": {
+    "id": "sp-planner",
+    "name": "Iris",
+    "role": "Turns goals into schedules and step-by-step plans",
+    "title": "Planner",
+    "face": {
+     "shape": "petal",
+     "color": 4
+    },
+    "persona": "Calm and organised. I turn messy goals into clear steps with real times, and I protect what matters most to you."
+   },
+   "migratedFace": {
+    "shape": "petal",
+    "color": 4,
+    "motif": "calendar"
+   },
+   "migratedLabel": "Iris · Planner",
+   "persona": "Your name is Iris, the user's planner. Speak in the first person as Iris, briefly and warmly. Your manner: Calm and organised. I turn messy goals into clear steps with real times, and I protect what matters most to you."
+  },
+  {
+   "in": {
+    "id": "bot-x1",
+    "name": "Trader",
+    "role": "Trades your connected accounts inside your limits"
+   },
+   "motif": "chart",
+   "face": {
+    "shape": "squircle",
+    "color": 6,
+    "motif": "chart"
+   },
+   "label": "Trader",
+   "subtitle": "Trades your connected accounts inside your limits",
+   "changed": true,
+   "migrated": {
+    "id": "bot-x1",
+    "name": "Rex",
+    "role": "Trades your connected accounts inside your limits",
+    "title": "Trader",
+    "face": {
+     "shape": "diamond",
+     "color": 2
+    },
+    "persona": "Disciplined. I trade the plan inside your limits, report every move, and never promise profit."
+   },
+   "migratedFace": {
+    "shape": "diamond",
+    "color": 2,
+    "motif": "chart"
+   },
+   "migratedLabel": "Rex · Trader",
+   "persona": "Your name is Rex, the user's trader. Speak in the first person as Rex, briefly and warmly. Your manner: Disciplined. I trade the plan inside your limits, report every move, and never promise profit."
+  },
+  {
+   "in": {
+    "id": "bot-x2",
+    "name": "Inbox",
+    "role": "Keeps your email under control"
+   },
+   "motif": "mail",
+   "face": {
+    "shape": "petal",
+    "color": 4,
+    "motif": "mail"
+   },
+   "label": "Inbox",
+   "subtitle": "Keeps your email under control",
+   "changed": true,
+   "migrated": {
+    "id": "bot-x2",
+    "name": "Ivy",
+    "role": "Keeps your email under control",
+    "title": "Inbox",
+    "face": {
+     "shape": "squircle",
+     "color": 1
+    },
+    "persona": "Brisk and discreet. I keep your email under control and draft replies in your voice for your OK."
+   },
+   "migratedFace": {
+    "shape": "squircle",
+    "color": 1,
+    "motif": "mail"
+   },
+   "migratedLabel": "Ivy · Inbox",
+   "persona": "Your name is Ivy, the user's inbox. Speak in the first person as Ivy, briefly and warmly. Your manner: Brisk and discreet. I keep your email under control and draft replies in your voice for your OK."
+  },
+  {
+   "in": {
+    "id": "bot-x3",
+    "name": "Reel Poster",
+    "role": "Prepares and posts your Instagram reels"
+   },
+   "motif": "play",
+   "face": {
+    "shape": "orb",
+    "color": 2,
+    "motif": "play"
+   },
+   "label": "Reel Poster",
+   "subtitle": "Prepares and posts your Instagram reels",
+   "changed": true,
+   "migrated": {
+    "id": "bot-x3",
+    "name": "Remi",
+    "role": "Prepares and posts your Instagram reels",
+    "title": "Reels",
+    "face": {
+     "shape": "petal",
+     "color": 3
+    },
+    "persona": "Creative but tidy. I write hooks that land, learn what performs, and never post without your OK."
+   },
+   "migratedFace": {
+    "shape": "petal",
+    "color": 3,
+    "motif": "play"
+   },
+   "migratedLabel": "Remi · Reels",
+   "persona": "Your name is Remi, the user's reels. Speak in the first person as Remi, briefly and warmly. Your manner: Creative but tidy. I write hooks that land, learn what performs, and never post without your OK."
+  },
+  {
+   "in": {
+    "id": "bot-x4",
+    "name": "Builder",
+    "role": "Builds software projects on your laptop"
+   },
+   "motif": "build",
+   "face": {
+    "shape": "squircle",
+    "color": 2,
+    "motif": "build"
+   },
+   "label": "Builder",
+   "subtitle": "Builds software projects on your laptop",
+   "changed": true,
+   "migrated": {
+    "id": "bot-x4",
+    "name": "Bo",
+    "role": "Builds software projects on your laptop",
+    "title": "Builder",
+    "face": {
+     "shape": "hex",
+     "color": 7
+    },
+    "persona": "Hands-on. I build in small steps until it runs and passes its checks, and I tell you what is not done."
+   },
+   "migratedFace": {
+    "shape": "hex",
+    "color": 7,
+    "motif": "build"
+   },
+   "migratedLabel": "Bo · Builder",
+   "persona": "Your name is Bo, the user's builder. Speak in the first person as Bo, briefly and warmly. Your manner: Hands-on. I build in small steps until it runs and passes its checks, and I tell you what is not done."
+  },
+  {
+   "in": {
+    "id": "bot-x5",
+    "name": "Chief of Staff",
+    "role": "Plans your day each morning"
+   },
+   "motif": "calendar",
+   "face": {
+    "shape": "petal",
+    "color": 0,
+    "motif": "calendar"
+   },
+   "label": "Chief of Staff",
+   "subtitle": "Plans your day each morning",
+   "changed": true,
+   "migrated": {
+    "id": "bot-x5",
+    "name": "Quinn",
+    "role": "Plans your day each morning",
+    "title": "Chief of Staff",
+    "face": {
+     "shape": "hex",
+     "color": 2
+    },
+    "persona": "Warm and direct. I plan your day around what matters most and tell you honestly when it is overloaded."
+   },
+   "migratedFace": {
+    "shape": "hex",
+    "color": 2,
+    "motif": "calendar"
+   },
+   "migratedLabel": "Quinn · Chief of Staff",
+   "persona": "Your name is Quinn, the user's chief of staff. Speak in the first person as Quinn, briefly and warmly. Your manner: Warm and direct. I plan your day around what matters most and tell you honestly when it is overloaded."
+  },
+  {
+   "in": {
+    "id": "bot-x6",
+    "name": "Market Watcher",
+    "role": "Watches the markets and news you care about"
+   },
+   "motif": "wave",
+   "face": {
+    "shape": "orb",
+    "color": 5,
+    "motif": "wave"
+   },
+   "label": "Market Watcher",
+   "subtitle": "Watches the markets and news you care about",
+   "changed": true,
+   "migrated": {
+    "id": "bot-x6",
+    "name": "Otto",
+    "role": "Watches the markets and news you care about",
+    "title": "Markets",
+    "face": {
+     "shape": "diamond",
+     "color": 6
+    },
+    "persona": "Alert and level-headed. I report what moved and why, and I never dress a guess up as a signal."
+   },
+   "migratedFace": {
+    "shape": "diamond",
+    "color": 6,
+    "motif": "wave"
+   },
+   "migratedLabel": "Otto · Markets",
+   "persona": "Your name is Otto, the user's markets. Speak in the first person as Otto, briefly and warmly. Your manner: Alert and level-headed. I report what moved and why, and I never dress a guess up as a signal."
+  },
+  {
+   "in": {
+    "id": "bot-x7",
+    "name": "Researcher",
+    "role": "Deep research with sources"
+   },
+   "motif": "search",
+   "face": {
+    "shape": "hex",
+    "color": 3,
+    "motif": "search"
+   },
+   "label": "Researcher",
+   "subtitle": "Deep research with sources",
+   "changed": true,
+   "migrated": {
+    "id": "bot-x7",
+    "name": "Sage",
+    "role": "Deep research with sources",
+    "title": "Deep Research",
+    "face": {
+     "shape": "orb",
+     "color": 5
+    },
+    "persona": "Thorough and sceptical. I go deep, separate fact from opinion, and deliver a clean document with sources."
+   },
+   "migratedFace": {
+    "shape": "orb",
+    "color": 5,
+    "motif": "search"
+   },
+   "migratedLabel": "Sage · Deep Research",
+   "persona": "Your name is Sage, the user's deep research. Speak in the first person as Sage, briefly and warmly. Your manner: Thorough and sceptical. I go deep, separate fact from opinion, and deliver a clean document with sources."
+  },
+  {
+   "in": {
+    "id": "bot-mine",
+    "name": "Developer bot",
+    "role": "my own one"
+   },
+   "motif": "code",
+   "face": {
+    "shape": "squircle",
+    "color": 2,
+    "motif": "code"
+   },
+   "label": "Developer bot",
+   "subtitle": "my own one",
+   "changed": false,
+   "migrated": {
+    "id": "bot-mine",
+    "name": "Developer bot",
+    "role": "my own one"
+   },
+   "migratedFace": {
+    "shape": "squircle",
+    "color": 2,
+    "motif": "code"
+   },
+   "migratedLabel": "Developer bot",
+   "persona": "Your name is Developer bot. Speak in the first person as Developer bot, briefly and warmly."
+  },
+  {
+   "in": {
+    "id": "bot-kept",
+    "name": "Ted",
+    "title": "Coder",
+    "role": "x",
+    "face": {
+     "shape": "petal",
+     "color": 3
+    }
+   },
+   "motif": "code",
+   "face": {
+    "shape": "petal",
+    "color": 3,
+    "motif": "code"
+   },
+   "label": "Ted · Coder",
+   "subtitle": "Coder",
+   "changed": false,
+   "migrated": {
+    "id": "bot-kept",
+    "name": "Ted",
+    "title": "Coder",
+    "role": "x",
+    "face": {
+     "shape": "petal",
+     "color": 3
+    }
+   },
+   "migratedFace": {
+    "shape": "petal",
+    "color": 3,
+    "motif": "code"
+   },
+   "migratedLabel": "Ted · Coder",
+   "persona": "Your name is Ted, the user's coder. Speak in the first person as Ted, briefly and warmly."
+  },
+  {
+   "in": {
+    "id": "bot-face",
+    "name": "Zed",
+    "role": "Walks the dog",
+    "face": {
+     "shape": "nope",
+     "color": 99
+    }
+   },
+   "motif": "spark",
+   "face": {
+    "shape": "hex",
+    "color": 6,
+    "motif": "spark"
+   },
+   "label": "Zed",
+   "subtitle": "Walks the dog",
+   "changed": false,
+   "migrated": {
+    "id": "bot-face",
+    "name": "Zed",
+    "role": "Walks the dog",
+    "face": {
+     "shape": "nope",
+     "color": 99
+    }
+   },
+   "migratedFace": {
+    "shape": "hex",
+    "color": 6,
+    "motif": "spark"
+   },
+   "migratedLabel": "Zed",
+   "persona": "Your name is Zed. Speak in the first person as Zed, briefly and warmly."
+  },
+  {
+   "in": {
+    "id": "bot-face2",
+    "name": "Lola",
+    "role": "Sings",
+    "face": {
+     "shape": "hex",
+     "color": 7
+    }
+   },
+   "motif": "spark",
+   "face": {
+    "shape": "hex",
+    "color": 7,
+    "motif": "spark"
+   },
+   "label": "Lola",
+   "subtitle": "Sings",
+   "changed": false,
+   "migrated": {
+    "id": "bot-face2",
+    "name": "Lola",
+    "role": "Sings",
+    "face": {
+     "shape": "hex",
+     "color": 7
+    }
+   },
+   "migratedFace": {
+    "shape": "hex",
+    "color": 7,
+    "motif": "spark"
+   },
+   "migratedLabel": "Lola",
+   "persona": "Your name is Lola. Speak in the first person as Lola, briefly and warmly."
+  },
+  {
+   "in": {
+    "id": "",
+    "name": "Nameless helper",
+    "role": ""
+   },
+   "motif": "spark",
+   "face": {
+    "shape": "petal",
+    "color": 2,
+    "motif": "spark"
+   },
+   "label": "Nameless helper",
+   "subtitle": "A bot of yours",
+   "changed": false,
+   "migrated": {
+    "id": "",
+    "name": "Nameless helper",
+    "role": ""
+   },
+   "migratedFace": {
+    "shape": "petal",
+    "color": 2,
+    "motif": "spark"
+   },
+   "migratedLabel": "Nameless helper",
+   "persona": "Your name is Nameless helper. Speak in the first person as Nameless helper, briefly and warmly."
+  },
+  {
+   "in": {
+    "id": "bot-ü",
+    "name": "Zoë 🎧",
+    "role": "Finds music"
+   },
+   "motif": "search",
+   "face": {
+    "shape": "petal",
+    "color": 1,
+    "motif": "search"
+   },
+   "label": "Zoë 🎧",
+   "subtitle": "Finds music",
+   "changed": false,
+   "migrated": {
+    "id": "bot-ü",
+    "name": "Zoë 🎧",
+    "role": "Finds music"
+   },
+   "migratedFace": {
+    "shape": "petal",
+    "color": 1,
+    "motif": "search"
+   },
+   "migratedLabel": "Zoë 🎧",
+   "persona": "Your name is Zoë 🎧. Speak in the first person as Zoë 🎧, briefly and warmly."
+  },
+  {
+   "in": {
+    "id": "bot-renamed",
+    "name": "Inbox",
+    "title": "Mail",
+    "persona": "Mine.",
+    "face": {
+     "shape": "orb",
+     "color": 0
+    }
+   },
+   "motif": "mail",
+   "face": {
+    "shape": "orb",
+    "color": 0,
+    "motif": "mail"
+   },
+   "label": "Inbox · Mail",
+   "subtitle": "Mail",
+   "changed": true,
+   "migrated": {
+    "id": "bot-renamed",
+    "name": "Ivy",
+    "title": "Mail",
+    "persona": "Mine.",
+    "face": {
+     "shape": "orb",
+     "color": 0
+    }
+   },
+   "migratedFace": {
+    "shape": "orb",
+    "color": 0,
+    "motif": "mail"
+   },
+   "migratedLabel": "Ivy · Mail",
+   "persona": "Your name is Ivy, the user's mail. Speak in the first person as Ivy, briefly and warmly. Your manner: Mine."
+  }
+ ],
+ "jobs": [
+  {
+   "id": "j1",
+   "goal": "Summarize what is new in AI",
+   "state": "completed",
+   "bot": "sp-research",
+   "at": 1794990600000,
+   "where": "other"
+  },
+  {
+   "id": "j2",
+   "goal": "Install FFmpeg on this PC",
+   "state": "awaiting_approval",
+   "bot": "",
+   "at": 1794987000000,
+   "where": "other"
+  },
+  {
+   "id": "j3",
+   "goal": "Type the exact text into Notepad",
+   "state": "awaiting_approval",
+   "at": 1794907740000,
+   "where": "here"
+  },
+  {
+   "id": "j4",
+   "goal": "Weekly budget check",
+   "state": "running",
+   "bot": "sp-finance",
+   "at": 1794735000000,
+   "where": "here"
+  },
+  {
+   "id": "j5",
+   "goal": "Post the reel",
+   "state": "failed",
+   "bot": "bot-x3",
+   "at": 1794735000000,
+   "where": "here"
+  },
+  {
+   "id": "j1",
+   "goal": "duplicate id is dropped",
+   "state": "completed",
+   "at": 1794994200000
+  },
+  {
+   "id": "",
+   "goal": "no id is dropped",
+   "state": "completed",
+   "at": 1794994200000
+  },
+  {
+   "id": "j6",
+   "goal": "Late night job",
+   "state": "needs_review",
+   "bot": "atlas",
+   "at": 1794958200000,
+   "where": "here"
+  }
+ ],
+ "history": [
+  {
+   "opts": {
+    "now": 1794994200000
+   },
+   "out": {
+    "groups": [
+     {
+      "day": "2026-11-18",
+      "label": "Today",
+      "items": [
+       {
+        "id": "j1",
+        "goal": "Summarize what is new in AI",
+        "state": "completed",
+        "bot": "sp-research",
+        "at": 1794990600000,
+        "where": "other"
+       },
+       {
+        "id": "j2",
+        "goal": "Install FFmpeg on this PC",
+        "state": "awaiting_approval",
+        "bot": "atlas",
+        "at": 1794987000000,
+        "where": "other"
+       }
+      ]
+     },
+     {
+      "day": "2026-11-17",
+      "label": "Yesterday",
+      "items": [
+       {
+        "id": "j6",
+        "goal": "Late night job",
+        "state": "needs_review",
+        "bot": "atlas",
+        "at": 1794958200000,
+        "where": "here"
+       },
+       {
+        "id": "j3",
+        "goal": "Type the exact text into Notepad",
+        "state": "awaiting_approval",
+        "at": 1794907740000,
+        "where": "here",
+        "bot": "atlas"
+       }
+      ]
+     },
+     {
+      "day": "2026-11-15",
+      "label": "2026-11-15",
+      "items": [
+       {
+        "id": "j4",
+        "goal": "Weekly budget check",
+        "state": "running",
+        "bot": "sp-finance",
+        "at": 1794735000000,
+        "where": "here"
+       },
+       {
+        "id": "j5",
+        "goal": "Post the reel",
+        "state": "failed",
+        "bot": "bot-x3",
+        "at": 1794735000000,
+        "where": "here"
+       }
+      ]
+     }
+    ],
+    "waiting": 3,
+    "total": 6
+   }
+  },
+  {
+   "opts": {
+    "now": 1794994200000,
+    "tzMin": 60
+   },
+   "out": {
+    "groups": [
+     {
+      "day": "2026-11-18",
+      "label": "Today",
+      "items": [
+       {
+        "id": "j1",
+        "goal": "Summarize what is new in AI",
+        "state": "completed",
+        "bot": "sp-research",
+        "at": 1794990600000,
+        "where": "other"
+       },
+       {
+        "id": "j2",
+        "goal": "Install FFmpeg on this PC",
+        "state": "awaiting_approval",
+        "bot": "atlas",
+        "at": 1794987000000,
+        "where": "other"
+       },
+       {
+        "id": "j6",
+        "goal": "Late night job",
+        "state": "needs_review",
+        "bot": "atlas",
+        "at": 1794958200000,
+        "where": "here"
+       }
+      ]
+     },
+     {
+      "day": "2026-11-17",
+      "label": "Yesterday",
+      "items": [
+       {
+        "id": "j3",
+        "goal": "Type the exact text into Notepad",
+        "state": "awaiting_approval",
+        "at": 1794907740000,
+        "where": "here",
+        "bot": "atlas"
+       }
+      ]
+     },
+     {
+      "day": "2026-11-15",
+      "label": "2026-11-15",
+      "items": [
+       {
+        "id": "j4",
+        "goal": "Weekly budget check",
+        "state": "running",
+        "bot": "sp-finance",
+        "at": 1794735000000,
+        "where": "here"
+       },
+       {
+        "id": "j5",
+        "goal": "Post the reel",
+        "state": "failed",
+        "bot": "bot-x3",
+        "at": 1794735000000,
+        "where": "here"
+       }
+      ]
+     }
+    ],
+    "waiting": 3,
+    "total": 6
+   }
+  },
+  {
+   "opts": {
+    "now": 1794994200000,
+    "tzMin": -600
+   },
+   "out": {
+    "groups": [
+     {
+      "day": "2026-11-17",
+      "label": "Today",
+      "items": [
+       {
+        "id": "j1",
+        "goal": "Summarize what is new in AI",
+        "state": "completed",
+        "bot": "sp-research",
+        "at": 1794990600000,
+        "where": "other"
+       },
+       {
+        "id": "j2",
+        "goal": "Install FFmpeg on this PC",
+        "state": "awaiting_approval",
+        "bot": "atlas",
+        "at": 1794987000000,
+        "where": "other"
+       },
+       {
+        "id": "j6",
+        "goal": "Late night job",
+        "state": "needs_review",
+        "bot": "atlas",
+        "at": 1794958200000,
+        "where": "here"
+       }
+      ]
+     },
+     {
+      "day": "2026-11-16",
+      "label": "Yesterday",
+      "items": [
+       {
+        "id": "j3",
+        "goal": "Type the exact text into Notepad",
+        "state": "awaiting_approval",
+        "at": 1794907740000,
+        "where": "here",
+        "bot": "atlas"
+       }
+      ]
+     },
+     {
+      "day": "2026-11-14",
+      "label": "2026-11-14",
+      "items": [
+       {
+        "id": "j4",
+        "goal": "Weekly budget check",
+        "state": "running",
+        "bot": "sp-finance",
+        "at": 1794735000000,
+        "where": "here"
+       },
+       {
+        "id": "j5",
+        "goal": "Post the reel",
+        "state": "failed",
+        "bot": "bot-x3",
+        "at": 1794735000000,
+        "where": "here"
+       }
+      ]
+     }
+    ],
+    "waiting": 3,
+    "total": 6
+   }
+  },
+  {
+   "opts": {
+    "now": 1794994200000,
+    "bot": "atlas"
+   },
+   "out": {
+    "groups": [
+     {
+      "day": "2026-11-18",
+      "label": "Today",
+      "items": [
+       {
+        "id": "j2",
+        "goal": "Install FFmpeg on this PC",
+        "state": "awaiting_approval",
+        "bot": "atlas",
+        "at": 1794987000000,
+        "where": "other"
+       }
+      ]
+     },
+     {
+      "day": "2026-11-17",
+      "label": "Yesterday",
+      "items": [
+       {
+        "id": "j6",
+        "goal": "Late night job",
+        "state": "needs_review",
+        "bot": "atlas",
+        "at": 1794958200000,
+        "where": "here"
+       },
+       {
+        "id": "j3",
+        "goal": "Type the exact text into Notepad",
+        "state": "awaiting_approval",
+        "at": 1794907740000,
+        "where": "here",
+        "bot": "atlas"
+       }
+      ]
+     }
+    ],
+    "waiting": 3,
+    "total": 3
+   }
+  },
+  {
+   "opts": {
+    "now": 1794994200000,
+    "bot": "sp-research"
+   },
+   "out": {
+    "groups": [
+     {
+      "day": "2026-11-18",
+      "label": "Today",
+      "items": [
+       {
+        "id": "j1",
+        "goal": "Summarize what is new in AI",
+        "state": "completed",
+        "bot": "sp-research",
+        "at": 1794990600000,
+        "where": "other"
+       }
+      ]
+     }
+    ],
+    "waiting": 0,
+    "total": 1
+   }
+  },
+  {
+   "opts": {
+    "now": 1794994200000,
+    "query": "the  NOTEPAD"
+   },
+   "out": {
+    "groups": [
+     {
+      "day": "2026-11-17",
+      "label": "Yesterday",
+      "items": [
+       {
+        "id": "j3",
+        "goal": "Type the exact text into Notepad",
+        "state": "awaiting_approval",
+        "at": 1794907740000,
+        "where": "here",
+        "bot": "atlas"
+       }
+      ]
+     }
+    ],
+    "waiting": 1,
+    "total": 1
+   }
+  },
+  {
+   "opts": {
+    "now": 1794994200000,
+    "query": "reel budget"
+   },
+   "out": {
+    "groups": [],
+    "waiting": 0,
+    "total": 0
+   }
+  },
+  {
+   "opts": {
+    "now": 1794994200000,
+    "bot": "nobody"
+   },
+   "out": {
+    "groups": [],
+    "waiting": 0,
+    "total": 0
+   }
+  }
+ ]
+}

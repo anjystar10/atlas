@@ -6,6 +6,7 @@
 
 // ------------------------------------------------------------------ approvals: kinds of risky action
 
+import { migrate as migrateFace, personaPrompt, RENAMES } from './botface.js';   // >>> named bots: Ted, Nova… with faces
 import { normalizeBot, addLog as crewAddLog, defaultAccess, cleanBudget } from './crew.js';
 import * as A from './autonomy.js';   // >>> autonomy: when Atlas acts on its own and when it asks
 export const CATEGORIES = [
@@ -191,7 +192,12 @@ export function skillText(s) {
 }
 export const findByName = (list, name) => {
   const n = String(name || '').trim().toLowerCase(); if (!n) return null;
-  return list.find((s) => s.name.toLowerCase() === n) || list.find((s) => s.id === name) || list.find((s) => s.name.toLowerCase().includes(n) || n.includes(s.name.toLowerCase())) || null;
+  const hit = list.find((s) => s.name.toLowerCase() === n) || list.find((s) => s.id === name) || list.find((s) => s.name.toLowerCase().includes(n) || n.includes(s.name.toLowerCase()));
+  if (hit) return hit;
+  // a bot asked for by its old name ("Developer Bot" → Ted) or by its title ("the developer")
+  const r = Object.entries(RENAMES).find(([old]) => old.toLowerCase() === n);
+  if (r) { const m = list.find((s) => s.name.toLowerCase() === r[1].name.toLowerCase()); if (m) return m; }
+  return list.find((s) => s.title && (String(s.title).toLowerCase() === n || n.includes(String(s.title).toLowerCase()))) || null;
 };
 /** A first draft of a skill from a finished job's journal, for the user to review and edit. */
 export function draftSkill(job) {
@@ -229,15 +235,18 @@ export function cleanSpecialist(x, now, id) {
   b.notes = b.notes.slice(-40);
   return b;
 }
+// the starter team, named like teammates (Grok Bot's durable named Bots); botface.js has who each is
+const named = (old, x) => { const r = RENAMES[old]; return { ...x, name: r.name, title: r.title, face: { ...r.face }, persona: r.persona }; };
 export const DEFAULT_SPECIALISTS = [
-  { id: 'sp-research', name: 'Research Bot', role: 'Finds things out and backs them with sources', instructions: 'Search widely, read the best primary sources, cross-check key facts in two places, and report with links. Say plainly what you could not verify.', groups: ['web'] },
-  { id: 'sp-planner', name: 'Planner Bot', role: 'Turns goals into schedules and step-by-step plans', instructions: 'Break the goal into clear steps with realistic timings. Check the Log for what is already planned and avoid clashes. Offer to log reminders rather than logging many without being asked.', groups: ['web', 'log'] },
-  { id: 'sp-developer', name: 'Developer Bot', role: 'Programming, debugging and technical work', instructions: 'Read before you change. Prefer small, safe steps and check each one worked: code is not done until it has run and its tests pass. Building something new happens on the laptop, in a project. Explain technical findings in plain words.', groups: [] },
-  { id: 'sp-finance', name: 'Finance Bot', role: 'Numbers, budgets, prices and comparisons', instructions: 'Show the figures and where each came from. Recheck every sum. Never move money or buy anything; lay out the options and let the user decide.', groups: ['web', 'log'] },
+  named('Research Bot', { id: 'sp-research', role: 'Finds things out and backs them with sources', instructions: 'Search widely, read the best primary sources, cross-check key facts in two places, and report with links. Say plainly what you could not verify.', groups: ['web'] }),
+  named('Planner Bot', { id: 'sp-planner', role: 'Turns goals into schedules and step-by-step plans', instructions: 'Break the goal into clear steps with realistic timings. Check the Log for what is already planned and avoid clashes. Offer to log reminders rather than logging many without being asked.', groups: ['web', 'log'] }),
+  named('Developer Bot', { id: 'sp-developer', role: 'Programming, debugging and technical work', instructions: 'Read before you change. Prefer small, safe steps and check each one worked: code is not done until it has run and its tests pass. Building something new happens on the laptop, in a project. Explain technical findings in plain words.', groups: [] }),
+  named('Finance Bot', { id: 'sp-finance', role: 'Numbers, budgets, prices and comparisons', instructions: 'Show the figures and where each came from. Recheck every sum. Never move money or buy anything; lay out the options and let the user decide.', groups: ['web', 'log'] }),
 ];
 export function specialistPrompt(sp) {
   if (!sp) return '';
   let s = `\n\nYou are ${sp.name}${sp.role ? ` (${sp.role})` : ''}, one of the user's standing bots: a worker with its own job, memory and work log.`;
+  const who = personaPrompt(sp); if (who) s += '\n' + who;
   if (sp.instructions) s += `\nYour standing instructions: ${sp.instructions}`;
   if (sp.notes && sp.notes.length) s += `\nYour own notes from earlier jobs (keep what's still true in mind; fix them with bot_remember / bot_forget):\n` + sp.notes.map((n) => '- ' + n).join('\n');
   const log = (sp.log || []).slice(-8);
@@ -246,7 +255,7 @@ export function specialistPrompt(sp) {
 }
 export function teamIndex(list) {
   if (!list.length) return '';
-  return 'Specialist bots you can hand part of the work to (delegate):\n' + list.map((s) => `- ${s.name}: ${s.role || 'general helper'}`).join('\n');
+  return 'Specialist bots you can hand part of the work to (delegate, by name):\n' + list.map((s) => `- ${s.name}${s.title ? ` (${s.title})` : ''}: ${s.role || 'general helper'}`).join('\n');
 }
 export function rulesPrompt(policy) {
   const out = [];
@@ -278,7 +287,8 @@ export function createExtras(deps) {
     loaded = true;
     try { const t = await deps.load(); if (t) { const d = JSON.parse(t); for (const k of ['skills', 'routines', 'specialists']) if (Array.isArray(d[k])) data[k] = d[k]; if (d.policy) data.policy = { ...emptyPolicy(), ...d.policy }; data.seeded = !!d.seeded; if (d.local && typeof d.local === 'object') data.local = { counts: d.local.counts || {}, recent: Array.isArray(d.local.recent) ? d.local.recent : [] }; } } catch (e) { console.error('botx: unreadable', e); }
     if (!data.seeded) { data.seeded = true; for (const s of DEFAULT_SPECIALISTS) if (!data.specialists.some((x) => x.id === s.id)) data.specialists.push(cleanSpecialist(s, 0, s.id)); }
-    data.specialists = data.specialists.map((s) => normalizeBot(s, s.updatedAt || 0, s.id));
+    // bots from before names get theirs once ("Developer Bot" → Ted); a name the user chose is never touched
+    data.specialists = data.specialists.map((s) => normalizeBot(migrateFace(s), s.updatedAt || 0, s.id));
     await persist(); tick();
   }
 
@@ -420,6 +430,7 @@ export function createExtras(deps) {
     if (kind === 'botpolicy') { if (rec && (rec.updatedAt || 0) >= (data.policy.updatedAt || 0)) data.policy = { ...emptyPolicy(), ...rec }; persist(); changed(null); return; }
     const arr = kind === 'skill' ? data.skills : kind === 'routine' ? data.routines : kind === 'specialist' ? data.specialists : null; if (!arr) return;
     const i = arr.findIndex((x) => x.id === id);
+    if (rec && kind === 'specialist') rec = migrateFace(rec);   // an older device may still send the old name
     if (!rec) { if (i >= 0) arr.splice(i, 1); }
     else if (i < 0) arr.push(rec);
     else if ((rec.updatedAt || 0) >= (arr[i].updatedAt || 0)) {

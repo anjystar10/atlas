@@ -13,6 +13,7 @@ import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.View
 import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
@@ -38,7 +39,7 @@ import kotlin.math.roundToInt
  */
 class CrewActivity : Activity() {
     companion object {
-        const val MODE_CHAT = "chat"; const val MODE_INFO = "info"; const val MODE_NEW_BOT = "newbot"; const val MODE_NEW_GROUP = "newgroup"
+        const val MODE_CHAT = "chat"; const val MODE_INFO = "info"; const val MODE_NEW_BOT = "newbot"; const val MODE_NEW_GROUP = "newgroup"; const val MODE_HISTORY = "history"
         private const val EXTRA_MODE = "mode"; private const val EXTRA_ID = "id"
         /** A bot's own conversation. */
         fun bot(ctx: Context, botId: String) = Intent(ctx, CrewActivity::class.java).putExtra(EXTRA_MODE, MODE_CHAT).putExtra(EXTRA_ID, ThreadRules.directId(botId))
@@ -47,6 +48,8 @@ class CrewActivity : Activity() {
         fun info(ctx: Context, botId: String) = Intent(ctx, CrewActivity::class.java).putExtra(EXTRA_MODE, MODE_INFO).putExtra(EXTRA_ID, botId)
         fun newBot(ctx: Context) = Intent(ctx, CrewActivity::class.java).putExtra(EXTRA_MODE, MODE_NEW_BOT)
         fun newGroup(ctx: Context) = Intent(ctx, CrewActivity::class.java).putExtra(EXTRA_MODE, MODE_NEW_GROUP)
+        /** Every job your bots ran (here and on your other device), by day, searchable (it used to be a list on the Bots tab). */
+        fun history(ctx: Context) = Intent(ctx, CrewActivity::class.java).putExtra(EXTRA_MODE, MODE_HISTORY)
 
         private val WAITING = BotRules.WAITING_ON_USER
         private val RUNNING = setOf(BotRules.RUNNING, BotRules.QUEUED, BotRules.WAITING_RETRY, BotRules.WAITING_HELPERS)
@@ -63,7 +66,9 @@ class CrewActivity : Activity() {
         }
     }
 
-    private val P get() = Palette.NIGHT
+    /** Follows the app's look (light or dark, Me → Appearance) and the colour theme. */
+    private var dark = true
+    private val P get() = if (dark) Themes.current.dark else Themes.current.light
     private val BG get() = P.bg
     private val FG get() = P.fg
     private val MUTED get() = P.muted
@@ -95,7 +100,11 @@ class CrewActivity : Activity() {
     private var fresh = false
     private var lastSig = ""
     // new bot / new group / add trigger drafts
-    private var nbName = ""; private var nbRole = ""; private var nbInstr = ""; private var nbIcon = ""
+    private var nbName = ""; private var nbRole = ""; private var nbInstr = ""; private var nbIcon = ""; private var nbTitle = ""
+    private var nbShape = "orb"; private var nbColor = 0
+    // the bot's name and look on its details page, and History's filters
+    private var edName: String? = null; private var edTitle: String? = null; private var edShape: String? = null; private var edColor: Int? = null
+    private var hQuery = ""; private var hBot: String? = null
     private var ngTitle = ""; private val ngBots = linkedSetOf<String>()
     private var addingTrigger = false; private var trType = "schedule"; private val trFields = HashMap<String, String>()
 
@@ -106,7 +115,12 @@ class CrewActivity : Activity() {
         Bots.init(applicationContext); Threads.init(applicationContext)
         mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_CHAT
         id = intent?.getStringExtra(EXTRA_ID)
+        Themes.load(this)
+        val look = Store.getString(this, "theme2") ?: Store.read(this) { it.settings.theme }.takeIf { it in setOf("dark", "light", "system") } ?: "dark"
+        dark = look == "dark" || (look == "system" && (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES)
         window.statusBarColor = BG; window.navigationBarColor = BG
+        val lightBars = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+        window.insetsController?.setSystemBarsAppearance(if (dark) 0 else lightBars, lightBars)
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(BG))
         onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT) { finish() }
         header = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), dp(8), dp(14), dp(8)) }
@@ -143,19 +157,19 @@ class CrewActivity : Activity() {
     private fun eyebrow(s: String) = text(s.uppercase(), 12f, MUTED, semi).apply { letterSpacing = 0.12f }
     private fun card(): LinearLayout = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(14), dp(16), dp(16))
-        background = Finish(SURFACE, dp(22).toFloat(), true, density, glass = true)
+        background = Finish(SURFACE, dp(22).toFloat(), dark, density, glass = true)
     }
     private fun button(label: String, kind: String = "quiet", onTap: () -> Unit) = TextView(this).apply {
         text = label; textSize = 15f; typeface = if (kind == "primary") semi else med; gravity = Gravity.CENTER
         setTextColor(when (kind) { "primary" -> P.onPrimary; "danger" -> BAD; else -> FG })
         setPadding(dp(16), dp(11), dp(16), dp(12)); minHeight = dp(44)
-        background = Finish(if (kind == "primary") P.primaryBottom else SURFACE, -1f, true, density, glass = kind != "primary")
+        background = Finish(if (kind == "primary") P.primaryBottom else SURFACE, -1f, dark, density, glass = kind != "primary")
         isClickable = true; setOnClickListener { it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); onTap() }; pressFx()
     }
     private fun chip(label: String, on: Boolean, onTap: () -> Unit) = TextView(this).apply {
         text = label; textSize = 14f; typeface = med; gravity = Gravity.CENTER
         setTextColor(if (on) P.onPrimary else FG); setPadding(dp(14), dp(8), dp(14), dp(9)); minHeight = dp(40)
-        background = Finish(if (on) P.primaryBottom else SURFACE, -1f, true, density, glass = !on)
+        background = Finish(if (on) P.primaryBottom else SURFACE, -1f, dark, density, glass = !on)
         isClickable = true; setOnClickListener { onTap() }; pressFx()
         contentDescription = label + if (on) ", selected" else ""
     }
@@ -176,7 +190,7 @@ class CrewActivity : Activity() {
     }
     private fun field(hint: String, value: String, lines: Int = 1, onChange: (String) -> Unit) = EditText(this).apply {
         setText(value); this.hint = hint; textSize = 16f; typeface = body; setTextColor(FG); setHintTextColor(FAINT)
-        background = Finish(SURFACE, dp(16).toFloat(), true, density, glass = true); setPadding(dp(14), dp(12), dp(14), dp(12))
+        background = Finish(SURFACE, dp(16).toFloat(), dark, density, glass = true); setPadding(dp(14), dp(12), dp(14), dp(12))
         inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or (if (lines > 1) InputType.TYPE_TEXT_FLAG_MULTI_LINE else 0)
         if (lines > 1) { minLines = lines; gravity = Gravity.TOP or Gravity.START }
         addTextChangedListener(object : android.text.TextWatcher {
@@ -190,6 +204,10 @@ class CrewActivity : Activity() {
     /** A bot's face: the orb for Atlas, its icon on glass for the others, with a status dot. */
     private fun avatar(botId: String?, sizeDp: Int, tone: String? = null): View {
         val f = FrameLayout(this)
+        if (botId != null && botId != ThreadRules.ATLAS) BotExtras.specialist(botId)?.let { b ->
+            // its own face (BotFace): shape, colours and a glyph for its job; working / waiting is drawn on it
+            f.addView(BotFaceView(this, b, WARN, tone), FrameLayout.LayoutParams(dp(sizeDp + 6), dp(sizeDp + 6))); return f
+        }
         val face: View = if (botId == null || botId == ThreadRules.ATLAS) View(this).apply {
             background = GradientDrawable().apply { shape = GradientDrawable.OVAL; gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(sizeDp).toFloat() * 0.75f
                 setGradientCenter(0.34f, 0.28f); colors = intArrayOf(Color.parseColor("#DDE6FF"), P.blue, P.accent, BG) }
@@ -197,7 +215,7 @@ class CrewActivity : Activity() {
             val b = BotExtras.specialist(botId)
             val icon = b?.optString("icon")?.ifBlank { null } ?: b?.optString("name")?.trim()?.take(1)?.uppercase() ?: "•"
             text = icon; textSize = sizeDp * 0.42f; gravity = Gravity.CENTER; setTextColor(FG); typeface = semi
-            background = Finish(SURFACE, -1f, true, density, glass = true)
+            background = Finish(SURFACE, -1f, dark, density, glass = true)
         }
         face.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         f.addView(face, FrameLayout.LayoutParams(dp(sizeDp), dp(sizeDp)))
@@ -240,6 +258,7 @@ class CrewActivity : Activity() {
             MODE_INFO -> info()
             MODE_NEW_BOT -> newBot()
             MODE_NEW_GROUP -> newGroup()
+            MODE_HISTORY -> history()
             else -> chat()
         }
         if (hadFocus) input?.let { it.requestFocus(); it.setSelection(it.text.length) }
@@ -261,7 +280,7 @@ class CrewActivity : Activity() {
         else right.add(button("⋯") { groupSettings(t) }.apply { contentDescription = "Group chat settings" })
         if (direct) {
             val (label, tone) = if (botId == ThreadRules.ATLAS) (if (busy != null) "Working" to "live" else "Your chief of staff" to "idle") else statusOf(botId!!)
-            val sub = label + (if (busy?.state == BotRules.RUNNING && !busy.current.isNullOrBlank()) " · ${busy.current}" else "")
+            val sub = (if (botId == ThreadRules.ATLAS) "" else BotFace.subtitle(BotExtras.specialist(botId)) + " · ") + label + (if (busy?.state == BotRules.RUNNING && !busy.current.isNullOrBlank()) " · ${busy.current}" else "")
             hdr(Threads.nameOf(botId) + if (botId == ThreadRules.ATLAS) " ★" else "", sub, avatar(botId, 38, tone), *right.toTypedArray())
         } else {
             hdr(t.title, inIt.joinToString(", ") { Threads.nameOf(it) } + " + Atlas", avatar(inIt.firstOrNull(), 38), *right.toTypedArray())
@@ -272,9 +291,11 @@ class CrewActivity : Activity() {
             if (direct) {
                 e.addView(avatar(botId, 72))
                 e.addView(text(Threads.nameOf(botId), 24f, FG, serif).apply { gravity = Gravity.CENTER; setPadding(0, dp(12), 0, 0) })
-                val role = if (botId == ThreadRules.ATLAS) "Your chief of staff: takes on anything, hands parts to the right bot" else BotExtras.specialist(botId)?.optString("role").orEmpty()
+                val sp = BotExtras.specialist(botId)
+                val role = if (botId == ThreadRules.ATLAS) "Your chief of staff: takes on anything, hands parts to the right bot" else listOf(BotFace.subtitle(sp), sp?.optString("role").orEmpty()).filter { it.isNotBlank() }.distinct().joinToString(" — ")
                 e.addView(text(role, 15f, MUTED).apply { gravity = Gravity.CENTER })
-                e.addView(text("Tell it what you need. It works in the background and reports back here.", 13f, FAINT).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, 0) })
+                BotExtras.specialist(botId)?.optString("persona")?.takeIf { it.isNotBlank() }?.let { e.addView(text("“$it”", 15f, FG, serif).apply { gravity = Gravity.CENTER; setPadding(dp(8), dp(12), dp(8), 0) }) }
+                e.addView(text("Tell ${Threads.nameOf(botId)} what you need. It works in the background and reports back here.", 13f, FAINT).apply { gravity = Gravity.CENTER; setPadding(0, dp(10), 0, 0) })
             } else e.addView(text("Say what you need. @mention a bot to give it the job; without a mention, Atlas takes it and hands parts on.", 15f, MUTED).apply { gravity = Gravity.CENTER })
             add(e)
         }
@@ -283,7 +304,7 @@ class CrewActivity : Activity() {
         scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
 
         // the composer
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), dp(8), dp(10), dp(8)); background = Finish(SURFACE, dp(24).toFloat(), true, density, glass = true) }
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), dp(8), dp(10), dp(8)); background = Finish(SURFACE, dp(24).toFloat(), dark, density, glass = true) }
         if (!direct) {
             val chips = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             (inIt + ThreadRules.ATLAS).forEach { b -> chips.addView(chip("@" + Threads.nameOf(b), false) { val e = input ?: return@chip; val cur = e.text.toString().trimEnd(); e.setText((if (cur.isEmpty()) "" else "$cur ") + "@" + Threads.nameOf(b) + " "); e.setSelection(e.text.length); e.requestFocus() },
@@ -316,12 +337,12 @@ class CrewActivity : Activity() {
             val w = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.END }
             w.addView(text(m.text, Type.READ, FG, serif).apply {
                 setPadding(dp(14), dp(10), dp(14), dp(11)); setTextIsSelectable(true)
-                background = Finish(SURFACE, dp(20).toFloat(), true, density, glass = true); maxWidth = (resources.displayMetrics.widthPixels * 0.78).toInt()
+                background = Finish(SURFACE, dp(20).toFloat(), dark, density, glass = true); maxWidth = (resources.displayMetrics.widthPixels * 0.78).toInt()
             }, LinearLayout.LayoutParams(-2, -2))
             return w
         }
         if (m.kind == "note") return text(m.text, 13f, MUTED, med).apply {
-            gravity = Gravity.CENTER; setPadding(dp(14), dp(7), dp(14), dp(8)); background = Finish(SURFACE, -1f, true, density, glass = true)
+            gravity = Gravity.CENTER; setPadding(dp(14), dp(7), dp(14), dp(8)); background = Finish(SURFACE, -1f, dark, density, glass = true)
         }
         val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         row.addView(avatar(m.from, 30), LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(10); topMargin = dp(2) })
@@ -358,7 +379,7 @@ class CrewActivity : Activity() {
                         movementMethod = android.text.method.LinkMovementMethod.getInstance() },
                         LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
                     is Markdown.Code -> c.addView(text(b.text, 13.5f, FG, mono).apply { setPadding(dp(12), dp(10), dp(12), dp(10))
-                        background = Finish(SURFACE, dp(12).toFloat(), true, density, glass = true); setTextIsSelectable(true) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+                        background = Finish(SURFACE, dp(12).toFloat(), dark, density, glass = true); setTextIsSelectable(true) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
                 }
             }
             if (m.kind == "question" && j?.state == BotRules.AWAITING_ANSWER) c.addView(text("Reply below to answer.", 12f, WARN, med), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(4) })
@@ -410,8 +431,9 @@ class CrewActivity : Activity() {
         val b = if (atlas) null else BotExtras.specialist(botId)
         if (!atlas && b == null) { hdr("Bot"); add(text("This bot was removed.", 16f, MUTED), 20); return }
         val (label, tone) = if (atlas) "Your chief of staff" to "idle" else statusOf(botId)
-        hdr(Threads.nameOf(botId), label, avatar(botId, 38, tone))
+        hdr(Threads.nameOf(botId), (if (atlas) "" else BotFace.subtitle(b) + " · ") + label, avatar(botId, 38, tone))
         if (!atlas) add(text(b!!.optString("role"), 15f, MUTED), 4)
+        if (!atlas) { add(eyebrow("Name & look"), 22); add(lookCard(b!!), 8) }
 
         // its screen: watch live / take over (on the mission's page, where its browser is)
         val live = Threads.missionsOf(botId).firstOrNull { it.state in RUNNING || it.state in WAITING }
@@ -620,9 +642,9 @@ class CrewActivity : Activity() {
         BotTemplates.all(this).forEach { t ->
             val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(10), dp(10), dp(10), dp(10)); isClickable = true; minimumHeight = dp(56)
                 setOnClickListener { confirmTemplate(t) }; pressFx() }
-            r.addView(TextView(this).apply { text = t.optString("icon"); textSize = 20f; gravity = Gravity.CENTER; background = Finish(SURFACE, -1f, true, density, glass = true); importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }, LinearLayout.LayoutParams(dp(44), dp(44)))
+            r.addView(BotFaceView(this, t, WARN), LinearLayout.LayoutParams(dp(50), dp(50)))
             val tx = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, 0, 0) }
-            tx.addView(text(t.optString("name"), 16f, FG, med))
+            tx.addView(text(BotFace.label(t), 16f, FG, med))
             tx.addView(text(t.optString("role"), 13f, MUTED).apply { maxLines = 2; ellipsize = TextUtils.TruncateAt.END })
             r.addView(tx, LinearLayout.LayoutParams(0, -2, 1f))
             list.addView(r)
@@ -630,14 +652,17 @@ class CrewActivity : Activity() {
         add(list, 8)
         add(eyebrow("Or describe your own"), 22)
         val f = card()
-        f.addView(field("Name (e.g. Gym Coach)", nbName) { nbName = it })
-        f.addView(field("Icon (one emoji, optional)", nbIcon) { nbIcon = it.take(4) }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        f.addView(field("Its name (e.g. Kai)", nbName) { nbName = it })
+        f.addView(field("Its title (e.g. Gym Coach)", nbTitle) { nbTitle = it }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        f.addView(text("Its look", 13f, MUTED, semi), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
+        f.addView(lookPicker(JSONObject().put("id", "new").put("name", nbName).put("title", nbTitle).put("role", nbRole), nbShape, nbColor) { sh, co -> nbShape = sh; nbColor = co; render() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         f.addView(field("Its job, in a line", nbRole) { nbRole = it }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         f.addView(field("How it should work: what to do, what to watch out for, how to report back", nbInstr, lines = 4) { nbInstr = it }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         f.addView(text("It starts with the usual daily budget (about 2 hours and 300 AI calls) and can use every kind of tool except money, which starts look-only. Risky actions always ask you. Change any of it on its Details page.", 12f, FAINT), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
         f.addView(button("Create Bot", "primary") {
             if (nbName.isBlank()) { toast("Give it a name."); return@button }
-            val nb = Crew.normalizeBot(JSONObject().put("v", 2).put("name", nbName.trim()).put("icon", nbIcon.trim()).put("role", nbRole.trim()).put("instructions", nbInstr.trim())
+            val nb = Crew.normalizeBot(JSONObject().put("v", 2).put("name", nbName.trim()).put("title", nbTitle.trim()).put("face", JSONObject().put("shape", nbShape).put("color", nbColor))
+                .put("icon", nbIcon.trim()).put("role", nbRole.trim()).put("instructions", nbInstr.trim())
                 .put("access", Crew.defaultAccess()).put("budget", Crew.DEFAULT_BUDGET).put("createdBy", "user"), System.currentTimeMillis(), "")
             val saved = BotExtras.saveSpecialist(nb)
             toast("${saved.optString("name")} is ready. Tell it what you need.")
@@ -647,13 +672,130 @@ class CrewActivity : Activity() {
     }
 
     private fun confirmTemplate(t: JSONObject) {
-        android.app.AlertDialog.Builder(this).setTitle("Make ${t.optString("name")}?").setMessage(t.optString("role") + "\n\n" + BotTemplates.summary(t))
+        android.app.AlertDialog.Builder(this).setTitle("Make ${BotFace.label(t)}?").setMessage(t.optString("role") + "\n\n" + BotTemplates.summary(t))
             .setPositiveButton("Make It") { _, _ ->
                 val b = BotTemplates.instantiate(t, null, System.currentTimeMillis(), "")
                 val saved = BotExtras.saveSpecialist(b)
                 toast("${saved.optString("name")} is ready. Tell it what you need.")
                 startActivity(bot(this, saved.optString("id"))); finish()
             }.setNegativeButton("Cancel", null).show()
+    }
+
+
+    // ================================================================ a bot's name and look (like Grok Bot's shape and colour)
+
+    /** Five shapes and eight colours, each shown as the bot's real face; [onPick] gets (shape, colour). */
+    private fun lookPicker(base: JSONObject, shape: String, color: Int, onPick: (String, Int) -> Unit): View {
+        val col2 = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val shapes = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        BotFace.SHAPES.forEach { sh ->
+            val on = sh == shape
+            val cell = FrameLayout(this).apply {
+                isClickable = true; contentDescription = "Shape: $sh" + if (on) ", chosen" else ""
+                background = if (on) GradientDrawable().apply { shape = GradientDrawable.OVAL; setStroke(dp(2), ACCENT); setColor(Color.TRANSPARENT) } else null
+                setOnClickListener { performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); onPick(sh, color) }
+            }
+            cell.addView(BotFaceView(this, JSONObject(base.toString()).put("face", JSONObject().put("shape", sh).put("color", color)), WARN), FrameLayout.LayoutParams(dp(44), dp(44), Gravity.CENTER))
+            shapes.addView(cell, LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(4) })
+        }
+        col2.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(shapes) })
+        val colours = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(8), 0, 0) }
+        BotFace.COLORS.forEachIndexed { i, (a, z) ->
+            val on = i == color
+            colours.addView(View(this).apply {
+                isClickable = true; contentDescription = "Colour ${i + 1}" + if (on) ", chosen" else ""
+                background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.parseColor(a), Color.parseColor(z))).apply { shape = GradientDrawable.OVAL; if (on) setStroke(dp(3), FG) }
+                setOnClickListener { performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); onPick(shape, i) }
+            }, LinearLayout.LayoutParams(dp(32), dp(32)).apply { rightMargin = dp(10) })
+        }
+        col2.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(colours) })
+        return col2
+    }
+
+    /** Rename a bot, give it a title, and change its look. Its memory, triggers and work stay. */
+    private fun lookCard(b: JSONObject): View {
+        val c = card()
+        val f = BotFace.faceOf(b)
+        val sh = edShape ?: f.shape; val co = edColor ?: f.color
+        c.addView(field("Name", edName ?: b.optString("name")) { edName = it })
+        c.addView(field("Title (its job in a word or two)", edTitle ?: b.optString("title")) { edTitle = it }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        c.addView(lookPicker(b, sh, co) { s2, c2 -> edShape = s2; edColor = c2; render() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+        c.addView(button("Save Name & Look", "primary") {
+            val name = (edName ?: b.optString("name")).trim()
+            if (name.isEmpty()) { toast("Give it a name."); return@button }
+            BotExtras.saveSpecialist(JSONObject(b.toString()).put("name", name.take(40)).put("title", (edTitle ?: b.optString("title")).trim().take(40))
+                .put("face", JSONObject().put("shape", sh).put("color", co)))
+            edName = null; edTitle = null; edShape = null; edColor = null
+            toast("Saved."); render()
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+        c.addView(text("Its memory, triggers and work stay the same. Its personality: ${b.optString("persona").ifBlank { "tell it how you'd like it to sound." }}", 12f, FAINT), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+        return c
+    }
+
+    // ================================================================ History (every job, here and on your other device)
+
+    private fun historyItems(): List<JSONObject> {
+        val out = mutableListOf<JSONObject>()
+        Bots.jobs.filter { it.parent == null }.forEach { j ->
+            out.add(JSONObject().put("id", j.id).put("goal", j.goal).put("state", j.state).put("bot", Bots.botIdOf(j)).put("at", maxOf(j.updatedAt, j.createdAt)).put("where", "here"))
+        }
+        (try { BotMirror.others(this) } catch (_: Exception) { emptyList() }).forEach { v ->
+            out.add(JSONObject(v.toString()).put("at", maxOf(v.optLong("updatedAt"), v.optLong("createdAt"))).put("where", if (v.optString("platform") == "windows") "pc" else "other")
+                .put("bot", v.optString("bot").ifEmpty { ThreadRules.ATLAS }))
+        }
+        return out
+    }
+
+    private fun history() {
+        hdr("History", "Every job your bots ran, on this phone and your other device")
+        val tz = java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 60_000
+        val all = historyItems()
+        val h = BotFace.historyGroups(all, hBot, hQuery, tz)
+        val q = field("Search jobs", hQuery) { hQuery = it; historyList(all, tz) }
+        add(q, 6)
+        val bots = listOf<String?>(null, ThreadRules.ATLAS) + BotExtras.specialists.toList().map { it.optString("id") }
+        add(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(LinearLayout(this@CrewActivity).apply {
+            orientation = LinearLayout.HORIZONTAL
+            bots.forEach { bid -> addView(chip(if (bid == null) "Everyone" else Threads.nameOf(bid), hBot == bid) { hBot = bid; render() }, LinearLayout.LayoutParams(-2, -2).apply { rightMargin = dp(6) }) }
+        }) }, 10)
+        historyHost = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        add(historyHost!!, 4)
+        historyList(all, tz, h)
+    }
+    private var historyHost: LinearLayout? = null
+    private fun historyList(all: List<JSONObject>, tz: Int, pre: BotFace.History? = null) {
+        val host = historyHost ?: return
+        host.removeAllViews()
+        val h = pre ?: BotFace.historyGroups(all, hBot, hQuery, tz)
+        if (h.waiting > 0) host.addView(text("${h.waiting} waiting on you. Open the job, or ask Atlas.", 14f, WARN, med), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+        if (h.total == 0) { host.addView(text(if (hQuery.isBlank() && hBot == null) "No jobs yet. When your bots work, every job shows here." else "Nothing matches.", 15f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(18) }); return }
+        for (g in h.groups) {
+            val label = when (g.label) { "Today", "Yesterday" -> g.label; else -> try { java.time.LocalDate.parse(g.day).format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM")) } catch (_: Exception) { g.day } }
+            host.addView(eyebrow(label), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(20) })
+            val c = card().apply { setPadding(dp(6), dp(6), dp(6), dp(6)) }
+            g.items.take(60).forEach { it -> c.addView(historyRow(it)) }
+            host.addView(c, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+        }
+    }
+    private fun historyRow(it: BotFace.Item): View {
+        val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(8), dp(10), dp(8), dp(10)); minimumHeight = dp(56); isClickable = true; pressFx() }
+        r.addView(avatar(it.bot, 34), LinearLayout.LayoutParams(-2, -2))
+        val tx = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12), 0, 0, 0) }
+        tx.addView(text(it.goal.ifBlank { "A job" }, 15f, FG, med).apply { maxLines = 2; ellipsize = TextUtils.TruncateAt.END })
+        val state = BotRules.label(it.state)
+        val where = when (it.where) { "pc" -> "on your PC"; "other" -> "on your other device"; else -> "on this phone" }
+        val line = "${Threads.nameOf(it.bot)} · $state · $where · ${java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(it.at))}"
+        tx.addView(text(line, 13f, when { it.state in WAITING -> WARN; it.state == BotRules.FAILED -> BAD; it.state == BotRules.COMPLETED -> GOOD; else -> MUTED }, med).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END })
+        r.addView(tx, LinearLayout.LayoutParams(0, -2, 1f))
+        r.contentDescription = "${it.goal}. $line"
+        r.setOnClickListener { _ ->
+            if (it.where == "here") { go(Intent(this, BotActivity::class.java).putExtra(BotActivity.EXTRA_ID, it.id)); return@setOnClickListener }
+            val report = it.raw.optString("report")
+            val msg = if (report.isNotBlank()) Plain.reply(report) else "${it.raw.optString("label").ifBlank { state }}${it.raw.optString("current").let { c -> if (c.isNotBlank()) ": $c" else "" }}.\n\nIt runs $where; open Atlas there to answer it, or ask Atlas here."
+            val tv = TextView(this).apply { text = msg; setTextColor(FG); textSize = 15f; setTextIsSelectable(true); setPadding(dp(20), dp(12), dp(20), dp(12)) }
+            android.app.AlertDialog.Builder(this).setTitle(it.goal.take(80)).setView(ScrollView(this).apply { addView(tv) }).setPositiveButton("Close", null).show()
+        }
+        return r
     }
 
     // ================================================================ new group

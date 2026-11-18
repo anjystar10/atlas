@@ -218,8 +218,12 @@ object BotExtras {
         }
         fun findByName(list: List<JSONObject>, name: String?): JSONObject? {
             val n = (name ?: "").trim().lowercase(); if (n.isEmpty()) return null
-            return list.firstOrNull { it.optString("name").lowercase() == n } ?: list.firstOrNull { it.optString("id") == name }
-                ?: list.firstOrNull { val x = it.optString("name").lowercase(); x.contains(n) || n.contains(x) }
+            list.firstOrNull { it.optString("name").lowercase() == n }?.let { return it }
+            list.firstOrNull { it.optString("id") == name }?.let { return it }
+            list.firstOrNull { val x = it.optString("name").lowercase(); x.contains(n) || n.contains(x) }?.let { return it }
+            // a bot asked for by its old name ("Developer Bot" → Ted) or by its title ("the developer")
+            BotFace.RENAMES.entries.firstOrNull { it.key.lowercase() == n }?.let { r -> list.firstOrNull { it.optString("name").lowercase() == r.value.name.lowercase() }?.let { return it } }
+            return list.firstOrNull { val t = it.optString("title").lowercase(); t.isNotEmpty() && (t == n || n.contains(t)) }
         }
         /** A first draft of a skill from a finished job's journal, for the user to review. */
         fun draftSkill(j: BotJob): JSONObject {
@@ -259,27 +263,33 @@ object BotExtras {
             val b = Crew.normalizeBot(src, now, x.optString("id").ifEmpty { id })
             return b.put("notes", JSONArray(notes))
         }
+        /** The starter team, named like teammates (Grok Bot's durable named Bots); BotFace has who each is. */
+        private fun named(old: String, x: JSONObject): JSONObject {
+            val r = BotFace.RENAMES.getValue(old)
+            return x.put("name", r.name).put("title", r.title).put("face", JSONObject().put("shape", r.shape).put("color", r.color)).put("persona", r.persona)
+        }
         val DEFAULT_SPECIALISTS = listOf(
-            JSONObject().put("id", "sp-research").put("name", "Research Bot").put("role", "Finds things out and backs them with sources")
-                .put("instructions", "Search widely, read the best primary sources, cross-check key facts in two places, and report with links. Say plainly what you could not verify.").put("groups", JSONArray(listOf("web"))),
-            JSONObject().put("id", "sp-planner").put("name", "Planner Bot").put("role", "Turns goals into schedules and step-by-step plans")
-                .put("instructions", "Break the goal into clear steps with realistic timings. Check the Log for what is already planned and avoid clashes. Offer to log reminders rather than logging many without being asked.").put("groups", JSONArray(listOf("web", "log"))),
-            JSONObject().put("id", "sp-developer").put("name", "Developer Bot").put("role", "Programming, debugging and technical work")
-                .put("instructions", "Read before you change. Prefer small, safe steps and check each one worked: code is not done until it has run and its tests pass. Building something new happens on the laptop, in a project. Explain technical findings in plain words.").put("groups", JSONArray()),
-            JSONObject().put("id", "sp-finance").put("name", "Finance Bot").put("role", "Numbers, budgets, prices and comparisons")
-                .put("instructions", "Show the figures and where each came from. Recheck every sum. Never move money or buy anything; lay out the options and let the user decide.").put("groups", JSONArray(listOf("web", "log"))),
+            named("Research Bot", JSONObject().put("id", "sp-research").put("role", "Finds things out and backs them with sources")
+                .put("instructions", "Search widely, read the best primary sources, cross-check key facts in two places, and report with links. Say plainly what you could not verify.").put("groups", JSONArray(listOf("web")))),
+            named("Planner Bot", JSONObject().put("id", "sp-planner").put("role", "Turns goals into schedules and step-by-step plans")
+                .put("instructions", "Break the goal into clear steps with realistic timings. Check the Log for what is already planned and avoid clashes. Offer to log reminders rather than logging many without being asked.").put("groups", JSONArray(listOf("web", "log")))),
+            named("Developer Bot", JSONObject().put("id", "sp-developer").put("role", "Programming, debugging and technical work")
+                .put("instructions", "Read before you change. Prefer small, safe steps and check each one worked: code is not done until it has run and its tests pass. Building something new happens on the laptop, in a project. Explain technical findings in plain words.").put("groups", JSONArray())),
+            named("Finance Bot", JSONObject().put("id", "sp-finance").put("role", "Numbers, budgets, prices and comparisons")
+                .put("instructions", "Show the figures and where each came from. Recheck every sum. Never move money or buy anything; lay out the options and let the user decide.").put("groups", JSONArray(listOf("web", "log")))),
         )
         fun specialistPrompt(sp: JSONObject?): String {
             if (sp == null) return ""
             val role = sp.optString("role")
             var s = "\n\nYou are working as ${sp.optString("name")}${if (role.isNotEmpty()) " ($role)" else ""}, one of the user's specialist bots."
+            BotFace.personaPrompt(sp).takeIf { it.isNotEmpty() }?.let { s += "\n$it" }
             sp.optString("instructions").takeIf { it.isNotEmpty() }?.let { s += "\nYour standing instructions: $it" }
             val notes = sp.optJSONArray("notes")?.let { a -> List(a.length()) { a.optString(it) } } ?: emptyList()
             if (notes.isNotEmpty()) s += "\nYour own notes from earlier jobs (keep what's still true in mind; fix them with bot_remember / bot_forget):\n" + notes.joinToString("\n") { "- $it" }
             return s
         }
         fun teamIndex(list: List<JSONObject>): String =
-            if (list.isEmpty()) "" else "Specialist bots you can hand part of the work to (delegate):\n" + list.joinToString("\n") { "- ${it.optString("name")}: ${it.optString("role").ifEmpty { "general helper" }}" }
+            if (list.isEmpty()) "" else "Specialist bots you can hand part of the work to (delegate, by name):\n" + list.joinToString("\n") { "- ${it.optString("name")}${it.optString("title").let { t -> if (t.isNotEmpty()) " ($t)" else "" }}: ${it.optString("role").ifEmpty { "general helper" }}" }
         fun rulesPrompt(policy: JSONObject): String {
             val out = mutableListOf<String>()
             val rules = policy.optJSONArray("rules")?.let { a -> List(a.length()) { a.optString(it) } } ?: emptyList()
@@ -330,6 +340,8 @@ object BotExtras {
                 }
             } catch (e: Exception) { Log.w(TAG, "unreadable", e) }
             if (!seeded) { seeded = true; Rules.DEFAULT_SPECIALISTS.forEach { s -> if (specialists.none { it.optString("id") == s.optString("id") }) specialists.add(Rules.cleanSpecialist(s, 0, s.optString("id"))) } }
+            // bots from before names get theirs once ("Developer Bot" → Ted); a name the user chose is never touched
+            for (i in specialists.indices) BotFace.migrate(specialists[i])?.let { specialists[i] = it }
             persist()
         }
         for (kind in listOf("skill", "routine", "specialist", "botpolicy")) {
@@ -526,6 +538,7 @@ object BotExtras {
             if (kind == "botpolicy") { if (rec != null && rec.optLong("updatedAt") >= policy.optLong("updatedAt")) policy = emptyPolicy().also { e -> rec.keys().forEach { k -> e.put(k, rec.get(k)) } } }
             else {
                 val arr = when (kind) { "skill" -> skills; "routine" -> routines; "specialist" -> specialists; else -> return }
+                @Suppress("NAME_SHADOWING") val rec = if (kind == "specialist") BotFace.migrate(rec) else rec   // an older device may still send the old name
                 val i = arr.indexOfFirst { it.optString("id") == id }
                 when {
                     rec == null -> if (i >= 0) arr.removeAt(i)

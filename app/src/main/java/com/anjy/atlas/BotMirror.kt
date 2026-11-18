@@ -23,6 +23,7 @@ object BotMirror {
         .put("done", j.plan.count { it.done }).put("total", j.plan.size)
         .put("report", (j.report ?: "").take(REPORT_MAX))
         .put("createdAt", j.createdAt).put("updatedAt", j.updatedAt)
+        .put("bot", try { Bots.botIdOf(j) } catch (_: Throwable) { ThreadRules.ATLAS })   // whose job it is (History groups by bot)
 
     /** The other devices' jobs, newest first. */
     fun others(ctx: Context): List<JSONObject> = synchronized(lock) { read(ctx).optJSONObject("others")?.let { o -> o.keys().asSequence().mapNotNull { o.optJSONObject(it) }.toList() } ?: emptyList() }

@@ -2254,11 +2254,12 @@ class MainActivity : Activity() {
      */
     private fun renderBots() {
         val newKeys = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        newKeys.addView(secondary("New Group") { startActivity(CrewActivity.newGroup(this)) }, LinearLayout.LayoutParams(WRAP, WRAP))
+        newKeys.addView(secondary("History") { startActivity(CrewActivity.history(this)) }.apply { contentDescription = "History: every job your bots ran, on this phone and your other device" }, LinearLayout.LayoutParams(WRAP, WRAP))
+        newKeys.addView(secondary("New Group") { startActivity(CrewActivity.newGroup(this)) }, LinearLayout.LayoutParams(WRAP, WRAP).apply { leftMargin = dp(8) })
         newKeys.addView(primary("New Bot") { startActivity(CrewActivity.newBot(this)) }.apply { minHeight = dp(50); setPadding(dp(18), dp(12), dp(18), dp(12)) }, LinearLayout.LayoutParams(WRAP, WRAP).apply { leftMargin = dp(8) })
         pageTitle("Bots")
-        body.add(text("Your team. Each bot has its own conversation: tell it what you need, and it works in the background and reports back there.", 15f, MUTED), 6)
-        body.add(newKeys, 14, WRAP)
+        body.add(text("Your team. Each one has a name, a job and its own conversation: tell it what you need, and it works in the background and reports back there.", 15f, MUTED), 6)
+        body.add(android.widget.HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(newKeys) }, 14, WRAP)
 
         val list = card().apply { setPadding(dp(6), dp(6), dp(6), dp(6)) }
         list.addView(crewRow(ThreadRules.ATLAS, true))
@@ -2286,13 +2287,17 @@ class MainActivity : Activity() {
             ex.addView(secondary(l) { startActivity(BotExtrasActivity.intent(this, pg)) }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { if (i > 0) leftMargin = dp(8) })
         }
         body.add(ex, 12)
-        val elsewhere = try { BotMirror.others(this) } catch (_: Exception) { emptyList() }
-        renderBotsElsewhere(elsewhere)
+        // the other device's jobs are in History (and anything waiting on you there counts on Atlas's row), not listed here
     }
 
     /** A bot's face for the list: the orb for Atlas, its icon on glass for the others, and a live dot. */
     private fun crewFace(botId: String?, tone: String?): View {
         val f = FrameLayout(this)
+        if (botId != null && botId != ThreadRules.ATLAS) BotExtras.specialist(botId)?.let { b ->
+            // a bot's own face (BotFace): its shape and colours, a glyph for its job, and its state drawn on it
+            f.addView(BotFaceView(this, b, WARM, tone), FrameLayout.LayoutParams(dp(50), dp(50)))
+            f.contentDescription = null; return f
+        }
         val face: View = if (botId == null || botId == ThreadRules.ATLAS) View(this).apply {
             background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; gradientType = android.graphics.drawable.GradientDrawable.RADIAL_GRADIENT
                 gradientRadius = dp(46) * 0.75f; setGradientCenter(0.34f, 0.28f); colors = intArrayOf(Color.parseColor("#DDE6FF"), Palette.NIGHT.blue, Palette.NIGHT.accent, BG) }
@@ -2357,14 +2362,16 @@ class MainActivity : Activity() {
         val t = Threads.directOf(botId)
         val (label, tone) = if (atlas) (if (Threads.missionsOf(botId).any { !it.final && it.state !in BotRules.WAITING_ON_USER && it.state != BotRules.PAUSED }) "Working" to "live"
             else if (Threads.missionsOf(botId).any { it.state in BotRules.WAITING_ON_USER }) "Waiting on you" to "warn" else "Idle" to "idle") else CrewActivity.statusOf(botId)
-        val role = if (atlas) "Your chief of staff" else b?.optString("role")?.ifBlank { null } ?: "A bot of yours"
+        val role = if (atlas) "Your chief of staff" else BotFace.subtitle(b)
         val line1 = android.text.SpannableStringBuilder("$role · ").apply {
             val s = length; append(label)
             if (tone == "live" || tone == "warn") setSpan(android.text.style.ForegroundColorSpan(if (tone == "live") DONE else WARM), s, length, 0)
         }
         val p = ThreadRules.preview(t)
         val last = if (p == null) "No messages yet. Say what you need." else (if (p.from == ThreadRules.USER) "You: " else "") + p.text.replace(Regex("\\s+"), " ").take(140)
-        val waitingElsewhere = if (t == null) Threads.missionsOf(botId).count { it.state in BotRules.WAITING_ON_USER } else 0
+        val waitingElsewhere = (if (t == null) Threads.missionsOf(botId).count { it.state in BotRules.WAITING_ON_USER } else 0) +
+            // jobs on your other device that wait on you show on Atlas's row (open History or ask Atlas)
+            (if (atlas) (try { BotMirror.others(this) } catch (_: Exception) { emptyList() }).count { it.optString("state") in BotRules.WAITING_ON_USER } else 0)
         return crewRowShell(crewFace(botId, tone), (if (atlas) "Atlas" else b?.optString("name") ?: "Bot") + if (starred) "  ★" else "", line1, last, p?.at ?: 0L, crewBadge(t?.id, waitingElsewhere)) {
             startActivity(CrewActivity.bot(this, botId))
         }
@@ -2377,35 +2384,6 @@ class MainActivity : Activity() {
         val last = if (p == null) "No messages yet." else "${Threads.nameOf(p.from)}: ${p.text.replace(Regex("\\s+"), " ").take(140)}"
         return crewRowShell(crewFace(who.firstOrNull(), if (working) "live" else null), t.title, who.joinToString(", ") { Threads.nameOf(it) } + " + Atlas", last, p?.at ?: t.updatedAt, crewBadge(t.id, 0)) {
             startActivity(CrewActivity.thread(this, t.id))
-        }
-    }
-
-    /** Bots working on the other device (read-only here: each job runs where it was started). Tap one for its report. */
-    private fun renderBotsElsewhere(list: List<org.json.JSONObject>) {
-        if (list.isEmpty()) return
-        val where = if (list.any { it.optString("platform") == "windows" }) "On Your PC" else "On Your Other Device"
-        body.add(eyebrow(where), 22)
-        list.take(20).forEach { v ->
-            val c = card()
-            c.addView(text(v.optString("goal"), 17f, FG, HEAD).apply { maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END })
-            val total = v.optInt("total"); val cur = v.optString("current")
-            val line = listOfNotNull(v.optString("label").ifBlank { null }, if (v.optString("state") == BotRules.RUNNING && cur.isNotBlank()) cur else null,
-                if (total > 0) "plan ${v.optInt("done")}/$total" else null).joinToString(" · ")
-            c.add(text(line, 13f, MUTED, MED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }, 6)
-            val report = v.optString("report")
-            if (report.isNotBlank()) {
-                c.isClickable = true; c.pressFx()
-                c.setOnClickListener {
-                    val tv = TextView(this).apply { text = Plain.reply(report); setTextColor(FG); textSize = 15f; setTextIsSelectable(true) }
-                    // a long report scrolls inside the sheet
-                    val sv = android.widget.ScrollView(this).apply {
-                        addView(tv)
-                        layoutParams = LinearLayout.LayoutParams(MATCH, (resources.displayMetrics.heightPixels * 0.55f).toInt())
-                    }
-                    sheet(null, v.optString("goal").take(80), "Its report, from your other device.", content = sv, primaryLabel = "Close", onPrimary = {})
-                }
-            }
-            body.add(c, 10)
         }
     }
 

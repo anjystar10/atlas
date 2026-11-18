@@ -539,7 +539,7 @@ Where you're running (so you can say why something is held back; don't bring it 
 Your phone (on_phone):
 - The user's phone is linked to this PC. When they want something done ON THE PHONE (an app only the phone has, a text from their phone, something on its screen), use on_phone with the whole task. It runs there and the result comes back into this chat.
 
-${host.projects ? PROJECTS_PROMPT + '\nFor a big build, send the Developer specialist (deploy_bot with specialist "Developer Bot") with the full brief, so the chat stays free; small scripts and fixes you can do yourself here.\n\n' : ''}Atlas Bot (deploy_bot):
+${host.projects ? PROJECTS_PROMPT + '\nFor a big build, send Ted, the developer (deploy_bot with specialist "Ted") with the full brief, so the chat stays free; small scripts and fixes you can do yourself here.\n\n' : ''}Atlas Bot (deploy_bot):
 - For bigger jobs that need many steps (deep research with sources, comparing several options, a long piece of writing, checking many pages, a long chain of PC actions), or when they say "send a bot to…", deploy a bot instead of doing it here. Give it a clear goal and all the details it needs. Tell them it's on it; its report comes into this chat when it's done.
 - Quick things (one search, one reminder, a short answer) you do yourself.
 ${aware.PROMPT}

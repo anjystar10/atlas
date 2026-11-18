@@ -18,7 +18,8 @@ const save = () => host.write('bot-mirror.json', JSON.stringify(mirror));
 export function view(j, me, label) {
   return { id: j.id, device: me, platform: 'windows', goal: String(j.goal || '').slice(0, 300), state: j.state, label: label || '',
     current: String(j.current || '').slice(0, 200), done: (j.plan || []).filter((p) => p.done).length, total: (j.plan || []).length,
-    report: String(j.report || '').slice(0, 20000), createdAt: j.createdAt || 0, updatedAt: j.updatedAt || 0 };
+    report: String(j.report || '').slice(0, 20000), createdAt: j.createdAt || 0, updatedAt: j.updatedAt || 0,
+    bot: j.bot || j.specialist || 'atlas' };   // whose job it is (History groups by bot)
 }
 
 /** The other devices' jobs, newest first. */
