@@ -59,6 +59,8 @@ object Link {
     fun init(ctx: Context) { if (!::app.isInitialized) app = ctx.applicationContext }
     fun linked(ctx: Context) = Sync.linked(ctx)
     fun me(): String = Store.read(app) { it.deviceId }
+    /** How long ago this phone last heard who's online (peers older than this may have gone). */
+    fun beatAgeMs(): Long = System.currentTimeMillis() - lastBeat
     fun laptop(): Peer? = peers.firstOrNull { it.platform == "windows" } ?: peers.firstOrNull { it.platform != "android" }
 
     /** "Reachable from your laptop": keep listening with Atlas closed (LinkService). */

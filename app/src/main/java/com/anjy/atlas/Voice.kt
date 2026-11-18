@@ -80,15 +80,24 @@ object Voice {
     fun sir(ctx: Context) = Store.getFlag(ctx, "voice_sir", false)
     fun setSir(ctx: Context, on: Boolean) = Store.setFlag(ctx, "voice_sir", on)
 
-    /** The natural voices, best first. */
-    val ENGINES = listOf(ElevenLabs.ID, "gemini", "openai")
-    fun engineName(eng: String?) = when (eng) { ElevenLabs.ID -> "ElevenLabs"; "gemini" -> "Gemini"; "openai" -> "OpenAI"; else -> "the phone" }
-    /** The natural voices there's a key for, best first (none when Natural Voice is off). */
-    fun engines(ctx: Context): List<String> = if (!natural(ctx)) emptyList() else ENGINES.filter { Providers.key(ctx, it) != null }
-    /** Which natural voice speaks: the one chosen in Me → Voice if its key is there, else the best there's a key for; null: the phone's voice. */
-    fun engine(ctx: Context): String? { val have = engines(ctx); return Store.getString(ctx, "voice_engine")?.takeIf { it in have } ?: have.firstOrNull() }
-    fun setEngine(ctx: Context, eng: String) = Store.putString(ctx, "voice_engine", eng)
-    private fun list(engine: String?) = when (engine) { "openai" -> openAiChoices; ElevenLabs.ID -> elevenChoices; else -> geminiChoices }
+    /** Atlas Voice from the linked laptop: Atlas's own designed voice, made on the laptop's graphics card ([LaptopVoice]). */
+    val laptopChoices = listOf(Choice("atlas", "Atlas", "Atlas's own designed voice, from your laptop", "", ""))
+
+    /** The natural voices, best first (Atlas Voice from the laptop when it's linked and running it). */
+    val ENGINES = listOf(LaptopVoice.ID, ElevenLabs.ID, "gemini", "openai")
+    fun engineName(eng: String?) = when (eng) { LaptopVoice.ID -> "Atlas Voice (laptop)"; ElevenLabs.ID -> "ElevenLabs"; "gemini" -> "Gemini"; "openai" -> "OpenAI"; else -> "the phone" }
+    /** The natural voices that can speak now, best first (none when Natural Voice is off). */
+    fun engines(ctx: Context): List<String> = if (!natural(ctx)) emptyList() else ENGINES.filter { if (it == LaptopVoice.ID) LaptopVoice.available(ctx) else Providers.key(ctx, it) != null }
+    /**
+     * Which natural voice speaks: Atlas Voice from the laptop whenever it can (unless another voice was picked while it
+     * was there), else the one chosen in Me → Voice if it can speak, else the best that can; null: the phone's voice.
+     */
+    fun engine(ctx: Context): String? = LaptopVoice.choose(engines(ctx), Store.getString(ctx, "voice_engine"), Store.getFlag(ctx, "voice_laptop_off", false))
+    fun setEngine(ctx: Context, eng: String) {
+        Store.putString(ctx, "voice_engine", eng)
+        if (LaptopVoice.available(ctx)) Store.setFlag(ctx, "voice_laptop_off", eng != LaptopVoice.ID)
+    }
+    private fun list(engine: String?) = when (engine) { LaptopVoice.ID -> laptopChoices; "openai" -> openAiChoices; ElevenLabs.ID -> elevenChoices; else -> geminiChoices }
     fun current(ctx: Context, engine: String? = engine(ctx)): Choice {
         val id = Store.getString(ctx, "voice_${engine ?: "gemini"}")?.lowercase()
         return list(engine).firstOrNull { it.id == id } ?: list(engine).first()
@@ -255,7 +264,7 @@ object Voice {
             mp.setOnCompletionListener { it.release(); if (player === it) player = null; file.delete(); speaking = false; if (mine == gen) onEnd() }
             mp.setOnErrorListener { m, _, _ -> m.release(); if (player === m) player = null; file.delete(); speaking = false; if (mine == gen) fallback(); true }
             mp.prepare()
-            val rate = Speech.rate(speed(app))
+            val rate = Speech.rate(speed(app)) * (if (file.name.startsWith("speech-paced-")) LaptopVoice.PACE else 1f)
             if (rate != 1f) try { mp.playbackParams = mp.playbackParams.setSpeed(rate) } catch (e: Exception) { Log.w(TAG, "speed", e) }
             mp.start(); speaking = true
             player = mp
@@ -264,6 +273,7 @@ object Voice {
 
     /** One piece of speech from [eng] as (sample rate, 16-bit mono PCM). Blocking (network). */
     private fun rawSpeech(ctx: Context, eng: String, text: String, before: String?, after: String?): Pair<Int, ByteArray> = when (eng) {
+        LaptopVoice.ID -> LaptopVoice.speech(ctx, text, Hear.lastLanguage)
         ElevenLabs.ID -> ElevenLabs.RATE to elevenSpeech(ctx, text, before, after)
         "openai" -> 24000 to openAiSpeech(ctx, text)
         else -> geminiSpeech(ctx, text)
@@ -274,7 +284,8 @@ object Voice {
         val (rate, pcm) = rawSpeech(ctx, eng, text, before, after)
         if (pcm.size < 200) throw IllegalStateException("${engineName(eng)} sent no audio")
         val out = if (finish(ctx)) AudioFinish.apply(pcm, rate) else pcm
-        return File(ctx.cacheDir, "speech-${System.nanoTime()}.wav").apply { writeBytes(wav(out, rate)) }
+        // Atlas Voice clips are tagged: cloned replies come out brisker than the designed voice, so they play a touch slower
+        return File(ctx.cacheDir, "speech-${if (eng == LaptopVoice.ID) "paced-" else ""}${System.nanoTime()}.wav").apply { writeBytes(wav(out, rate)) }
     }
 
     /** ElevenLabs, through the key pool: a key that's turned down or out of credit rests and the next key tries once. */

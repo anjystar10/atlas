@@ -433,6 +433,22 @@ ipcMain.handle('trade:test', (e, acc, secret) => (fromMain(e) && acc ? trade().t
 ipcMain.handle('trade:resume', (e) => (fromMain(e) ? trade().resume(BrowserWindow.fromWebContents(e.sender)) : false));
 // <<< trading
 
+// >>> atlas voice: Atlas's designed voice on this laptop's graphics card (atlasvoice.js); optional, one click
+let atlasVoice = null;
+const voiceLocal = () => atlasVoice || (atlasVoice = require('./atlasvoice').create({ dataDir: DATA(), appDir: __dirname }));
+ipcMain.handle('voice:status', (e) => (fromMain(e) ? voiceLocal().status() : null));
+ipcMain.handle('voice:detect', async (e) => { if (!fromMain(e)) return null; try { return await voiceLocal().detect(); } catch (err) { return { phase: 'failed', error: err.message }; } });
+ipcMain.handle('voice:install', async (e) => {
+  if (!fromMain(e)) return { error: 'not allowed' };
+  const send = (st) => { if (win && !win.isDestroyed()) win.webContents.send('voice-local', st); };
+  try { return await voiceLocal().install(send); } catch (err) { return { ...voiceLocal().status(), error: err.message }; }
+});
+ipcMain.handle('voice:start', async (e) => (fromMain(e) ? voiceLocal().start() : null));
+ipcMain.handle('voice:stop', (e) => { if (fromMain(e)) voiceLocal().stop(); return true; });
+ipcMain.handle('voice:speak', async (e, text, language) => { if (!fromMain(e)) throw new Error('not allowed'); return voiceLocal().speak(String(text || ''), String(language || '')); });
+app.on('will-quit', () => { if (atlasVoice) atlasVoice.stop(); });
+// <<< atlas voice
+
 // >>> attachments: atlasfile://f/?p=<path> plays an attached video from disk (for taking stills), Atlas Bot folder only
 const { protocol } = require('electron');
 protocol.registerSchemesAsPrivileged([{ scheme: 'atlasfile', privileges: { stream: true, supportFetchAPI: true } }]);
@@ -456,6 +472,7 @@ app.whenReady().then(() => {
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(['media', 'microphone', 'audioCapture', 'clipboard-read', 'clipboard-sanitized-write', 'notifications'].includes(perm)));
   session.defaultSession.setPermissionCheckHandler((wc, perm) => ['media', 'microphone', 'audioCapture', 'clipboard-read', 'clipboard-sanitized-write', 'notifications'].includes(perm));
   createMain();
+  voiceLocal().start().catch(() => {});   // >>> atlas voice: if it's installed, it starts with Atlas
   tray = new Tray(icon().resize({ width: 16, height: 16 }));
   tray.setToolTip('Atlas');
   tray.setContextMenu(Menu.buildFromTemplate([
