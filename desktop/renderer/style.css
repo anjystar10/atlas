@@ -62,7 +62,8 @@ button, input, textarea { font: inherit; color: inherit; }
 .brand span { font: 500 24px var(--serif); letter-spacing: -0.01em; }
 .nav { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; color: var(--muted); cursor: pointer; font-weight: 500; border: 1px solid transparent; transition: background .15s, color .15s; }
 .nav:hover { background: var(--glass); color: var(--fg); }
-.nav.on { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 26%, transparent), color-mix(in srgb, var(--blue) 18%, transparent)); color: var(--fg); border-color: var(--rim-low); box-shadow: inset 0 1px 0 var(--rim); }
+.nav.on { background: linear-gradient(180deg, color-mix(in srgb, var(--primary-a) 28%, transparent), color-mix(in srgb, var(--primary-b) 18%, transparent)); color: var(--fg); border-color: color-mix(in srgb, var(--primary-b) 40%, transparent); box-shadow: inset 0 1px 0 var(--rim); }
+.nav.on svg { color: var(--accent-ink); }
 .nav svg { width: 19px; height: 19px; }
 .side-foot { margin-top: auto; padding: 10px 12px; font-size: var(--t-caption); color: var(--faint); line-height: 1.5; }
 #main { position: relative; overflow: hidden; display: flex; flex-direction: column; }
@@ -113,11 +114,14 @@ textarea.field { resize: vertical; min-height: 64px; font: 400 var(--t-read)/1.4
 /* ---- Atlas (talk) ---- */
 .hello { text-align: center; padding-top: 6vh; }
 .hello h1 { font: 400 var(--t-display)/var(--lead-display) var(--serif); letter-spacing: -0.01em; margin: 6px 0 28px; }
-.ideas { display: grid; gap: 10px; max-width: 520px; margin: 0 auto; }
-.idea { padding: 13px 18px; border-radius: 18px; text-align: center; cursor: pointer; font-weight: 500; }
+.ideas { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 560px; margin: 0 auto; }
+.idea { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px 10px 14px; border-radius: 999px; cursor: pointer; font-weight: 500; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: transform .15s, border-color .15s; }
+.idea::before { content: ""; flex: none; width: 13px; height: 13px; background: var(--accent-ink);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2c1 8 2 9 10 10-8 1-9 2-10 10-1-8-2-9-10-10 8-1 9-2 10-10z'/%3E%3C/svg%3E") center/contain no-repeat; }
+.idea:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .chat { display: flex; flex-direction: column; gap: 18px; padding: 8px 0 24px; }
 .msg.you { align-self: flex-end; max-width: 78%; }
-.msg.you .bubble { padding: 11px 16px; border-radius: 20px 20px 6px 20px; background: linear-gradient(180deg, var(--glass2), var(--glass)); border: 1px solid var(--rim-low); border-top-color: var(--rim); white-space: pre-wrap; word-wrap: break-word; font: 400 var(--t-read)/1.45 var(--serif); }
+.msg.you .bubble { padding: 11px 16px; border-radius: 20px 20px 6px 20px; background: linear-gradient(180deg, color-mix(in srgb, var(--primary-b) 20%, var(--surface)), color-mix(in srgb, var(--primary-b) 12%, var(--surface))); border: 1px solid color-mix(in srgb, var(--primary-b) 36%, transparent); white-space: pre-wrap; word-wrap: break-word; font: 400 var(--t-read)/1.45 var(--serif); }
 .msg.atlas { align-self: stretch; }
 .msg .files { display: flex; gap: 6px; justify-content: flex-end; margin-bottom: 6px; flex-wrap: wrap; }
 .thumb { width: 84px; height: 84px; border-radius: 14px; object-fit: cover; border: 1px solid var(--rim-low); }
@@ -226,11 +230,17 @@ textarea.field { resize: vertical; min-height: 64px; font: 400 var(--t-read)/1.4
 /* <<< device link */
 
 /* "Latest ↓": jump back to the newest messages after scrolling up */
-.latest-chip { position: fixed; left: 50%; bottom: 150px; transform: translate(-50%, 8px); opacity: 0; pointer-events: none;
-  padding: 9px 18px; border: 0; border-radius: 20px; background: var(--fg); color: var(--bg);
-  font: 600 14px/1 'Geist', system-ui, sans-serif; box-shadow: 0 6px 24px rgba(0,0,0,.28); cursor: pointer;
-  transition: opacity .16s ease, transform .16s ease; z-index: 30; }
-.latest-chip.on { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.latest-chip { position: fixed; left: 50%; bottom: 150px; transform: translate(-50%, 10px) scale(.94); opacity: 0; pointer-events: none;
+  display: inline-flex; align-items: center; gap: 8px; padding: 7px 16px 7px 8px; min-height: 40px; border-radius: 999px;
+  background: linear-gradient(180deg, var(--glass2), var(--glass)), var(--surface2); color: var(--fg);
+  border: 1px solid var(--rim-low); border-top-color: var(--rim); backdrop-filter: blur(18px);
+  font: 600 14px/1 'Geist', system-ui, sans-serif; box-shadow: 0 10px 30px rgba(0,0,0,.30); cursor: pointer;
+  transition: opacity .2s ease, transform .24s cubic-bezier(.34,1.56,.64,1); z-index: 30; }
+.latest-chip .arrow { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(180deg, var(--primary-a), var(--primary-b)); color: var(--on-primary); }
+.latest-chip .arrow svg { width: 14px; height: 14px; }
+.latest-chip:hover { border-color: color-mix(in srgb, var(--primary-b) 50%, transparent); }
+.latest-chip.on { opacity: 1; pointer-events: auto; transform: translate(-50%, 0) scale(1); }
 .latest-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .latest-chip { transition: none; } }
 

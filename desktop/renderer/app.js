@@ -116,10 +116,13 @@ function latestChip() {
   const far = tab === 'atlas' && db.chat.length && page.scrollHeight - (page.scrollTop + page.clientHeight) > page.clientHeight * 0.8;
   if (!chip) {
     if (!far) return;
-    chip = document.createElement('button'); chip.id = 'latest'; chip.className = 'latest-chip'; chip.textContent = 'Latest ↓';
+    chip = document.createElement('button'); chip.id = 'latest'; chip.className = 'latest-chip';
+    chip.innerHTML = '<span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13M6.5 13l5.5 5.5 5.5-5.5"/></svg></span>Latest';
     chip.setAttribute('aria-label', 'Jump to the latest messages'); chip.onclick = () => toLatest(true);
     document.body.appendChild(chip);
   }
+  // centred over the conversation, not the whole window (the sidebar takes the left)
+  if (far) { const r = page.getBoundingClientRect(); chip.style.left = `${Math.round(r.left + r.width / 2)}px`; }
   chip.classList.toggle('on', !!far);
 }
 function renderFoot() {
@@ -137,8 +140,10 @@ function renderAtlas(page) {
     homeOrb = new Orb(hello, { size: 210 }); homeOrb.el.style.cursor = 'pointer'; homeOrb.el.title = 'Talk to Atlas'; homeOrb.el.onclick = () => startListening();
     hello.appendChild(h(`<h1>Hey ${esc(name || 'there')},<br>What can I help with?</h1>`));
     const ideas = h('<div class="ideas"></div>');
-    for (const idea of ['Remind me to call mum tomorrow at 6pm', 'Open Spotify and play something chill', 'What can you do on my PC?'])
-      ideas.appendChild(Object.assign(h(`<div class="card idea">${esc(idea)}</div>`), { onclick: () => { const ta = $('#ask'); ta.value = idea; ta.focus(); autosize(); updateSend(); } }));
+    for (const idea of ['Remind me to call mum at 6pm', 'Open Spotify and play something chill', 'What can you do on my PC?'])
+      ideas.appendChild(Object.assign(h(`<div class="card idea" role="button" tabindex="0">${esc(idea)}</div>`), {
+        onclick: () => { const ta = $('#ask'); ta.value = idea; ta.focus(); autosize(); updateSend(); },
+        onkeydown(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); } } }));
     hello.appendChild(ideas);
     botStrip(hello, true);
     if (!brain.active()) hello.appendChild(h('<p class="muted small" style="margin-top:20px">To think, Atlas needs an AI key (Gemini\'s is free) or a local model: Me → Brain.</p>'));
