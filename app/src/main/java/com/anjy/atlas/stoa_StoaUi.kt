@@ -297,6 +297,19 @@ class LineIcon(context: android.content.Context, private val kind: String) : Vie
                 c.drawLine(12f, 17.5f, 12f, 21f, p)
             }
             "chev" -> { path.moveTo(9f, 6f); path.lineTo(15f, 12f); path.lineTo(9f, 18f); c.drawPath(path, p) }
+            "chats" -> { // two speech bubbles: earlier chats
+                path.moveTo(4f, 5.5f); path.lineTo(15f, 5.5f); path.quadTo(16.5f, 5.5f, 16.5f, 7f); path.lineTo(16.5f, 12.5f); path.quadTo(16.5f, 14f, 15f, 14f)
+                path.lineTo(8.5f, 14f); path.lineTo(5.5f, 16.8f); path.lineTo(5.5f, 14f); path.lineTo(4f, 14f); path.quadTo(2.5f, 14f, 2.5f, 12.5f); path.lineTo(2.5f, 7f); path.quadTo(2.5f, 5.5f, 4f, 5.5f)
+                c.drawPath(path, p); path.reset()
+                path.moveTo(19.5f, 9.5f); path.quadTo(21.5f, 9.5f, 21.5f, 11f); path.lineTo(21.5f, 16f); path.quadTo(21.5f, 17.5f, 20f, 17.5f); path.lineTo(19f, 17.5f); path.lineTo(19f, 20f); path.lineTo(16f, 17.5f); path.lineTo(11.5f, 17.5f)
+                c.drawPath(path, p)
+            }
+            "compose" -> { // a pencil on a page: a new chat
+                path.moveTo(11f, 4.5f); path.lineTo(6f, 4.5f); path.quadTo(4f, 4.5f, 4f, 6.5f); path.lineTo(4f, 18f); path.quadTo(4f, 20f, 6f, 20f); path.lineTo(17.5f, 20f); path.quadTo(19.5f, 20f, 19.5f, 18f); path.lineTo(19.5f, 13f)
+                c.drawPath(path, p); path.reset()
+                path.moveTo(17.5f, 3.5f); path.lineTo(20.5f, 6.5f); path.lineTo(12f, 15f); path.lineTo(8.5f, 15.5f); path.lineTo(9f, 12f); path.close(); c.drawPath(path, p)
+            }
+            "search" -> { c.drawCircle(10.5f, 10.5f, 6f, p); c.drawLine(15f, 15f, 20f, 20f, p) }
             else -> { c.drawLine(5f, 12f, 19f, 12f, p); path.moveTo(13f, 6f); path.lineTo(19f, 12f); path.lineTo(13f, 18f); c.drawPath(path, p) }
         }
         c.restore()

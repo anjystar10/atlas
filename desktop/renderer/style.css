@@ -144,7 +144,8 @@ textarea.field { resize: vertical; min-height: 64px; font: 400 var(--t-read)/1.4
 .thinking { color: var(--muted); font: italic 400 var(--t-read) var(--serif); }
 .thinking::after { content: ''; display: inline-block; width: 1.2em; text-align: left; animation: dots 1.2s steps(4) infinite; }
 @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
-.chathead { display: flex; align-items: center; gap: 12px; padding: 4px 0 10px; }
+.chathead { display: flex; align-items: center; gap: 12px; padding: 10px 0 12px; position: sticky; top: 0; z-index: 5;
+  background: linear-gradient(180deg, var(--bg) 0%, color-mix(in srgb, var(--bg) 82%, transparent) 70%, transparent 100%); backdrop-filter: blur(10px); }
 .chathead .grow { flex: 1; }
 
 /* ---- the ask bar ---- */
@@ -344,3 +345,21 @@ textarea.field { resize: vertical; min-height: 64px; font: 400 var(--t-read)/1.4
   --night-fg: #F0EFFF; --night-muted: #A6A9D3; --night-faint: #898CBB; --night-glow: rgba(157, 140, 255, 0.26);
 }
 /* <<< themes */
+
+/* replies: a list of times or "Label: thing" lines as a glass card of rows (uishape.js) */
+.rows { margin: 10px 0 2px; padding: 2px 16px; border-radius: 18px; max-width: 72ch; background: linear-gradient(180deg, var(--glass2), var(--glass)); border: 1px solid var(--rim-low); border-top-color: var(--rim); backdrop-filter: blur(14px); }
+.rows .row { display: flex; align-items: baseline; gap: 12px; padding: 11px 0; border-top: 1px solid var(--rim-low); }
+.rows .row:first-child { border-top: none; }
+.rows .key { flex: none; width: 128px; font: 600 11.5px/1.3 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.rows .row.time .key { font: 500 14px var(--mono); letter-spacing: 0; text-transform: none; color: var(--accent-ink); }
+.rows .row.alert .key { color: var(--accent-ink); } .rows .row.alert .key::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 7px; vertical-align: 1px; }
+.rows .row.now .key { color: var(--blue); } .rows .row.done .key { color: var(--done); }
+.rows .val { flex: 1; font: 400 15px/1.4 var(--sans); }
+/* what Atlas did: small glass receipts */
+.receipts { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; max-width: 72ch; }
+.receipt { display: flex; align-items: center; gap: 10px; text-align: left; padding: 8px 14px 8px 10px; min-height: 40px; border-radius: 14px; cursor: pointer; color: var(--fg); font: 400 14px/1.35 var(--sans);
+  background: linear-gradient(180deg, var(--glass2), var(--glass)); border: 1px solid var(--rim-low); border-top-color: var(--rim); }
+.receipt .tick { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; color: var(--done); background: color-mix(in srgb, var(--done) 16%, transparent); }
+.receipt .tick svg { width: 13px; height: 13px; }
+.receipts .more { align-self: flex-start; background: none; border: none; cursor: pointer; padding: 6px 4px; color: var(--accent-ink); font: 600 13px var(--sans); }
+.receipt:focus-visible, .receipts .more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

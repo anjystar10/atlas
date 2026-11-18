@@ -72,26 +72,30 @@ object Conversation {
             val f = file(ctx)
             if (!f.baseFile.exists()) return
             val a = JSONArray(String(f.readFully(), Charsets.UTF_8))
-            for (i in 0 until a.length()) {
-                val o = a.getJSONObject(i)
-                val steps = o.optJSONArray("steps")?.let { s -> MutableList(s.length()) { s.getString(it) } } ?: mutableListOf()
-                val user = o.getBoolean("user")
-                val media = o.optJSONArray("media")?.let { a2 -> List(a2.length()) { k -> a2.getJSONObject(k).let { Attach.Item(it.getString("path"), it.getString("mime"), it.optString("name")) } } }
-                    ?.filter { it.file.exists() } ?: emptyList()
-                messages.add(Msg(user, if (user) o.getString("text") else Plain.reply(o.getString("text")), o.optString("source"), o.optLong("at"), steps, media,
-                    o.optString("id").ifEmpty { "${o.optLong("at")}-${if (user) "u" else "a"}" }))
-            }
+            for (i in 0 until a.length()) messages.add(fromRecord(a.getJSONObject(i)))
             // the model picks up from the last few exchanges
             rebuildHistory()
         } catch (e: Exception) { Log.w(TAG, "chat unreadable", e) }
     }
 
+    /** One message as a saved record (chat.json, and the saved chats in [ChatArchive]). */
+    private fun record(m: Msg): JSONObject =
+        JSONObject().put("id", m.id).put("user", m.fromUser).put("text", m.text).put("source", m.source).put("at", m.at).put("steps", JSONArray(m.steps))
+            .put("media", JSONArray().apply { m.media.forEach { put(JSONObject().put("path", it.path).put("mime", it.mime).put("name", it.name)) } })
+
+    /** A saved record as a message ([freshId]: a new id, for a saved chat opened again, so the other device takes it as new). */
+    private fun fromRecord(o: JSONObject, freshId: Boolean = false): Msg {
+        val steps = o.optJSONArray("steps")?.let { s -> MutableList(s.length()) { s.getString(it) } } ?: mutableListOf()
+        val user = o.getBoolean("user")
+        val media = o.optJSONArray("media")?.let { a2 -> List(a2.length()) { k -> a2.getJSONObject(k).let { Attach.Item(it.getString("path"), it.getString("mime"), it.optString("name")) } } }
+            ?.filter { it.file.exists() } ?: emptyList()
+        val id = if (freshId) java.util.UUID.randomUUID().toString() else o.optString("id").ifEmpty { "${o.optLong("at")}-${if (user) "u" else "a"}" }
+        return Msg(user, if (user) o.getString("text") else Plain.reply(o.getString("text")), o.optString("source"), o.optLong("at"), steps, media, id)
+    }
+
     private fun save(ctx: Context) {
         val a = JSONArray()
-        messages.takeLast(KEEP_MESSAGES).forEach { m ->
-            a.put(JSONObject().put("id", m.id).put("user", m.fromUser).put("text", m.text).put("source", m.source).put("at", m.at).put("steps", JSONArray(m.steps))
-                .put("media", JSONArray().apply { m.media.forEach { put(JSONObject().put("path", it.path).put("mime", it.mime).put("name", it.name)) } }))
-        }
+        messages.takeLast(KEEP_MESSAGES).forEach { m -> a.put(record(m)) }
         val keep = messages.takeLast(KEEP_MESSAGES).flatMap { m -> m.media.map { it.path } }.toSet()
         val bytes = a.toString().toByteArray(Charsets.UTF_8)
         scope.launch(Dispatchers.IO) {
@@ -100,7 +104,8 @@ object Conversation {
                 val out = f.startWrite()
                 try { out.write(bytes); f.finishWrite(out) } catch (e: Exception) { f.failWrite(out) }
             }
-            try { Attach.prune(ctx, keep) } catch (_: Exception) {}
+            // the saved chats' pictures stay too
+            try { Attach.prune(ctx, keep + ChatArchive.mediaPaths(ctx)) } catch (_: Exception) {}
             if (!busy) try { Sync.syncSoon(ctx) } catch (_: Exception) {}
         }
     }
@@ -176,6 +181,37 @@ object Conversation {
         // New Chat clears the conversation on the other device too
         try { Sync.noteDeleted(ctx, "chat", messages.map { it.id }) } catch (_: Exception) {}
         messages.clear(); history.clear(); save(ctx); changed()
+    }
+
+    /** New chat: the conversation so far is kept in the Chats list (on this phone), then a fresh one starts. */
+    fun newChat(ctx: Context) {
+        val app = ctx.applicationContext
+        load(app)
+        stop()
+        keepCurrent(app)
+        clear(app)
+    }
+
+    /** Opens a saved chat: it becomes the conversation, and the one you were in is kept in the list in its place. */
+    fun openSaved(ctx: Context, id: String): Boolean {
+        val app = ctx.applicationContext
+        load(app)
+        val recs = ChatArchive.records(app, id) ?: return false
+        stop()
+        keepCurrent(app)
+        clear(app)
+        for (i in 0 until recs.length()) try { messages.add(fromRecord(recs.getJSONObject(i), freshId = true)) } catch (_: Exception) {}
+        ChatArchive.delete(app, id)
+        rebuildHistory()
+        save(app); changed()
+        return true
+    }
+
+    private fun keepCurrent(app: Context) {
+        val keep = messages.filter { it.text.isNotBlank() || it.media.isNotEmpty() }
+        if (keep.isEmpty()) return
+        val a = JSONArray(); keep.takeLast(KEEP_MESSAGES).forEach { a.put(record(it)) }
+        ChatArchive.save(app, a, keep.firstOrNull { it.fromUser }?.text, keep.last().at)
     }
 
     // ---------------------------------------------------------------- talking

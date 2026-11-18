@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --no-warnings --test test/logic.test.mjs test/sync.e2e.mjs test/link.test.mjs test/aware.test.mjs test/trade.test.mjs test/accuracy.test.mjs test/themes.test.mjs test/attach.test.mjs test/finish.test.mjs test/bots2.e2e.test.mjs",
+    "test": "node --no-warnings --test test/logic.test.mjs test/sync.e2e.mjs test/link.test.mjs test/aware.test.mjs test/trade.test.mjs test/accuracy.test.mjs test/themes.test.mjs test/attach.test.mjs test/finish.test.mjs test/bots2.e2e.test.mjs test/uishape.test.mjs",
     "test:mail": "node --no-warnings test/mail.e2e.js",
     "test:browser": "electron --no-sandbox test/browser.e2e.js && electron --no-sandbox test/botjob.e2e.js && electron --no-sandbox test/files.e2e.js",
     "test:mcp": "node --no-warnings test/mcp.e2e.js",
