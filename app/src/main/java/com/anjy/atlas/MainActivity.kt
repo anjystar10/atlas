@@ -1456,7 +1456,10 @@ class MainActivity : Activity() {
             // your words: a glass bubble tinted with the theme's colour, as wide as what you said, tucked to the right
             val rr = dp(20).toFloat(); val tail = dp(6).toFloat()
             wrap.addView(text(m.text, Type.READ, FG, READ, keepEmoji = true).apply {
-                setLineSpacing(0f, 1.3f)
+                // the same reading face as Atlas's replies and the ask bar (text() would turn a serif under 18sp into
+                // Geist SemiBold, because the reading face and the title face are the same font)
+                typeface = READ; letterSpacing = 0f
+                setLineSpacing(0f, Type.LEAD_READ)
                 background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                     intArrayOf(blend(SURFACE, PRIMARY, if (dark) 0.20f else 0.12f), blend(SURFACE, PRIMARY, if (dark) 0.12f else 0.07f))).apply {
                     cornerRadii = floatArrayOf(rr, rr, rr, rr, tail, tail, rr, rr)
