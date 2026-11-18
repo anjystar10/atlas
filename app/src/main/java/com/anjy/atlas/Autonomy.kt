@@ -141,7 +141,12 @@ object Autonomy {
 
     // ---------------------------------------------------------------- doing it, with Undo
 
-    private fun notificationsOn(ctx: Context) = try { ctx.getSystemService(NotificationManager::class.java).areNotificationsEnabled() } catch (_: Exception) { false }
+    /** Whether the Undo can actually be seen: notifications on for Atlas AND this channel not switched off on its own. */
+    private fun notificationsOn(ctx: Context) = try {
+        val nm = ctx.getSystemService(NotificationManager::class.java)
+        channel(ctx)
+        nm.areNotificationsEnabled() && (nm.getNotificationChannel(CH)?.importance ?: NotificationManager.IMPORTANCE_NONE) != NotificationManager.IMPORTANCE_NONE
+    } catch (_: Exception) { false }
     private fun channel(ctx: Context) {
         if (channelReady) return; channelReady = true
         ctx.getSystemService(NotificationManager::class.java).createNotificationChannel(
