@@ -46,6 +46,16 @@ const money = (x) => '$' + (Math.round(Number(x) * 100) / 100).toFixed(2).replac
 
 function minutesOf(hhmm) { const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim()); return m ? Number(m[1]) * 60 + Number(m[2]) : null; }
 /** Is local time (minute of day, ISO weekday 1..7) inside the trading hours? Windows that cross midnight work too. */
+const QUOTES = new Set(['USDT', 'USDC', 'USD', 'BUSD', 'FDUSD', 'TUSD', 'DAI', 'EUR', 'BTC']);
+// Whether sym is covered by an allowed-list entry: the same symbol, the entry plus a quote currency (BTC → BTCUSDT),
+// or a futures month of it (NQ → NQZ6). A bare prefix isn't enough: "ETH" must not let ETHFIUSDT through. Same as the phone.
+function symbolAllowed(sym, entry) {
+  const s = String(sym || '').trim().toUpperCase(), e = String(entry || '').trim().toUpperCase();
+  if (!e || !s.startsWith(e)) return false;
+  const rest = s.slice(e.length);
+  return rest === '' || QUOTES.has(rest) || /^[FGHJKMNQUVXZ]\d{1,2}$/.test(rest);
+}
+
 function inHours(hours, minuteOfDay, isoDay) {
   if (!hours) return true;
   if (Array.isArray(hours.days) && hours.days.length && !hours.days.includes(isoDay)) return false;
@@ -89,7 +99,7 @@ function check(order, inst, market, account, state, plan) {
   if (!['market', 'limit', 'stop'].includes(type)) no('type', 'The order type must be market, limit or stop.');
   if (state.killed && !closing) no('killed', 'Trading is stopped (the stop switch is on). Only the user can turn it back on, in Me → Trading.');
   if (live && futures && !L.allowDerivatives && !closing) no('derivatives_off', 'This is a LIVE futures account and futures trading is off for it. The user can turn it on in Me → Trading.');
-  if (!closing && L.symbols && L.symbols.length && !L.symbols.map((s) => String(s).toUpperCase()).some((s) => sym === s || sym.startsWith(s))) no('symbol', `${sym} isn't on this account's allowed list (${L.symbols.join(', ')}).`);
+  if (!closing && L.symbols && L.symbols.length && !L.symbols.some((s) => symbolAllowed(sym, s))) no('symbol', `${sym} isn't on this account's allowed list (${L.symbols.join(', ')}).`);
   if (!closing && !inHours(L.hours, state.minuteOfDay, state.isoDay)) no('hours', `It's outside the trading hours set for this account (${L.hours.start}–${L.hours.end}).`);
 
   // the price this order will (roughly) fill at
@@ -153,7 +163,7 @@ function standingCovers(standing, account, o, estUsd, worst, futures, state) {
   if (!s || !s.enabled || s.accountId !== account.id) return false;
   if (!(Number(s.expiresAt) > 0) || state.now == null || state.now > Number(s.expiresAt)) return false;
   const syms = Array.isArray(s.symbols) ? s.symbols.map((x) => String(x).toUpperCase()).filter(Boolean) : [];
-  if (!syms.length || !syms.some((x) => o.symbol === x || o.symbol.startsWith(x))) return false;
+  if (!syms.length || !syms.some((x) => symbolAllowed(o.symbol, x))) return false;
   if (o.closing) return true;   // closing or reducing a position on an allowed instrument only lowers the risk
   if (futures ? !(Number(o.qty) <= Number(s.maxContracts || 0)) : !(estUsd <= Number(s.maxOrderUsd || 0) + 1e-9)) return false;
   if (worst == null) return false;   // a loss with no cap is never pre-approved
@@ -166,7 +176,7 @@ function planCovers(plan, account, o, estUsd, futures, state) {
   if (!plan || plan.accountId !== account.id || !plan.confirmed) return false;
   if (state.now != null && plan.expiresAt && state.now > plan.expiresAt) return false;
   if ((plan.used || 0) >= (plan.maxOrders || 0)) return false;
-  if (Array.isArray(plan.symbols) && plan.symbols.length && !plan.symbols.map((s) => String(s).toUpperCase()).some((s) => o.symbol === s || o.symbol.startsWith(s))) return false;
+  if (Array.isArray(plan.symbols) && plan.symbols.length && !plan.symbols.some((s) => symbolAllowed(o.symbol, s))) return false;
   if (Array.isArray(plan.sides) && plan.sides.length && !plan.sides.includes(o.side)) return false;
   if (futures ? Number(o.qty) > Number(plan.maxContracts || 0) : estUsd > Number(plan.maxOrderUsd || 0) + 1e-9) return false;
   return true;
@@ -188,4 +198,4 @@ function summary(account, o, ref, estUsd, worst, futures) {
 /** The string Bybit signs: timestamp + api key + recv window + (query string for GET | JSON body for POST). */
 function bybitPayload(ts, apiKey, recvWindow, queryOrBody) { return String(ts) + apiKey + String(recvWindow) + (queryOrBody || ''); }
 
-module.exports = { DEFAULT_LIMITS, PAPER_LIMITS, limitsFor, floorTo, roundTo, decimalsOf, inHours, rollDay, lossToday, check, planCovers, standingCovers, summary, bybitPayload, money };
+module.exports = { symbolAllowed, DEFAULT_LIMITS, PAPER_LIMITS, limitsFor, floorTo, roundTo, decimalsOf, inHours, rollDay, lossToday, check, planCovers, standingCovers, summary, bybitPayload, money };

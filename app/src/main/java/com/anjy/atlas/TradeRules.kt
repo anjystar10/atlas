@@ -77,6 +77,19 @@ object TradeRules {
 
     private fun minutesOf(hhmm: String?): Int? = Regex("^(\\d{1,2}):(\\d{2})$").find(hhmm?.trim().orEmpty())?.let { it.groupValues[1].toInt() * 60 + it.groupValues[2].toInt() }
     /** Is local time (minute of day, ISO weekday 1..7) inside the trading hours? Windows that cross midnight work too. */
+    private val QUOTES = setOf("USDT", "USDC", "USD", "BUSD", "FDUSD", "TUSD", "DAI", "EUR", "BTC")
+    private val MONTH = Regex("^[FGHJKMNQUVXZ]\\d{1,2}$")
+    /**
+     * Whether [sym] is covered by an allowed-list entry: the same symbol, the entry plus a quote currency (BTC → BTCUSDT),
+     * or a futures month of it (NQ → NQZ6). A bare prefix isn't enough: "ETH" must not let ETHFIUSDT through. Same as the PC.
+     */
+    fun symbolAllowed(sym: String, entry: String): Boolean {
+        val s = sym.trim().uppercase(); val e = entry.trim().uppercase()
+        if (e.isEmpty() || !s.startsWith(e)) return false
+        val rest = s.substring(e.length)
+        return rest.isEmpty() || rest in QUOTES || MONTH.matches(rest)
+    }
+
     fun inHours(h: Hours?, minuteOfDay: Int, isoDay: Int): Boolean {
         if (h == null) return true
         if (h.days.isNotEmpty() && isoDay !in h.days) return false
@@ -117,7 +130,7 @@ object TradeRules {
         if (type !in listOf("market", "limit", "stop")) no("type", "The order type must be market, limit or stop.")
         if (state.optBoolean("killed") && !closing) no("killed", "Trading is stopped (the stop switch is on). Only the user can turn it back on, in Me → Trading.")
         if (live && futures && !l.allowDerivatives && !closing) no("derivatives_off", "This is a LIVE futures account and futures trading is off for it. The user can turn it on in Me → Trading.")
-        if (!closing && l.symbols.isNotEmpty() && l.symbols.map { it.uppercase() }.none { sym == it || sym.startsWith(it) }) no("symbol", "$sym isn't on this account's allowed list (${l.symbols.joinToString(", ")}).")
+        if (!closing && l.symbols.isNotEmpty() && l.symbols.none { symbolAllowed(sym, it) }) no("symbol", "$sym isn't on this account's allowed list (${l.symbols.joinToString(", ")}).")
         if (!closing && !inHours(l.hours, state.optInt("minuteOfDay"), state.optInt("isoDay"))) no("hours", "It's outside the trading hours set for this account (${l.hours?.start}–${l.hours?.end}).")
 
         val ref = when (type) {
@@ -184,7 +197,7 @@ object TradeRules {
         if (exp <= 0 || now > exp) return false
         val syms = s.optJSONArray("symbols")?.let { a -> (0 until a.length()).map { a.optString(it).uppercase() }.filter { it.isNotBlank() } } ?: emptyList()
         val sym = o.optString("symbol")
-        if (syms.isEmpty() || syms.none { sym == it || sym.startsWith(it) }) return false
+        if (syms.isEmpty() || syms.none { symbolAllowed(sym, it) }) return false
         if (o.optBoolean("closing")) return true   // closing or reducing on an allowed instrument only lowers the risk
         val sizeOk = if (futures) (o.optString("qty").toDoubleOrNull() ?: Double.MAX_VALUE) <= s.optDouble("maxContracts", 0.0) else estUsd <= s.optDouble("maxOrderUsd", 0.0) + 1e-9
         if (!sizeOk || worst == null) return false   // a loss with no cap is never pre-approved
@@ -201,7 +214,7 @@ object TradeRules {
         if (now != null && exp != null && exp > 0 && now > exp) return false
         if (plan.optInt("used") >= plan.optInt("maxOrders")) return false
         val sym = o.optString("symbol")
-        plan.optJSONArray("symbols")?.let { a -> val list = (0 until a.length()).map { a.getString(it).uppercase() }; if (list.isNotEmpty() && list.none { sym == it || sym.startsWith(it) }) return false }
+        plan.optJSONArray("symbols")?.let { a -> val list = (0 until a.length()).map { a.getString(it).uppercase() }; if (list.isNotEmpty() && list.none { symbolAllowed(sym, it) }) return false }
         plan.optJSONArray("sides")?.let { a -> val list = (0 until a.length()).map { a.getString(it) }; if (list.isNotEmpty() && o.optString("side") !in list) return false }
         return if (futures) o.optString("qty").toDouble() <= plan.optDouble("maxContracts", 0.0) else estUsd <= plan.optDouble("maxOrderUsd", 0.0) + 1e-9
     }

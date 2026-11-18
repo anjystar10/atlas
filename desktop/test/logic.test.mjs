@@ -348,6 +348,8 @@ test('PowerShell quoting and programs that need a yes', async () => {
   assert.equal(pc.q('a\u2019b'), "'a''b'");
   assert.equal(pc.q('$(Remove-Item x)'), "'$(Remove-Item x)'");
   for (const p of ['C:\\x\\setup.exe', '~/Downloads/run.BAT', '"C:\\a b\\s.ps1"', 'thing.lnk']) assert.equal(pc.runsSomething(p), true, p);
+  // Windows runs "setup.exe." and "setup.exe " as setup.exe; installers and disk images count too
+  for (const p of ['C:\\x\\setup.exe.', 'C:\\x\\setup.exe .. ', 'C:\\x\\a.exe::$DATA', 'app.msix', 'disk.iso', 'x.msc']) assert.equal(pc.runsSomething(p), true, p);
   for (const p of ['~/Documents/notes.txt', 'C:\\Pictures', 'photo.jpg']) assert.equal(pc.runsSomething(p), false, p);
   assert.equal(pc.sendKeysCombo('ctrl+shift+t'), '^+t');
 });
@@ -913,6 +915,7 @@ test('trading: every fixture case gives the answer the phone must also give', as
   }
   for (const r of fx.rounding) { assert.equal(TR.floorTo(r.value, r.step), r.floor); assert.equal(TR.roundTo(r.value, r.step), r.round); }
   for (const [h, m, d, want] of fx.hours) assert.equal(TR.inHours(h, m, d), want);
+  for (const [sym, entry, want] of fx.symbols) assert.equal(TR.symbolAllowed(sym, entry), want, `${sym} vs ${entry}`);   // "ETH" must not allow ETHFIUSDT
   const crypto = await import('node:crypto');
   assert.equal(crypto.createHmac('sha256', fx.hmac.key).update(fx.hmac.data).digest('hex'), fx.hmac.hex);
   const b = fx.bybitPayload; assert.equal(TR.bybitPayload(b.ts, b.key, b.recv, b.query), b.expect);

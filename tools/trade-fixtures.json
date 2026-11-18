@@ -1823,5 +1823,77 @@
    1,
    true
   ]
+ ],
+ "symbols": [
+  [
+   "BTCUSDT",
+   "BTC",
+   true
+  ],
+  [
+   "BTCUSDT",
+   "BTCUSDT",
+   true
+  ],
+  [
+   "btcusdc",
+   "btc",
+   true
+  ],
+  [
+   "ETHFIUSDT",
+   "ETH",
+   false
+  ],
+  [
+   "ETHWUSDT",
+   "ETH",
+   false
+  ],
+  [
+   "ETHBTC",
+   "ETH",
+   true
+  ],
+  [
+   "NQZ6",
+   "NQ",
+   true
+  ],
+  [
+   "NQZ26",
+   "NQ",
+   true
+  ],
+  [
+   "MNQZ6",
+   "NQ",
+   false
+  ],
+  [
+   "NQZ6",
+   "MNQ",
+   false
+  ],
+  [
+   "OPENUSDT",
+   "OP",
+   false
+  ],
+  [
+   "OPUSDT",
+   "OP",
+   true
+  ],
+  [
+   "SOLVUSDT",
+   "SOL",
+   false
+  ],
+  [
+   "ANY",
+   "",
+   false
+  ]
  ]
 }

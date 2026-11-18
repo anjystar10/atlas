@@ -54,6 +54,9 @@ class BotsV2Test {
         assertFalse(Crew.consent("yes").always)
         assertFalse(Crew.consent("no, wait").yes)
         assertFalse(Crew.consent("don't send it").yes)
+        assertFalse("a yes-word after a not is no yes", Crew.consent("please don't do it").yes)
+        assertFalse(Crew.consent("i don't think you should do it").yes)
+        assertTrue(Crew.consent("ok do it").yes)
         assertFalse("a question isn't a yes", Crew.consent("what did the bot find?").yes)
         assertFalse(Crew.consent("").yes)
     }

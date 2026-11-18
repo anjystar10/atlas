@@ -56,6 +56,14 @@ class TradeRulesTest {
         }
     }
 
+    @Test fun allowedSymbolsNeedMoreThanAPrefix() {
+        val a = fixtures().getJSONArray("symbols")
+        for (i in 0 until a.length()) {
+            val c = a.getJSONArray(i)
+            assertEquals(c.toString(), c.getBoolean(2), TradeRules.symbolAllowed(c.getString(0), c.getString(1)))
+        }
+    }
+
     @Test fun signingFollowsTheDocsAndRfc4231() {
         val f = fixtures()
         val h = f.getJSONObject("hmac")

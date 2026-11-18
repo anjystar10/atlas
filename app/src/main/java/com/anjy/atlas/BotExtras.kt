@@ -180,7 +180,7 @@ object BotExtras {
         fun nextRun(s: JSONObject?, after: Long, zone: ZoneId = ZoneId.systemDefault()): Long {
             if (s == null) return 0
             if (s.optString("kind") == "interval") return after + maxOf(MIN_INTERVAL_MIN, s.optInt("everyMin")) * 60_000L
-            val (hh, mm) = s.optString("time", "09:00").split(":").let { (it.getOrNull(0)?.toIntOrNull() ?: 9) to (it.getOrNull(1)?.toIntOrNull() ?: 0) }
+            val (hh, mm) = s.optString("time", "09:00").split(":").let { (it.getOrNull(0)?.toIntOrNull() ?: 9).coerceIn(0, 23) to (it.getOrNull(1)?.toIntOrNull() ?: 0).coerceIn(0, 59) }   // a bad "time" from sync or a model must not throw in the alarm
             val a = Instant.ofEpochMilli(after).atZone(zone)
             if (s.optString("kind") == "monthly") {
                 for (i in 0 until 14) {

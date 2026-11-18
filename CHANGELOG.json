@@ -2,6 +2,26 @@
  "_doc": "What changed in each Atlas version: one source for the phone (bundled as an asset), the PC (bundled as a resource) and the update check. 'notes' are for the user; 'abilities' are for Atlas itself (second person, what it can now do). Newest first. Set 'released' to true when that version ships; the build workflow reads the entry whose version matches the app.",
  "versions": [
   {
+   "version": "0.11.2",
+   "versionCode": 23,
+   "date": "2026-11-18",
+   "released": true,
+   "notes": [
+    "Voice: the saved voice from day one is thrown away and rebuilt, so voice changes finally take effect",
+    "Voice: Gemini speech now uses every key in your pool and asks for far fewer pieces per reply, so it stops running out",
+    "Voice: if the plain phone/Windows voice ever takes over, Atlas tells you why",
+    "Me → Voice: Test Each Voice plays a line from each voice and reports exactly what worked or failed",
+    "Safety: a message like \"please don't do it\" no longer counts as a yes",
+    "Trading: allowed symbols must match exactly (\"ETH\" no longer lets other ETH-named coins through)",
+    "PC: files like \"setup.exe.\" can no longer skip the \"Open this program?\" warning",
+    "Fixes: invisible Undo when a notification type is off, a bad schedule time crashing the alarm, update file names"
+   ],
+   "abilities": [
+    "Me → Voice has Test Each Voice; suggest it when the user says the voice sounds robotic or hasn't changed",
+    "If the plain system voice takes over, tell the user why (limit reached, no key, failure) instead of staying silent"
+   ]
+  },
+  {
    "version": "0.11.1",
    "versionCode": 22,
    "date": "2026-11-18",
