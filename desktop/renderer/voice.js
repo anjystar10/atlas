@@ -44,21 +44,39 @@ export const ELEVEN_DESIGN = 'A refined British man in his mid-forties with a cr
   'Clean studio recording, close microphone, no background noise.';
 const ELEVEN_SEED = 1096043603, ELEVEN = 'https://api.elevenlabs.io/v1';
 export const ELEVEN_VOICES = [{ id: 'atlas', label: 'Atlas', about: 'designed for Atlas: British, calm, refined', voice: '', style: '' }];
-/** The natural voices, best first. */
-export const ENGINES = ['elevenlabs', 'gemini', 'openai'];
-export const engineName = (e) => ({ elevenlabs: 'ElevenLabs', gemini: 'Gemini', openai: 'OpenAI' }[e] || 'Windows');
-/** The natural voices there's a key for, best first (none when Natural Voice is off). */
-export const engines = () => (!pref('voiceNatural', true) ? [] : ENGINES.filter((e) => keyFor(e)));
-/** The one chosen in Me → Voice if its key is there, else the best there's a key for; null: Windows' voice. */
-export const engine = () => { const have = engines(); const pick = pref('voiceEngine', ''); return have.includes(pick) ? pick : have[0] || null; };
-export const setEngine = (e) => setPref('voiceEngine', e);
+/** The natural voices, best first. "atlas" is Atlas Voice: Atlas's own designed voice on this laptop's graphics card. */
+export const ENGINES = ['atlas', 'elevenlabs', 'gemini', 'openai'];
+export const engineName = (e) => ({ atlas: 'Atlas Voice', elevenlabs: 'ElevenLabs', gemini: 'Gemini', openai: 'OpenAI' }[e] || 'Windows');
+export const LOCAL_VOICES = [{ id: 'atlas', label: 'Atlas', about: "Atlas's own designed voice, on this laptop", voice: '', style: '' }];
+// Atlas Voice's state, from the main process (atlasvoice.js): kept fresh here so choosing a voice never waits
+export const local = { ready: false, status: null };
+export async function refreshLocal() {
+  try { const st = host.atlasVoice ? await host.atlasVoice.status() : null; local.status = st; local.ready = !!(st && st.ready); } catch { local.ready = false; }
+  return local;
+}
+if (host && host.atlasVoice) {
+  refreshLocal(); setInterval(refreshLocal, 15_000);
+  try { host.on('voice-local', (st) => { local.status = st; local.ready = !!(st && st.ready); }); } catch {}
+}
+/** The natural voices that can speak right now, best first (none when Natural Voice is off). */
+export const engines = () => (!pref('voiceNatural', true) ? [] : ENGINES.filter((e) => (e === 'atlas' ? local.ready : keyFor(e))));
+/**
+ * Which voice speaks: Atlas Voice whenever it's running (unless the user picked another voice while it was there),
+ * else the one chosen in Me → Voice if it can speak, else the best that can; null: Windows' voice.
+ */
+export function chooseEngine(have, pick, localOff) {
+  if (have.includes('atlas') && (pick === 'atlas' || !localOff)) return 'atlas';
+  return have.includes(pick) ? pick : have.find((e) => e !== 'atlas') || have[0] || null;
+}
+export const engine = () => chooseEngine(engines(), pref('voiceEngine', ''), pref('voiceLocalOff', false));
+export const setEngine = (e) => { setPref('voiceEngine', e); if (local.ready) setPref('voiceLocalOff', e !== 'atlas'); };
 /** The "AI system" finish on every spoken reply (on unless switched off). */
 export const finishOn = () => pref('voiceFinish', true);
 export const setFinish = (on) => setPref('voiceFinish', !!on);
 /** Spoken replies may address the user as "sir" now and then. */
 export const sir = () => pref('voiceSir', false);
 export const setSir = (on) => setPref('voiceSir', !!on);
-export const voices = (eng = engine()) => (eng === 'openai' ? OPENAI_VOICES : eng === 'elevenlabs' ? ELEVEN_VOICES : GEMINI_VOICES);
+export const voices = (eng = engine()) => (eng === 'atlas' ? LOCAL_VOICES : eng === 'openai' ? OPENAI_VOICES : eng === 'elevenlabs' ? ELEVEN_VOICES : GEMINI_VOICES);
 export const current = (eng = engine()) => voices(eng).find((v) => v.id === pref('voice_' + (eng || 'gemini'), 'atlas')) || voices(eng)[0];
 // busy: from the moment Atlas is asked to speak until it has finished or been hushed (so also while the voice is fetched)
 export const state = { speaking: false, busy: false, lastSpoke: null, lastProblem: null };
@@ -139,9 +157,20 @@ function systemSpeak(parts, finish, mine) {
 /** One piece of speech from [eng], finished, as a playable WAV clip. */
 async function speechClip(eng, text, before, after) {
   const v = current(eng);
-  const { pcm, rate: hz } = eng === 'elevenlabs' ? await elevenSpeech(text, before, after) : eng === 'openai' ? await openAiSpeech(text, v) : await geminiSpeech(text, v);
+  const { pcm, rate: hz } = eng === 'atlas' ? await localSpeech(text) : eng === 'elevenlabs' ? await elevenSpeech(text, before, after) : eng === 'openai' ? await openAiSpeech(text, v) : await geminiSpeech(text, v);
   if (!pcm || pcm.length < 200) throw new Error(`${engineName(eng)} sent no audio`);
   return URL.createObjectURL(new Blob([wav(finishOn() ? applyPcm(pcm, hz) : pcm, hz)], { type: 'audio/wav' }));
+}
+/** Atlas Voice on this laptop: 16-bit PCM straight from the local voice server (main process). */
+export async function localSpeech(text) {
+  const r = await host.atlasVoice.speak(text, lastHeard && lastHeard.language ? languageName(lastHeard.language) : 'English');
+  return { pcm: r.pcm instanceof Uint8Array ? r.pcm : new Uint8Array(r.pcm), rate: r.rate };
+}
+/** Qwen3-TTS takes a language name; the ears give a code ("en", "fr" …). Unknown ones fall back to English. */
+export function languageName(code) {
+  const c = String(code || '').toLowerCase().trim().split(/[-_]/)[0];
+  const names = { en: 'English', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', de: 'German', fr: 'French', ru: 'Russian', pt: 'Portuguese', es: 'Spanish', it: 'Italian' };
+  return names[c] || Object.values(names).find((n) => n.toLowerCase() === c) || 'English';
 }
 const bytesOf = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 /** ElevenLabs' errors come as {"detail": {"message": …}}. */

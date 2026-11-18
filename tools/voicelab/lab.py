@@ -90,6 +90,7 @@ def chatter(out):
 def kokoro(out):
     import numpy as np
     from kokoro import KPipeline
+    os.makedirs(out, exist_ok=True)
     p = KPipeline(lang_code="b")
     for voice in ("bm_george", "bm_fable", "bm_lewis"):
         audio = [a for _, _, a in p(MAIN, voice=voice, speed=0.95)]

@@ -714,7 +714,8 @@ function renderMe(page) {
   vc.appendChild(settingRow('Speak Replies', pref('speakReplies', false), (on) => setPref('speakReplies', on), 'Spoken questions always get a spoken answer.'));
   vc.appendChild(settingRow('Natural Voice', pref('voiceNatural', true), (on) => { setPref('voiceNatural', on); render(true); }));
   const eng = voice.engine();
-  vc.appendChild(h(`<p class="small muted">${!pref('voiceNatural', true) ? "Using Windows' own voice." : eng === 'elevenlabs' ? "Atlas's own voice, designed for it on ElevenLabs from a description (made once, then kept)." : eng === 'gemini' ? 'A human-sounding voice from Gemini.' : eng === 'openai' ? 'A human-sounding voice from OpenAI.' : 'Natural voices come from ElevenLabs, Gemini or OpenAI: add one of their keys. Until then, the best Windows voice.'}${voice.state.lastSpoke ? ' Last reply: ' + esc(voice.state.lastSpoke) + '.' : ''}${voice.state.lastProblem ? ' The natural voice failed last time (' + esc(voice.state.lastProblem) + ').' : ''}</p>`));
+  vc.appendChild(h(`<p class="small muted">${!pref('voiceNatural', true) ? "Using Windows' own voice." : eng === 'atlas' ? "Atlas Voice: Atlas's own designed voice, spoken on this laptop's graphics card." : eng === 'elevenlabs' ? "Atlas's own voice, designed for it on ElevenLabs from a description (made once, then kept)." : eng === 'gemini' ? 'A human-sounding voice from Gemini.' : eng === 'openai' ? 'A human-sounding voice from OpenAI.' : 'Natural voices come from ElevenLabs, Gemini or OpenAI: add one of their keys. Until then, the best Windows voice.'}${voice.state.lastSpoke ? ' Last reply: ' + esc(voice.state.lastSpoke) + '.' : ''}${voice.state.lastProblem ? ' The natural voice failed last time (' + esc(voice.state.lastProblem) + ').' : ''}</p>`));
+  atlasVoiceCard(vc);   // >>> atlas voice
   const engs = voice.engines();
   if (engs.length > 1) {
     vc.appendChild(h('<div style="margin-top:16px">Voice Service</div>'));
@@ -1087,3 +1088,37 @@ async function main() {
   // <<< device link
 }
 main();
+
+// >>> atlas voice: Me → Voice: Atlas Voice on this laptop's graphics card (desktop/atlasvoice.js), set up in one click
+let atlasVoiceHooked = false, atlasVoiceShow = null;
+function atlasVoiceCard(vc) {
+  if (!host.atlasVoice) return;
+  const box = h('<div style="margin-top:14px"><div>Atlas Voice on This Laptop</div><p class="small muted" style="margin-top:4px">Checking this laptop…</p><div class="row" style="margin-top:8px"></div></div>');
+  vc.appendChild(box);
+  const note = box.children[1], row = box.children[2];
+  const show = (st) => {
+    if (!st) return;
+    const gpu = st.gpu ? `${st.gpu.name}, ${(st.gpu.vramMb / 1024).toFixed(1)} GB` : '';
+    const say = {
+      installed: st.ready ? `Running (${st.installedModel ? st.installedModel.split('/').pop() : 'Qwen3-TTS'}${gpu ? ' on ' + gpu : ''}). Every reply is spoken in Atlas's designed voice, and your phone uses it too while they're linked.` : 'Installed. Starting it… (the first start loads the model into the graphics card)',
+      'can-install': `Atlas can speak in its own designed voice right here, on your graphics card${gpu ? ' (' + gpu + ')' : ''}: ${st.model ? st.model.why : ''}. One click installs it (about 6–8 GB to download, once).`,
+      'no-python': 'Atlas Voice needs Python 3.10–3.12 on this laptop (python.org, 3.12 recommended). Install it, then come back here.',
+      'no-gpu': "Atlas Voice needs an NVIDIA graphics card; this laptop doesn't show one. Atlas uses its other voices.",
+      'gpu-too-small': `${gpu} has too little graphics memory for Atlas Voice (3 GB or more needed).`,
+      failed: `Setting up didn't finish: ${st.error || 'unknown problem'}.`,
+      unknown: 'Checking this laptop…',
+    }[st.installing ? 'x' : st.phase] || (st.installing ? `Installing: ${st.step}…` : '');
+    note.textContent = st.installing ? `Installing: ${st.step}… (this takes a while; you can keep using Atlas)` : say;
+    row.innerHTML = '';
+    const btn = (label, primary, fn) => { const b = h(`<button class="btn ${primary ? 'primary' : ''}">${esc(label)}</button>`); b.onclick = fn; row.appendChild(b); };
+    if (st.installing) return;
+    if (st.phase === 'can-install' || st.phase === 'failed') btn(st.phase === 'failed' ? 'Try Again' : 'Set Up Atlas Voice', true, async () => { note.textContent = 'Starting the install…'; row.innerHTML = ''; show(await host.atlasVoice.install()); voice.refreshLocal(); });
+    if (st.phase === 'no-python') btn('Get Python', false, () => host.openExternal('https://www.python.org/downloads/'));
+    if (st.phase === 'installed' && st.ready) btn('Hear It', true, () => { voice.setEngine('atlas'); voice.preview('atlas', 'atlas'); });
+    if (st.phase === 'installed' && !st.ready) btn('Start', false, async () => { await host.atlasVoice.start(); setTimeout(async () => show(await host.atlasVoice.status()), 4000); });
+  };
+  atlasVoiceShow = show;
+  if (!atlasVoiceHooked) { atlasVoiceHooked = true; host.on('voice-local', (st) => { if (atlasVoiceShow) atlasVoiceShow(st); }); }
+  host.atlasVoice.detect().then(show).catch(() => {});
+}
+// <<< atlas voice

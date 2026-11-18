@@ -2323,12 +2323,20 @@ class MainActivity : Activity() {
         val eng = Voice.engine(this)
         vc.add(text(when {
             !Voice.natural(this) -> "Using the phone's own voice."
+            eng == LaptopVoice.ID -> "Atlas Voice: Atlas's own designed voice, made on your laptop's graphics card and sent here while they're linked."
             eng == ElevenLabs.ID -> "Atlas's own voice, designed for it on ElevenLabs from a description (uses your ElevenLabs key; made once, then kept)."
             eng == "gemini" -> "A human-sounding voice from Gemini (uses your Gemini key)."
             eng == "openai" -> "A human-sounding voice from OpenAI (uses your OpenAI key)."
             else -> "Natural voices come from ElevenLabs, Gemini or OpenAI: add one of their keys. Until then Atlas uses the phone's best voice."
         } + (Voice.lastSpoke?.let { "\nLast reply was spoken by $it." } ?: "")
           + (Voice.lastProblem?.let { "\nThe natural voice failed last time ($it), so another voice stood in." } ?: ""), 13f, MUTED), 6)
+        // >>> atlas voice: Atlas's designed voice from the linked laptop (LaptopVoice.kt)
+        if (Sync.linked(this)) {
+            vc.add(switchRow(null, "Atlas Voice from My Laptop", LaptopVoice.enabled(this)) { on -> LaptopVoice.setEnabled(this, on); render(keepScroll = true) }, 10)
+            vc.add(text(if (LaptopVoice.available(this)) "Your laptop is running Atlas Voice, so replies here are spoken in it. When the laptop is off, your other voices speak."
+                else "When your laptop runs Atlas Voice (set it up there in Me → Voice) and is on, replies here are spoken in it.", 13f, MUTED), 6)
+        }
+        // <<< atlas voice
         // which natural voice speaks, when there's more than one key for one
         val engs = Voice.engines(this)
         if (engs.size > 1) {
@@ -2338,7 +2346,7 @@ class MainActivity : Activity() {
         }
         if (eng != null) {
             // each voice in its own row: who it is, what it's like; tap to choose and hear it
-            val list = when (eng) { "gemini" -> Voice.geminiChoices; ElevenLabs.ID -> Voice.elevenChoices; else -> Voice.openAiChoices }
+            val list = when (eng) { LaptopVoice.ID -> Voice.laptopChoices; "gemini" -> Voice.geminiChoices; ElevenLabs.ID -> Voice.elevenChoices; else -> Voice.openAiChoices }
             val chosen = Voice.current(this, eng).id
             val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             list.forEachIndexed { i, c ->

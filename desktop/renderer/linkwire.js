@@ -12,6 +12,7 @@ import { bots } from './botwire.js';
 import { S as BOT, FINAL as BOT_FINAL } from './bots.js';
 import { plainReply } from './plain.js';
 import * as aware from './aware.js';
+import { local as voiceLocal } from './voice.js';   // >>> atlas voice
 const host = window.atlasHost;
 const URL_BASE = 'https://ggekbmptlgpjxaaejkns.supabase.co/rest/v1/rpc';
 const KEY = 'sb_publishable_C03KposFeeF3oZ3z6c554g_91mwmbTj';
@@ -41,7 +42,7 @@ export function start(kit) {
     if (!c) { fire(); return; }
     link = createLink({ rpc, owner: await sync.owner(c), me: db.state.deviceId,
       encrypt: (t) => sync.encrypt(c, t), decrypt: (t) => sync.decrypt(c, t),
-      info: () => ({ name: pref('deviceName', '') || 'Laptop', platform: 'windows', caps: ['tasks', 'screen', 'control'], reachable: true }),
+      info: () => ({ name: pref('deviceName', '') || 'Laptop', platform: 'windows', caps: ['tasks', 'screen', 'control', ...(voiceLocal.ready ? ['voice'] : [])], reachable: true }),
       onMessage, onPeers: () => { sendQueued(); fire(); },
       alwaysLongPoll: true,   // a PC is plugged in: it hears the phone within a moment
       log: (...a) => console.warn('[link]', ...a) });
@@ -72,11 +73,30 @@ async function onMessage(m) {
     case 'screen_stop': { if (controlled.has(m.sid)) endControlled(m.sid, 'Your phone stopped watching.'); if (viewer && viewer.sid === m.sid) viewer.end('The phone stopped sharing.'); return; }
     case 'screen_reply': return;   // picked up by waitFor
     case 'input': return inputIn(m);
+    case 'voice_req': return voiceReq(m);   // >>> atlas voice: the phone wants a reply spoken in Atlas Voice
     // >>> sync: the phone just sent changes to the cloud: fetch them now instead of at the next look
     case 'sync': return sync.syncSoon(300);
     // <<< sync
   }
 }
+
+// >>> atlas voice: speak a piece of a reply for the phone in Atlas's designed voice (this laptop's graphics card does
+// the work); the phone plays it, with its own finish. Raw 16-bit PCM, base64, well under the relay's 1.5 MB.
+export function pcmBase64(bytes) {
+  let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+async function voiceReq(m) {
+  if (!m.tid) return;
+  try {
+    if (!voiceLocal.ready || !window.atlasHost.atlasVoice) throw new Error('Atlas Voice is not running on the laptop');
+    const r = await window.atlasHost.atlasVoice.speak(String(m.text || '').slice(0, 1200), String(m.language || 'English'));
+    const pcm = pcmBase64(r.pcm instanceof Uint8Array ? r.pcm : new Uint8Array(r.pcm));
+    if (pcm.length > 1_300_000) throw new Error('that piece is too long to send');
+    await link.send(m.from, 'voice_reply', { tid: m.tid, rate: r.rate, pcm });
+  } catch (e) { await link.send(m.from, 'voice_reply', { tid: m.tid, error: e.message || String(e) }).catch(() => {}); }
+}
+// <<< atlas voice
 
 // ------------------------------------------------------------------ tasks from the phone (run here)
 

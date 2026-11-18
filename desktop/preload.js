@@ -89,11 +89,21 @@ contextBridge.exposeInMainWorld('atlasHost', {
     resume: () => ipcRenderer.invoke('trade:resume'),
   },
   // <<< trading
+  // >>> atlas voice
+  atlasVoice: {
+    status: () => ipcRenderer.invoke('voice:status'),
+    detect: () => ipcRenderer.invoke('voice:detect'),
+    install: () => ipcRenderer.invoke('voice:install'),
+    start: () => ipcRenderer.invoke('voice:start'),
+    stop: () => ipcRenderer.invoke('voice:stop'),
+    speak: (text, language) => ipcRenderer.invoke('voice:speak', text, language),
+  },
+  // <<< atlas voice
   // >>> connections
   conn: (op, ...args) => ipcRenderer.invoke('conn', op, ...args),
   // <<< connections
   on: (channel, fn) => {
-    const ok = ['notification-click', 'orb-clicked', 'orb-state', 'connections-changed', 'remote-stop', 'trading-changed'];
+    const ok = ['notification-click', 'orb-clicked', 'orb-state', 'connections-changed', 'remote-stop', 'trading-changed', 'voice-local'];
     if (!ok.includes(channel)) return;
     ipcRenderer.on(channel, (_e, ...args) => fn(...args));
   }
