@@ -474,7 +474,10 @@ export async function runTool(call, { approved = false } = {}) {
       if (r.error) return { out: 'Error: ' + r.error };
       return { out: r.out || 'Done.', step: r.step || null, image: r.image || null, pc: true };
     }
-    if (conn.owns(call.name)) return await conn.run(call, { approved, confirm: ui.confirm });   // connections
+    if (conn.owns(call.name)) {   // connections (>>> autonomy: by the kind of action; aware.js chatGate)
+      const kind = aware.kindOf(call.name, call.args || {}, conn.approvalFor(call.name, call.args || {}) || '');
+      return await conn.run(call, { approved, confirm: ui.confirm, gate: async (need) => ({ ...(await aware.chatGate(kind, need)), approved: () => aware.approvedKind(kind) }) });
+    }
     // >>> email: run here rather than through aware.run, which has no way to say a bot's action was already approved
     if (mail.owns(call.name)) return await mail.run(call, { approved, ask: aware.addAsk });
     const viaCap = await aware.run(call);   // the capability registry (aware.js)

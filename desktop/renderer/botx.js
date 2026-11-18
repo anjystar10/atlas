@@ -7,6 +7,7 @@
 // ------------------------------------------------------------------ approvals: kinds of risky action
 
 import { normalizeBot, addLog as crewAddLog, defaultAccess, cleanBudget } from './crew.js';
+import * as A from './autonomy.js';   // >>> autonomy: when Atlas acts on its own and when it asks
 export const CATEGORIES = [
   { id: 'message', label: 'Send a message or email' },
   { id: 'publish', label: 'Publish or post something' },
@@ -266,7 +267,7 @@ export function rulesPrompt(policy) {
  */
 export function createExtras(deps) {
   const now = deps.now || Date.now;
-  const data = { skills: [], routines: [], specialists: [], policy: emptyPolicy(), seeded: false };
+  const data = { skills: [], routines: [], specialists: [], policy: emptyPolicy(), seeded: false, local: { counts: {}, recent: [] } };   // local: this PC only (not synced)
   const listeners = new Set();
   let loaded = false, timer = null, saving = Promise.resolve();
   const changed = (kind) => { if (kind && deps.changed) { try { deps.changed(kind); } catch (e) { console.error(e); } } for (const f of [...listeners]) { try { f(); } catch (e) { console.error(e); } } };
@@ -275,7 +276,7 @@ export function createExtras(deps) {
   async function init() {
     if (loaded) return;
     loaded = true;
-    try { const t = await deps.load(); if (t) { const d = JSON.parse(t); for (const k of ['skills', 'routines', 'specialists']) if (Array.isArray(d[k])) data[k] = d[k]; if (d.policy) data.policy = { ...emptyPolicy(), ...d.policy }; data.seeded = !!d.seeded; } } catch (e) { console.error('botx: unreadable', e); }
+    try { const t = await deps.load(); if (t) { const d = JSON.parse(t); for (const k of ['skills', 'routines', 'specialists']) if (Array.isArray(d[k])) data[k] = d[k]; if (d.policy) data.policy = { ...emptyPolicy(), ...d.policy }; data.seeded = !!d.seeded; if (d.local && typeof d.local === 'object') data.local = { counts: d.local.counts || {}, recent: Array.isArray(d.local.recent) ? d.local.recent : [] }; } } catch (e) { console.error('botx: unreadable', e); }
     if (!data.seeded) { data.seeded = true; for (const s of DEFAULT_SPECIALISTS) if (!data.specialists.some((x) => x.id === s.id)) data.specialists.push(cleanSpecialist(s, 0, s.id)); }
     data.specialists = data.specialists.map((s) => normalizeBot(s, s.updatedAt || 0, s.id));
     await persist(); tick();
@@ -325,6 +326,41 @@ export function createExtras(deps) {
     } else { if (!sp.notes.includes(t)) sp.notes.push(t); while (sp.notes.length > 40) sp.notes.shift(); }
     sp.updatedAt = now(); persist(); changed('specialist'); return forget ? 'Forgotten.' : 'Noted for next time.';
   }
+
+  // ---- autonomy (autonomy.js): level, grants and known people live in the policy (so they sync); counts and the
+  // "done without asking" list stay on this PC. Callers have checked it's the user's own tap or own words.
+  const pad = (n) => String(n).padStart(2, '0');
+  const today = () => { const d = new Date(now()); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+  const touchPolicy = () => { data.policy.updatedAt = now(); persist(); changed('policy'); };
+  const autonomy = {
+    today,
+    level: () => A.levelOf(data.policy),
+    decide: (kind, o = {}) => A.decide(data.policy, { ...o, kind, day: today() }),
+    kindFor: (tool, args, category, ctx = {}) => A.kindFor(tool, args || {}, category, { known: data.policy.recipients || [], ...ctx }),
+    /** null when done, else why not. byTap: from Me; otherwise consentYes (the user's own latest message) is needed to ask less. */
+    setLevel(level, o = {}) { const r = A.canChangeLevel(A.levelOf(data.policy), level, o); if (!r.ok) return r.why; data.policy.level = level; touchPolicy(); return null; },
+    setBotLevel(botId, level, o = {}) {
+      const cur = A.effectiveLevel(data.policy, botId);
+      if (level != null && !A.LEVELS.includes(level)) return 'unknown level';
+      if (!o.byTap && (level == null || A.LEVELS.indexOf(level) > A.LEVELS.indexOf(cur)) && !o.consentYes) return "only the user's own words can make a bot ask less";
+      data.policy.botLevels = { ...(data.policy.botLevels || {}) }; if (level == null) delete data.policy.botLevels[botId]; else data.policy.botLevels[botId] = level;
+      touchPolicy(); return null;
+    },
+    grants: () => data.policy.grants || [],
+    grant(kind, scope, o = {}) { const r = A.makeGrant(kind, scope, { ...o, day: today(), at: now() }); if (r.error) return r.error; data.policy.grants = A.addGrant(data.policy.grants, r.grant, today()); touchPolicy(); return null; },
+    revoke(i) { data.policy.grants = A.revokeGrant(data.policy.grants, i); touchPolicy(); },
+    known: () => data.policy.recipients || [],
+    rememberRecipients(to) { const add = A.recipientsIn(to); if (!add.length) return; data.policy.recipients = [...new Set([...(data.policy.recipients || []), ...add])].slice(-500); touchPolicy(); },
+    /** The user approved this kind: {count, offer} — offer "Always allow this?" once after 3. */
+    approved(kind) {
+      const r = A.afterApproval(data.local.counts, data.policy.suggested || [], kind);
+      data.local.counts[kind] = r.count;
+      if (r.offer) { data.policy.suggested = [...new Set([...(data.policy.suggested || []), kind])]; touchPolicy(); } else persist();
+      return r;
+    },
+    noteDone(what, kind) { data.local.recent.push({ at: now(), what: String(what || '').slice(0, 160), kind }); while (data.local.recent.length > 40) data.local.recent.shift(); persist(); },
+    recent: () => data.local.recent.slice(),
+  };
 
   // policy
   function setMode(category, mode) {
@@ -404,7 +440,7 @@ export function createExtras(deps) {
   }
 
   return {
-    data, init, tick, saveSkill, removeSkill, saveSpecialist, removeSpecialist, specialistNote, setMode, addRule, removeRule, createBot, updateBot, addBotLog,
+    data, init, tick, autonomy, saveSkill, removeSkill, saveSpecialist, removeSpecialist, specialistNote, setMode, addRule, removeRule, createBot, updateBot, addBotLog,
     saveRoutine, removeRoutine, enableRoutine, runRoutine, applySynced, synced, mine,
     skill: (name) => findByName(data.skills, name), specialist: (name) => data.specialists.find((s) => s.id === name) || findByName(data.specialists, name),
     mode: (category) => modeFor(data.policy, category),
@@ -413,7 +449,7 @@ export function createExtras(deps) {
     categoryOf: (tool, args, what) => { if (tool === 'browser_fill_login') return 'account'; if (/^project_/.test(String(tool || ''))) return projectCategory(tool, args || {}); const cc = connectionCategory(tool, args || {}); if (cc) return cc; const g = guessCategory(what); return g !== 'other' || !tool ? g : categoryFor(tool, args || {}); },
     /** The kind from everything an action says (label, form, page): the strongest risk wins. */
     guess: (text, tool, args) => { if (tool === 'browser_fill_login' && !/payment/i.test(text)) return 'account'; return strongestCategory(text, tool, args); },
-    label: categoryLabel, skillText, draftSkill,
+    label: categoryLabel, skillText, draftSkill, guessCategory,
     onChange: (f) => { listeners.add(f); return () => listeners.delete(f); },
     idle: () => saving,
   };

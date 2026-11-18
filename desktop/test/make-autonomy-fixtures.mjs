@@ -34,7 +34,7 @@ const kindCases = [
   ['reply_message', {}, null, {}], ['email_delete', {}, null, {}], ['email_archive', {}, null, {}], ['mark_read', {}, null, {}], ['email_draft', {}, null, {}],
   ['forget', {}, null, {}], ['update_reminder', { action: 'delete' }, null, {}], ['update_reminder', { action: 'move' }, null, {}], ['calendar_change', {}, null, {}],
   ['run_command', {}, null, {}], ['write_file', {}, null, {}], ['browser_fill_login', {}, null, {}], ['browser_fill_login', {}, null, { money: true }],
-  ['open_link', { url: 'https://x.com' }, null, {}], ['open_link', { url: ' TEL:123' }, null, {}], ['trade_order', {}, null, { live: true }], ['trade_order', {}, null, {}],
+  ['open_link', { url: 'https://x.com' }, null, {}], ['open_link', { url: ' TEL:123' }, null, {}], ['trade_order', {}, null, { live: true }], ['trade_order', {}, null, {}], ['trade_order', {}, 'purchase', { money: true }],
   ['browser_click', {}, 'publish', {}], ['browser_click', {}, 'purchase', {}], ['browser_click', {}, 'message', { money: true }], ['tap', {}, 'command', { what: 'Install the app' }],
   ['tap', {}, 'command', { what: 'Run it' }], ['tap', {}, 'screen', {}], ['tap', {}, 'bogus', {}], [null, {}, null, {}], ['mcp__github__create_issue', {}, 'other', {}],
 ];

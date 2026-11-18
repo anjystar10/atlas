@@ -114,14 +114,21 @@ export async function run(call, { approved = false, confirm, ask } = {}) {
   if (acct.webmail) return { out: `${acct.providerName} doesn't let apps sign in with a password, so this tool can't reach ${acct.email}. Send a bot to ${acct.webmail} instead (deploy_bot with what to do there); the user signs in there once.` };
   const need = approved ? null : approvalFor(call.name, a);
   if (need) {
-    let detail = need;
-    if (call.name === 'email_send') { const d = (await host.mail('getDraft', { id: a.draft_id })).ok; if (d) detail = `To: ${d.to}${d.cc ? `\nCc: ${d.cc}` : ''}\nSubject: ${d.subject}\n\n${d.body.slice(0, 1500)}${d.body.length > 1500 ? '\n…' : ''}`; }
+    let detail = need, to = '';
+    if (call.name === 'email_send') { const d = (await host.mail('getDraft', { id: a.draft_id })).ok; if (d) { to = [d.to, d.cc].filter(Boolean).join(','); detail = `To: ${d.to}${d.cc ? `\nCc: ${d.cc}` : ''}\nSubject: ${d.subject}\n\n${d.body.slice(0, 1500)}${d.body.length > 1500 ? '\n…' : ''}`; } }
+    // >>> autonomy: someone Atlas never emailed with the user's OK always asks; trashing is small (10 s to Undo); see autonomy.js
+    const kind = aware.kindOf(call.name, a, need, { to });
+    const g = await aware.chatGate(kind, need);
+    if (g.result) return g.result;
+    if (g.go) return run(call, { approved: true });
+    // <<< autonomy
     if (ask && !confirm) {
-      const ref = ask(need, () => run(call, { approved: true }));
+      const ref = ask(need, () => { aware.approvedKind(kind); aware.rememberRecipients(to); return run(call, { approved: true }); });
       return { out: `Needs the user's OK first [${ref}]: ${need}.${call.name === 'email_send' ? `\n\n${detail}\n\n` : ' '}Show them${call.name === 'email_send' ? ' the email' : ''} and ask in one short line; when they say yes, call answer_approval with ref ${ref}.`, step: 'Waiting for your OK: ' + need.slice(0, 60) };
     }
     const yes = confirm ? await confirm(call.name === 'email_send' ? 'Send this email?' : 'Delete these emails?', detail, call.name === 'email_send' ? 'Send It' : 'Delete') : false;
     if (!yes) return { out: call.name === 'email_send' ? 'The user said no: the email was not sent (the draft is kept).' : 'The user said no: nothing was deleted.' };
+    aware.approvedKind(kind); aware.rememberRecipients(to);
   }
   const go = async (op, args) => { const r = await host.mail(op, args); if (r.error) throw new Error(r.error); return r.ok; };
   try {

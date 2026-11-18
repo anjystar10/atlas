@@ -11,6 +11,7 @@ import { Orb } from './orb.js';
 import { renderMarkdown } from './md.js';
 import { plainMemory } from './plain.js';
 import { bots, extras } from './botwire.js';
+import { autonomyCard } from './autonomyui.js';   // >>> autonomy: Me → How Freely Atlas Acts
 import * as BX from './botsui.js';
 import { renderLibrary, refreshLibrary } from './library.js';
 import * as fitRules from './fit.js';
@@ -785,6 +786,7 @@ function renderMe(page) {
   trade.renderTrading(col, { h, esc, sheet, toast, render });   // >>> trading <<<
 
   // Devices
+  autonomyCard(col, kit(), extras.autonomy, (id) => (extras.data.specialists.find((b) => b.id === id) || {}).name || 'a bot');   // >>> autonomy
   BX.permissionsCard(col, kit());
   col.appendChild(h('<div class="eyebrow">Your Devices</div>'));
   const dc = h('<div class="card"></div>'); col.appendChild(dc);

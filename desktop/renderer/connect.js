@@ -175,11 +175,17 @@ export function promptLine() {
 }
 
 /** Runs one connection tool. [confirm](title, body, button) asks the user; [approved]: they already said yes. → {out, step, image} */
-export async function run(call, { approved = false, confirm = async () => false } = {}) {
+export async function run(call, { approved = false, confirm = async () => false, gate = null } = {}) {
   const a = call.args || {}; const h = host();
   if (!h || !h.conn) return { out: "Error: connections aren't available here." };
   const need = approved ? null : approvalFor(call.name, a);
-  if (need && !(await confirm('Allow This?', need, 'Allow'))) return { out: 'The user said no to that.' };
+  if (need) {
+    // >>> autonomy ([gate]: aware.js chatGate by kind): small or allowed things go ahead, the rest asks
+    const g = gate ? await gate(need) : { ask: true };
+    if (g.result) return g.result;
+    if (!g.go && !(await confirm('Allow This?', need, 'Allow'))) return { out: 'The user said no to that.' };
+    if (!g.go && g.approved) g.approved();
+  }
   if (call.name === CALL_API) {
     let body = a.body; if (typeof body === 'string' && body.trim()) { try { body = JSON.parse(body); } catch {} }
     const r = await h.conn('api', a.connection, a.method, a.path, body);

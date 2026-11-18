@@ -10,6 +10,7 @@
 // It has no imports from the rest of the app: the app plugs its parts in with use(), so it stays testable on its own.
 
 import { userSaid, consent as crewConsent } from './crew.js';
+import { LEVEL_LABELS, grantText, briefLine } from './autonomy.js';   // >>> autonomy
 const caps = new Map();
 /** { id, tools: () => [declarations], run: async (call) => result | null, brief?: () => string | null, forBots?, forChat? } */
 export function register(cap) { caps.set(cap.id, { forChat: true, forBots: false, ...cap }); }
@@ -46,6 +47,29 @@ export const consent = (text = heardText) => crewConsent(text);
 // ------------------------------------------------------------------ waiting on the user
 
 const asks = new Map(); let askN = 0; const ASK_TTL = 30 * 60000;
+/**
+ * >>> autonomy: should the chat do this now? { go: true } (allowed, or the 10-second Undo passed), { ask: true } (the
+ * caller asks the user its usual way), or { result } (Undo was clicked, or the user never allows this kind).
+ * src.autonomy is botx.js's extras.autonomy; without it everything asks, as before.
+ */
+export async function chatGate(kind, what, { mustAsk = false } = {}) {
+  const au = src.autonomy; if (!au) return { ask: true };
+  const d = au.decide(kind, { mustAsk });
+  if (d.act === 'go') { if (d.tier !== 'free') au.noteDone(what, kind); return { go: true }; }
+  if (d.act === 'deny') return { result: { out: `Error: the user's standing choice is never to allow this kind of action (${String(what).slice(0, 80)}). Tell them; they can change it in Me → Bot Permissions.` } };
+  if (d.act === 'undo') {
+    const r = src.countdown ? await src.countdown(what) : null;
+    if (r === true) { au.noteDone(what, kind); return { go: true }; }
+    if (r === false) return { result: { out: `The user clicked Undo, so it was NOT done: ${String(what).slice(0, 120)}. Don't try it again unless they ask.`, step: 'You clicked Undo' } };
+  }
+  return { ask: true };
+}
+/** The kind of a chat action (autonomy.js kindFor, with what the PC knows). */
+export const kindOf = (tool, args, what, ctx = {}) => (src.autonomy ? src.autonomy.kindFor(tool, args || {}, src.category ? src.category(what, tool, args) : null, { what, ...ctx }) : 'other');
+/** After the user's own yes to a chat action: count it (and offer "always allow?" once after 3). */
+export const rememberRecipients = (to) => { if (src.autonomy) src.autonomy.rememberRecipients(to); };
+export function approvedKind(kind) { const au = src.autonomy; if (!au) return; const r = au.approved(kind); if (r.offer && src.offerAlways) src.offerAlways(kind); }
+
 export function addAsk(what, runIt) { prune(); const ref = 'chat' + (++askN); asks.set(ref, { ref, what, at: Date.now(), run: runIt }); return ref; }
 function prune() { const now = Date.now(); for (const [k, v] of asks) if (now - v.at > ASK_TTL) asks.delete(k); }
 export const listAsks = () => { prune(); return [...asks.values()]; };
@@ -86,6 +110,7 @@ export async function brief({ markSeen = true } = {}) {
   const add = (title, lines) => { const l = lines.filter(Boolean); if (l.length) parts.push(title + ':\n' + l.map((x) => '- ' + x).join('\n')); };
   add('Waiting for the user (answer with answer_approval; if they just say "yes"/"go ahead"/"no" and one thing is waiting, that\'s the one)',
     pending().slice(0, 6).map((p) => `[${p.ref}] ${p.question ? 'question' : 'needs OK'} from ${p.from}: ${String(p.what).slice(0, 140)}`));
+  if (src.autonomy) parts.push(briefLine({ level: src.autonomy.level(), grants: src.autonomy.grants() }));   // >>> autonomy
   try {
     const b = src.bots, S = src.S || {}, final = src.final || new Set(), label = (s) => (src.labels && src.labels[s]) || s;
     if (b) {
@@ -200,8 +225,17 @@ export const TOOLS = [
     ref: str('The [ref] from the brief. May be empty if exactly one thing is waiting.'),
     yes: bool('true: go ahead. false: don\'t.'),
     always: bool("Also allow this kind of action from now on (only if the user's own message says 'always'; money never)."),
+    scope: str('When the user\'s yes covers more than this one: today (this kind, for today), bot (this kind, for this bot), plan (everything this bot\'s plan names, for this job). Money and new people are never covered.', ['once', 'today', 'bot', 'plan']),
+    all: bool('The user said yes to everything waiting ("approve all"): approves every waiting bot action except money and the always-ask kinds.'),
     answer: str("For a bot's question: the user's answer."),
   }, ['yes']),
+  // >>> autonomy: how freely Atlas acts (autonomy.js)
+  fn('autonomy', 'See or change how freely Atlas acts without asking. Levels: careful (asks before anything that changes things), balanced (small things just happen with 10 seconds to Undo; asks once per kind of bigger thing), autopilot (only money, deleting, new people and security ask). Money, deleting, messaging someone new and security changes ALWAYS ask whatever the level. Only change it when the user\'s own message asks for it.', {
+    action: str('status, set_level, set_bot_level, revoke', ['status', 'set_level', 'set_bot_level', 'revoke']),
+    level: str('careful, balanced or autopilot (for set_bot_level: empty = same as Atlas)'),
+    bot: str("The bot's name or id (set_bot_level)"),
+    index: { type: 'integer', description: 'Which standing permission to remove (revoke), from status' },
+  }, ['action']),
   fn('web', "Do something on a website yourself, right now, in Atlas's own browser (quick jobs of a few steps: look something up on a site, fill a short form, check a page). For long jobs send a bot instead. Each action returns the page as text with numbered links, buttons and fields. Risky clicks or submits (send, buy, post, delete…) wait for the user's OK.", {
     action: str('open (needs url), read, click (target), type (target, text, submit), select (target, option), press (key), scroll, back', ['open', 'read', 'click', 'type', 'select', 'press', 'scroll', 'back']),
     url: str('For open: the web address'), target: str('A number from the latest page list, or the visible text of the element'),
@@ -256,7 +290,36 @@ async function botsTool(a) {
   }
 }
 
+// >>> autonomy
+function autonomyTool(a) {
+  const au = src.autonomy; if (!au) return { out: "Error: autonomy isn't available here." };
+  const bots = (src.crew && src.crew.bots && src.crew.bots()) || [];
+  const name = (id) => (bots.find((b) => b.id === id) || {}).name || id;
+  if (a.action === 'set_level') { const why = au.setLevel(String(a.level || ''), { consentYes: consent().yes }); return why ? { out: `Error: not changed: ${why}. Ask the user to say so themselves, or to change it in Me.` } : { out: `Autonomy is now ${a.level}: ${LEVEL_LABELS[a.level]}`, step: 'Autonomy: ' + a.level }; }
+  if (a.action === 'set_bot_level') {
+    const q = String(a.bot || '').trim().toLowerCase();
+    const b = bots.find((x) => x.id.toLowerCase() === q || String(x.name).toLowerCase() === q) || bots.find((x) => q && String(x.name).toLowerCase().includes(q));
+    if (!b) return { out: `Error: no bot called ${a.bot}.` };
+    const lv = String(a.level || '').trim() || null;
+    const why = au.setBotLevel(b.id, lv, { consentYes: consent().yes });
+    return why ? { out: `Error: not changed: ${why}.` } : { out: `${b.name} now works at ${lv || 'the same level as Atlas'} (never bolder than Atlas).`, step: `${b.name}: ${lv || 'same as Atlas'}` };
+  }
+  if (a.action === 'revoke') { const g = au.grants(); const i = Number(a.index); if (!(i >= 0 && i < g.length)) return { out: `Error: no standing permission ${a.index}.` }; au.revoke(i); return { out: `Removed: ${grantText(g[i], name)}. That kind asks again.`, step: 'Removed a permission' }; }
+  const g = au.grants(); const lv = au.level();
+  return { out: [`Level: ${lv} — ${LEVEL_LABELS[lv]}`, g.length ? 'Standing permissions:\n' + g.map((x, i) => `${i}. ${grantText(x, name)}`).join('\n') : 'No standing permissions.',
+    au.recent().length ? 'Done without asking lately: ' + au.recent().slice(-5).map((r) => r.what.slice(0, 60)).join('; ') : ''].filter(Boolean).join('\n') };
+}
+// <<< autonomy
+
 async function approveTool(a) {
+  // >>> autonomy: "approve all" — every waiting bot action that may be bulk-approved (never money or the always-ask kinds)
+  if (a.all && a.yes) {
+    const c = consent(); if (!c.yes) return { out: `Error: not allowed: ${c.why}. Only the user's own words can approve these.` };
+    const before = pending().length; if (src.bots && src.bots.approveAll) src.bots.approveAll();
+    const left = pending();
+    return { out: `Approved ${before - left.length}. ` + (left.length ? 'Still waiting for their own yes (money, new people, deleting or security, or questions): ' + left.map((x) => `[${x.ref}] ${String(x.what).slice(0, 60)}`).join('; ') : 'Nothing else is waiting.'), step: 'Approved all that could be' };
+  }
+  // <<< autonomy
   const list = pending(); if (!list.length) return { out: "Nothing is waiting for the user's OK right now." };
   const p = pick(list, a.ref);
   if (!p) return { out: 'Error: several things are waiting; ask which one: ' + list.map((x) => `[${x.ref}] ${String(x.what).slice(0, 60)} (from ${x.from})`).join('; ') };
@@ -270,7 +333,7 @@ async function approveTool(a) {
     always = c.always && !!a.always;
   }
   if (kind === 'bot' && p.question) { const t = String(a.answer || '').trim(); if (!t) return { out: `Error: the bot asked “${p.what}”; give the user's answer in answer.` }; src.bots.answer(id, t); return { out: 'Gave the bot the answer.', step: 'Answered the bot' }; }
-  if (kind === 'bot') { src.bots.approve(id, yes, yes && always); return { out: yes ? 'Allowed; the bot carries on.' : 'Denied; the bot will find another way or stop.', step: (yes ? 'Allowed: ' : 'Denied: ') + String(p.what).slice(0, 60) }; }
+  if (kind === 'bot') { src.bots.approve(id, yes, yes && always, yes && ['today', 'bot', 'plan'].includes(a.scope) ? a.scope : null); return { out: yes ? 'Allowed; the bot carries on.' : 'Denied; the bot will find another way or stop.', step: (yes ? 'Allowed: ' : 'Denied: ') + String(p.what).slice(0, 60) }; }
   if (kind === 'phone') { const ok = await src.link.answerTask(id, yes); return ok ? { out: yes ? 'Allowed on the phone.' : 'Denied on the phone.', step: yes ? 'Allowed on your phone: ' + String(p.what).slice(0, 50) : 'Denied on your phone' } : { out: 'It was already answered on the phone.' }; }
   const ask = asks.get(p.ref); asks.delete(p.ref);
   if (!ask) return { out: 'Error: that request has expired; do it again.' };
@@ -284,10 +347,15 @@ async function webTool(a) {
   const args = { ...a }; delete args.action;
   const what = await br.check(CHAT_JOB, 'Quick job from the chat', tool, args);
   if (what) {
-    const mode = src.mode ? src.mode(what, tool, args) : 'ask';
+    // >>> autonomy: go / Undo / ask / never by the kind of action (autonomy.js); without it, the older per-category choice
+    let mode = src.mode ? src.mode(what, tool, args) : 'ask';
+    const kind = kindOf(tool, args, what);
+    if (src.autonomy) { const g = await chatGate(kind, what); if (g.result) return g.result; mode = g.go ? 'allow' : 'ask'; }
     if (mode === 'deny') return { out: `Error: the user's standing choice is never to allow this kind of action (${what.slice(0, 80)}). Tell them; they can change it in Me → Bot Permissions.` };
+    if (mode === 'allow' && src.autonomy && (await br.check(CHAT_JOB, 'Quick job from the chat', tool, args)) !== what) return { out: "The page changed while waiting, so I didn't do it. Read it again." };
     if (mode !== 'allow') {
       const ref = addAsk(what, async () => {
+        approvedKind(kind);
         // the page must still show what they agreed to
         if ((await br.check(CHAT_JOB, 'Quick job from the chat', tool, args)) !== what) return { out: "The page changed, so I didn't do it. Read it again and ask again." };
         return br.run(CHAT_JOB, 'Quick job from the chat', tool, args);
@@ -302,6 +370,7 @@ register({ id: 'aware', tools: () => TOOLS, run: async (call) => {
   const a = call.args || {};
   if (call.name === 'bots') return botsTool(a);
   if (call.name === 'answer_approval') return approveTool(a);
+  if (call.name === 'autonomy') return autonomyTool(a);
   if (call.name === 'web') return webTool(a);
   return null;
 } });

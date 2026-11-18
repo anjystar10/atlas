@@ -16,6 +16,8 @@ import * as aware from './aware.js';
 import * as trade from './trade.js';   // trading: bots' LIVE orders wait for the user's tap on the job page
 import { LABELS as BOT_LABELS, FINAL as BOT_FINAL, S as BOT_S } from './bots.js';
 import * as mail from './mail.js';   // >>> email (registered in aware.js; its approvals are here)
+import * as AUI from './autonomyui.js';   // >>> autonomy: Undo bar, Approve All, "always allow?"
+import { batch as autonomyBatch } from './autonomy.js';
 const host = window.atlasHost;
 
 function systemPrompt(j = {}) {
@@ -171,6 +173,15 @@ export const bots = createBots({
   onFinal: (job) => { if (job.browser && host.botBrowser) host.botBrowser.close(job.id); },
   systemPrompt,
   notify: (title, body, tag) => host.notify(title, String(body || '').slice(0, 240), tag),
+  // >>> autonomy: 10 seconds to Undo (only while Atlas is on screen; otherwise it asks), one bar for several approvals,
+  // and "always allow?" after the third yes to the same kind
+  countdown: (what) => AUI.countdown(what),
+  batch: (pending) => {
+    const b = autonomyBatch(pending);
+    AUI.batchBar(b, () => bots.approveAll(), () => { if (brain.ui.openBots) brain.ui.openBots(); });
+    if (pending.length >= 2 && (typeof document === 'undefined' || document.visibilityState !== 'visible')) host.notify(b.title, pending.slice(0, 4).map((p) => '• ' + p.what).join('\n').slice(0, 240), 'bots:batch');
+  },
+  offerAlways: (kind) => AUI.offerAlways(kind, extras.data.local.counts[kind] || 3, (k) => extras.autonomy.grant(k, 'always')),
   post,
   plainReply, plainMemory,
   now: () => Date.now(), uid, deviceId: () => db.state.deviceId || '',
@@ -247,6 +258,10 @@ aware.use({
     },
   } : null,
   mode: (what, tool, args) => extras.mode(extras.categoryOf(tool, args || {}, what)),
+  autonomy: extras.autonomy,   // >>> autonomy (aware.js: the chat's own actions and approve all)
+  countdown: (what) => AUI.countdown(what),
+  category: (what, tool, args) => extras.categoryOf(tool, args || {}, what),
+  offerAlways: (kind) => AUI.offerAlways(kind, extras.data.local.counts[kind] || 3, (k) => extras.autonomy.grant(k, 'always')),
   seen: { get: () => pref('awareSeen', []), set: (ids) => setPref('awareSeen', ids) },
 });
 // <<< awareness

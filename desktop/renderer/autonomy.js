@@ -110,7 +110,8 @@ export function kindFor(tool, args = {}, category = null, ctx = {}) {
     case 'write_file': return 'write_file';
     case 'browser_fill_login': return ctx.money ? 'purchase' : 'sign_in';
     case 'open_link': return RISKY_SCHEMES.some((s) => String(a.url || '').trim().toLowerCase().startsWith(s)) ? 'message_send' : 'open_app';
-    case 'trade_order': case 'trade_close': case 'trade_plan': return ctx.live ? 'live_trade' : 'demo_trade';
+    // only LIVE orders the user hasn't pre-approved ever reach here as needing an OK; money always means LIVE
+    case 'trade_order': case 'trade_close': case 'trade_plan': return ctx.live || ctx.money ? 'live_trade' : 'demo_trade';
     default: break;
   }
   if (ctx.money) return 'purchase';

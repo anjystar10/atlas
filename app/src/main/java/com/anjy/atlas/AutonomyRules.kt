@@ -97,7 +97,8 @@ object AutonomyRules {
             "write_file" -> return "write_file"
             "browser_fill_login" -> return if (ctx.money) "purchase" else "sign_in"
             "open_link" -> return if (RISKY_SCHEMES.any { (args["url"] ?: "").trim().lowercase().startsWith(it) }) "message_send" else "open_app"
-            "trade_order", "trade_close", "trade_plan" -> return if (ctx.live) "live_trade" else "demo_trade"
+            // only LIVE orders the user hasn't pre-approved ever reach here as needing an OK; money always means LIVE
+            "trade_order", "trade_close", "trade_plan" -> return if (ctx.live || ctx.money) "live_trade" else "demo_trade"
         }
         if (ctx.money) return "purchase"
         if (category != null && CATEGORY_KIND.containsKey(category)) {

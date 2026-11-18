@@ -106,8 +106,9 @@ export function renderTrading(col, ui) {
       <div class="t">${esc(a.name)} <span class="tag ${a.mode === 'live' ? 'bad' : 'ok'}">${a.mode === 'live' ? 'LIVE' : 'PAPER'}</span></div>
       <div class="small muted">${a.broker === 'bybit' ? 'Bybit spot' : 'ProjectX futures · ' + esc(a.base || '')}${a.remoteId ? ' · account ' + esc(String(a.remoteId)) : ''}</div>
       <div class="small muted">${a.broker === 'bybit' ? money(L.maxOrderUsd) + ' per order' : L.maxContracts + ' contract(s) per order'} · ${money(L.maxDailyLossUsd)} daily loss · ${L.maxOrdersPerDay} trades a day · ${L.maxOpenPositions} open${L.symbols && L.symbols.length ? ' · only ' + esc(L.symbols.join(', ')) : ''}${L.hours ? ' · ' + esc(L.hours.start + '–' + L.hours.end) : ''}${a.broker === 'projectx' && a.mode === 'live' ? (L.allowDerivatives ? ' · futures on' : ' · futures off') : ''}</div></div>
-      <button class="btn" data-k="limits">Limits</button><button class="btn" data-k="edit">Edit</button></div></div>`);
+      ${a.mode === 'live' && host.trading.standing ? '<button class="btn" data-k="pre">Pre-Approve</button>' : ''}<button class="btn" data-k="limits">Limits</button><button class="btn" data-k="edit">Edit</button></div></div>`);
     row.querySelector('[data-k=limits]').onclick = () => limitsSheet(a, ui);
+    const pre = row.querySelector('[data-k=pre]'); if (pre) pre.onclick = () => standingSheet(a, ui);   // >>> autonomy
     row.querySelector('[data-k=edit]').onclick = () => accountSheet(a, ui);
     list.appendChild(row);
   }
@@ -162,6 +163,32 @@ function read(o, a) {
   const acc = { id: a ? a.id : undefined, name: v('name'), broker, mode: v('mode'), base: v('base'), remoteId: v('remoteId'), limits: a ? a.limits : undefined };
   const secret = broker === 'projectx' ? { userName: v('userName').trim(), apiKey: v('apiKey').trim() } : { key: v('key').trim(), secret: v('secret').trim() };
   return { acc, secret: Object.values(secret).every((x) => x) ? secret : null };
+}
+
+/**
+ * >>> autonomy: pre-approved LIVE trades. Orders inside these limits go without a tap; anything outside still asks.
+ * Saving shows a native warning on the PC that only the user can answer (main process); nothing else can set these.
+ */
+async function standingSheet(a, ui) {
+  const { esc, sheet, toast, render } = ui;
+  const cur = await host.trading.standingGet(a.id); const L = a.limits; const fut = a.broker === 'projectx';
+  const html = `<p class="muted small">LIVE orders inside these limits go ahead without asking you each time. Anything bigger, on another instrument, past the day's loss limit or after the end date still asks. Your account limits always apply. This is real money.</p>
+    <div class="list" style="gap:10px"><label class="small muted">Instruments (required)<input data-f="symbols" class="field" placeholder="BTCUSDT, MNQ" value="${esc(cur ? cur.symbols.join(', ') : '')}"></label>
+    ${fut ? `<label class="small muted">Most contracts per order (account allows ${L.maxContracts})<input data-f="maxContracts" type="number" min="1" class="field" value="${cur ? cur.maxContracts : 1}"></label>`
+      : `<label class="small muted">Most per order, dollars (account allows ${money(L.maxOrderUsd)})<input data-f="maxOrderUsd" type="number" min="1" class="field" value="${cur ? cur.maxOrderUsd : Math.min(25, L.maxOrderUsd)}"></label>`}
+    <label class="small muted">Most loss in a day, dollars<input data-f="maxDailyLossUsd" type="number" min="1" class="field" value="${cur ? cur.maxDailyLossUsd : Math.min(20, L.maxDailyLossUsd)}"></label>
+    <label class="small muted">For how many days (1–90)<input data-f="days" type="number" min="1" max="90" class="field" value="7"></label>
+    ${cur ? `<p class="small muted">On until ${esc(new Date(cur.expiresAt).toLocaleDateString())}.</p>` : ''}</div>`;
+  let off = false;
+  const ok = await sheet({ title: 'Pre-Approve LIVE Trades: ' + a.name, html, primary: 'Pre-Approve…', secondary: cur ? 'Turn Off' : 'Cancel', onOpen: (o) => {
+    if (cur) o.querySelector('[data-k=no]').onclick = async (e) => { e.stopPropagation(); off = true; await host.trading.standing(a.id, null); o.remove(); toast('LIVE trades ask every time again'); render(true); };
+  }, onPrimary: async (o) => {
+    const v = (n) => (o.querySelector(`[data-f=${n}]`) || {}).value;
+    const r = await host.trading.standing(a.id, { symbols: v('symbols'), maxOrderUsd: Number(v('maxOrderUsd') || 0), maxContracts: Number(v('maxContracts') || 0), maxDailyLossUsd: Number(v('maxDailyLossUsd')), days: Number(v('days')) });
+    if (r && r.error) { toast(r.error); return false; }
+    return !!(r && r.ok);
+  } });
+  if (ok && !off) { toast("LIVE trades inside your limits won't ask now"); render(true); }
 }
 
 async function limitsSheet(a, ui) {
