@@ -16,6 +16,8 @@ import * as aware from './aware.js';
 import * as trade from './trade.js';   // trading: bots' LIVE orders wait for the user's tap on the job page
 import { LABELS as BOT_LABELS, FINAL as BOT_FINAL, S as BOT_S } from './bots.js';
 import * as mail from './mail.js';   // >>> email (registered in aware.js; its approvals are here)
+import * as TR from './trigrules.js';   // >>> bot triggers: the rules (shared with the phone)
+import { createTrigRun, lastPrice } from './trigrun.js';
 const host = window.atlasHost;
 
 function systemPrompt(j = {}) {
@@ -201,10 +203,12 @@ export const crew = {
   /** Something happened that a bot's trigger listens for: start its mission (a paused bot ignores it). */
   fireTrigger(botId, event = {}) {
     const b = findBot(botId); if (!b || b.state === 'paused') return null;
-    const tr = (b.triggers || []).find((t) => t.enabled && (!event.trigger || t.id === event.trigger) && (!event.type || t.type === event.type));
-    const goal = String((tr && tr.config && tr.config.goal) || event.goal || `Handle this ${event.type || 'event'}`).slice(0, 300);
-    const details = [event.title ? `What happened: ${event.title}` : '', event.data ? `Details:\n${typeof event.data === 'string' ? event.data : JSON.stringify(event.data).slice(0, 3000)}` : ''].filter(Boolean).join('\n\n');
-    return bots.deploy(goal, details, { bot: b.id, source: { type: event.type === 'schedule' ? 'routine' : 'trigger', ref: (tr && tr.id) || event.type || null } });
+    const tr = (b.triggers || []).find((t) => t.enabled && (!event.trigger || t.id === event.trigger) && (!event.type || t.type === event.type || event.type === 'schedule' && t.type === 'schedule'));
+    const t = TR.cleanTrigger(tr || { id: event.trigger || 'manual', type: event.type || 'manual', config: { goal: event.goal || '' } });
+    // the goal is the trigger's own goal (a short title on the job list); everything that happened goes in the details
+    const goal = String((t.config && t.config.goal) || event.goal || TR.summary(t)).split('\n')[0].slice(0, 300);
+    const details = TR.goalFor(b, t, { title: event.title || TR.summary(t), data: event.data || null });
+    return bots.deploy(goal, details, { bot: b.id, source: { type: event.type === 'schedule' ? 'routine' : 'trigger', ref: (tr && tr.id) || event.type || null, at: Date.now() } });
   },
   /** Group chats are built separately; until then a post from the user that @mentions bots starts their missions. */
   postToThread(threadId, from, text, mentions = []) {
@@ -218,7 +222,43 @@ export const crew = {
   giveMore: (botId, more) => bots.giveMore(botId, more),
   on: (ev, fn) => bots.on(ev, fn),
   capabilities: CAP_LABELS, userSaid,
+  mission: (id) => bots.job(id) || null,
+  actions: (botId) => actions().filter((a) => !botId || a.bot === botId).reverse(),
+  /** When a bot's schedule trigger fires next, and the latest problem watching a trigger (its page shows both). */
+  nextTriggerAt: (botId, trigId) => trigRun.nextAt(botId, trigId),
+  triggerProblem: (botId, trigId) => trigRun.problem(botId, trigId),
 };
+
+// ---- bot triggers: the watcher (trigrun.js) — schedules, new email, price levels, new files; phone notifications are the phone's
+export const trigRun = createTrigRun({
+  device: 'pc',
+  bots: () => extras.data.specialists,
+  fire: (botId, t, ev) => crew.fireTrigger(botId, { ...ev, trigger: t.id }),
+  now: () => Date.now(),
+  load: async () => { const t = await host.read('triggers-state.json'); return t ? JSON.parse(t) : null; },
+  save: (st) => host.write('triggers-state.json', JSON.stringify(st)),
+  mailList: async (folder) => {
+    if (!host.mail) throw new Error('Email isn\'t available here.');
+    const r = await host.mail('list', { folder, limit: 25 });
+    if (r && r.error) throw new Error(r.error);
+    return ((r && r.ok && r.ok.messages) || []).map((m) => ({ uid: m.uid, id: m.id, from: m.from, subject: m.subject, unread: m.unread }));
+  },
+  quote: async (symbol, account) => {
+    if (!host.trading) throw new Error('Trading isn\'t available here.');
+    const r = await host.trading.run('trade_quote', { symbol, account: account || undefined }, {});
+    if (r && /^Error/i.test(String(r.out || ''))) throw new Error(String(r.out).slice(0, 160));
+    return lastPrice(r && r.out);
+  },
+  listFiles: async (source, folder) => {
+    if (!host.trigList) throw new Error('Watching folders needs a newer Atlas.');
+    const r = await host.trigList(source, folder);
+    if (r && r.error) throw new Error(r.error);
+    return (r && r.ok) || [];
+  },
+  claim: async (key) => { const c = await sync.claim(key, 10 * 60000); return c ? c.mine : null; },
+});
+setInterval(() => { trigRun.tick().catch((e) => console.error('triggers', e)); }, 15000);
+setTimeout(() => { trigRun.tick().catch(() => {}); }, 4000);
 brain.ui.deployBot = (goal, details, specialist) => {
   const sp = specialist ? extras.specialist(specialist) : null;
   return bots.deploy(goal, details, { specialist: sp ? sp.id : null });

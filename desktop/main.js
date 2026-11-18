@@ -384,6 +384,32 @@ ipcMain.handle('conn', async (e, op, ...a) => {
 
 // ------------------------------------------------------------------ start
 
+// >>> bot triggers (renderer/trigrun.js): "when a file appears" looks at a folder's file names, sizes and times (never
+// the contents). Only Downloads, Screenshots, or a folder inside the user's home.
+ipcMain.handle('trig:list', (e, source, folder) => {
+  if (!fromMain(e)) return { error: 'not allowed' };
+  const home = app.getPath('home');
+  let dir;
+  if (source === 'downloads') dir = app.getPath('downloads');
+  else if (source === 'screenshots') dir = path.join(app.getPath('pictures'), 'Screenshots');
+  else {
+    const f = String(folder || '').trim().replace(/^~(?=[\\/]|$)/, home);
+    dir = path.resolve(f);
+    const rel = path.relative(home, dir);
+    if (!f || rel.startsWith('..') || path.isAbsolute(rel)) return { error: 'Pick a folder inside your user folder.' };
+  }
+  try {
+    const out = [];
+    for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!d.isFile() || d.name.startsWith('.')) continue;
+      try { const st = fs.statSync(path.join(dir, d.name)); out.push({ name: d.name, size: st.size, mtime: Math.round(st.mtimeMs), path: path.join(dir, d.name) }); } catch {}
+      if (out.length >= 2000) break;
+    }
+    return { ok: out, dir };
+  } catch (err) { return { error: err.code === 'ENOENT' ? `There's no folder ${dir}.` : err.message }; }
+});
+// <<< bot triggers
+
 // >>> trading (see trading.js): accounts, limits and the stop switch; keys stay in this process, encrypted by Windows
 let trading = null;
 const trade = () => (trading = trading || require('./trading'));

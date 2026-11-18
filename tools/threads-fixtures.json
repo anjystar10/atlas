@@ -1,0 +1,1080 @@
+{
+ "note": "Made by desktop/test/make-thread-fixtures.mjs from desktop/renderer/threadcore.js. Do not edit by hand.",
+ "bots": [
+  {
+   "id": "bot-reels",
+   "name": "Reel Poster"
+  },
+  {
+   "id": "bot-r",
+   "name": "Reel"
+  },
+  {
+   "id": "sp-research",
+   "name": "Research Bot"
+  },
+  {
+   "id": "bot-inbox",
+   "name": "Inbox"
+  }
+ ],
+ "limits": {
+  "MAX_MESSAGES": 200,
+  "MAX_TEXT": 8000,
+  "MAX_BOT_TURNS": 8,
+  "MAX_PAIR_HOPS": 3,
+  "MAX_PARTICIPANTS": 7
+ },
+ "mentions": [
+  {
+   "text": "@Reel Poster post the launch video tonight",
+   "out": [
+    "bot-reels"
+   ],
+   "stripped": "post the launch video tonight"
+  },
+  {
+   "text": "@reel quick one",
+   "out": [
+    "bot-r"
+   ],
+   "stripped": "quick one"
+  },
+  {
+   "text": "@Research Bot and @Inbox: find the invoice, then @inbox reply",
+   "out": [
+    "sp-research",
+    "bot-inbox"
+   ],
+   "stripped": "and find the invoice, then reply"
+  },
+  {
+   "text": "email me at me@reel.com, thanks",
+   "out": [],
+   "stripped": "email me at me@reel.com, thanks"
+  },
+  {
+   "text": "@Atlas sum up",
+   "out": [
+    "atlas"
+   ],
+   "stripped": "sum up"
+  },
+  {
+   "text": "@Reelx not a bot",
+   "out": [],
+   "stripped": "@Reelx not a bot"
+  },
+  {
+   "text": "hey @sp-research, check this",
+   "out": [
+    "sp-research"
+   ],
+   "stripped": "hey check this"
+  },
+  {
+   "text": "no mentions here",
+   "out": [],
+   "stripped": "no mentions here"
+  },
+  {
+   "text": "@Research Bot, @Research Bot twice",
+   "out": [
+    "sp-research"
+   ],
+   "stripped": "twice"
+  }
+ ],
+ "decide": [
+  {
+   "name": "user mentions one bot",
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels",
+     "sp-research"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "@Reel Poster post it",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "message"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "msg": {
+    "id": "m1",
+    "at": 1,
+    "from": "user",
+    "text": "@Reel Poster post it",
+    "mentions": [
+     "bot-reels"
+    ],
+    "mission": null,
+    "kind": "message"
+   },
+   "out": {
+    "starts": [
+     "bot-reels"
+    ],
+    "waiting": null,
+    "hint": null
+   }
+  },
+  {
+   "name": "user, no mention, one bot",
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "post it",
+      "mentions": [],
+      "mission": null,
+      "kind": "message"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "msg": {
+    "id": "m1",
+    "at": 1,
+    "from": "user",
+    "text": "post it",
+    "mentions": [],
+    "mission": null,
+    "kind": "message"
+   },
+   "out": {
+    "starts": [
+     "bot-reels"
+    ],
+    "waiting": null,
+    "hint": null
+   }
+  },
+  {
+   "name": "user, no mention, two bots: Atlas takes it",
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels",
+     "sp-research"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "post it",
+      "mentions": [],
+      "mission": null,
+      "kind": "message"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "msg": {
+    "id": "m1",
+    "at": 1,
+    "from": "user",
+    "text": "post it",
+    "mentions": [],
+    "mission": null,
+    "kind": "message"
+   },
+   "out": {
+    "starts": [
+     "atlas"
+    ],
+    "waiting": null,
+    "hint": "mention"
+   }
+  },
+  {
+   "name": "user mentions Atlas",
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "@Atlas what happened?",
+      "mentions": [
+       "atlas"
+      ],
+      "mission": null,
+      "kind": "message"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "msg": {
+    "id": "m1",
+    "at": 1,
+    "from": "user",
+    "text": "@Atlas what happened?",
+    "mentions": [
+     "atlas"
+    ],
+    "mission": null,
+    "kind": "message"
+   },
+   "out": {
+    "starts": [
+     "atlas"
+    ],
+    "waiting": null,
+    "hint": null
+   }
+  },
+  {
+   "name": "bot hands to another bot in the chat",
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels",
+     "sp-research"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "@Research Bot go",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m2",
+      "at": 2,
+      "from": "sp-research",
+      "text": "@Reel Poster please post this",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "message"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "msg": {
+    "id": "m2",
+    "at": 2,
+    "from": "sp-research",
+    "text": "@Reel Poster please post this",
+    "mentions": [
+     "bot-reels"
+    ],
+    "mission": null,
+    "kind": "message"
+   },
+   "out": {
+    "starts": [
+     "bot-reels"
+    ],
+    "waiting": null,
+    "hint": null
+   }
+  },
+  {
+   "name": "bot mentions a bot not in the chat",
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels",
+     "sp-research"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "@Research Bot go",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m2",
+      "at": 2,
+      "from": "sp-research",
+      "text": "@Inbox please",
+      "mentions": [
+       "bot-inbox"
+      ],
+      "mission": null,
+      "kind": "message"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "msg": {
+    "id": "m2",
+    "at": 2,
+    "from": "sp-research",
+    "text": "@Inbox please",
+    "mentions": [
+     "bot-inbox"
+    ],
+    "mission": null,
+    "kind": "message"
+   },
+   "out": {
+    "starts": [],
+    "waiting": null,
+    "hint": null
+   }
+  },
+  {
+   "name": "bot mentions itself",
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "sp-research"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "go",
+      "mentions": [],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m2",
+      "at": 2,
+      "from": "sp-research",
+      "text": "@Research Bot again",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "msg": {
+    "id": "m2",
+    "at": 2,
+    "from": "sp-research",
+    "text": "@Research Bot again",
+    "mentions": [
+     "sp-research"
+    ],
+    "mission": null,
+    "kind": "message"
+   },
+   "out": {
+    "starts": [],
+    "waiting": null,
+    "hint": null
+   }
+  },
+  {
+   "name": "too many bot turns without the user",
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels",
+     "sp-research"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "@Research Bot go",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m2",
+      "at": 2,
+      "from": "sp-research",
+      "text": "@Reel Poster your turn",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m3",
+      "at": 3,
+      "from": "bot-reels",
+      "text": "@Research Bot back to you",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m4",
+      "at": 4,
+      "from": "sp-research",
+      "text": "@Reel Poster your turn",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m5",
+      "at": 5,
+      "from": "bot-reels",
+      "text": "@Research Bot back to you",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m6",
+      "at": 6,
+      "from": "sp-research",
+      "text": "@Reel Poster your turn",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m7",
+      "at": 7,
+      "from": "bot-reels",
+      "text": "@Research Bot back to you",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m8",
+      "at": 8,
+      "from": "sp-research",
+      "text": "@Reel Poster your turn",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m9",
+      "at": 9,
+      "from": "bot-reels",
+      "text": "@Research Bot back to you",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m99",
+      "at": 99,
+      "from": "bot-reels",
+      "text": "@Research Bot more",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "msg": {
+    "id": "m99",
+    "at": 99,
+    "from": "bot-reels",
+    "text": "@Research Bot more",
+    "mentions": [
+     "sp-research"
+    ],
+    "mission": null,
+    "kind": "message"
+   },
+   "out": {
+    "starts": [],
+    "waiting": "limit",
+    "hint": null
+   }
+  },
+  {
+   "name": "pair hops limit",
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels",
+     "sp-research",
+     "bot-inbox"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "go",
+      "mentions": [],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m2",
+      "at": 2,
+      "from": "sp-research",
+      "text": "@Reel Poster a",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m3",
+      "at": 3,
+      "from": "bot-reels",
+      "text": "@Research Bot b",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m4",
+      "at": 4,
+      "from": "sp-research",
+      "text": "@Reel Poster c",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m5",
+      "at": 5,
+      "from": "bot-reels",
+      "text": "@Research Bot d",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m6",
+      "at": 6,
+      "from": "sp-research",
+      "text": "@Reel Poster e and @Inbox f",
+      "mentions": [
+       "bot-reels",
+       "bot-inbox"
+      ],
+      "mission": null,
+      "kind": "message"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "msg": {
+    "id": "m6",
+    "at": 6,
+    "from": "sp-research",
+    "text": "@Reel Poster e and @Inbox f",
+    "mentions": [
+     "bot-reels",
+     "bot-inbox"
+    ],
+    "mission": null,
+    "kind": "message"
+   },
+   "out": {
+    "starts": [
+     "bot-inbox"
+    ],
+    "waiting": "limit",
+    "hint": null
+   }
+  },
+  {
+   "name": "a note starts nothing",
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "atlas",
+      "text": "@Reel Poster",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "note"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "msg": {
+    "id": "m1",
+    "at": 1,
+    "from": "atlas",
+    "text": "@Reel Poster",
+    "mentions": [
+     "bot-reels"
+    ],
+    "mission": null,
+    "kind": "note"
+   },
+   "out": {
+    "starts": [],
+    "waiting": null,
+    "hint": null
+   }
+  }
+ ],
+ "clean": [
+  {
+   "in": {
+    "id": "th-x",
+    "title": "",
+    "participants": [
+     "user",
+     "atlas",
+     "bot-a",
+     "bot-a",
+     "bot-b",
+     "c",
+     "d",
+     "e",
+     "f",
+     "g",
+     "h"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 3,
+      "text": "hi"
+     },
+     {
+      "id": "",
+      "text": "no id"
+     },
+     {
+      "id": "m2",
+      "from": "bot-a",
+      "text": "",
+      "kind": "approval"
+     },
+     {
+      "id": "m3",
+      "text": ""
+     }
+    ]
+   },
+   "now": 9,
+   "out": {
+    "id": "th-x",
+    "title": "Group chat",
+    "participants": [
+     "user",
+     "bot-a",
+     "bot-b",
+     "c",
+     "d",
+     "e",
+     "f"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 3,
+      "text": "hi",
+      "from": "user",
+      "mentions": [],
+      "mission": null
+     },
+     {
+      "id": "m2",
+      "from": "bot-a",
+      "text": "",
+      "kind": "approval",
+      "at": 0,
+      "mentions": [],
+      "mission": null
+     }
+    ],
+    "v": 2,
+    "updatedAt": 9
+   }
+  },
+  {
+   "in": {
+    "title": "A very long title that goes on and on and on and on and on and on and on and on and on and on",
+    "participants": "nope"
+   },
+   "now": 1,
+   "id": "th-y",
+   "out": {
+    "title": "A very long title that goes on and on and on and on and on and on and on and on ",
+    "participants": [
+     "user"
+    ],
+    "id": "th-y",
+    "v": 2,
+    "messages": [],
+    "updatedAt": 1
+   }
+  }
+ ],
+ "transcript": [
+  {
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels",
+     "sp-research"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "@Research Bot find it",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m2",
+      "at": 2,
+      "from": "sp-research",
+      "text": "Found it.\n@Reel Poster please post",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "report"
+     },
+     {
+      "id": "m3",
+      "at": 3,
+      "from": "bot-reels",
+      "text": "Want me to post?",
+      "mentions": [],
+      "mission": null,
+      "kind": "approval"
+     },
+     {
+      "id": "m4",
+      "at": 4,
+      "from": "atlas",
+      "text": "Paused.",
+      "mentions": [],
+      "mission": null,
+      "kind": "note"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "max": 6000,
+   "out": "You (the user): @Research Bot find it\n\nResearch Bot: Found it.\n@Reel Poster please post\n\nAtlas: Paused."
+  },
+  {
+   "thread": {
+    "id": "th-1",
+    "title": "Launch week",
+    "participants": [
+     "user",
+     "bot-reels",
+     "sp-research"
+    ],
+    "messages": [
+     {
+      "id": "m1",
+      "at": 1,
+      "from": "user",
+      "text": "@Research Bot find it",
+      "mentions": [
+       "sp-research"
+      ],
+      "mission": null,
+      "kind": "message"
+     },
+     {
+      "id": "m2",
+      "at": 2,
+      "from": "sp-research",
+      "text": "Found it.\n@Reel Poster please post",
+      "mentions": [
+       "bot-reels"
+      ],
+      "mission": null,
+      "kind": "report"
+     },
+     {
+      "id": "m3",
+      "at": 3,
+      "from": "bot-reels",
+      "text": "Want me to post?",
+      "mentions": [],
+      "mission": null,
+      "kind": "approval"
+     },
+     {
+      "id": "m4",
+      "at": 4,
+      "from": "atlas",
+      "text": "Paused.",
+      "mentions": [],
+      "mission": null,
+      "kind": "note"
+     }
+    ],
+    "v": 2,
+    "updatedAt": 5
+   },
+   "max": 60,
+   "out": "(earlier messages left out)\n\nAtlas: Paused."
+  }
+ ],
+ "goal": [
+  {
+   "msg": {
+    "id": "m1",
+    "at": 1,
+    "from": "user",
+    "text": "@Research Bot find it",
+    "mentions": [
+     "sp-research"
+    ],
+    "mission": null,
+    "kind": "message"
+   },
+   "fromName": "You",
+   "out": "find it"
+  },
+  {
+   "msg": {
+    "id": "m2",
+    "at": 2,
+    "from": "sp-research",
+    "text": "Found it.\n@Reel Poster please post",
+    "mentions": [
+     "bot-reels"
+    ],
+    "mission": null,
+    "kind": "report"
+   },
+   "fromName": "Research Bot",
+   "out": "Research Bot handed this to you: Found it. please post"
+  },
+  {
+   "msg": {
+    "id": "m9",
+    "at": 9,
+    "from": "user",
+    "text": "@Reel Poster",
+    "mentions": [
+     "bot-reels"
+    ],
+    "mission": null,
+    "kind": "message"
+   },
+   "fromName": "You",
+   "out": "Pick up from the conversation."
+  }
+ ],
+ "turns": {
+  "thread": {
+   "id": "th-1",
+   "title": "Launch week",
+   "participants": [
+    "user",
+    "bot-reels",
+    "sp-research"
+   ],
+   "messages": [
+    {
+     "id": "m1",
+     "at": 1,
+     "from": "user",
+     "text": "@Research Bot go",
+     "mentions": [
+      "sp-research"
+     ],
+     "mission": null,
+     "kind": "message"
+    },
+    {
+     "id": "m2",
+     "at": 2,
+     "from": "sp-research",
+     "text": "@Reel Poster your turn",
+     "mentions": [
+      "bot-reels"
+     ],
+     "mission": null,
+     "kind": "message"
+    },
+    {
+     "id": "m3",
+     "at": 3,
+     "from": "bot-reels",
+     "text": "@Research Bot back to you",
+     "mentions": [
+      "sp-research"
+     ],
+     "mission": null,
+     "kind": "message"
+    },
+    {
+     "id": "m4",
+     "at": 4,
+     "from": "sp-research",
+     "text": "@Reel Poster your turn",
+     "mentions": [
+      "bot-reels"
+     ],
+     "mission": null,
+     "kind": "message"
+    },
+    {
+     "id": "m5",
+     "at": 5,
+     "from": "bot-reels",
+     "text": "@Research Bot back to you",
+     "mentions": [
+      "sp-research"
+     ],
+     "mission": null,
+     "kind": "message"
+    },
+    {
+     "id": "m6",
+     "at": 6,
+     "from": "sp-research",
+     "text": "@Reel Poster your turn",
+     "mentions": [
+      "bot-reels"
+     ],
+     "mission": null,
+     "kind": "message"
+    },
+    {
+     "id": "m7",
+     "at": 7,
+     "from": "bot-reels",
+     "text": "@Research Bot back to you",
+     "mentions": [
+      "sp-research"
+     ],
+     "mission": null,
+     "kind": "message"
+    },
+    {
+     "id": "m8",
+     "at": 8,
+     "from": "sp-research",
+     "text": "@Reel Poster your turn",
+     "mentions": [
+      "bot-reels"
+     ],
+     "mission": null,
+     "kind": "message"
+    },
+    {
+     "id": "m9",
+     "at": 9,
+     "from": "bot-reels",
+     "text": "@Research Bot back to you",
+     "mentions": [
+      "sp-research"
+     ],
+     "mission": null,
+     "kind": "message"
+    }
+   ],
+   "v": 2,
+   "updatedAt": 5
+  },
+  "botTurns": 8,
+  "pairHops": 8
+ }
+}

@@ -78,6 +78,8 @@ contextBridge.exposeInMainWorld('atlasHost', {
   // >>> email (mail.js): the account and the password stay in the main process
   mail: (op, args) => ipcRenderer.invoke('mail', op, args),
   // <<< email
+  // >>> bot triggers: a folder's file list (names, sizes, times) for "when a file appears"
+  trigList: (source, folder) => ipcRenderer.invoke('trig:list', source, folder),
   // >>> trading
   trading: {
     run: (name, args, opts) => ipcRenderer.invoke('trade:run', name, args, opts),

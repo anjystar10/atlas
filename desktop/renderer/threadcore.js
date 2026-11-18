@@ -11,6 +11,24 @@ export const MAX_BOT_TURNS = 8;           // bot messages in a row without the u
 export const MAX_PAIR_HOPS = 3;           // hand-offs between the same two bots since the user last spoke
 export const MAX_PARTICIPANTS = 7;        // the user + up to six bots
 export const USER = 'user', ATLAS = 'atlas';
+export const DIRECT = 'dm-';              // a bot's own conversation has the id "dm-<botId>" (the same on both devices)
+
+/** The id of [botId]'s own conversation. */
+export const directId = (botId) => DIRECT + clip(botId, 56);
+/** The bot a conversation belongs to (its own conversation), or null for a group chat. */
+export const directBot = (t) => (t && t.kind === 'direct' ? t.participants[1] || null : null);
+/** Messages since [seenAt] that the user hasn't read (anything not from the user). */
+export function unreadCount(thread, seenAt) {
+  let n = 0;
+  for (const m of (thread && thread.messages) || []) if (m.from !== USER && (m.at || 0) > (seenAt || 0)) n++;
+  return n;
+}
+/** The newest message worth showing in a list row (notes from Atlas count; empty ones don't). */
+export function preview(thread) {
+  const ms = (thread && thread.messages) || [];
+  for (let i = ms.length - 1; i >= 0; i--) if (String(ms[i].text || '').trim()) return ms[i];
+  return null;
+}
 
 const clip = (s, n) => String(s == null ? '' : s).trim().slice(0, n);
 
@@ -20,9 +38,17 @@ export function cleanThread(x, now = 0, id = '') {
   const out = { ...src };
   out.id = clip(src.id, 60) || id;
   out.v = V;
-  out.title = clip(src.title, 80) || 'Group chat';
+  out.kind = src.kind === 'direct' || String(out.id).startsWith(DIRECT) ? 'direct' : 'group';
   const ps = (Array.isArray(src.participants) ? src.participants : []).map((p) => clip(p, 60)).filter(Boolean);
-  out.participants = [USER, ...ps.filter((p) => p !== USER && p !== ATLAS).filter((p, i, a) => a.indexOf(p) === i)].slice(0, MAX_PARTICIPANTS);
+  if (out.kind === 'direct') {
+    // a bot's own conversation: the user and that one bot (Atlas included: its conversation is "dm-atlas")
+    const b = String(out.id).startsWith(DIRECT) ? String(out.id).slice(DIRECT.length) : ps.find((p) => p !== USER) || ATLAS;
+    out.participants = [USER, b];
+    out.title = clip(src.title, 80) || 'Conversation';
+  } else {
+    out.title = clip(src.title, 80) || 'Group chat';
+    out.participants = [USER, ...ps.filter((p) => p !== USER && p !== ATLAS).filter((p, i, a) => a.indexOf(p) === i)].slice(0, MAX_PARTICIPANTS);
+  }
   out.messages = (Array.isArray(src.messages) ? src.messages : []).filter((m) => m && m.id && (m.text || m.kind))
     .map((m) => cleanMessage(m)).slice(-MAX_MESSAGES);
   out.updatedAt = Number(src.updatedAt) || now || 0;
@@ -116,6 +142,7 @@ export function decide(thread, msg, bots) {
   const mentions = (m.mentions && m.mentions.length ? m.mentions : mentionsIn(m.text, bots));
   if (m.kind && m.kind !== 'message') return { starts: [], waiting: null, hint: null };
   if (m.from === USER) {
+    if (thread && thread.kind === 'direct') return { starts: [thread.participants[1]], waiting: null, hint: null };   // a bot's own conversation: it's the one asked
     const picked = mentions.filter((id) => id === ATLAS || known.has(id));
     if (picked.length) return { starts: picked, waiting: null, hint: null };
     const bs = [...inThread].filter((id) => known.has(id));
