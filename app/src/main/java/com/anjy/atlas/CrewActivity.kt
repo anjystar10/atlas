@@ -685,11 +685,11 @@ class CrewActivity : Activity() {
     // ================================================================ a bot's name and look (like Grok Bot's shape and colour)
 
     /** Five shapes and eight colours, each shown as the bot's real face; [onPick] gets (shape, colour). */
-    private fun lookPicker(base: JSONObject, shape: String, color: Int, onPick: (String, Int) -> Unit): View {
+    private fun lookPicker(base: JSONObject, curShape: String, color: Int, onPick: (String, Int) -> Unit): View {
         val col2 = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val shapes = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         BotFace.SHAPES.forEach { sh ->
-            val on = sh == shape
+            val on = sh == curShape
             val cell = FrameLayout(this).apply {
                 isClickable = true; contentDescription = "Shape: $sh" + if (on) ", chosen" else ""
                 background = if (on) GradientDrawable().apply { shape = GradientDrawable.OVAL; setStroke(dp(2), ACCENT); setColor(Color.TRANSPARENT) } else null
@@ -705,7 +705,7 @@ class CrewActivity : Activity() {
             colours.addView(View(this).apply {
                 isClickable = true; contentDescription = "Colour ${i + 1}" + if (on) ", chosen" else ""
                 background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.parseColor(a), Color.parseColor(z))).apply { shape = GradientDrawable.OVAL; if (on) setStroke(dp(3), FG) }
-                setOnClickListener { performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); onPick(shape, i) }
+                setOnClickListener { performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); onPick(curShape, i) }
             }, LinearLayout.LayoutParams(dp(32), dp(32)).apply { rightMargin = dp(10) })
         }
         col2.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(colours) })
