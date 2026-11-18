@@ -262,6 +262,66 @@ textarea.field { resize: vertical; min-height: 64px; font: 400 var(--t-read)/1.4
 .swatch.on .sw-name { font-weight: 600; }
 /* <<< look picker */
 
+/* >>> crew: the Bots page (crewui.js), built like Grok Bot's: a list of conversations, each bot's own chat, its details */
+.faint { color: var(--faint); }
+.fg { color: var(--fg); }
+.serif { font-family: var(--serif); }
+.clamp1 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.clamp2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.btn.ghost { background: transparent; border-color: transparent; box-shadow: none; padding-left: 10px; padding-right: 12px; }
+.btn.ghost:hover { background: var(--glass); }
+.btn.sm, .chip.sm { padding: 5px 12px; font-size: 13px; }
+.crewhead { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.crewhead .title { margin-bottom: 4px; }
+.blist { padding: 6px; }
+.brow { display: flex; align-items: center; gap: 14px; padding: 12px 12px; border-radius: 18px; cursor: pointer; transition: background .15s; min-height: 44px; }
+.brow + .brow { margin-top: 2px; }
+.brow:hover, .brow:focus-visible, .brow.on { background: linear-gradient(180deg, var(--glass2), var(--glass)); }
+.brow.empty { cursor: default; } .brow.empty:hover { background: none; }
+.bname { font: 500 16px var(--sans); color: var(--fg); } .bname.lg { font: 400 22px var(--serif); }
+.star { color: var(--warm); font-size: 13px; }
+.bavwrap { position: relative; flex: none; }
+.bav { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; flex: none;
+  background: radial-gradient(120% 120% at 30% 20%, var(--glass2), var(--glass)); border: 1px solid var(--rim-low); border-top-color: var(--rim); box-shadow: inset 0 1px 0 var(--rim); }
+.bav.sm { width: 32px; height: 32px; font-size: 15px; } .bav.lg { width: 64px; height: 64px; font-size: 28px; }
+.bav.orb { background: radial-gradient(circle at 34% 28%, #DDE6FF 0%, var(--blue) 26%, var(--accent) 58%, var(--bg2) 100%); box-shadow: 0 0 22px var(--glow), inset 0 1px 0 rgba(255, 255, 255, .35); border-color: rgba(255, 255, 255, .25); }
+.bstack { display: flex; } .bstack .bav + .bav { margin-left: -12px; } .bstack .bav { box-shadow: 0 0 0 2px var(--bg2); }
+.sdot { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--bg2); background: var(--faint); }
+.sdot.inline { position: static; display: inline-block; flex: none; border: none; width: 9px; height: 9px; }
+.sdot.live { background: var(--done); box-shadow: 0 0 10px var(--done); animation: pulse 1.6s ease-in-out infinite; }
+.sdot.warn { background: var(--warm); box-shadow: 0 0 10px var(--warm); }
+.sdot.idle { background: var(--faint); } .sdot.off { background: transparent; border-color: var(--faint); }
+.sdot.ok { background: var(--done); } .sdot.bad { background: var(--miss); }
+@keyframes pulse { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .sdot.live { animation: none; } }
+.bbadge { flex: none; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; display: grid; place-items: center; font: 600 12px var(--sans);
+  color: var(--on-primary); background: linear-gradient(180deg, var(--primary-a), var(--primary-b)); }
+.bbadge.warn { color: #1A1405; background: var(--warm); }
+.convhead { position: sticky; top: 0; z-index: 3; padding: 10px 14px; margin-bottom: 14px; }
+.convhead .btn { padding: 9px 14px; }
+.thread { display: flex; flex-direction: column; gap: 14px; padding: 4px 2px 8px; }
+.tempty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 40px 10px; text-align: center; }
+.tmsg { display: flex; gap: 10px; align-items: flex-start; max-width: 92%; }
+.tmsg .reply { margin-top: 4px; }
+.tmsg .reply.asks { border-left: 2px solid var(--warm); padding-left: 12px; }
+.tmeta { font-size: 11px; color: var(--faint); text-align: right; margin-top: 3px; }
+.tnote { align-self: center; text-align: center; max-width: 80%; padding: 6px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--rim-low); }
+.card.approve { margin-top: 6px; padding: 14px 16px; border-color: color-mix(in srgb, var(--warm) 40%, var(--rim-low)); }
+.convcompose { position: sticky; bottom: 0; z-index: 3; margin-top: 14px; padding: 12px 14px; }
+.convcompose textarea { resize: none; min-height: 44px; max-height: 220px; }
+.meter { height: 6px; border-radius: 3px; background: var(--glass2); overflow: hidden; margin-top: 10px; }
+.meter i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--blue), var(--accent)); }
+.meter.warn i { background: var(--warm); }
+.accgrid { display: flex; flex-direction: column; }
+.accrow { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--rim-low); }
+.accrow:first-child { border-top: none; }
+.seg { display: flex; gap: 4px; flex: none; }
+.tree .node { display: flex; gap: 10px; align-items: flex-start; padding: 8px 6px 8px calc(6px + var(--d) * 22px); border-radius: 12px; cursor: pointer; }
+.tree .node:hover { background: var(--glass); }
+.tree .node .sdot { margin-top: 7px; }
+ul.tight { margin: 6px 0 0; padding-left: 18px; } ul.tight li { margin: 3px 0; color: var(--muted); }
+/* <<< crew */
+
 /* >>> themes: GENERATED by tools/gen_themes.py from tools/themes.json — edit the JSON, not this block */
 :root, :root[data-palette="midnight"] {
   --bg: #0A0D16; --bg2: #131826; --surface2: #1B2132; --fg: #F3EFE6; --muted: #ABADBC; --faint: #9093A4;

@@ -60,6 +60,8 @@ export function saveAsSkillButton(col, j, k) {
 
 // ---------------------------------------------------------------- the list page: routines, skills, team
 
+/** Under the Bots list: the older routines and the skills (the team is the list itself now). */
+export function moreSections(col, k) { routines(col, k); skills(col, k); }
 export function extrasSections(col, k) {
   routines(col, k); skills(col, k); team(col, k);
 }

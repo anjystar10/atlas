@@ -170,6 +170,7 @@ object Situation {
             }
             add("Bots working (manage with the bots tool)", live)
             add("Standing bots (your team)", withContext(Dispatchers.Main.immediate) { standingLines() })
+            add("Conversations with bots (Bots tab: each bot's own chat and group chats)", withContext(Dispatchers.Main.immediate) { try { Threads.briefLines() } catch (_: Exception) { emptyList() } })
             val seen = Store.getString(ctx, SEEN)?.split(',')?.toMutableSet() ?: mutableSetOf()
             val done = jobs.filter { it.final && now - it.updatedAt < 24 * 3_600_000L }.take(4)
             add("Bots finished in the last day", done.map { j ->

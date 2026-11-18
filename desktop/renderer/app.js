@@ -12,6 +12,11 @@ import { renderMarkdown } from './md.js';
 import { plainMemory } from './plain.js';
 import { bots, extras } from './botwire.js';
 import * as BX from './botsui.js';
+import * as CREW from './crewui.js';   // the Bots page, built like Grok Bot's (conversations first)
+import * as THREADS from './threads.js';
+import * as BTPL from './bottemplates.js';
+import { registerTemplate } from './crewface.js';
+import * as aware from './aware.js';
 import { renderLibrary, refreshLibrary } from './library.js';
 import * as fitRules from './fit.js';
 import * as conn from './connect.js';   // >>> connections (MCP servers, web APIs)
@@ -205,6 +210,18 @@ function botStrip(parent, center) {
 }
 /** The small helpers botsui.js draws with. */
 const kit = () => ({ h, esc, sheet, toast, render });
+/** …and what the Bots page (crewui.js) needs on top: moving between its views, Markdown, and what goes under the list. */
+const crewKit = () => ({
+  ...kit(), md: renderMarkdown,
+  go: (v) => { botView = v; botDraft = ''; render(); },
+  after: (col) => {
+    const lib = h('<div class="card blist" style="margin-top:12px"><div class="brow" role="button" tabindex="0"><div class="bav">▤</div><div class="grow"><div class="bname">Library</div><div class="small muted">Documents, spreadsheets, pages and downloads your bots made</div></div><span class="small faint">›</span></div></div>');
+    lib.onclick = () => { botView = 'library'; refreshLibrary(); render(); };
+    col.appendChild(lib);
+    botsElsewhere(col);
+    BX.moreSections(col, kit());
+  },
+});
 function botColor(s) { return s === BOT.COMPLETED ? 'ok' : s === BOT.FAILED ? 'bad' : BOT_WAITING.has(s) ? 'warn' : s === BOT.CANCELLED || s === BOT.PAUSED ? 'muted' : 'accent'; }
 function renderBots(page) {
   const col = h('<div class="column"></div>'); page.appendChild(col);
@@ -213,36 +230,14 @@ function renderBots(page) {
   // <<< library
   const j = botView && bots.job(botView);
   if (!j) {
-    botView = null;
-    col.appendChild(h('<h1 class="title">Atlas Bot</h1>'));
-    col.appendChild(h('<p class="sub">Jobs Atlas sent a bot to do. They keep working while Atlas sits in the tray, and each report lands in your chat.</p>'));
-    const box = h(`<div class="card"><textarea class="field" id="botask" rows="2" placeholder="Send a bot to… (e.g. find the three best budget laptops for coding, with sources)"></textarea>
-      <div class="row" style="margin-top:10px"><div class="grow"></div><button class="btn primary" id="botgo">Send a Bot</button></div></div>`);
-    col.appendChild(box);
-    const ta = box.querySelector('#botask'); ta.value = botDraft; ta.oninput = () => (botDraft = ta.value);
-    const go = () => { const g = ta.value.trim(); if (!g) return; botDraft = ''; bots.deploy(g, ''); toast('Atlas Bot is on it.'); render(true); };
-    box.querySelector('#botgo').onclick = go;
-    ta.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); go(); } };
-    // >>> library
-    const lib = h('<div class="card botcard" role="button" tabindex="0" style="margin-top:12px"><div class="row"><div class="grow"><div class="goal">Library</div><div class="small muted" style="margin-top:4px">Documents, spreadsheets, pages and downloads your bots made</div></div><span class="tag">Open ›</span></div></div>');
-    lib.onclick = () => { botView = 'library'; refreshLibrary(); render(); };
-    col.appendChild(lib);
-    // <<< library
-    const all = bots.visible();
-    if (!all.length) { col.appendChild(h('<div class="card" style="margin-top:14px"><div style="font:400 19px var(--serif)">No bots yet</div><p class="muted" style="margin:6px 0 0">Ask Atlas for something bigger, like “research the best monitor under $300 for coding and send me a report”, or say “send a bot to…”.</p></div>')); botsElsewhere(col); BX.extrasSections(col, kit()); return; }
-    const list = h('<div style="margin-top:14px"></div>'); col.appendChild(list);
-    for (const x of all) {
-      const line = [BOT_LABELS[x.state], x.state === BOT.RUNNING ? x.current : null, x.plan.length ? `plan ${x.plan.filter((p) => p.done).length}/${x.plan.length}` : null].filter(Boolean).join(' · ');
-      const c = h(`<div class="card botcard" role="button" tabindex="0"><div class="goal">${esc(x.goal)}</div><div class="small ${botColor(x.state)}" style="margin-top:6px">${esc(line)}</div></div>`);
-      c.onclick = () => { botView = x.id; botDraft = ''; render(); };
-      list.appendChild(c);
-    }
-    botsElsewhere(col);
-    BX.extrasSections(col, kit());
+    // the Bots page (crewui.js): a list of conversations, each bot's own conversation, its details, group chats
+    if (CREW.render(col, botView, crewKit())) return;
+    botView = null; CREW.render(col, null, crewKit());
     return;
   }
   const up = j.parent && bots.job(j.parent);
-  col.appendChild(Object.assign(h(`<button class="btn" style="margin-bottom:14px">‹ ${up ? 'Back to Its Bot' : 'All Bots'}</button>`), { onclick: () => { botView = up ? up.id : null; render(); } }));
+  const ownBot = j.bot || j.specialist || 'atlas';
+  col.appendChild(Object.assign(h(`<button class="btn ghost" style="margin-bottom:14px">‹ ${up ? 'Back to Its Bot' : 'Conversation'}</button>`), { onclick: () => { botView = up ? up.id : 'bot:' + ownBot; render(); } }));
   col.appendChild(h(`<h1 class="title" style="font-size:30px">${esc(j.goal)}</h1>`));
   if (j.details) col.appendChild(h(`<p class="muted" style="margin:0 0 8px;white-space:pre-wrap">${esc(j.details.slice(0, 600))}</p>`));
   const now = j.state === BOT.RUNNING ? `${BOT_LABELS[j.state]}: ${j.current || 'Thinking'}` : j.state === BOT.WAITING_RETRY ? `${BOT_LABELS[j.state]} at ${fmtTime(j.retryAt)}${j.error ? ` (${j.error})` : ''}`
@@ -288,6 +283,7 @@ function renderBots(page) {
   }
   BX.steerCard(col, j, kit());
   BX.helpersList(col, j, kit(), (id) => { botView = id; render(); });
+  CREW.missionExtras(col, j, crewKit());
   // >>> library: the files this job made
   if (Array.isArray(j.made) && j.made.length) {
     const c = h(`<div class="card" style="margin-top:14px"><div class="row"><div class="grow"><div class="small muted" style="font-weight:600">FILES IT MADE</div><div style="margin-top:4px">${esc(j.made.slice(0, 8).join(', '))}${j.made.length > 8 ? ` and ${j.made.length - 8} more` : ''}</div></div><button class="btn primary" id="blib">Open the Library</button></div></div>`);
@@ -1035,6 +1031,10 @@ async function main() {
   await store.load();
   await bots.init();
   await extras.init();
+  // Atlas Bot v2: the ready-made bots, and the conversations with bots (each bot's own, and group chats)
+  for (const t of BTPL.templates()) registerTemplate(t);
+  try { await THREADS.init(); } catch (e) { console.error('threads', e); }   // its changes redraw the Bots page through changed('bots')
+  aware.use({ threads: () => THREADS.briefLines(6) });
   // >>> connections: the main process reconnects them at start; redraw Me when their status changes
   conn.init(); conn.state.listeners.add(() => { if (tab === 'me') render(true, true); });
   // <<< connections
@@ -1065,7 +1065,12 @@ async function main() {
     if (what === 'sync') { renderFoot(); if (tab === 'me') render(true, true); }
     if (what === 'bots') {
       // the Bots page redraws (keeping what's being typed); the strip on the Atlas tab follows along
-      if (tab === 'bots') { const ta = $('#botask'); const focused = ta && document.activeElement === ta; render(true, true); if (focused) { const t = $('#botask'); if (t) { t.focus(); t.selectionStart = t.selectionEnd = t.value.length; } } }
+      if (tab === 'bots') {
+        // keep whatever box is being typed in (a bot's conversation, an answer) focused through the redraw
+        const a = document.activeElement; const id = a && (a.tagName === 'TEXTAREA' || a.tagName === 'INPUT') && a.id ? a.id : null; const pos = id ? a.selectionStart : 0;
+        render(true, true);
+        if (id) { const t = $('#' + id); if (t) { t.focus(); try { t.selectionStart = t.selectionEnd = pos; } catch {} } }
+      }
       if (tab === 'atlas') { const line = botSummary(bots.jobs, Date.now()); const st = $('#botstrip'); if (!!st !== !!line) render(true); else if (st) st.querySelector('span').textContent = line; }
     }
     if (what === 'prefs' && tab === 'atlas') { const bl = $('#brainline'); if (bl && !brain.convo.busy) bl.textContent = brainLine(); }

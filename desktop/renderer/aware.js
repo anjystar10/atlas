@@ -102,6 +102,7 @@ export async function brief({ markSeen = true } = {}) {
     }
   } catch {}
   try { add('Standing bots (your team; manage with the bots tool)', standingLines(6)); } catch {}
+  try { if (src.threads) add('Conversations with bots (Bots tab: each bot\'s own chat and group chats)', src.threads()); } catch {}
   try {
     if (src.link && src.link.linked()) {
       const p = src.link.phone(); const tasks = src.link.outgoing().filter((t) => t.state !== 'denied');
