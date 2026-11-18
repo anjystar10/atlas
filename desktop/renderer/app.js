@@ -23,6 +23,7 @@ import { THEMES, DEFAULT as THEME_DEFAULT, findTheme } from './themes.js';   // 
 import * as AR from './attachrules.js';   // >>> attachments: what a file is, how Atlas reads it
 import { progressTo } from './attachsend.js';
 import { renderDevices } from './linkui.js';
+import * as HUD from './hud.js';   // >>> HUD mode: the PC's cinematic voice-first screen (hud.js) <<<
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
 const host = window.atlasHost;
 
@@ -137,7 +138,7 @@ function renderAtlas(page) {
     <button class="btn" id="newchat">New Chat</button></div>`);
   const orbSlot = h('<div style="width:56px;height:56px"></div>'); head.prepend(orbSlot); col.appendChild(head);
   homeOrb = new Orb(orbSlot, { size: 56 }); homeOrb.el.style.cursor = 'pointer'; homeOrb.el.onclick = () => startListening();
-  head.querySelector('#newchat').onclick = async () => { if (await sheet({ title: 'Start a New Chat?', body: 'This clears the conversation here' + (sync.code() ? ' and on your phone' : '') + '. Your Log stays as it is.', primary: 'New Chat' })) { sync.noteDeleted('chat', db.chat.map((m) => m.id)); db.chat = []; store.saveChat(); render(); } };
+  head.querySelector('#newchat').onclick = () => newChat();
   botStrip(col);
   const chat = h('<div class="chat" id="chat"></div>'); col.appendChild(chat);
   fillChat();
@@ -439,20 +440,29 @@ function showTray() {
   [...new Set(attachments.filter((a) => a.note).map((a) => `${a.name}: ${a.note}`))].slice(0, 3).forEach((n) => t.appendChild(h(`<div class="small muted attnote">${esc(n)}</div>`)));
   if (adding) { const el = h(`<div class="small adding" title="Stop adding" role="button">${esc(adding.line)}</div>`); el.onclick = () => { host.attach.cancel(adding.id); }; t.appendChild(el); }
 }
-async function submit(spoken = false, textOverride) {
+async function newChat() {
+  if (!(await sheet({ title: 'Start a New Chat?', body: 'This clears the conversation here' + (sync.code() ? ' and on your phone' : '') + '. Your Log stays as it is.', primary: 'New Chat' }))) return false;
+  sync.noteDeleted('chat', db.chat.map((m) => m.id)); db.chat = []; store.saveChat(); render(); return true;
+}
+/** [given]: files sent with this message instead of the tray's (the HUD's camera); the tray is left as it is. */
+async function submit(spoken = false, textOverride, given) {
   const ta = $('#ask');
   const text = textOverride ?? ta.value.trim();
-  if (!text && !attachments.length) return;
-  const att = attachments; attachments = []; showTray(); if (!textOverride) { ta.value = ''; autosize(); }
+  if (!text && !attachments.length && !(given && given.length)) return;
+  let att;
+  if (given) att = given; else { att = attachments; attachments = []; showTray(); }
+  if (!textOverride) { ta.value = ''; autosize(); }
   if (tab !== 'atlas') { tab = 'atlas'; render(); }
   host.orbState({ energy: 1 });
   const reply = await brain.send(text, { spoken, attachments: att });
   host.orbState({ energy: 0 });
-  if (reply && reply.source !== 'error' && reply.source !== 'Stopped' && (spoken || pref('speakReplies', false))) voice.speak(reply.text, () => { if (spoken && pref('keepTalking', true) && document.hasFocus()) startListening(true); });
+  if (reply && reply.source !== 'error' && reply.source !== 'Stopped' && (spoken || pref('speakReplies', false)) && !pref('voiceMuted', false)) voice.speak(reply.text, () => { if (spoken && pref('keepTalking', true) && document.hasFocus()) startListening(true); });
 }
 
 // ---- listening ----
-async function startListening(followUp = false) {
+/** In HUD mode the HUD listens (its meters and core); otherwise the classic listening overlay. */
+function startListening(followUp = false) { return HUD.isOn() ? HUD.listen(followUp) : classicListening(followUp); }
+async function classicListening(followUp = false) {
   if (listenCtl) { listenCtl.stop(); return; }
   voice.hush(); host.show();
   if (tab !== 'atlas') { tab = 'atlas'; render(); }
@@ -837,6 +847,8 @@ function renderMe(page) {
   host.autostart().then((on) => auto.querySelector('.switch').classList.toggle('on', !!on));
   pc.appendChild(settingRow('Light Look', document.documentElement.dataset.theme === 'light', (on) => { setPref('theme', on ? 'light' : 'dark'); applyTheme(); render(true); }));
   pc.appendChild(themePicker());   // >>> themes
+  pc.appendChild(settingRow('HUD Screen', HUD.active(), (on) => { if (on) HUD.enter(); else HUD.exit(); },
+    'Atlas fills the screen: the holographic core, live cards for what it\'s doing, a results wall and a terminal (TEXT). Ctrl+Alt+H switches any time.'));
   const nm = h(`<div class="setting"><div class="grow">Your Name<div class="small muted">${esc(db.state.settings.name || 'Not set')}</div></div><button class="btn">Change</button></div>`);
   nm.querySelector('button').onclick = () => askText('Your Name', 'What Atlas calls you.', db.state.settings.name || '', (v) => { db.state.settings.name = v.trim().slice(0, 40); store.saveState(); });
   pc.appendChild(nm);
@@ -1085,5 +1097,8 @@ async function main() {
   LW.start({ sheet, toast }); brain.ui.onPhone = (task) => LW.sendTask(task);
   LW.onChange(() => { if (tab === 'me') render(true, true); });
   // <<< device link
+  // >>> HUD mode: on by default on the PC; the classic window is a click (CLASSIC) or Ctrl+Alt+H away
+  HUD.init({ submit: (spoken, text, att) => submit(spoken, text, att), newChat, sheet, toast, classicListen: classicListening, restoreTheme: applyTheme, afterExit: () => render() });
+  // <<< HUD mode
 }
 main();
