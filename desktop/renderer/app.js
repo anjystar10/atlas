@@ -9,6 +9,7 @@ import * as voice from './voice.js';
 import { endsTalk } from './speech.js';
 import { Orb } from './orb.js';
 import { renderMarkdown } from './md.js';
+import * as UI from './uishape.js';   // replies: prose plus tidy rows (same rules as the phone)
 import { plainMemory } from './plain.js';
 import { bots, extras } from './botwire.js';
 import * as BX from './botsui.js';
@@ -63,6 +64,8 @@ function logged(ms) { const d = new Date(ms), t = new Date(); return d.toDateStr
 function whenLabel(ms) { if (ms == null) return 'No alarm'; const d = brain.dayLabel(ms); return d[0].toUpperCase() + d.slice(1) + ' ' + fmtTime(ms); }
 const ICON = {
   plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L19 7"/></svg>',
+  compose: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.5H6a2 2 0 0 0-2 2V18a2 2 0 0 0 2 2h11.5a2 2 0 0 0 2-2v-5"/><path d="M17.5 3.5l3 3L12 15l-3.5.5.5-3.5z"/></svg>',
   mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>',
   up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>',
   stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
@@ -139,7 +142,7 @@ function renderAtlas(page) {
     return;
   }
   const head = h(`<div class="chathead"><div class="grow"><div style="font:500 20px var(--serif)">Atlas</div><div class="small muted" id="brainline"></div></div>
-    <button class="btn" id="newchat">New Chat</button></div>`);
+    <button class="round" id="newchat" title="New chat" aria-label="New chat">${ICON.compose}</button></div>`);
   const orbSlot = h('<div style="width:56px;height:56px"></div>'); head.prepend(orbSlot); col.appendChild(head);
   homeOrb = new Orb(orbSlot, { size: 56 }); homeOrb.el.style.cursor = 'pointer'; homeOrb.el.onclick = () => startListening();
   head.querySelector('#newchat').onclick = async () => { if (await sheet({ title: 'Start a New Chat?', body: 'This clears the conversation here' + (sync.code() ? ' and on your phone' : '') + '. Your Log stays as it is.', primary: 'New Chat' })) { sync.noteDeleted('chat', db.chat.map((m) => m.id)); db.chat = []; store.saveChat(); render(); } };
@@ -170,11 +173,23 @@ function messageView(m, last) {
   const v = h('<div class="msg atlas"></div>');
   const working = last && brain.convo.busy && m.pending;
   if (!m.text) v.appendChild(h(`<div class="thinking">${esc(working ? (brain.convo.status || 'Thinking') : '')}</div>`));
-  else { const r = h(`<div class="reply ${m.source === 'error' ? 'bad' : ''}"></div>`); r.innerHTML = renderMarkdown(m.text); v.appendChild(r); }
+  else {
+    // prose stays prose; a list of times or "Label: thing" lines becomes a glass card of rows
+    for (const seg of UI.split(m.text)) {
+      if (seg.rows) {
+        const card = h('<div class="rows"></div>');
+        for (const r of seg.rows) card.appendChild(h(`<div class="row ${r.tone}"><span class="key">${esc(r.key)}</span><span class="val">${esc(r.value)}</span></div>`));
+        v.appendChild(card);
+      } else { const r = h(`<div class="reply ${m.source === 'error' ? 'bad' : ''}"></div>`); r.innerHTML = renderMarkdown(seg.text); v.appendChild(r); }
+    }
+  }
   if (m.steps && m.steps.length) {
-    const s = m.steps.length <= 3 ? m.steps.join(' · ') : m.steps.slice(0, 2).join(' · ') + ` · and ${m.steps.length - 2} more`;
-    const st = h(`<div class="steps">${esc(s)}</div>`); st.onclick = () => sheet({ title: 'What Atlas Did', html: `<div class="list">${m.steps.map((x) => `<div class="item">${esc(x)}</div>`).join('')}</div>`, primary: 'Close', secondary: null });
-    v.appendChild(st);
+    // what Atlas did: small glass receipts with a check (click for all of it)
+    const all = () => sheet({ title: 'What Atlas Did', html: `<div class="list">${m.steps.map((x) => `<div class="item">${esc(x)}</div>`).join('')}</div>`, primary: 'Close', secondary: null });
+    const box = h('<div class="receipts"></div>');
+    for (const x of m.steps.slice(0, 3)) box.appendChild(Object.assign(h(`<button class="receipt"><span class="tick">${ICON.check}</span><span>${esc(x)}</span></button>`), { onclick: all }));
+    if (m.steps.length > 3) box.appendChild(Object.assign(h(`<button class="more">and ${m.steps.length - 3} more ›</button>`), { onclick: all }));
+    v.appendChild(box);
   }
   const tag = working && m.text ? (brain.convo.status || 'Working') + '…' : (m.source === 'error' || m.source === 'Atlas' ? '' : m.source);
   if (tag) v.appendChild(h(`<div class="source">${esc(tag)}</div>`));

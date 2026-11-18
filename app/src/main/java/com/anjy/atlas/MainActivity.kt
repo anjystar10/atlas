@@ -563,7 +563,12 @@ class MainActivity : Activity() {
             val to = order[target]
             haptic()
             slideTo(to, dir)
-        } else settleBack()
+        } else {
+            settleBack()
+            // on the Atlas tab, a swipe to the right (there's no page that way) opens the Chats list
+            val from = order.getOrNull(target - dir)
+            if (from == 0 && dir < 0 && (dx > w * 0.22f || flung)) chatsSheet()
+        }
     }
 
     private fun settleBack() {
@@ -784,6 +789,8 @@ class MainActivity : Activity() {
     internal val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var imeOpen = false
     private lateinit var composer: LinearLayout
+    /** The Atlas tab's header: stays put above the chat (orb, status, Chats, New chat), so nothing lives only at the top of the scroll. */
+    private lateinit var chatHead: LinearLayout
     private lateinit var composerField: EditText
     private var sendIcon: LineIcon? = null
     private lateinit var fade: View
@@ -880,6 +887,8 @@ class MainActivity : Activity() {
         pageHost.addView(glow, FrameLayout.LayoutParams(MATCH, MATCH))
         morph = MorphView(this, BG).apply { visibility = View.GONE; ring = BLUE; warm = ACCENT }
         pageHost.addView(morph, FrameLayout.LayoutParams(MATCH, MATCH))
+        chatHead = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE; elevation = dp(2).toFloat() }
+        column.addView(chatHead, LinearLayout.LayoutParams(MATCH, WRAP))
         column.addView(pageHost, LinearLayout.LayoutParams(MATCH, 0, 1f))
         root.addView(column, FrameLayout.LayoutParams(MATCH, MATCH))
         // the page fades out under the ask bar and the tab bar, so words never run into them
@@ -1075,7 +1084,8 @@ class MainActivity : Activity() {
         chatList = null; homeOrb = null; statusLine = null; shownCount = -1
         window.statusBarColor = washTop()
         placeComposer()
-        body.setPadding(body.paddingLeft, dp(24), body.paddingRight, dp(if (tab == 0) 200 else 120))
+        fillChatHead()
+        body.setPadding(body.paddingLeft, dp(if (tab == 0) 6 else 24), body.paddingRight, dp(if (tab == 0) 200 else 120))
         when (tab) {
             0 -> renderAtlas()
             1 -> renderLog()
@@ -1189,57 +1199,163 @@ class MainActivity : Activity() {
     private fun renderAtlas() {
         val s = snapshot()
         val msgs = Conversation.messages
-        val name = s.settings.name.trim().split(" ").firstOrNull().orEmpty()
-
-        // top: the wordmark, what Atlas thinks with, the look switch
-        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val names = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        names.addView(text("Atlas", 17f, FG, DISPLAY).apply { letterSpacing = -0.01f })
-        val st = text(brainLine(), 13f, MUTED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
-        statusLine = st
-        names.addView(st, LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(2) })
-        bar.addView(names, LinearLayout.LayoutParams(0, WRAP, 1f))
-        if (msgs.isNotEmpty()) bar.addView(roundIcon("plus", "New chat") {
-            sheet(null, "Start a New Chat?", "This clears the conversation on this phone. Your Log stays as it is.", primaryLabel = "New Chat", onPrimary = {
-                Conversation.clear(applicationContext); render()
-            }, secondaryLabel = "Cancel")
-        }, LinearLayout.LayoutParams(dp(38), dp(38)).apply { rightMargin = dp(8) })
-        bar.addView(ThemeSwitch(this, dark, MED).apply { onChange = { d -> swapTheme(d, this) }; k = 0.78f })
-        body.add(bar)
-        botStrip()
-
 
         if (msgs.isEmpty()) {
+            val name = s.settings.name.trim().split(" ").firstOrNull().orEmpty()
             val orb = OrbView(this).apply { still = Prefs.reduceMotion(this@MainActivity); isClickable = true; contentDescription = "Talk to Atlas"; setOnClickListener { voice() } }
             homeOrb = orb
-            body.add(orb, 14, dp(184), dp(184))
+            val hDp = resources.displayMetrics.heightPixels / density
+            val short = hDp < 720
+            val orbDp = (hDp * 0.24f).coerceIn(124f, 184f).toInt()
+            body.add(orb, if (short) 6 else 18, dp(orbDp), dp(orbDp))
             (orb.layoutParams as LinearLayout.LayoutParams).gravity = Gravity.CENTER_HORIZONTAL
             body.add(text(if (name.isNotEmpty()) "Hey $name,\nWhat can I help with?" else "Hey there,\nWhat can I help with?", 29f, FG, DISPLAY).apply {
                 gravity = Gravity.CENTER; setLineSpacing(0f, 1.05f)
             }, 6)
+            // a live line: what's next, what's waiting, what the bots are doing (real, never filler)
+            val now = System.currentTimeMillis()
+            val line = UiShape.homeLine(s.tasks.map { UiShape.Upcoming(Plain.memory(it.title), it.startAt, it.status, it.remindedAt != null) }, now, Engine.zone, botLine())
+            body.add(text(line, 14f, MUTED, MED, keepEmoji = true).apply {
+                gravity = Gravity.CENTER; setLineSpacing(0f, 1.25f); setPadding(dp(12), 0, dp(12), 0)
+                isClickable = true; contentDescription = line
+                setOnClickListener { if (botLine().isNotEmpty() && !line.startsWith("Next") && line.contains("bot")) switchTab(3, 1) else switchTab(1, 1) }
+            }, 10)
             val ideas = listOf("Remind me to call mum tomorrow at 6pm", "Open ChatGPT and ask it how to find diamonds in Minecraft", "What can you do?")
+                .let { if (short) listOf(it[0], it[2]) else it }
             val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             ideas.forEachIndexed { i, idea ->
                 col.add(text(idea, 14f, FG, MED, keepEmoji = true).apply {
-                    background = finished(SURFACE, -1f, glass = true); setPadding(dp(16), dp(11), dp(16), dp(12)); gravity = Gravity.CENTER
+                    background = finished(SURFACE, -1f, glass = true); setPadding(dp(16), dp(12), dp(16), dp(13)); gravity = Gravity.CENTER
+                    minHeight = dp(44)
                     isClickable = true; setOnClickListener { composerField.setText(idea); composerField.setSelection(idea.length); composerField.requestFocus() }
                 }, if (i == 0) 0 else 8)
             }
-            body.add(col, 20)
+            body.add(col, 22)
             if (!Conversation.online(this)) body.add(text("To think properly Atlas needs an API key (Gemini's is free): Me → Brain.", 13f, MUTED).apply { gravity = Gravity.CENTER }, 18)
             return
         }
 
-        val head = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val orb = OrbView(this).apply { still = Prefs.reduceMotion(this@MainActivity); energy = if (Conversation.busy) 1f else 0f; isClickable = true; contentDescription = "Talk to Atlas"; setOnClickListener { voice() } }
-        homeOrb = orb
-        head.addView(orb, LinearLayout.LayoutParams(dp(64), dp(64)))
-        body.add(head, 10)
-        (head.layoutParams as LinearLayout.LayoutParams).gravity = Gravity.CENTER_HORIZONTAL
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         chatList = list
         body.add(list, 4)
         fillChat(list)
+    }
+
+    // ---------------------------------------------------------------- the Atlas tab's header (always in view)
+
+    private var headOrb: OrbView? = null
+
+    /**
+     * The header above the chat: the orb (tap to talk, hold to swap light and dark), Atlas and what it thinks with,
+     * then Chats and New chat. A glass strip under it while bots are working. It never scrolls away.
+     */
+    private fun fillChatHead() {
+        if (!::chatHead.isInitialized) return
+        chatHead.removeAllViews(); botChip = null; headOrb = null
+        if (tab != 0) { chatHead.visibility = View.GONE; return }
+        chatHead.visibility = View.VISIBLE
+        val g = dp(gutterDp())
+        chatHead.setPadding(g, dp(12), g, dp(8))
+        // the page fades in under the header, so words never run into it
+        chatHead.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(Color.argb(if (dark) 120 else 90, Color.red(BG), Color.green(BG), Color.blue(BG)), Color.argb(0, Color.red(BG), Color.green(BG), Color.blue(BG))))
+        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val orb = OrbView(this).apply {
+            still = Prefs.reduceMotion(this@MainActivity); energy = if (Conversation.busy || voiceInput != null) 1f else 0f
+            isClickable = true; contentDescription = "Talk to Atlas. Hold to switch between light and dark."
+            setOnClickListener { voice() }
+            setOnLongClickListener { haptic(); Store.putString(this@MainActivity, "theme2", if (dark) "light" else "dark"); relook(); true }
+        }
+        headOrb = orb
+        row.addView(orb, LinearLayout.LayoutParams(dp(44), dp(44)))
+        val names = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, dp(8), 0) }
+        names.addView(text("Atlas", 18f, FG, DISPLAY).apply { letterSpacing = -0.01f })
+        val st = text(brainLine(), 13f, MUTED).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
+        statusLine = st
+        names.addView(st, LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(1) })
+        row.addView(names, LinearLayout.LayoutParams(0, WRAP, 1f))
+        row.addView(roundIcon("chats", "Chats") { chatsSheet() }, LinearLayout.LayoutParams(dp(44), dp(44)).apply { rightMargin = dp(8) })
+        row.addView(roundIcon("compose", "New chat") { newChat() }, LinearLayout.LayoutParams(dp(44), dp(44)))
+        chatHead.addView(row, LinearLayout.LayoutParams(MATCH, WRAP))
+        val line = botLine()
+        if (line.isNotEmpty()) {
+            val chip = text("Atlas Bot  ·  $line  ›", 13f, FG, MED, keepEmoji = true).apply {
+                background = finished(SURFACE, -1f, glass = true); setPadding(dp(14), dp(9), dp(14), dp(10)); maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END; isClickable = true; contentDescription = "Atlas Bot: $line"
+                setOnClickListener { switchTab(3, 1) }
+                pressFx()
+            }
+            botChip = chip
+            chatHead.addView(chip, LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(8) })
+        }
+    }
+
+    /** New chat: what you've said so far is kept under Chats, and a fresh conversation starts. */
+    private fun newChat() {
+        if (Conversation.messages.isEmpty()) { showBanner("This is already a new chat.", MUTED); return }
+        haptic()
+        Conversation.newChat(applicationContext)
+        render()
+        undoBanner("New chat. The last one is under Chats.") {
+            ChatArchive.list(this).firstOrNull()?.let { Conversation.openSaved(applicationContext, it.id); render() }
+        }
+    }
+
+    /** Earlier chats: search, open one, or hold one to rename or delete it. */
+    private fun chatsSheet() {
+        haptic()
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val listBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        var close: () -> Unit = {}
+        var query = ""
+        fun fill() {
+            listBox.removeAllViews()
+            val now = System.currentTimeMillis()
+            val found = ChatArchive.search(this, query)
+            if (found.isEmpty()) {
+                listBox.addView(text(if (query.isBlank()) "No earlier chats yet. New chat keeps the one you're in here." else "No chat mentions “${query.trim()}”.", 14f, MUTED).apply { setPadding(dp(4), dp(14), dp(4), dp(6)) })
+                return
+            }
+            found.take(80).forEachIndexed { i, m ->
+                val r = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL; isClickable = true; minimumHeight = dp(56)
+                    background = finished(SURFACE, dp(16).toFloat(), glass = true); setPadding(dp(16), dp(11), dp(16), dp(12))
+                    contentDescription = "${m.title}, ${UiShape.chatWhen(m.at, now, Engine.zone)}"
+                    setOnClickListener {
+                        close()
+                        if (Conversation.openSaved(applicationContext, m.id)) { render(); showBanner("Opened “${m.title}”. The chat you were in is under Chats.") }
+                        else showBanner("Couldn't open that chat.", MUTED)
+                    }
+                    setOnLongClickListener {
+                        haptic()
+                        choose(m.title, listOf("Rename", "Delete")) { k ->
+                            if (k == 0) {
+                                var name = m.title
+                                sheet(null, "Rename Chat", null, content = field("Name", m.title) { name = it }, primaryLabel = "Save", onPrimary = {
+                                    ChatArchive.rename(this@MainActivity, m.id, name); fill()
+                                }, secondaryLabel = "Cancel")
+                            } else sheet(null, "Delete This Chat?", m.title, primaryLabel = "Delete", primaryColor = MISS, onPrimary = {
+                                ChatArchive.delete(this@MainActivity, m.id); fill()
+                            }, secondaryLabel = "Keep")
+                        }
+                        true
+                    }
+                    pressFx()
+                }
+                r.addView(text(m.title, 15f, FG, MED, keepEmoji = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
+                r.addView(text("${UiShape.chatWhen(m.at, now, Engine.zone)}  ·  ${m.count} messages", 12f, MUTED), LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(2) })
+                listBox.addView(r, LinearLayout.LayoutParams(MATCH, WRAP).apply { if (i > 0) topMargin = dp(8) })
+            }
+        }
+        // searching reads the saved chats, so it waits for a pause in typing
+        val later = Runnable { fill() }
+        val search = field("Search chats", "") { query = it; listBox.removeCallbacks(later); listBox.postDelayed(later, 220) }.apply { setSingleLine(true) }
+        col.addView(search, LinearLayout.LayoutParams(MATCH, WRAP))
+        col.add(text("Hold a chat to rename or delete it.", 12f, MUTED).apply { setPadding(dp(4), 0, 0, 0) }, 8)
+        val sc = ScrollView(this).apply { isVerticalScrollBarEnabled = false; addView(listBox) }
+        col.addView(sc, LinearLayout.LayoutParams(MATCH, (resources.displayMetrics.heightPixels * 0.46f).toInt()).apply { topMargin = dp(10) })
+        fill()
+        close = sheet(null, "Chats", null, content = col, primaryLabel = "New Chat", onPrimary = { newChat() }, secondaryLabel = "Close")
     }
 
     // ---------------------------------------------------------------- Atlas Bot
@@ -1247,27 +1363,12 @@ class MainActivity : Activity() {
     private var botChip: TextView? = null
     private fun botLine(): String = BotRules.summary(Bots.jobs, System.currentTimeMillis())
 
-    /** A small glass strip under the top bar while bots are working (or recently done): tap to see them. */
-    private fun botStrip() {
-        botChip = null
-        val line = botLine()
-        if (line.isEmpty()) return
-        val chip = text("Atlas Bot  ·  $line  ›", 13f, FG, MED, keepEmoji = true).apply {
-            background = finished(SURFACE, -1f, glass = true); setPadding(dp(14), dp(8), dp(14), dp(9)); maxLines = 1
-            ellipsize = android.text.TextUtils.TruncateAt.END; isClickable = true; contentDescription = "Atlas Bot: $line"
-            setOnClickListener { startActivity(Intent(this@MainActivity, BotActivity::class.java)) }
-            pressFx()
-        }
-        botChip = chip
-        body.add(chip, 10, WRAP)
-    }
-
-    /** A bot moved on: update the strip in place, or redraw the Atlas tab when it appears or goes. */
+    /** A bot moved on: the header's strip follows (redrawn: it's small), and the Bots tab too. */
     private val onBots: () -> Unit = {
         if (tab == 0 && ::composer.isInitialized) {
             val line = botLine()
             val chip = botChip
-            if ((chip == null) != line.isEmpty()) render(keepScroll = true)
+            if ((chip == null) != line.isEmpty()) fillChatHead()
             else chip?.let { it.text = "Atlas Bot  ·  $line  ›"; it.contentDescription = "Atlas Bot: $line" }
         }
         // the Bots tab follows along, unless you're in the middle of typing a job
@@ -1292,6 +1393,7 @@ class MainActivity : Activity() {
         if (tab != 0) return
         statusLine?.text = brainLine()
         homeOrb?.energy = if (Conversation.busy || voiceInput != null) 1f else 0f
+        headOrb?.energy = if (Conversation.busy || voiceInput != null) 1f else 0f
         val list = chatList
         if (list == null) { if (Conversation.messages.isNotEmpty() || shownCount > 0) render(keepScroll = true).also { toLatest() }; return }
         if (Conversation.messages.isEmpty()) { render(); return }
@@ -1329,28 +1431,31 @@ class MainActivity : Activity() {
             wrap.addView(text(if (working) "${Conversation.status ?: "Thinking"}…" else "…", 15f, MUTED, MED).apply { setPadding(dp(2), dp(4), 0, dp(4)) })
         } else {
             val st = mdStyle()
-            Markdown.parse(m.text, st).forEachIndexed { i, block ->
-                val v: View = when (block) {
-                    is Markdown.Prose -> TextView(this).apply {
-                        text = linkified(block.text); setTextColor(if (m.source == "error") MISS else FG); textSize = Type.READ; typeface = READ
-                        setLineSpacing(0f, Type.LEAD_READ); linksClickable = true; movementMethod = android.text.method.LinkMovementMethod.getInstance()
-                        setOnLongClickListener(copy)
+            // prose stays prose; a list of times or "Label: thing" lines becomes a tidy glass card of rows
+            var n = 0
+            UiShape.split(m.text).forEach { seg ->
+                when (seg) {
+                    is UiShape.Seg.Rows -> { wrap.addView(rowsCard(seg.rows, copy), LinearLayout.LayoutParams(MATCH, WRAP).apply { if (n > 0) topMargin = dp(10) }); n++ }
+                    is UiShape.Seg.Text -> Markdown.parse(seg.text, st).forEach { block ->
+                        val v: View = when (block) {
+                            is Markdown.Prose -> TextView(this).apply {
+                                text = linkified(block.text); setTextColor(if (m.source == "error") MISS else FG); textSize = Type.READ; typeface = READ
+                                setLineSpacing(0f, Type.LEAD_READ); linksClickable = true; movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                                setOnLongClickListener(copy)
+                            }
+                            is Markdown.Code -> codeBox(block)
+                        }
+                        wrap.addView(v, LinearLayout.LayoutParams(MATCH, WRAP).apply { if (n > 0) topMargin = dp(10) }); n++
                     }
-                    is Markdown.Code -> codeBox(block)
                 }
-                wrap.addView(v, LinearLayout.LayoutParams(MATCH, WRAP).apply { if (i > 0) topMargin = dp(10) })
             }
         }
         // pictures Atlas made, full width, with Save and Share
         m.media.filter { it.image && it.file.exists() }.forEach { item -> wrap.addView(madePicture(item), LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) }) }
         // a voice memo from a bot: a play key with its length
         m.media.filter { it.mime.startsWith("audio/") && it.file.exists() }.forEach { item -> wrap.addView(voiceMemo(item), LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(10) }) }
-        // what Atlas did, in one quiet line (tap for all of it)
-        if (m.steps.isNotEmpty()) {
-            val shown = if (m.steps.size <= 3) m.steps.joinToString(" · ") else m.steps.take(2).joinToString(" · ") + " · and ${m.steps.size - 2} more"
-            wrap.addView(text(shown, 13f, MUTED, keepEmoji = true).apply { setPadding(0, dp(8), 0, 0); isClickable = true
-                setOnClickListener { sheet(null, "What Atlas Did", m.steps.joinToString("\n") { "· $it" }, primaryLabel = "Close") } })
-        }
+        // what Atlas did, as small glass receipts with a check (tap for all of it)
+        if (m.steps.isNotEmpty()) wrap.addView(receipts(m.steps), LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
         val tag = when {
             working && m.text.isNotBlank() -> "${Conversation.status ?: "Working"}…"
             m.source == "error" || m.source == "Atlas" -> ""
@@ -1358,6 +1463,54 @@ class MainActivity : Activity() {
         }
         if (tag.isNotEmpty()) wrap.addView(text(tag, 12f, MUTED, MED).apply { setPadding(0, dp(6), 0, 0); alpha = 0.8f })
         return wrap
+    }
+
+    /** A list Atlas wrote, as a glass card: the key (a time, or a short label in its colour) on the left, the rest beside it. */
+    private fun rowsCard(rows: List<UiShape.Row>, onHold: (View) -> Boolean): View {
+        val card = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; background = Finish(SURFACE, dp(18).toFloat(), dark, density, glass = true)
+            setPadding(dp(16), dp(4), dp(16), dp(4)); setOnLongClickListener(onHold)
+        }
+        val keyW = (resources.displayMetrics.widthPixels / density * 0.3f).coerceIn(96f, 132f)
+        rows.forEachIndexed { i, r ->
+            if (i > 0) card.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
+            val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(11), 0, dp(11)) }
+            val keyColor = when (r.tone) {
+                UiShape.Tone.TIME -> ACCENT_INK; UiShape.Tone.ALERT -> ACCENT_INK; UiShape.Tone.NOW -> BLUE
+                UiShape.Tone.DONE -> DONE; UiShape.Tone.PLAIN -> MUTED
+            }
+            val key = if (r.tone == UiShape.Tone.TIME) text(r.key, 14f, keyColor, MONO)
+                else text(r.key.uppercase(Locale.getDefault()), 11.5f, keyColor, SEMI).apply { letterSpacing = 0.05f; maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END }
+            if (r.tone == UiShape.Tone.ALERT) line.addView(View(this).apply { background = rounded(ACCENT, 99) }, LinearLayout.LayoutParams(dp(6), dp(6)).apply { rightMargin = dp(8) })
+            line.addView(key, LinearLayout.LayoutParams(dp(keyW.toInt()) - if (r.tone == UiShape.Tone.ALERT) dp(14) else 0, WRAP))
+            line.addView(text(r.value, 15f, FG, keepEmoji = true).apply { setLineSpacing(0f, 1.2f); setTextIsSelectable(false) }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
+            card.addView(line, LinearLayout.LayoutParams(MATCH, WRAP))
+        }
+        return card
+    }
+
+    /** What Atlas did: up to three small glass receipts, each with a check; more are one tap away. */
+    private fun receipts(steps: List<String>): View {
+        val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val all = { sheet(null, "What Atlas Did", steps.joinToString("\n") { "· $it" }, primaryLabel = "Close"); Unit }
+        steps.take(3).forEachIndexed { i, st ->
+            val r = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; isClickable = true
+                background = Finish(SURFACE, dp(14).toFloat(), dark, density, glass = true); setPadding(dp(10), dp(8), dp(14), dp(9))
+                setOnClickListener { all() }; contentDescription = "Done: $st"
+            }
+            val tick = FrameLayout(this).apply {
+                background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(withAlpha(DONE, 40)) }
+                addView(LineIcon(this@MainActivity, "check").apply { color = DONE }, FrameLayout.LayoutParams(dp(13), dp(13), Gravity.CENTER))
+            }
+            r.addView(tick, LinearLayout.LayoutParams(dp(24), dp(24)))
+            r.addView(text(st, 14f, FG, keepEmoji = true).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(10) })
+            col.addView(r, LinearLayout.LayoutParams(MATCH, WRAP).apply { if (i > 0) topMargin = dp(6) })
+        }
+        if (steps.size > 3) col.addView(text("and ${steps.size - 3} more  ›", 13f, ACCENT_INK, SEMI).apply {
+            isClickable = true; setPadding(dp(4), dp(10), dp(12), dp(6)); minHeight = dp(36); setOnClickListener { all() }
+        })
+        return col
     }
 
     private var memoPlayer: android.media.MediaPlayer? = null
@@ -1476,28 +1629,30 @@ class MainActivity : Activity() {
         val t = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE; setPadding(dp(4), 0, 0, dp(8)) }
         tray = t
         outer.addView(t, LinearLayout.LayoutParams(MATCH, WRAP))
-        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        // one roomy glass capsule: + (snap, photos, files) · the words · send. Talking is the round key in the tab bar.
+        val bar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM
+            // frosted: a nearly solid base under the glass, so the page never shows through the words
+            background = android.graphics.drawable.LayerDrawable(arrayOf(
+                GradientDrawable().apply { cornerRadius = dp(28).toFloat(); setColor(withAlpha(if (dark) blend(BG, SURFACE, 0.6f) else SURFACE, 238)) },
+                Finish(SURFACE, dp(28).toFloat(), dark, density, glass = true)))
+            elevation = dp(6).toFloat()
+            setPadding(dp(4), dp(4), dp(4), dp(4)); minimumHeight = dp(56)
+        }
         val attach = FrameLayout(this).apply {
-            background = quietBg(); isClickable = true; contentDescription = "Add a picture, video or file"
-            addView(LineIcon(this@MainActivity, "plus").apply { color = quietInk() }, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
-            setOnClickListener { choose("Add to Your Message", listOf("Photos & Videos", "Files (any kind)", "Take a Photo", "Record a Video")) { i ->
-                when (i) { 0 -> pickMedia(); 1 -> pickFiles(); 2 -> snap(false); else -> snap(true) } } }
+            background = null; isClickable = true; contentDescription = "Add: take a photo, photos and videos, or files (hold to take a photo now)"
+            addView(LineIcon(this@MainActivity, "plus").apply { color = FG }, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER))
+            setOnClickListener { choose("Add to Your Message", listOf("Take a Photo", "Record a Video", "Photos & Videos", "Files (any kind)")) { i ->
+                when (i) { 0 -> snap(false); 1 -> snap(true); 2 -> pickMedia(); else -> pickFiles() } } }
+            // >>> attachments: Snap is a hold away
+            setOnLongClickListener { haptic(); snap(false); true }
             pressFx()
         }
-        // >>> attachments: Snap, right in the bar (it steps aside while you type, to give the words room)
-        val cam = FrameLayout(this).apply {
-            background = quietBg(); isClickable = true; contentDescription = "Take a photo (hold for a video)"
-            addView(LineIcon(this@MainActivity, "camera").apply { color = quietInk() }, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
-            setOnClickListener { snap(false) }
-            setOnLongClickListener { haptic(); snap(true); true }
-            pressFx()
-        }
-        snapKey = cam
-        // <<< attachments
+        snapKey = null
         composerField = EditText(this).apply {
-            hint = "Ask anything…"; setTextColor(FG); setHintTextColor(MUTED); textSize = Type.READ; typeface = READ
-            background = rounded(if (dark) SURFACE2 else Color.parseColor(LIGHT_FIELD), 999, LINE)
-            setPadding(dp(18), dp(13), dp(18), dp(13)); maxLines = 5
+            hint = "Ask Atlas anything"; setTextColor(FG); setHintTextColor(MUTED); textSize = Type.READ; typeface = READ
+            background = null
+            setPadding(dp(6), dp(12), dp(10), dp(12)); maxLines = 6; minHeight = dp(48)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
             imeOptions = EditorInfo.IME_ACTION_SEND
             setRawInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
@@ -1533,9 +1688,9 @@ class MainActivity : Activity() {
             pressFx()
         }
         bar.addView(attach, LinearLayout.LayoutParams(dp(48), dp(48)))
-        bar.addView(cam, LinearLayout.LayoutParams(dp(48), dp(48)).apply { leftMargin = dp(6) })
-        bar.addView(composerField, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8); rightMargin = dp(8) })
+        bar.addView(composerField, LinearLayout.LayoutParams(0, WRAP, 1f))
         bar.addView(send, LinearLayout.LayoutParams(dp(48), dp(48)))
+        send.visibility = View.GONE
         outer.addView(bar, LinearLayout.LayoutParams(MATCH, WRAP))
         showTray()
         return outer
@@ -1700,6 +1855,12 @@ class MainActivity : Activity() {
         val parent = old.parent as? FrameLayout ?: return
         val typed = ::composerField.isInitialized && composerField.text.isNotBlank()
         val want = when { Conversation.busy -> "stop"; typed || pending.isNotEmpty() -> "arrow"; else -> "mic" }
+        // nothing to send and nothing to stop: the key steps aside (talking is the round key in the tab bar)
+        val show = want != "mic"
+        if ((parent.visibility == View.VISIBLE) != show) {
+            parent.visibility = if (show) View.VISIBLE else View.GONE
+            if (show && !Prefs.reduceMotion(this)) { parent.scaleX = 0.6f; parent.scaleY = 0.6f; parent.animate().scaleX(1f).scaleY(1f).setDuration(160).start() }
+        }
         if (old.tag == want) return
         parent.removeView(old)
         val icon = LineIcon(this, want).apply { color = Palette.DARK.onPrimary; rotation = if (want == "arrow") -90f else 0f; tag = want }
@@ -1771,7 +1932,7 @@ class MainActivity : Activity() {
             },
             onError = { msg -> stopVoice(); showBanner(msg, MUTED) })
         voiceInput = vi
-        homeOrb?.energy = 1f
+        homeOrb?.energy = 1f; headOrb?.energy = 1f
         closeVoiceSheet = sheet(null, "Talk to Atlas", null, content = col, primaryLabel = "Done", onPrimary = {
             keepSheet = true; heard.text = got ?: "One moment…"; vi.finish()
         }, secondaryLabel = "Cancel", onSecondary = { stopVoice() })
@@ -1826,7 +1987,7 @@ class MainActivity : Activity() {
         voiceInput?.cancel(); voiceInput = null
         closeVoiceSheet?.invoke(); closeVoiceSheet = null
         AvatarService.holdMic(this, false)
-        homeOrb?.energy = if (Conversation.busy) 1f else 0f
+        homeOrb?.energy = if (Conversation.busy) 1f else 0f; headOrb?.energy = if (Conversation.busy) 1f else 0f
     }
 
     // ================================================================ LOG
@@ -1945,44 +2106,92 @@ class MainActivity : Activity() {
         val s = snapshot()
         val all = entries(s)
         if (logFull) {
-            pageTitle("Full History", roundIcon("close", "Back to the Log") { logFull = false; render() }.apply { layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)) })
+            pageTitle("Full History", roundIcon("close", "Back to the Log") { logFull = false; render() }.apply { layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)) })
             body.add(text("Everything Atlas has logged, newest first (${all.size}).", 15f, MUTED), 6)
         } else {
-            pageTitle("Log", roundIcon("plus", "New reminder") { editTask(null) }.apply { layoutParams = LinearLayout.LayoutParams(dp(40), dp(40)) })
+            pageTitle("Log", roundIcon("plus", "New reminder") { editTask(null) }.apply { layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)) })
             body.add(text("What Atlas is keeping for you. Reminders ring like an alarm at their time.", 15f, MUTED), 6)
         }
         if (!logFull) {
-            // Remember Something first: the field gets the whole width, the Save key sits under it
-            body.add(eyebrow("Remember Something"), 20)
-            val mc = card().apply { setPadding(dp(16), dp(14), dp(16), dp(14)) }
-            var v = ""
-            lateinit var save: TextView
-            val f = field("Something to remember", "", multi = true) { v = it; save.alpha = if (it.isBlank()) 0.5f else 1f }
-            mc.addView(f, LinearLayout.LayoutParams(MATCH, WRAP))
-            save = primary("Save to Memory") {
-                val t = Plain.memory(v)
-                if (t.isNotEmpty()) { Store.edit(this) { Engine.remember(it, t, System.currentTimeMillis()) }; ModelManager.markStale(); showBanner("Saved"); render(keepScroll = true) }
-            }.apply { alpha = 0.5f }
-            mc.addView(save, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
-            body.add(mc, 8)
+            // remembering something is one quiet line: type, then the check (or just tell Atlas in chat)
+            body.add(rememberRow(), 18)
             if (all.isEmpty()) {
-                // nothing yet: the box above still works (it used to be hidden until something was logged)
                 body.add(card().apply {
                     addView(text("Nothing logged yet", 18f, FG, HEAD))
                     add(text("Tell Atlas “remind me to pick up my sister Thursday at 4” or “remember my locker code is on the fridge”, and it lands here.", 15f, MUTED), 6)
                 }, 22)
                 return
             }
-            body.add(eyebrow("Latest"), 22)
+            // what's coming up first, soonest first; then the latest of everything
+            val now = System.currentTimeMillis()
+            val soon = all.filter { e -> e.task?.let { it.status == "planned" && (it.startAt ?: 0L) > now } == true }.sortedBy { it.task!!.startAt }.take(3)
+            if (soon.isNotEmpty()) {
+                body.add(eyebrow("Coming Up"), 22)
+                val cu = card().apply { setPadding(dp(18), dp(4), dp(18), dp(4)) }
+                soon.forEachIndexed { i, e -> if (i > 0) cu.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1))); cu.addView(entryRow(e)) }
+                body.add(cu, 8)
+            }
+            val rest = all.filter { it !in soon }
+            val shown = rest.take(LOG_RECENT)
+            if (shown.isNotEmpty()) {
+                body.add(eyebrow("Latest"), 22)
+                val c = card().apply { setPadding(dp(18), dp(4), dp(18), dp(4)) }
+                shown.forEachIndexed { i, e -> if (i > 0) c.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1))); c.addView(entryRow(e)) }
+                body.add(c, 8)
+            }
+            body.add(secondary(if (all.size > LOG_RECENT) "Full History (${all.size})" else "Full History") { logFull = true; render() }, 12)
+            return
         } else if (all.isEmpty()) return
-        val shown = if (logFull) all else all.take(LOG_RECENT)
         val c = card().apply { setPadding(dp(18), dp(4), dp(18), dp(4)) }
-        shown.forEachIndexed { i, e ->
+        all.forEachIndexed { i, e ->
             if (i > 0) c.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
             c.addView(entryRow(e))
         }
-        body.add(c, if (logFull) 16 else 8)
-        if (!logFull) body.add(secondary(if (all.size > LOG_RECENT) "Full History (${all.size})" else "Full History") { logFull = true; render() }, 12)
+        body.add(c, 16)
+    }
+
+    /** "Remember something…" as one glass line with a round check that lights up once there's something to keep. */
+    private fun rememberRow(): View {
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            background = Finish(SURFACE, dp(26).toFloat(), dark, density, glass = true)
+            setPadding(dp(6), dp(4), dp(4), dp(4)); minimumHeight = dp(52)
+        }
+        var v = ""
+        lateinit var key: FrameLayout
+        var paintKey: (Boolean) -> Unit = {}
+        val f = EditText(this).apply {
+            hint = "Remember something…"; setTextColor(FG); setHintTextColor(MUTED); textSize = 15f; typeface = MED
+            background = null; setPadding(dp(12), dp(10), dp(8), dp(10)); maxLines = 4; minHeight = dp(44)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            contentDescription = "Something for Atlas to remember"
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(s: Editable?) { v = s?.toString() ?: ""; paintKey(v.isNotBlank()) }
+            })
+        }
+        val tick = LineIcon(this@MainActivity, "check")
+        key = FrameLayout(this).apply {
+            addView(tick, FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER))
+            isClickable = true; contentDescription = "Save to memory"
+            setOnClickListener {
+                val t = Plain.memory(v)
+                if (t.isEmpty()) return@setOnClickListener
+                Store.edit(this@MainActivity) { Engine.remember(it, t, System.currentTimeMillis()) }; ModelManager.markStale()
+                haptic(); showBanner("Remembered."); render(keepScroll = true)
+            }
+            pressFx()
+        }
+        paintKey = { on ->
+            key.isEnabled = on
+            key.background = if (on) GradientDrawable().apply { shape = GradientDrawable.OVAL; colors = intArrayOf(Palette.DARK.primaryTop, Palette.DARK.primaryBottom) } else quietBg()
+            tick.color = if (on) Palette.DARK.onPrimary else quietMuted()
+        }
+        paintKey(false)
+        row.addView(f, LinearLayout.LayoutParams(0, WRAP, 1f))
+        row.addView(key, LinearLayout.LayoutParams(dp(44), dp(44)))
+        return row
     }
 
     // ================================================================ THIS DEVICE
@@ -2228,7 +2437,7 @@ class MainActivity : Activity() {
 
     private fun renderMe() {
         val st = Store.read(this) { it.settings }
-        pageTitle("Me", ThemeSwitch(this, dark, MED).apply { onChange = { d -> swapTheme(d, this) } })
+        pageTitle("Me")
 
         // Brain: any AI service, with the user's own key
         body.add(eyebrow("Brain"), 16)
@@ -2617,10 +2826,17 @@ class MainActivity : Activity() {
         body.add(you, 8)
 
         // >>> themes: Look — the colour theme, per device (Atlas can switch it too: "switch to the gold theme")
-        body.add(eyebrow("Look"), 16)
+        body.add(eyebrow("Appearance"), 16)
         val look = card()
-        look.addView(text(Themes.current.name, 20f, FG, HEAD))
-        look.add(text(L.t("Colours for this device. Light or dark stays on the switch at the top."), 14f, MUTED), 4)
+        // Light / Dark: the glass switch lives here now (and holding the orb at the top of the Atlas tab swaps it too)
+        val ld = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val ldText = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        ldText.addView(text(Themes.current.name, 20f, FG, HEAD))
+        ldText.addView(text(L.t(if (dark) "Dark look" else "Light look"), 14f, MUTED), LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(2) })
+        ld.addView(ldText, LinearLayout.LayoutParams(0, WRAP, 1f))
+        ld.addView(ThemeSwitch(this, dark, MED).apply { onChange = { d -> swapTheme(d, this) }; k = 0.82f })
+        look.addView(ld, LinearLayout.LayoutParams(MATCH, WRAP))
+        look.add(text(L.t("Colours for this device. Tip: hold the orb at the top of the Atlas tab to swap light and dark."), 14f, MUTED), 10)
         look.add(themeSwatches(), 14)
         body.add(look, 8)
         // <<< themes
