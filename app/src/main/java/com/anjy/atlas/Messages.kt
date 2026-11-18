@@ -32,7 +32,22 @@ class AtlasNotifs : NotificationListenerService() {
     override fun onListenerConnected() { instance = this }
     override fun onListenerDisconnected() { if (instance === this) instance = null }
     override fun onDestroy() { if (instance === this) instance = null; super.onDestroy() }
-    override fun onNotificationPosted(sbn: StatusBarNotification?) { sbn ?: return; for (l in listeners) try { l(sbn, true) } catch (e: Exception) { Log.w("AtlasNotifs", "listener", e) } }
+    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        sbn ?: return
+        for (l in listeners) try { l(sbn, true) } catch (e: Exception) { Log.w("AtlasNotifs", "listener", e) }
+        // bot triggers ("when WhatsApp sends a notification mentioning…"): only when a bot has one switched on
+        if (!sbn.isOngoing && (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY) == 0 && sbn.packageName != packageName) {
+            val app = applicationContext
+            Thread {
+                try {
+                    if (!TrigRun.wantsEvents("notification")) return@Thread
+                    val x = sbn.notification.extras
+                    val label = try { app.packageManager.getApplicationLabel(app.packageManager.getApplicationInfo(sbn.packageName, 0)).toString() } catch (_: Exception) { sbn.packageName }
+                    TrigRun.notification(app, sbn.packageName, label, x.getCharSequence(Notification.EXTRA_TITLE)?.toString() ?: "", (x.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: x.getCharSequence(Notification.EXTRA_TEXT))?.toString() ?: "")
+                } catch (e: Exception) { Log.w("AtlasNotifs", "trigger", e) }
+            }.start()
+        }
+    }
     override fun onNotificationRemoved(sbn: StatusBarNotification?) { sbn ?: return; for (l in listeners) try { l(sbn, false) } catch (e: Exception) { Log.w("AtlasNotifs", "listener", e) } }
 }
 

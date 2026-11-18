@@ -398,7 +398,7 @@ object BotExtras {
             if (old != null) specialists[specialists.indexOf(old)] = s else specialists.add(s)
             s
         }
-        persist(); changed(true); return s
+        persist(); changed(true); schedule(); return s
     }
     fun removeSpecialist(id: String) { synchronized(lock) { specialists.removeAll { it.optString("id") == id } }; persist(); changed(true) }
     fun specialistNote(id: String, text: String, forget: Boolean): String {
@@ -483,6 +483,8 @@ object BotExtras {
                 latch.await(10, java.util.concurrent.TimeUnit.SECONDS)
             } else changed(false)
         }
+        // Atlas Bot v2 triggers: schedules, new email and price levels (TrigRun)
+        try { TrigRun.tick(app) } catch (e: Exception) { Log.w(TAG, "triggers", e) }
         schedule()
     }
 
@@ -491,7 +493,9 @@ object BotExtras {
         if (!::app.isInitialized) return
         val am = app.getSystemService(AlarmManager::class.java)
         val pi = PendingIntent.getBroadcast(app, 77, Intent(app, RoutineReceiver::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val next = synchronized(lock) { routines.filter { it.optBoolean("enabled", true) && it.optLong("nextAt") > 0 }.minOfOrNull { it.optLong("nextAt") } }
+        val routineNext = synchronized(lock) { routines.filter { it.optBoolean("enabled", true) && it.optLong("nextAt") > 0 }.minOfOrNull { it.optLong("nextAt") } }
+        val trigNext = try { TrigRun.nextWake(app).takeIf { it > 0 } } catch (_: Exception) { null }
+        val next = listOfNotNull(routineNext, trigNext).minOrNull()
         if (next == null) { am.cancel(pi); return }
         val at = maxOf(next, System.currentTimeMillis() + 1_000)
         try {
@@ -531,7 +535,7 @@ object BotExtras {
                 }
             }
         }
-        persist(); changed(false); if (kind == "routine") schedule()
+        persist(); changed(false); if (kind == "routine" || kind == "specialist") schedule()
     }
 }
 

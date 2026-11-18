@@ -19,11 +19,26 @@ import kotlin.coroutines.resume
 
 /**
  * Atlas's hands on the phone: an accessibility service. It only acts when Atlas asks it to (on the user's request);
- * it doesn't watch or record anything in between.
+ * it doesn't watch or record anything in between. The one exception the user sets up themselves: a bot trigger
+ * "when you open <app>" is told which app came to the front (the app's name only, nothing on screen).
  */
 class AtlasAccess : AccessibilityService() {
     override fun onServiceConnected() { super.onServiceConnected(); instance = this; Log.i("AtlasAccess", "connected") }
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    private var frontPkg = ""
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        val pkg = event.packageName?.toString() ?: return
+        if (pkg == frontPkg || pkg == packageName || pkg == "com.android.systemui") return
+        frontPkg = pkg
+        val app = applicationContext
+        Thread {
+            try {
+                if (!TrigRun.wantsEvents("app")) return@Thread
+                val label = try { app.packageManager.getApplicationLabel(app.packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { pkg }
+                TrigRun.appOpened(app, pkg, label)
+            } catch (e: Exception) { Log.w("AtlasAccess", "trigger", e) }
+        }.start()
+    }
     override fun onInterrupt() {}
     override fun onUnbind(intent: android.content.Intent?): Boolean { instance = null; return super.onUnbind(intent) }
     override fun onDestroy() { instance = null; super.onDestroy() }

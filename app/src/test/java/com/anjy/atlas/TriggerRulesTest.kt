@@ -46,7 +46,9 @@ class TriggerRulesTest {
 
     @Test fun goalsKeysWhereAndAwake() {
         for (c in objs(fx.getJSONArray("goal"))) {
-            assertEquals(c.getString("out"), TriggerRules.goalFor(c.getJSONObject("bot"), c.getJSONObject("trigger"), c.getJSONObject("event")))
+            // the data lines follow the event's key order: Android's org.json keeps it, the JVM test copy doesn't, so compare them as a set
+            val want = c.getString("out").split("\n"); val got = TriggerRules.goalFor(c.getJSONObject("bot"), c.getJSONObject("trigger"), c.getJSONObject("event")).split("\n")
+            assertEquals(want.take(3), got.take(3)); assertEquals(want.drop(3).toSet(), got.drop(3).toSet())
             assertEquals(c.getString("key"), TriggerRules.eventKey(c.getJSONObject("bot").getString("id"), c.getJSONObject("trigger").getString("id"), c.getJSONObject("event")))
         }
         for (c in objs(fx.getJSONArray("where"))) {
