@@ -275,3 +275,40 @@ from the user) and its `bots` tool can list/inspect/steer/stop missions and agen
 - Phone: `Crew.kt` (the same rules, checked against `tools/bots2-fixtures.json`), `BotJournal.kt` (v2 mission fields), `Bots.kt` (nested open plans, daily budgets with stop-and-ask and `giveMore`, `spawn_agent`, access, dry run, checker), `Aware.kt` (`Situation.heard/consent`, standing bots in the brief).
 - Difference: a dry run on the phone is stricter than on the PC. It writes down every action that changes something outside the job folder (taps, typing, reminders), not only risky ones.
 - `consent(text)` → {yes, always, why}. A yes counts only when the user's own message says one. A no always counts. "always" needs the word itself, and money is never covered by "always".
+
+## 12. Against Grok Bot's actual architecture (checked 2026-11-18)
+
+Sources: docs.x.ai/grok-bot (Bots, How Grok Bot works, Chat and collaboration, Computer and apps, Skills and routines,
+Approvals, Mobile, Tag on X, Files and results) and the report in reports/Grok Bot architecture and lessons.md.
+Status: **Have** = built and tested; **Partial** = built with a known gap; **No** = not built (and why).
+
+| Grok Bot | Atlas | Status |
+|---|---|---|
+| Primary Bot: starred chief of staff, checks in, coordinates the others | Atlas, pinned and starred at the top of Bots; routes work to bots (`delegate`, `deploy_bot`), answers "what's new" across every bot (Aware's brief) | Have |
+| Bots: durable named teammates, one clear job, own conversation | Standing bots with a human name and title ("Ted · Developer"), a role, a personality line in their prompt and their own conversation (`dm-<id>`); old "X Bot" names migrate once (BotFace / botface.js) | Have |
+| Create Bot: name, shape and colour | New Bot: a template in one tap, or name, title, shape (5) and colour (8) | Have |
+| Bot details: rename, label, picture | Details → Name & Look: rename, title, shape and colour; its memory and work stay | Have (no uploaded or generated picture) |
+| Per-bot memory, no memory screen, edited by chatting | Notes per bot plus a dated work log; shown read-only on Details, changed by telling the bot | Have (Atlas shows it; Grok doesn't) |
+| One persistent cloud computer per user, a screen per bot | The user's own phone and laptop; each mission has its own browser window (PC) or WebView (phone) | Partial: nothing runs while both devices sleep |
+| Watch live and take over | "Watch or Take Over" on Details (BotActivity / the PC mission page) | Have |
+| Bot-to-bot DMs, group chats of 2–6 with @mention owners | Group chats with @mention, hand-offs between bots, hop and turn limits, Sum Up | Have |
+| Delegation layers (peer bots, background subagents, Cloud Agent projects) | Missions with agents and sub-agents in parallel; Builder/Ted build projects on the laptop | Have (no separate cloud computers) |
+| Stop cascades to everything handed on | Stop in the conversation stops the mission and its agents | Have |
+| Your message takes priority and can redirect | Messaging a busy bot redirects its mission unless "start as a separate task" is ticked | Have |
+| Approvals / Auto Review: Allow once, always, deny; only your own messages count | Approval cards in the bot's conversation with Once / Today / This Bot / Whole Plan; autonomy levels; only the user's own words or taps grant; outside content is never an instruction | Have (code rules, not a reviewer model) |
+| Background approval cards expire | Requests expire (12 h bots, 30 min chat) | Have |
+| Skills, "save the process you just used", one library shared by all bots | Skills library shared by every bot; "Save as Skill" from a finished mission | Have |
+| Teach a task (record ≤10 min, draft skill) | — | No: not built yet (planned for the laptop) |
+| Routines and triggers (schedules, Slack/GitHub/webhooks, Bot email) | Schedules, notification, email, price and app-opened triggers, checked when a device is awake | Partial: no inbound webhooks (needs an always-on endpoint) |
+| Integrations and MCP | Connections (MCP servers and web APIs), email, trading, phone apps through the screen | Have |
+| Vault: fills secrets without the model seeing them | Keys and passwords stay in the device keystore and are filled by tools; payments are behind code limits | Partial: no card-fill at checkout (deliberately) |
+| Pages / Library of outputs | Library: documents, spreadsheets, pages and downloads the bots made | Have (no public share links) |
+| Run history | History (Bots → History): every job on both devices, by day, by bot, searchable; jobs waiting on you also count on Atlas's row | Have |
+| Hidden Bots, sections | — | No: the list is short enough; can be added |
+| X @bot entry | — | No: needs an always-on endpoint and X API access |
+| Templates gallery and duplicates | Seven named templates (Rex, Ivy, Remi, Sage, Bo, Quinn, Otto); Duplicate copies job, access, triggers and routines but not memory | Have |
+| Model router hidden from the user | Atlas shows which service and key handled the work, with daily budgets per bot | Have (Atlas is more open) |
+
+What Atlas does that Grok Bot doesn't: per-bot access in code (read vs act per capability), hard daily budgets per bot,
+inspectable memory and work logs, trading and spend limits enforced in code, deep Android reach (notifications, the
+screen, SMS), the user's own IP and sign-ins, and runs on the user's own keys.
