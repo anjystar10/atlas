@@ -1,0 +1,2 @@
+[page] [GroupMarkerNotSet(crbug.com/242999)!:A0C02F00DC020000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader flag to opt in to lower security guarantees for trusted content. (index.html:0)
+[page] [GroupMarkerNotSet(crbug.com/242999)!:A0F02F00DC020000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader flag to opt in to lower security guarantees for trusted content. (index.html:0)
