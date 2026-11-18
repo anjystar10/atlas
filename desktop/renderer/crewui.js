@@ -14,6 +14,8 @@ import { LABELS as BOT_LABELS } from './bots.js';
 import { USER, ATLAS, preview } from './threadcore.js';
 import { extras } from './botwire.js';
 import { kindFor, tierOf } from './autonomy.js';   // >>> autonomy: wider OKs on the approval card
+import * as BF from './botface.js';   // named bots: who each is, its face, and History
+import * as botmirror from './botmirror.js';
 
 const drafts = {};             // unsent text per box (survives re-renders)
 const WAITING = new Set(['awaiting_approval', 'awaiting_answer', 'needs_review']);
@@ -37,9 +39,72 @@ function statusOf(b) {
 /** The mission a conversation's bot is on now (what Stop stops). */
 const busyIn = (t) => (t ? threads.activeMission(t.id) : null);
 
-function avatar(k, b, size = '') {
+function avatar(k, b, size = '', dot = '') {
   if (!b || b.id === ATLAS) return `<div class="bav orb ${size}" aria-hidden="true"></div>`;
-  return `<div class="bav ${size}" aria-hidden="true">${k.esc(iconOf(b))}</div>`;
+  return faceHtml(b, size, dot);
+}
+
+// ------------------------------------------------------------------- a bot's face (botface.js): drawn, never a letter or emoji
+
+let faceSeq = 0;
+const P = (n) => Math.round(n * 100) / 100;
+function polygon(r, n, start, round) {
+  const pts = []; for (let i = 0; i < n; i++) { const a = start + (i * 2 * Math.PI) / n; pts.push([Math.cos(a) * r, Math.sin(a) * r]); }
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const [x, y] = pts[i], [px, py] = pts[(i + n - 1) % n], [nx, ny] = pts[(i + 1) % n];
+    const to = (bx, by) => { const dx = bx - x, dy = by - y, l = Math.hypot(dx, dy); return [x + (dx / l) * round, y + (dy / l) * round]; };
+    const [ax, ay] = to(px, py), [cx, cy] = to(nx, ny);
+    d += `${i ? 'L' : 'M'}${P(ax)} ${P(ay)}Q${P(x)} ${P(y)} ${P(cx)} ${P(cy)}`;
+  }
+  return `<path d="${d}Z"/>`;
+}
+function shapeMarkup(shape) {
+  const r = 40;
+  if (shape === 'hex') return polygon(r * 1.06, 6, -Math.PI / 2, r * 0.18);
+  if (shape === 'diamond') return polygon(r * 1.12, 4, -Math.PI / 2, r * 0.22);
+  if (shape === 'squircle') return `<rect x="${-r * 0.92}" y="${-r * 0.92}" width="${r * 1.84}" height="${r * 1.84}" rx="${r * 0.42}"/>`;
+  if (shape === 'petal') { const k = r * 0.52; let m = `<circle r="${r * 0.8}"/>`; for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + (i * Math.PI) / 2; m += `<circle cx="${P(Math.cos(a) * k * 0.62)}" cy="${P(Math.sin(a) * k * 0.62)}" r="${P(k * 1.05)}"/>`; } return m; }
+  return `<circle r="${r}"/>`;
+}
+function glyphPath(motif) {
+  const g = 21; const p = (x, y) => `${P(x * g)} ${P(y * g)}`;
+  switch (motif) {
+    case 'code': return `M${p(-0.35, -0.55)}L${p(-1, 0)}L${p(-0.35, 0.55)}M${p(0.35, -0.55)}L${p(1, 0)}L${p(0.35, 0.55)}M${p(0.15, -0.7)}L${p(-0.15, 0.7)}`;
+    case 'build': return `M${p(0, -0.85)}L${p(0.8, -0.42)}L${p(0.8, 0.48)}L${p(0, 0.9)}L${p(-0.8, 0.48)}L${p(-0.8, -0.42)}ZM${p(-0.8, -0.42)}L${p(0, 0)}L${p(0.8, -0.42)}M${p(0, 0)}L${p(0, 0.9)}`;
+    case 'chart': return `M${p(-0.9, 0.55)}L${p(-0.3, -0.05)}L${p(0.1, 0.3)}L${p(0.85, -0.5)}M${p(0.4, -0.55)}L${p(0.88, -0.55)}L${p(0.88, -0.08)}`;
+    case 'wave': { let d = `M${p(-0.95, 0)}`; for (let i = 1; i <= 24; i++) { const x = -0.95 + (i * 1.9) / 24; d += `L${p(x, -Math.sin(x * Math.PI * 1.6) * 0.45)}`; } return d; }
+    case 'mail': return `M${p(-0.74, -0.6)}H${P(0.74 * g)}Q${p(0.9, -0.6)} ${p(0.9, -0.44)}V${P(0.44 * g)}Q${p(0.9, 0.6)} ${p(0.74, 0.6)}H${P(-0.74 * g)}Q${p(-0.9, 0.6)} ${p(-0.9, 0.44)}V${P(-0.44 * g)}Q${p(-0.9, -0.6)} ${p(-0.74, -0.6)}ZM${p(-0.8, -0.48)}L${p(0, 0.1)}L${p(0.8, -0.48)}`;
+    case 'play': return `M${p(-0.42, -0.7)}L${p(0.75, 0)}L${p(-0.42, 0.7)}Z`;
+    case 'search': return `M${p(0.37, -0.18)}A${P(0.55 * g)} ${P(0.55 * g)} 0 1 1 ${p(-0.73, -0.18)}A${P(0.55 * g)} ${P(0.55 * g)} 0 1 1 ${p(0.37, -0.18)}ZM${p(0.22, 0.22)}L${p(0.8, 0.8)}`;
+    case 'coins': return `M${p(0.78, 0)}A${P(0.78 * g)} ${P(0.78 * g)} 0 1 1 ${p(-0.78, 0)}A${P(0.78 * g)} ${P(0.78 * g)} 0 1 1 ${p(0.78, 0)}ZM${p(0, -0.42)}L${p(0, 0.42)}M${p(0.28, -0.22)}L${p(-0.12, -0.22)}Q${p(-0.32, -0.22)} ${p(-0.32, -0.05)}Q${p(-0.32, 0.08)} ${p(0, 0.08)}Q${p(0.3, 0.08)} ${p(0.3, 0.26)}L${p(-0.28, 0.26)}`;
+    case 'calendar': return `M${p(-0.66, -0.62)}H${P(0.66 * g)}Q${p(0.8, -0.62)} ${p(0.8, -0.48)}V${P(0.61 * g)}Q${p(0.8, 0.75)} ${p(0.66, 0.75)}H${P(-0.66 * g)}Q${p(-0.8, 0.75)} ${p(-0.8, 0.61)}V${P(-0.48 * g)}Q${p(-0.8, -0.62)} ${p(-0.66, -0.62)}ZM${p(-0.8, -0.2)}L${p(0.8, -0.2)}M${p(-0.4, -0.85)}L${p(-0.4, -0.45)}M${p(0.4, -0.85)}L${p(0.4, -0.45)}`;
+    default: return `M${p(0, -1)}Q${p(0.12, -0.12)} ${p(1, 0)}Q${p(0.12, 0.12)} ${p(0, 1)}Q${p(-0.12, 0.12)} ${p(-1, 0)}Q${p(-0.12, -0.12)} ${p(0, -1)}Z`;
+  }
+}
+/** A bot's face as inline SVG: its shape lit like glass in its colours, a white glyph for its job, its state drawn on it. */
+export function faceHtml(b, size = '', dot = '') {
+  const f = BF.faceOf(b);
+  const [light, deep] = BF.COLORS[f.color];
+  const id = `bf${++faceSeq}`;
+  const filled = f.motif === 'play' || f.motif === 'spark';
+  return `<div class="bav bface ${size} ${dot}" aria-hidden="true"><svg viewBox="-50 -50 100 100" width="100%" height="100%">
+    <defs><radialGradient id="${id}g" gradientUnits="userSpaceOnUse" cx="-13" cy="-15" r="62"><stop offset="0" stop-color="${light}"/><stop offset=".62" stop-color="${deep}"/><stop offset="1" stop-color="${deep}" stop-opacity=".85"/></radialGradient>
+    <radialGradient id="${id}s" gradientUnits="userSpaceOnUse" cx="-14" cy="-18" r="30"><stop offset="0" stop-color="#fff" stop-opacity=".5"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <clipPath id="${id}c">${shapeMarkup(f.shape)}</clipPath></defs>
+    ${dot === 'warn' ? '<circle class="fring" r="47" fill="none" stroke-width="4.5"/>' : ''}
+    <g class="fbody" clip-path="url(#${id}c)"><rect x="-50" y="-50" width="100" height="100" fill="url(#${id}g)"/><rect x="-50" y="-50" width="100" height="100" fill="url(#${id}s)"/></g>
+    <path d="${glyphPath(f.motif)}" fill="${filled ? '#fff' : 'none'}" stroke="#fff" stroke-width="${filled ? 0 : 6.2}" stroke-linecap="round" stroke-linejoin="round"/>
+    ${dot === 'live' ? `<g class="forbit"><circle cx="0" cy="-45" r="5.5" fill="#fff" style="filter:drop-shadow(0 0 4px ${light})"/></g>` : ''}
+  </svg></div>`;
+}
+/** The five shapes and eight colours, each shown as the bot's real face. */
+function lookPicker(k, base, shape, color, onPick) {
+  const el = k.h(`<div><div class="lookrow" role="radiogroup" aria-label="Shape">${BF.SHAPES.map((sh) => `<button class="lookbtn${sh === shape ? ' on' : ''}" data-sh="${sh}" role="radio" aria-checked="${sh === shape}" aria-label="Shape: ${sh}">${faceHtml({ ...base, face: { shape: sh, color } }, '')}</button>`).join('')}</div>
+    <div class="lookrow" role="radiogroup" aria-label="Colour" style="margin-top:8px">${BF.COLORS.map(([a, z], i) => `<button class="swatch${i === color ? ' on' : ''}" data-co="${i}" role="radio" aria-checked="${i === color}" aria-label="Colour ${i + 1}" style="background:linear-gradient(135deg,${a},${z})"></button>`).join('')}</div></div>`);
+  el.querySelectorAll('[data-sh]').forEach((x) => (x.onclick = () => onPick(x.dataset.sh, color)));
+  el.querySelectorAll('[data-co]').forEach((x) => (x.onclick = () => onPick(shape, Number(x.dataset.co))));
+  return el;
 }
 function meter(pct, tone) { return `<div class="meter${tone ? ' ' + tone : ''}"><i style="width:${Math.round(Math.max(0.02, pct) * 100)}%"></i></div>`; }
 
@@ -53,6 +118,7 @@ export function render(col, view, k) {
   if (view && view.startsWith('newbot:')) { newBotPage(col, k, view.slice(7)); return true; }
   if (view === 'newbot') { newBotPage(col, k); return true; }
   if (view === 'newthread') { newThreadPage(col, k); return true; }
+  if (view === 'history') { historyPage(col, k); return true; }
   if (view) return false;
   home(col, k);
   return true;
@@ -62,8 +128,9 @@ export function renderEdit(col, id, k) { newBotPage(col, k, id); }
 // =================================================================== the list (like a messaging app)
 
 function home(col, k) {
-  const head = k.h(`<div class="crewhead"><div class="grow"><h1 class="title">Bots</h1><p class="sub" style="margin:0">Your team. Each bot has its own conversation: tell it what you need, and it works in the background and reports back here.</p></div>
-    <div class="row" style="gap:8px;flex:none"><button class="btn" id="cnewg">New Group</button><button class="btn primary" id="cnewb">New Bot</button></div></div>`);
+  const head = k.h(`<div class="crewhead"><div class="grow"><h1 class="title">Bots</h1><p class="sub" style="margin:0">Your team. Each one has a name, a job and its own conversation: tell it what you need, and it works in the background and reports back there.</p></div>
+    <div class="row" style="gap:8px;flex:none"><button class="btn" id="chist" title="Every job your bots ran, here and on your phone">History</button><button class="btn" id="cnewg">New Group</button><button class="btn primary" id="cnewb">New Bot</button></div></div>`);
+  head.querySelector('#chist').onclick = () => k.go('history');
   head.querySelector('#cnewb').onclick = () => k.go('newbot');
   head.querySelector('#cnewg').onclick = () => k.go('newthread');
   col.appendChild(head);
@@ -99,12 +166,13 @@ function botRow(k, b, starred) {
   const t = threads.directOf(b.id);
   const st = statusOf(b);
   const p = preview(t);
-  const waitingElsewhere = t ? 0 : crew.missions(b.id).filter((m) => WAITING.has(m.state)).length;
+  const waitingElsewhere = (t ? 0 : crew.missions(b.id).filter((m) => WAITING.has(m.state)).length)
+    + (b.id === ATLAS ? botmirror.others().filter((v) => WAITING.has(v.state)).length : 0);   // the other device's jobs waiting on you count on Atlas's row
   const last = p ? `${p.from === USER ? 'You: ' : ''}${p.text.replace(/\s+/g, ' ').slice(0, 140)}` : 'No messages yet. Say what you need.';
   const r = k.h(`<div class="brow" role="listitem button" tabindex="0" aria-label="${k.esc(b.name)}, ${k.esc(st.label)}">
-    <div class="bavwrap">${avatar(k, b)}<span class="sdot ${st.dot}" aria-hidden="true"></span></div>
+    <div class="bavwrap">${avatar(k, b, '', st.dot)}${b.id === ATLAS ? `<span class="sdot ${st.dot}" aria-hidden="true"></span>` : ''}</div>
     <div class="grow" style="min-width:0"><div class="row" style="gap:8px"><span class="bname">${k.esc(b.name)}${starred ? ' <span class="star" title="Your chief of staff">★</span>' : ''}</span><span class="grow"></span><span class="small faint">${k.esc(ago(p ? p.at : 0))}</span></div>
-      <div class="small muted clamp1">${k.esc(b.role || 'A bot of yours')} · <span class="${st.tone}">${k.esc(st.label)}</span></div>
+      <div class="small muted clamp1">${k.esc(b.id === ATLAS ? 'Your chief of staff' : BF.subtitle(b))} · <span class="${st.tone}">${k.esc(st.label)}</span></div>
       <div class="small faint clamp1" style="margin-top:2px">${k.esc(last)}</div></div>
     ${badges(k, t, waitingElsewhere)}</div>`);
   r.onclick = () => k.go('bot:' + b.id);
@@ -146,9 +214,9 @@ function conversation(col, id, k) {
   const head = k.h(`<div class="convhead card"><div class="row" style="gap:12px;align-items:center"></div></div>`);
   const hr = head.querySelector('.row');
   hr.appendChild(back);
-  hr.appendChild(k.h(direct ? `<div class="bavwrap">${avatar(k, b)}<span class="sdot ${st.dot}"></span></div>` : `<div class="bstack">${inIt.slice(0, 3).map((x) => avatar(k, x, 'sm')).join('')}</div>`));
+  hr.appendChild(k.h(direct ? `<div class="bavwrap">${avatar(k, b, '', st.dot)}${botId === ATLAS ? `<span class="sdot ${st.dot}"></span>` : ''}</div>` : `<div class="bstack">${inIt.slice(0, 3).map((x) => avatar(k, x, 'sm')).join('')}</div>`));
   hr.appendChild(k.h(`<div class="grow" style="min-width:0"><div class="bname lg">${k.esc(direct ? b.name : t.title)}${direct && botId === ATLAS ? ' <span class="star">★</span>' : ''}</div>
-    <div class="small muted clamp1">${direct ? `<span class="${st.tone}">${k.esc(st.label)}</span>${busy && busy.state === 'running' && busy.current ? ' · ' + k.esc(busy.current) : ''}` : k.esc(inIt.map((x) => x.name).join(', ') + ' + Atlas')}</div></div>`));
+    <div class="small muted clamp1">${direct ? `${botId === ATLAS ? '' : k.esc(BF.subtitle(b)) + ' · '}<span class="${st.tone}">${k.esc(st.label)}</span>${busy && busy.state === 'running' && busy.current ? ' · ' + k.esc(busy.current) : ''}` : k.esc(inIt.map((x) => x.name).join(', ') + ' + Atlas')}</div></div>`));
   if (busy) hr.appendChild(Object.assign(k.h('<button class="btn danger" title="Stop what it is doing now (what is already done stays done)">Stop</button>'), { onclick: () => { crew.stop(busy.id); k.toast('Stopped.'); k.render(true); } }));
   if (busy) hr.appendChild(Object.assign(k.h('<button class="btn" title="Its plan, steps, agents and browser">Work</button>'), { onclick: () => k.go(busy.id) }));
   if (direct) hr.appendChild(Object.assign(k.h('<button class="btn">Details</button>'), { onclick: () => k.go('info:' + botId) }));
@@ -196,7 +264,7 @@ async function groupSheet(t, k) {
   const picked = new Set(t.participants.filter((p) => p !== USER));
   let title = t.title, del = false;
   const html = `<input class="field" id="gt" maxlength="80" aria-label="Title"><div class="small muted" style="margin:14px 0 8px;font-weight:600">WHO'S IN IT (UP TO SIX BOTS)</div>
-    <div class="chips" id="gb">${roster.map((b) => `<button class="chip${picked.has(b.id) ? ' on' : ''}" data-id="${k.esc(b.id)}">${k.esc(iconOf(b))} ${k.esc(b.name)}</button>`).join('')}</div>
+    <div class="chips" id="gb">${roster.map((b) => `<button class="chip${picked.has(b.id) ? ' on' : ''}" data-id="${k.esc(b.id)}">${k.esc(b.name)}</button>`).join('')}</div>
     <button class="btn danger" id="gdel" style="margin-top:18px">Delete This Group Chat</button>`;
   const ok = await k.sheet({ title: 'Group Chat', html, primary: 'Save',
     onOpen: (o) => {
@@ -260,8 +328,9 @@ function details(col, id, k) {
   col.appendChild(Object.assign(k.h('<button class="btn ghost">‹ Conversation</button>'), { onclick: () => k.go('bot:' + id) }));
   if (!b) { col.appendChild(k.h('<div class="card" style="margin-top:12px">This bot was removed.</div>')); return; }
   const st = statusOf(b);
-  col.appendChild(k.h(`<div class="row" style="gap:16px;align-items:center;margin-top:12px"><div class="bavwrap">${avatar(k, b, 'lg')}<span class="sdot ${st.dot}"></span></div><div class="grow"><h1 class="title" style="margin:0">${k.esc(b.name)}</h1>
+  col.appendChild(k.h(`<div class="row" style="gap:16px;align-items:center;margin-top:12px"><div class="bavwrap">${avatar(k, b, 'lg', st.dot)}${b.id === ATLAS ? `<span class="sdot ${st.dot}"></span>` : ''}</div><div class="grow"><h1 class="title" style="margin:0">${k.esc(b.name)}${b.title ? ` <span class="muted" style="font-size:.6em">· ${k.esc(b.title)}</span>` : ''}</h1>
     <div class="muted">${k.esc(b.role || '')}</div></div><span class="tag ${st.tone}">${k.esc(st.label)}</span></div>`));
+  if (b.id !== ATLAS && !b.builtIn) { col.appendChild(k.h('<div class="eyebrow">NAME & LOOK</div>')); col.appendChild(lookCard(b, k)); }
 
   // screen: watch live and take over (on the mission's page, where its browser is)
   const live = crew.missions(b.id).find((m) => RUNNING.has(m.state) || WAITING.has(m.state));
@@ -449,6 +518,72 @@ function accessCard(b, k) {
 const PRESETS = [['Light', { minutesPerDay: 30, callsPerDay: 80 }], ['Moderate', DEFAULT_BUDGET], ['Generous', { minutesPerDay: 480, callsPerDay: 1200 }]];
 const HOME_LABELS = { any: 'Wherever it’s started', phone: 'Phone', pc: 'This PC' };
 
+/** Rename a bot, give it a title, change its look (Grok Bot's name, shape and colour). Its memory, triggers and work stay. */
+function lookCard(b, k) {
+  const d = drafts['look:' + b.id] || (drafts['look:' + b.id] = { name: b.name, title: b.title || '', face: { ...BF.faceOf(b) } });
+  const c = k.h(`<div class="card"><div class="row" style="gap:10px"><input class="field grow" id="ln" maxlength="40" aria-label="Name" placeholder="Name"><input class="field grow" id="lt" maxlength="40" aria-label="Title" placeholder="Title (its job in a word or two)"></div>
+    <div id="lp" style="margin-top:12px"></div>
+    <div class="row" style="margin-top:14px;gap:10px"><div class="small faint grow">Its personality: ${k.esc(b.persona || 'tell it how you would like it to sound.')}</div><button class="btn primary" id="ls">Save Name & Look</button></div></div>`);
+  const n = c.querySelector('#ln'), t = c.querySelector('#lt');
+  n.value = d.name; t.value = d.title; n.oninput = () => (d.name = n.value); t.oninput = () => (d.title = t.value);
+  c.querySelector('#lp').appendChild(lookPicker(k, b, d.face.shape, d.face.color, (sh, co) => { d.face = { shape: sh, color: co }; k.render(true); }));
+  c.querySelector('#ls').onclick = () => {
+    if (!String(d.name || '').trim()) { k.toast('Give it a name.'); return; }
+    crew.updateBot(b.id, { name: d.name.trim().slice(0, 40), title: String(d.title || '').trim().slice(0, 40), face: { shape: d.face.shape, color: d.face.color } });
+    delete drafts['look:' + b.id]; k.toast('Saved.'); k.render(true);
+  };
+  return c;
+}
+
+// =================================================================== History: every job, here and on the phone
+
+function historyItems() {
+  const out = [];
+  for (const b of crew.bots()) for (const m of crew.missions(b.id)) if (!m.parent) out.push({ id: m.id, goal: m.goal, state: m.state, bot: b.id, at: Math.max(m.updatedAt || 0, m.createdAt || 0), where: 'here' });
+  for (const v of botmirror.others()) out.push({ ...v, at: Math.max(v.updatedAt || 0, v.createdAt || 0), where: v.platform === 'android' ? 'phone' : 'other', bot: v.bot || ATLAS });
+  return out;
+}
+function historyPage(col, k) {
+  const hs = drafts.__hist || (drafts.__hist = { q: '', bot: '' });
+  col.appendChild(Object.assign(k.h('<button class="btn ghost">‹ Bots</button>'), { onclick: () => k.go(null) }));
+  col.appendChild(k.h('<h1 class="title" style="margin-top:12px">History</h1><p class="sub" style="margin:0 0 12px">Every job your bots ran, on this PC and your phone. The jobs that need you are also in each bot\'s conversation.</p>'));
+  const roster = crew.bots();
+  const bar = k.h(`<div class="card"><input class="field" id="hq" placeholder="Search jobs" aria-label="Search jobs"><div class="chips" style="margin-top:10px">${[['', 'Everyone'], ...roster.map((b) => [b.id, b.name])].map(([id, n]) => `<button class="chip sm${hs.bot === id ? ' on' : ''}" data-b="${k.esc(id)}">${k.esc(n)}</button>`).join('')}</div></div>`);
+  const q = bar.querySelector('#hq'); q.value = hs.q;
+  const list = k.h('<div></div>');
+  const draw = () => {
+    list.innerHTML = '';
+    const items = historyItems();
+    const h = BF.historyGroups(items, { bot: hs.bot || null, query: hs.q, tzMin: -new Date().getTimezoneOffset() });
+    if (h.waiting) list.appendChild(k.h(`<p class="warn" style="margin:14px 4px 0">${h.waiting} waiting on you. Open the job, or ask Atlas.</p>`));
+    if (!h.total) { list.appendChild(k.h(`<p class="muted" style="margin:18px 4px">${hs.q || hs.bot ? 'Nothing matches.' : 'No jobs yet. When your bots work, every job shows here.'}</p>`)); return; }
+    for (const g of h.groups) {
+      const label = g.label === 'Today' || g.label === 'Yesterday' ? g.label : new Date(g.day + 'T12:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+      list.appendChild(k.h(`<div class="eyebrow">${k.esc(label.toUpperCase())}</div>`));
+      const card = k.h('<div class="card blist" role="list"></div>');
+      for (const it of g.items.slice(0, 80)) {
+        const b = roster.find((x) => x.id === it.bot) || crew.ATLAS_BOT;
+        const where = it.where === 'phone' ? 'on your phone' : it.where === 'other' ? 'on your other device' : 'on this PC';
+        const lab = BOT_LABELS[it.state] || it.label || it.state;
+        const tone = toneOf(it.state);
+        const r = k.h(`<div class="brow" role="listitem button" tabindex="0">${avatar(k, b, 'sm')}<div class="grow" style="min-width:0"><div class="clamp2">${k.esc(it.goal || 'A job')}</div>
+          <div class="small muted clamp1">${k.esc(b.name)} · <span class="${tone}">${k.esc(lab)}</span> · ${k.esc(where)} · ${k.esc(new Date(it.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))}</div></div></div>`);
+        const open = () => {
+          if (it.where === 'here') { k.go(it.id); return; }
+          k.sheet({ title: String(it.goal || '').slice(0, 80), html: it.report ? `<p class="small muted" style="margin:0 0 8px">Its report, from ${k.esc(where.replace('on ', ''))}.</p><div class="md" style="max-height:60vh;overflow:auto">${k.md(it.report)}</div>`
+            : `<p>${k.esc(lab)}${it.current ? ': ' + k.esc(it.current) : ''}.</p><p class="small muted">It runs ${k.esc(where)}; open Atlas there to answer it, or ask Atlas here.</p>`, primary: 'Close', secondary: null });
+        };
+        r.onclick = open; r.onkeydown = (e) => { if (e.key === 'Enter') open(); };
+        card.appendChild(r);
+      }
+      list.appendChild(card);
+    }
+  };
+  q.oninput = () => { hs.q = q.value; draw(); };
+  bar.querySelectorAll('[data-b]').forEach((x) => (x.onclick = () => { hs.bot = x.dataset.b; k.render(true); }));
+  col.appendChild(bar); col.appendChild(list); draw();
+}
+
 function newBotPage(col, k, editId) {
   const editing = editId ? crew.bot(editId) : null;
   col.appendChild(Object.assign(k.h('<button class="btn ghost">‹ Back</button>'), { onclick: () => { drafts.__bot = null; k.go(editing ? 'info:' + editing.id : null); } }));
@@ -460,8 +595,8 @@ function newBotPage(col, k, editId) {
     const grid = k.h('<div class="card blist"></div>');
     for (const t of ts) {
       const on = d.template === t.id;
-      const c = k.h(`<div class="brow${on ? ' on' : ''}" role="button" tabindex="0"><div class="bav">${k.esc(t.icon || '•')}</div><div class="grow" style="min-width:0"><div class="bname">${k.esc(t.name)}</div><div class="small muted clamp2">${k.esc(t.role || '')}</div></div>${on ? '<span class="tag accent">Chosen</span>' : ''}</div>`);
-      c.onclick = () => { drafts.__bot = { for: 'new', name: t.name, icon: t.icon || '', role: t.role || '', instructions: t.instructions || '', home: t.home || 'any', budget: { ...DEFAULT_BUDGET, ...(t.budget || {}) }, access: { ...defaultAccess(), ...(t.access || {}) }, triggers: (t.triggers || []).map((x) => ({ ...x, config: { ...x.config } })), template: t.id, asks: t.asks || [], setup: t.setup || [] }; k.render(true); };
+      const c = k.h(`<div class="brow${on ? ' on' : ''}" role="button" tabindex="0">${faceHtml(t)}<div class="grow" style="min-width:0"><div class="bname">${k.esc(BF.label(t))}</div><div class="small muted clamp2">${k.esc(t.role || '')}</div></div>${on ? '<span class="tag accent">Chosen</span>' : ''}</div>`);
+      c.onclick = () => { drafts.__bot = { for: 'new', name: t.name, title: t.title || '', face: t.face ? { ...t.face } : null, persona: t.persona || '', icon: t.icon || '', role: t.role || '', instructions: t.instructions || '', home: t.home || 'any', budget: { ...DEFAULT_BUDGET, ...(t.budget || {}) }, access: { ...defaultAccess(), ...(t.access || {}) }, triggers: (t.triggers || []).map((x) => ({ ...x, config: { ...x.config } })), template: t.id, asks: t.asks || [], setup: t.setup || [] }; k.render(true); };
       grid.appendChild(c);
     }
     col.appendChild(grid);
@@ -472,7 +607,8 @@ function newBotPage(col, k, editId) {
     col.appendChild(k.h('<div class="eyebrow">OR DESCRIBE YOUR OWN</div>'));
   }
   const f = k.h(`<div class="card">
-    <div class="row" style="gap:10px"><input class="field" id="bi" style="width:70px;text-align:center" maxlength="4" placeholder="🤖" aria-label="Icon"><input class="field grow" id="bn" maxlength="40" placeholder="Name (e.g. Reel Poster)" aria-label="Name"></div>
+    <div class="row" style="gap:10px"><input class="field grow" id="bn" maxlength="40" placeholder="Its name (e.g. Kai)" aria-label="Name"><input class="field grow" id="bt" maxlength="40" placeholder="Its title (e.g. Gym Coach)" aria-label="Title"></div>
+    <div class="small muted" style="margin:14px 0 6px;font-weight:600">ITS LOOK</div><div id="blook"></div>
     <input class="field" id="br" style="margin-top:10px" maxlength="200" placeholder="Its job, in a line" aria-label="Its job">
     <textarea class="field" id="bins" rows="6" style="margin-top:10px" placeholder="How it should work: what to do, what to watch out for, how to report back" aria-label="Instructions"></textarea>
     <div class="small muted" style="margin:16px 0 8px;font-weight:600">WHERE IT WORKS</div><div class="chips" id="bh">${HOMES.map((h) => `<button class="chip${d.home === h ? ' on' : ''}" data-h="${h}">${HOME_LABELS[h]}</button>`).join('')}</div>
@@ -480,12 +616,14 @@ function newBotPage(col, k, editId) {
     <div class="small faint" style="margin-top:8px">When it's used, the bot stops and asks you. Money is separate: every payment and every live trade still asks.</div>
     <div class="row" style="margin-top:18px"><div class="grow"></div><button class="btn primary" id="bsave">${editing ? 'Save' : 'Create Bot'}</button></div></div>`);
   const bind = (sel, key) => { const el = f.querySelector(sel); el.value = d[key] || ''; el.oninput = () => (d[key] = el.value); };
-  bind('#bi', 'icon'); bind('#bn', 'name'); bind('#br', 'role'); bind('#bins', 'instructions');
+  bind('#bn', 'name'); bind('#bt', 'title');
+  { const cur = BF.faceOf({ id: d.id || 'new', name: d.name, title: d.title, role: d.role, face: d.face });
+    f.querySelector('#blook').appendChild(lookPicker(k, { id: d.id || 'new', name: d.name, title: d.title, role: d.role }, cur.shape, cur.color, (sh, co) => { d.face = { shape: sh, color: co }; k.render(true); })); } bind('#br', 'role'); bind('#bins', 'instructions');
   f.querySelectorAll('[data-h]').forEach((b) => (b.onclick = () => { d.home = b.dataset.h; k.render(true); }));
   f.querySelectorAll('[data-n]').forEach((b) => (b.onclick = () => { d.budget = { ...d.budget, ...PRESETS.find(([n]) => n === b.dataset.n)[1] }; k.render(true); }));
   f.querySelector('#bsave').onclick = () => {
     if (!String(d.name || '').trim()) { k.toast('Give it a name.'); return; }
-    const def = { name: d.name.trim(), icon: (d.icon || '').trim(), role: (d.role || '').trim(), instructions: (d.instructions || '').trim(), home: d.home, budget: d.budget, access: d.access,
+    const def = { name: d.name.trim(), title: String(d.title || '').trim(), ...(d.face ? { face: d.face } : {}), ...(d.persona ? { persona: d.persona } : {}), icon: (d.icon || '').trim(), role: (d.role || '').trim(), instructions: (d.instructions || '').trim(), home: d.home, budget: d.budget, access: d.access,
       triggers: d.triggers || (editing ? editing.triggers : []), createdBy: 'user', ...(d.template ? { template: { id: d.template, tv: 1 } } : {}) };
     const saved = editing ? crew.updateBot(editing.id, def) : crew.createBot(def);
     drafts.__bot = null;
@@ -565,7 +703,7 @@ function newThreadPage(col, k) {
   if (!others.length) tb.appendChild(k.h('<div class="muted">Make a bot or two first (New Bot).</div>'));
   for (const b of others) {
     const on = d.bots.includes(b.id);
-    const c = k.h(`<button class="chip${on ? ' on' : ''}">${k.esc(iconOf(b))} ${k.esc(b.name)}</button>`);
+    const c = k.h(`<button class="chip${on ? ' on' : ''}">${k.esc(b.name)}</button>`);
     c.onclick = () => { d.bots = on ? d.bots.filter((x) => x !== b.id) : d.bots.length < 6 ? [...d.bots, b.id] : d.bots; k.render(true); };
     tb.appendChild(c);
   }

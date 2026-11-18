@@ -287,6 +287,21 @@ textarea.field { resize: vertical; min-height: 64px; font: 400 var(--t-read)/1.4
 .bav.sm { width: 32px; height: 32px; font-size: 15px; } .bav.lg { width: 64px; height: 64px; font-size: 28px; }
 .bav.orb { background: radial-gradient(circle at 34% 28%, #DDE6FF 0%, var(--blue) 26%, var(--accent) 58%, var(--bg2) 100%); box-shadow: 0 0 22px var(--glow), inset 0 1px 0 rgba(255, 255, 255, .35); border-color: rgba(255, 255, 255, .25); }
 .bstack { display: flex; } .bstack .bav + .bav { margin-left: -12px; } .bstack .bav { box-shadow: 0 0 0 2px var(--bg2); }
+/* a bot's own face (crewui.faceHtml / botface.js): drawn shape + glyph; working = an orbiting light, waiting = a breathing warm ring */
+.bav.bface { background: none; border: none; box-shadow: none; padding: 0; overflow: visible; }
+.bav.bface svg { display: block; overflow: visible; filter: drop-shadow(0 4px 10px rgba(0, 0, 0, .28)); }
+.bav.bface.off { opacity: .45; }
+.bface .forbit { transform-box: view-box; transform-origin: 50% 50%; animation: bspin 2.4s linear infinite; }
+.bface .fring { stroke: var(--warm); animation: bbreathe 2s ease-in-out infinite; }
+@keyframes bspin { to { transform: rotate(360deg); } }
+@keyframes bbreathe { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .bface .forbit, .bface .fring { animation: none; } }
+.lookrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.lookbtn { width: 54px; height: 54px; padding: 4px; border-radius: 50%; border: 2px solid transparent; background: none; cursor: pointer; display: grid; place-items: center; }
+.lookbtn .bav { width: 42px; height: 42px; }
+.lookbtn.on, .lookbtn:focus-visible { border-color: var(--accent); }
+.swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.swatch.on, .swatch:focus-visible { border-color: var(--fg); box-shadow: 0 0 0 2px var(--bg2); }
 .sdot { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--bg2); background: var(--faint); }
 .sdot.inline { position: static; display: inline-block; flex: none; border: none; width: 9px; height: 9px; }
 .sdot.live { background: var(--done); box-shadow: 0 0 10px var(--done); animation: pulse 1.6s ease-in-out infinite; }

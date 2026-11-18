@@ -236,7 +236,7 @@ const crewKit = () => ({
     const lib = h('<div class="card blist" style="margin-top:12px"><div class="brow" role="button" tabindex="0"><div class="bav">▤</div><div class="grow"><div class="bname">Library</div><div class="small muted">Documents, spreadsheets, pages and downloads your bots made</div></div><span class="small faint">›</span></div></div>');
     lib.onclick = () => { botView = 'library'; refreshLibrary(); render(); };
     col.appendChild(lib);
-    botsElsewhere(col);
+    // the phone's jobs are in History now (Bots → History), not listed here; any waiting on you count on Atlas's row
     BX.moreSections(col, kit());
   },
 });
@@ -584,18 +584,6 @@ async function editTask(t) {
 }
 
 // ---- Me ----
-/** Bots working on the phone (read-only here: each job runs where it was started). Click one for its report. */
-function botsElsewhere(col) {
-  const list = botmirror.others(); if (!list.length) return;
-  col.appendChild(h(`<div class="eyebrow" style="margin-top:22px">${list.some((v) => v.platform === 'android') ? 'On Your Phone' : 'On Your Other Device'}</div>`));
-  for (const v of list.slice(0, 20)) {
-    const line = [v.label, v.state === 'running' && v.current ? v.current : null, v.total ? `plan ${v.done}/${v.total}` : null].filter(Boolean).join(' · ');
-    const c = h(`<div class="card botcard"${v.report ? ' role="button" tabindex="0"' : ''}><div class="goal">${esc(v.goal)}</div><div class="small muted" style="margin-top:6px">${esc(line)}</div></div>`);
-    if (v.report) c.onclick = () => sheet({ title: v.goal.slice(0, 80), html: `<p class="small muted" style="margin:0 0 8px">Its report, from your phone.</p><div class="md" style="max-height:60vh;overflow:auto">${renderMarkdown(v.report)}</div>`, primary: 'Close', secondary: null });
-    col.appendChild(c);
-  }
-}
-
 function settingRow(label, on, onToggle, note) {
   const r = h(`<div class="setting"><div class="grow"><div>${esc(label)}</div>${note ? `<div class="small muted">${esc(note)}</div>` : ''}</div><div class="switch ${on ? 'on' : ''}"></div></div>`);
   r.querySelector('.switch').onclick = (e) => { e.currentTarget.classList.toggle('on'); onToggle(e.currentTarget.classList.contains('on')); };
