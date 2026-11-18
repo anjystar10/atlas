@@ -243,6 +243,46 @@
     "enabled": true
    },
    "summary": "“teleport” (needs a newer Atlas)"
+  },
+  {
+   "input": {
+    "type": "app",
+    "config": {
+     "app": "  Instagram "
+    }
+   },
+   "i": 20,
+   "out": {
+    "id": "tr-20",
+    "type": "app",
+    "config": {
+     "v": 1,
+     "app": "Instagram",
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "When you open Instagram"
+  },
+  {
+   "input": {
+    "type": "app",
+    "config": {}
+   },
+   "i": 21,
+   "out": {
+    "id": "tr-21",
+    "type": "app",
+    "config": {
+     "v": 1,
+     "app": "",
+     "goal": "",
+     "perHour": 12
+    },
+    "enabled": true
+   },
+   "summary": "When you open an app"
   }
  ],
  "goal": [
@@ -396,6 +436,16 @@
   },
   {
    "type": "notification",
+   "device": "pc",
+   "out": false
+  },
+  {
+   "type": "app",
+   "device": "phone",
+   "out": true
+  },
+  {
+   "type": "app",
    "device": "pc",
    "out": false
   },
@@ -1061,6 +1111,108 @@
      "app": "GTWorld",
      "title": "Your OTP",
      "text": "123456"
+    }
+   }
+  }
+ ],
+ "app": [
+  {
+   "cfg": {
+    "app": "Instagram"
+   },
+   "o": {
+    "pkg": "com.instagram.android",
+    "app": "Instagram"
+   },
+   "at": 1794474125000,
+   "out": true,
+   "event": {
+    "type": "app",
+    "key": "com.instagram.android:29907902",
+    "title": "You opened Instagram",
+    "data": {
+     "app": "Instagram",
+     "pkg": "com.instagram.android"
+    }
+   }
+  },
+  {
+   "cfg": {
+    "app": "com.whatsapp"
+   },
+   "o": {
+    "pkg": "com.whatsapp",
+    "app": "WhatsApp"
+   },
+   "at": 1794474125000,
+   "out": true,
+   "event": {
+    "type": "app",
+    "key": "com.whatsapp:29907902",
+    "title": "You opened WhatsApp",
+    "data": {
+     "app": "WhatsApp",
+     "pkg": "com.whatsapp"
+    }
+   }
+  },
+  {
+   "cfg": {
+    "app": "gram"
+   },
+   "o": {
+    "pkg": "org.telegram.messenger",
+    "app": "Telegram"
+   },
+   "at": 1794474125000,
+   "out": true,
+   "event": {
+    "type": "app",
+    "key": "org.telegram.messenger:29907902",
+    "title": "You opened Telegram",
+    "data": {
+     "app": "Telegram",
+     "pkg": "org.telegram.messenger"
+    }
+   }
+  },
+  {
+   "cfg": {
+    "app": ""
+   },
+   "o": {
+    "pkg": "com.whatsapp",
+    "app": "WhatsApp"
+   },
+   "at": 1794474125000,
+   "out": false,
+   "event": {
+    "type": "app",
+    "key": "com.whatsapp:29907902",
+    "title": "You opened WhatsApp",
+    "data": {
+     "app": "WhatsApp",
+     "pkg": "com.whatsapp"
+    }
+   }
+  },
+  {
+   "cfg": {
+    "app": "Chrome"
+   },
+   "o": {
+    "pkg": "com.whatsapp",
+    "app": "WhatsApp"
+   },
+   "at": 1794474125000,
+   "out": false,
+   "event": {
+    "type": "app",
+    "key": "com.whatsapp:29907902",
+    "title": "You opened WhatsApp",
+    "data": {
+     "app": "WhatsApp",
+     "pkg": "com.whatsapp"
     }
    }
   }

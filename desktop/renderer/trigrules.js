@@ -23,6 +23,7 @@ export const TYPES = {
     summary: (c) => { const p = []; if (c.above != null) p.push(`goes above ${c.above}`); if (c.below != null) p.push(`goes below ${c.below}`); if (c.movePct != null) p.push(`moves ${c.movePct}% within ${c.windowMin} min`); return `When ${c.symbol || 'a price'} ${p.join(' or ') || 'moves'}`; } },
   notification: { label: 'When a phone notification comes', where: 'phone', clean: (c) => ({ app: clip(c.app, 120), contains: clip(c.contains, 200) }),
     summary: (c) => `When ${c.app || 'an app'} sends a notification` + (c.contains ? ` mentioning “${c.contains}”` : '') },
+  app: { label: 'When you open an app', where: 'phone', clean: (c) => ({ app: clip(c.app, 120) }), summary: (c) => `When you open ${c.app || 'an app'}` },
   file: { label: 'When a file appears', where: 'any', clean: (c) => ({ folder: clip(c.folder, 400), pattern: clip(c.pattern, 80) || '*', source: ['folder', 'downloads', 'screenshots'].includes(c.source) ? c.source : 'folder' }),
     summary: (c) => `When a new ${c.pattern && c.pattern !== '*' ? c.pattern + ' ' : ''}file appears in ${c.source === 'downloads' ? 'Downloads' : c.source === 'screenshots' ? 'Screenshots' : c.folder || 'a folder'}` },
   remote: { label: 'When your other device sends it', where: 'any', clean: (c) => ({ name: clip(c.name, 60) }), summary: (c) => `When your other device sends “${c.name || 'an event'}”` },
@@ -168,6 +169,20 @@ export function notificationMatches(cfg, n) {
 }
 export function notificationEvent(n) {
   return { type: 'notification', key: `${n.pkg}:${clip(n.title, 80)}:${clip(n.text, 120)}`, title: `${n.app || n.pkg}: ${clip(n.title, 120)}${n.text ? ' — ' + clip(n.text, 200) : ''}`, data: { app: n.app || n.pkg, title: n.title || '', text: n.text || '' } };
+}
+
+// ------------------------------------------------------------------ an app opening (phone)
+
+/** o: {pkg, app}. Matches the package exactly or the app's name in part; an empty app never fires (it would fire on everything). */
+export function appMatches(cfg, o) {
+  const app = lc(cfg && cfg.app).trim();
+  if (!o || !app) return false;
+  return lc(o.pkg) === app || lc(o.app).includes(app);
+}
+/** One app opening, as an event. [minute] keeps the same opening from firing twice (de-duplication is per minute). */
+export function appEvent(o, at) {
+  const minute = Math.floor((Number(at) || 0) / 60000);
+  return { type: 'app', key: `${o.pkg}:${minute}`, title: `You opened ${o.app || o.pkg}`, data: { app: o.app || o.pkg, pkg: o.pkg } };
 }
 
 // ------------------------------------------------------------------ files

@@ -32,7 +32,7 @@ out.goal = [
 out.where = [['any', 'phone'], ['phone', 'phone'], ['phone', 'pc'], ['pc', 'pc'], [undefined, 'pc']].map(([home, device]) => ({ home: home || null, device, out: R.where({ home }, device) }));
 out.awake = [{ home: 'phone', triggers: [{ type: 'email', enabled: true }] }, { home: 'pc', triggers: [{ type: 'manual', enabled: true }] }, { home: 'any', triggers: [{ type: 'price', enabled: true }] }, { home: 'pc', triggers: [{ type: 'file', enabled: true }] }]
   .map((b) => ({ bot: b, out: R.awakeLabel(b) }));
-out.watchable = ['email', 'notification', 'teleport'].flatMap((t) => ['phone', 'pc'].map((d) => ({ type: t, device: d, out: R.watchable(t, d) })));
+out.watchable = ['email', 'notification', 'app', 'teleport'].flatMap((t) => ['phone', 'pc'].map((d) => ({ type: t, device: d, out: R.watchable(t, d) })));
 
 { let s = {}; out.dedupe = [['k1', T0], ['k1', T0 + 1000], ['k2', T0 + 2000], ['k1', T0 + R.DEDUPE_MS + 5000]].map(([key, at]) => { const r = R.dedupe(s, key, at); s = r.state; return { key, at, fresh: r.fresh }; }); }
 { let s = {}; out.rate = [0, 30000, 61000, 125000, 190000, 3700000].map((dt) => { const r = R.rateAllow(s, 'b|t', 2, T0 + dt); s = r.state; return { at: T0 + dt, perHour: 2, ok: r.ok }; }); }
@@ -59,6 +59,15 @@ out.notification = [
   [{ app: 'Telegram', contains: '' }, { pkg: 'com.whatsapp', app: 'WhatsApp', title: 'Mum', text: 'hello' }],
   [{ app: '', contains: 'otp' }, { pkg: 'com.gtbank', app: 'GTWorld', title: 'Your OTP', text: '123456' }],
 ].map(([cfg, n]) => ({ cfg, n, out: R.notificationMatches(cfg, n), event: R.notificationEvent(n) }));
+
+out.app = [
+  [{ app: 'Instagram' }, { pkg: 'com.instagram.android', app: 'Instagram' }],
+  [{ app: 'com.whatsapp' }, { pkg: 'com.whatsapp', app: 'WhatsApp' }],
+  [{ app: 'gram' }, { pkg: 'org.telegram.messenger', app: 'Telegram' }],
+  [{ app: '' }, { pkg: 'com.whatsapp', app: 'WhatsApp' }],
+  [{ app: 'Chrome' }, { pkg: 'com.whatsapp', app: 'WhatsApp' }],
+].map(([cfg, o]) => ({ cfg, o, at: T0 + 125000, out: R.appMatches(cfg, o), event: R.appEvent(o, T0 + 125000) }));
+out.clean.push(...[{ type: 'app', config: { app: '  Instagram ' } }, { type: 'app', config: {} }].map((t, i) => { const c = R.cleanTrigger(t, 20 + i); return { input: t, i: 20 + i, out: c, summary: R.summary(c) }; }));
 
 out.glob = [['*.pdf', 'Report.PDF'], ['*.pdf', 'a.pdf.tmp'], ['report*', 'report-2026.xlsx'], ['*', 'x'], ['a?c.txt', 'abc.txt'], ['a?c.txt', 'abbc.txt'], ['(x).txt', '(x).txt']].map(([p, n]) => ({ pattern: p, name: n, out: R.globMatch(p, n) }));
 

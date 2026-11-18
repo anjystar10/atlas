@@ -110,6 +110,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "msg": {
@@ -152,6 +153,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "msg": {
@@ -193,6 +195,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "msg": {
@@ -235,6 +238,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "msg": {
@@ -291,6 +295,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "msg": {
@@ -347,6 +352,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "msg": {
@@ -398,6 +404,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "msg": {
@@ -540,6 +547,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "msg": {
@@ -638,6 +646,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "msg": {
@@ -683,6 +692,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "msg": {
@@ -776,6 +786,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 9
    }
   },
@@ -793,6 +804,7 @@
     ],
     "id": "th-y",
     "v": 2,
+    "kind": "group",
     "messages": [],
     "updatedAt": 1
    }
@@ -851,6 +863,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "max": 6000,
@@ -908,6 +921,7 @@
      }
     ],
     "v": 2,
+    "kind": "group",
     "updatedAt": 5
    },
    "max": 60,
@@ -1072,6 +1086,7 @@
     }
    ],
    "v": 2,
+   "kind": "group",
    "updatedAt": 5
   },
   "botTurns": 8,

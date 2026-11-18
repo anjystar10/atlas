@@ -60,6 +60,7 @@ object TriggerRules {
         "notification" to Type("When a phone notification comes", "phone",
             { c -> JSONObject().put("app", clip(c.opt("app"), 120)).put("contains", clip(c.opt("contains"), 200)) },
             { c -> "When ${c.optString("app").ifEmpty { "an app" }} sends a notification" + (if (c.optString("contains").isNotEmpty()) " mentioning “${c.optString("contains")}”" else "") }),
+        "app" to Type("When you open an app", "phone", { c -> JSONObject().put("app", clip(c.opt("app"), 120)) }, { c -> "When you open ${c.optString("app").ifEmpty { "an app" }}" }),
         "file" to Type("When a file appears", "any",
             { c ->
                 val src = c.optString("source").takeIf { it in setOf("folder", "downloads", "screenshots") } ?: "folder"
@@ -233,6 +234,18 @@ object TriggerRules {
     fun notificationEvent(n: Note): JSONObject = JSONObject().put("type", "notification").put("key", "${n.pkg}:${clip(n.title, 80)}:${clip(n.text, 120)}")
         .put("title", "${n.app.ifEmpty { n.pkg }}: ${clip(n.title, 120)}" + (if (n.text.isNotEmpty()) " — ${clip(n.text, 200)}" else ""))
         .put("data", JSONObject().put("app", n.app.ifEmpty { n.pkg }).put("title", n.title).put("text", n.text))
+
+    // ------------------------------------------------------------------ an app opening
+
+    class Opened(val pkg: String, val app: String)
+    /** Matches the package exactly or the app's name in part; an empty app never fires. */
+    fun appMatches(cfg: JSONObject?, o: Opened?): Boolean {
+        val app = lc(cfg?.opt("app")).trim()
+        if (o == null || app.isEmpty()) return false
+        return lc(o.pkg) == app || lc(o.app).contains(app)
+    }
+    fun appEvent(o: Opened, at: Long): JSONObject = JSONObject().put("type", "app").put("key", "${o.pkg}:${Math.floorDiv(at, 60000L)}")
+        .put("title", "You opened ${o.app.ifEmpty { o.pkg }}").put("data", JSONObject().put("app", o.app.ifEmpty { o.pkg }).put("pkg", o.pkg))
 
     // ------------------------------------------------------------------ files
 
