@@ -1,0 +1,161 @@
+[
+ {
+  "name": "qwen-clone-A",
+  "seconds": 6.96,
+  "mos_raw": 4.494,
+  "mos_mastered": 4.475,
+  "mos_finished": 4.4,
+  "wer": 0.0,
+  "heard": "Of course, the demo order is placed and I'll keep an eye on the price.  Do let me know if you'd like anything else tonight.",
+  "words_per_min": 215.5,
+  "similarity_to_design": 0.929
+ },
+ {
+  "name": "qwen-design-A1",
+  "seconds": 9.52,
+  "mos_raw": 4.473,
+  "mos_mastered": 4.455,
+  "mos_finished": 4.388,
+  "wer": 0.0,
+  "heard": "Good evening. I've cleared your inbox and moved the meeting to Thursday.  Shall I start the trading bot, or would you prefer to look at the plan first?",
+  "words_per_min": 176.5
+ },
+ {
+  "name": "chatterbox-main-A",
+  "seconds": 8.64,
+  "mos_raw": 4.45,
+  "mos_mastered": 4.415,
+  "mos_finished": 4.304,
+  "wer": 0.0,
+  "heard": "Good evening. I've cleared your inbox and moved the meeting to Thursday.  Shall I start the trading bot, or would you prefer to look at the plan first?",
+  "words_per_min": 194.4,
+  "similarity_to_design": 0.945
+ },
+ {
+  "name": "qwen-design-B2",
+  "seconds": 9.68,
+  "mos_raw": 4.464,
+  "mos_mastered": 4.41,
+  "mos_finished": 4.299,
+  "wer": 0.0,
+  "heard": "Good evening. I've cleared your inbox and moved the meeting to Thursday. Shall I start  the trading bot, or would you prefer to look at the plan first?",
+  "words_per_min": 173.6
+ },
+ {
+  "name": "qwen-design-A2",
+  "seconds": 9.12,
+  "mos_raw": 4.457,
+  "mos_mastered": 4.403,
+  "mos_finished": 4.298,
+  "wer": 0.0,
+  "heard": "Good evening. I've cleared your inbox and moved the meeting to Thursday.  Shall I start the trading bot, or would you prefer to look at the plan first?",
+  "words_per_min": 184.2
+ },
+ {
+  "name": "chatterbox-clone-A",
+  "seconds": 7.44,
+  "mos_raw": 4.439,
+  "mos_mastered": 4.41,
+  "mos_finished": 4.293,
+  "wer": 0.0,
+  "heard": "Of course, the demo order is placed, and I'll keep an eye on the price.  Do let me know if you'd like anything else tonight.",
+  "words_per_min": 201.6,
+  "similarity_to_design": 0.93
+ },
+ {
+  "name": "qwen-clone-B",
+  "seconds": 6.72,
+  "mos_raw": 4.467,
+  "mos_mastered": 4.415,
+  "mos_finished": 4.28,
+  "wer": 0.0,
+  "heard": "Of course, the demo order is placed and I'll keep an eye on the price.  Do let me know if you'd like anything else tonight.",
+  "words_per_min": 223.2,
+  "similarity_to_design": 0.915
+ },
+ {
+  "name": "qwen-clone-C",
+  "seconds": 6.08,
+  "mos_raw": 4.424,
+  "mos_mastered": 4.337,
+  "mos_finished": 4.226,
+  "wer": 0.0,
+  "heard": "Of course the demo order is placed and I'll keep an eye on the price do let me know if you'd like anything else tonight",
+  "words_per_min": 246.7,
+  "similarity_to_design": 0.944
+ },
+ {
+  "name": "qwen-design-B1",
+  "seconds": 8.48,
+  "mos_raw": 4.415,
+  "mos_mastered": 4.351,
+  "mos_finished": 4.185,
+  "wer": 0.0,
+  "heard": "Good evening. I've cleared your inbox and moved the meeting to Thursday.  Shall I start the trading bot, or would you prefer to look at the plan first?",
+  "words_per_min": 198.1
+ },
+ {
+  "name": "qwen-design-C1",
+  "seconds": 8.08,
+  "mos_raw": 4.362,
+  "mos_mastered": 4.256,
+  "mos_finished": 4.119,
+  "wer": 0.0,
+  "heard": "Good evening. I've cleared your inbox and moved the meeting to Thursday. Shall I start the trading bot, or would you prefer to look at the plan first?",
+  "words_per_min": 207.9
+ },
+ {
+  "name": "chatterbox-clone-B",
+  "seconds": 6.16,
+  "mos_raw": 4.278,
+  "mos_mastered": 4.169,
+  "mos_finished": 4.027,
+  "wer": 0.0,
+  "heard": "Of course. The demo order is placed and I'll keep an eye on the price.  Do let me know if you'd like anything else tonight.",
+  "words_per_min": 243.5,
+  "similarity_to_design": 0.932
+ },
+ {
+  "name": "qwen-design-C2",
+  "seconds": 9.68,
+  "mos_raw": 4.385,
+  "mos_mastered": 4.274,
+  "mos_finished": 3.993,
+  "wer": 0.0,
+  "heard": "Good evening. I've cleared your inbox and moved the meeting to Thursday.  Shall I start the trading bot, or would you prefer to look at the plan first?",
+  "words_per_min": 173.6
+ },
+ {
+  "name": "chatterbox-main-B",
+  "seconds": 7.44,
+  "mos_raw": 4.32,
+  "mos_mastered": 4.186,
+  "mos_finished": 3.975,
+  "wer": 0.0,
+  "heard": "Good evening. I've cleared your inbox and moved the meeting to Thursday.  Shall I start the trading bot, or would you prefer to look at the plan first?",
+  "words_per_min": 225.8,
+  "similarity_to_design": 0.966
+ },
+ {
+  "name": "chatterbox-main-C",
+  "seconds": 7.44,
+  "mos_raw": 4.277,
+  "mos_mastered": 4.188,
+  "mos_finished": 3.869,
+  "wer": 0.0,
+  "heard": "Good evening. I've cleared your inbox and moved the meeting to Thursday.  Shall I start the trading bot, or would you prefer to look at the plan first?",
+  "words_per_min": 225.8,
+  "similarity_to_design": 0.956
+ },
+ {
+  "name": "chatterbox-clone-C",
+  "seconds": 6.28,
+  "mos_raw": 4.287,
+  "mos_mastered": 4.121,
+  "mos_finished": 3.829,
+  "wer": 0.0,
+  "heard": "Of course. The demo order is placed and I'll keep an eye on the price. Do let me know if you'd like anything else tonight.",
+  "words_per_min": 238.9,
+  "similarity_to_design": 0.925
+ }
+]
