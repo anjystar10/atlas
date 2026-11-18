@@ -379,9 +379,12 @@ class MainActivity : Activity() {
     internal fun chip(label: String, selected: Boolean, color: Int = BLUE) = LText(this).apply {
         plain = true
         text = L.t(label); textSize = 14f; typeface = MED; gravity = Gravity.CENTER
-        setTextColor(if (selected) (if (color == BLUE) ON else Color.WHITE) else FG)
-        background = if (selected) Finish(color, -1f, dark, resources.displayMetrics.density) else Finish(SURFACE, -1f, dark, resources.displayMetrics.density, glass = true)
-        setPadding(dp(15), dp(10), dp(15), dp(10))
+        // the chosen chip wears the theme's main colour, the same as the main buttons and the current tab
+        val fill = if (color == BLUE) PRIMARY else color
+        setTextColor(if (selected) (if (color == BLUE) ON_PRIMARY else inkOn(color)) else FG)
+        background = if (selected) Finish(fill, -1f, dark, resources.displayMetrics.density) else Finish(SURFACE, -1f, dark, resources.displayMetrics.density, glass = true)
+        setPadding(dp(15), dp(10), dp(15), dp(10)); minHeight = dp(40)
+        pressFx()
     }
 
     /** Chips that wrap onto new lines by their real width, so labels never squash into a column. */
@@ -1711,15 +1714,16 @@ class MainActivity : Activity() {
                 override fun afterTextChanged(s: Editable?) { updateSend(); snapKey?.visibility = if (s.isNullOrBlank()) View.VISIBLE else View.GONE }
             })
         }
-        val icon = LineIcon(this@MainActivity, "mic").apply { color = Palette.DARK.onPrimary; tag = "mic" }
+        val pal = if (dark) Palette.DARK else Palette.LIGHT
+        val icon = LineIcon(this@MainActivity, "mic").apply { color = pal.onPrimary; tag = "mic" }
         sendIcon = icon
         val send = FrameLayout(this).apply {
             // Atlas's key: a glowing drop of blue and violet. Nothing typed: talk. Something to send: send. Working: stop.
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL; gradientType = GradientDrawable.RADIAL_GRADIENT; gradientRadius = dp(34).toFloat()
-                colors = intArrayOf(Palette.DARK.primaryTop, Palette.DARK.primaryBottom)
+                colors = intArrayOf(pal.primaryTop, pal.primaryBottom)
             }
-            elevation = dp(8).toFloat(); outlineSpotShadowColor = Palette.DARK.accent; outlineAmbientShadowColor = Palette.DARK.accent
+            elevation = dp(8).toFloat(); outlineSpotShadowColor = pal.primaryBottom; outlineAmbientShadowColor = pal.primaryBottom
             isClickable = true; contentDescription = "Speak"
             addView(icon, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
             setOnClickListener { when (sendIcon?.tag) { "stop" -> Conversation.stop(); "arrow" -> submit(); else -> voice() } }
@@ -1901,7 +1905,7 @@ class MainActivity : Activity() {
         }
         if (old.tag == want) return
         parent.removeView(old)
-        val icon = LineIcon(this, want).apply { color = Palette.DARK.onPrimary; rotation = if (want == "arrow") -90f else 0f; tag = want }
+        val icon = LineIcon(this, want).apply { color = ON_PRIMARY; rotation = if (want == "arrow") -90f else 0f; tag = want }
         parent.addView(icon, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.CENTER))
         parent.contentDescription = when (want) { "stop" -> "Stop"; "arrow" -> "Send"; else -> "Speak" }
         sendIcon = icon
@@ -2234,8 +2238,8 @@ class MainActivity : Activity() {
         }
         paintKey = { on ->
             key.isEnabled = on
-            key.background = if (on) GradientDrawable().apply { shape = GradientDrawable.OVAL; colors = intArrayOf(Palette.DARK.primaryTop, Palette.DARK.primaryBottom) } else quietBg()
-            tick.color = if (on) Palette.DARK.onPrimary else quietMuted()
+            key.background = if (on) GradientDrawable().apply { shape = GradientDrawable.OVAL; colors = intArrayOf((if (dark) Palette.DARK else Palette.LIGHT).primaryTop, PRIMARY) } else quietBg()
+            tick.color = if (on) ON_PRIMARY else quietMuted()
         }
         paintKey(false)
         row.addView(f, LinearLayout.LayoutParams(0, WRAP, 1f))
@@ -2501,8 +2505,10 @@ class MainActivity : Activity() {
         brain.add(text(if (active != null) "Atlas thinks with ${active.name}. Add as many keys as you like: when one runs out, Atlas switches to the next and carries on${if (KeyRouter.dontSwitch(this)) "." else ", then to another service."}"
             else "Paste a key from any AI service below. Atlas needs one to think properly and to use your phone.", 14f, if (active != null) DONE else MUTED), 4)
         var keyDraft = ""
-        val kf = field("Paste an API key (${shown.keyHint})", "") { keyDraft = it }.apply {
+        val kf = field("Paste a ${shown.name} key (${shown.keyHint})", "") { keyDraft = it }.apply {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD; setSingleLine(true)
+            typeface = BODY   // a password field switches to a typewriter face; keep the app's own
+            ellipsize = android.text.TextUtils.TruncateAt.END
         }
         brain.add(kf, 14)
         brain.add(eyebrow("Service"), 12)
