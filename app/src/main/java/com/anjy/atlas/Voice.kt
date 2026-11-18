@@ -34,6 +34,22 @@ object Voice {
     @Volatile var lastSpoke: String? = null; private set
     /** True while Atlas's voice is actually playing (the floating orb pulses with it). */
     @Volatile var speaking = false; private set
+    /** What each voice did last time it was asked ("worked 14:02" / "failed 14:02: …"), for Me → Voice. */
+    val engineState = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private fun stamp() = java.text.SimpleDateFormat("HH:mm", Locale.getDefault()).format(java.util.Date())
+    /** When the "the phone's voice spoke instead" note was last shown (once every few hours, not every reply). */
+    @Volatile private var notedAt = 0L
+    /**
+     * Says once (every few hours) that the phone's voice is speaking instead of a natural one, and why: before, a natural
+     * voice that failed every time was silently replaced by the phone's robotic one, so nothing ever seemed to change.
+     */
+    private fun noteFallback(app: Context) {
+        if (!natural(app) || System.currentTimeMillis() - notedAt < 3 * 60 * 60_000L) return
+        notedAt = System.currentTimeMillis()
+        val msg = Speech.fallbackNote(lastProblem)
+        Log.w(TAG, "fallback to the phone's voice: ${lastProblem ?: "no natural voice"}")
+        main.post { try { android.widget.Toast.makeText(app, msg, android.widget.Toast.LENGTH_LONG).show() } catch (_: Exception) {} }
+    }
 
     /** A voice to choose: who it is, which engine's voice it uses, and how it delivers lines. */
     class Choice(val id: String, val label: String, val about: String, val voice: String, val style: String)
@@ -140,8 +156,8 @@ object Voice {
         begin(app)
         val finish = { ended(app, mine); onDone?.invoke(); Unit }
         val eng = engine(app)
-        if (eng == null) { main.post { if (mine == gen) system(app, say, mine, finish) }; return }
-        speakParts(app, eng, Speech.chunks(say), mine, finish)
+        if (eng == null) { noteFallback(app); main.post { if (mine == gen) system(app, say, mine, finish) }; return }
+        speakParts(app, eng, Speech.chunks(say, Speech.NATURAL_FIRST, Speech.NATURAL_REST), mine, finish)
     }
 
     /**
@@ -157,7 +173,7 @@ object Voice {
         // spoken in pieces (the voice services take a few hundred words at a time), joined into one WAV with the finish
         val pcm = java.io.ByteArrayOutputStream()
         var rate = 24000
-        val parts = Speech.chunks(say)
+        val parts = Speech.chunks(say, Speech.NATURAL_FIRST, Speech.NATURAL_REST)
         parts.forEachIndexed { i, part ->
             val (r, data) = rawSpeech(app, eng, part, parts.getOrNull(i - 1), parts.getOrNull(i + 1))
             rate = r; pcm.write(data)
@@ -174,6 +190,50 @@ object Voice {
         setChoice(app, engine, id)   // tapping a voice to hear it also chooses it
         begin(app)
         speakParts(app, engine, listOf("Good day. I'm Atlas. This is how I sound. What can I do for you?"), mine) { ended(app, mine); onDone?.invoke() }
+    }
+
+    /**
+     * Me → Voice → Test Each Voice: each natural voice says a line in turn (or says exactly why it can't), then the
+     * phone's own voice. [onDone] gets one line per voice. The way to see, in seconds, which voice really speaks.
+     */
+    fun testAll(ctx: Context, onDone: (String) -> Unit) {
+        val app = ctx.applicationContext
+        hush()
+        val mine = ++gen
+        begin(app)
+        val list = ENGINES
+        val lines = mutableListOf<String>()
+        fun step(i: Int) {
+            if (mine != gen) return
+            if (i >= list.size) {
+                lines.add("The phone's voice: always there (the fallback when the others fail)" + if (!natural(app)) ". Natural Voice is off, so it speaks every reply." else "")
+                ended(app, mine)
+                main.post { onDone(lines.joinToString("\n")) }
+                return
+            }
+            val e = list[i]
+            val missing = when {
+                e == LaptopVoice.ID -> if (LaptopVoice.available(app)) null else "not running (set it up on the laptop: Me → Voice)"
+                Providers.keys(app, e).none { !it.bad } -> "no key added"
+                else -> null
+            }
+            if (missing != null) { lines.add("${engineName(e)}: $missing"); step(i + 1); return }
+            Thread {
+                val r = try { Result.success(speechFile(app, e, "This is ${engineName(e)}, speaking for Atlas.", null, null)) } catch (ex: Exception) { Result.failure(ex) }
+                main.post {
+                    if (mine != gen) { r.getOrNull()?.delete(); return@post }
+                    r.fold({ f ->
+                        engineState[e] = "worked ${stamp()}"; lines.add("${engineName(e)}: works ✓ (${current(app, e).label})")
+                        play(app, f, mine, onEnd = { step(i + 1) }, fallback = { lines[lines.lastIndex] = "${engineName(e)}: made the audio but the phone couldn't play it"; step(i + 1) })
+                    }, { ex ->
+                        val m = ex.message ?: ex.javaClass.simpleName
+                        engineState[e] = "failed ${stamp()}: $m"; lastProblem = "${engineName(e)}: $m"
+                        lines.add("${engineName(e)}: failed — $m"); step(i + 1)
+                    })
+                }
+            }.start()
+        }
+        step(0)
     }
 
     private fun begin(app: Context) { busy = true; focus(app, true) }
@@ -199,9 +259,10 @@ object Voice {
                         f = try { speechFile(app, e, parts[i], parts.getOrNull(i - 1), parts.getOrNull(i + 1)) } catch (ex: Exception) {
                             Log.w(TAG, "natural voice failed ($e)", ex)
                             lastProblem = "${engineName(e)}: ${ex.message ?: ex.javaClass.simpleName}"
+                            engineState[e] = "failed ${stamp()}: ${ex.message ?: ex.javaClass.simpleName}"
                             null
                         }
-                        if (f != null) { used = e; break }
+                        if (f != null) { used = e; engineState[e] = "worked ${stamp()}"; break }
                     }
                     f
                 }
@@ -209,7 +270,7 @@ object Voice {
                     if (mine != gen) { file?.delete(); return@post }
                     got[i] = file ?: FAILED
                     if (file != null) {
-                        if (i == 0) { if (used == eng) lastProblem = null; lastSpoke = "${current(app, used).label} (${engineName(used)})" }
+                        if (i == 0) { if (used == eng) lastProblem = null; lastSpoke = "${current(app, used).label} (${engineName(used)})"; Log.i(TAG, "speaking with $lastSpoke") }
                         if (i + 1 < parts.size) fetch(i + 1)   // the next piece is fetched while this one plays
                     }
                     pump()
@@ -220,7 +281,7 @@ object Voice {
             if (playing || mine != gen || next >= parts.size) return@pump
             val r = got[next] ?: return@pump                    // not here yet
             // the natural voice failed: the phone's own voice says the rest
-            val rest = { got.forEach { (it as? File)?.delete() }; system(app, parts.drop(next).joinToString(" "), mine, finish) }
+            val rest = { got.forEach { (it as? File)?.delete() }; noteFallback(app); system(app, parts.drop(next).joinToString(" "), mine, finish) }
             if (r !is File) { rest(); return@pump }
             playing = true
             play(app, r, mine, onEnd = { playing = false; got[next] = null; next++; if (next >= parts.size) finish() else pump() }, fallback = { playing = false; rest() })
@@ -303,19 +364,44 @@ object Voice {
     }
 
     // ---- Gemini's speech model (Interactions API), returns 24 kHz PCM ----
+    private const val TTS_MODEL = "gemini-3.8-flash-tts"
+    /** Keys resting from speech only (Gemini's speech model has its own, much smaller limit than chat): key tail → until. */
+    private val ttsRest = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    /** The Gemini keys to try for speech: every key in the pool that isn't turned down, those not resting from speech first. */
+    private fun ttsKeys(ctx: Context): List<String> {
+        val now = System.currentTimeMillis()
+        val all = Providers.keys(ctx, "gemini").filter { !it.bad }.map { it.key }.distinct()
+        return all.filter { (ttsRest[it.takeLast(6)] ?: 0L) <= now } + all.filter { (ttsRest[it.takeLast(6)] ?: 0L) > now }
+    }
     private fun geminiSpeech(ctx: Context, text: String): Pair<Int, ByteArray> {
-        val key = Providers.key(ctx, "gemini")!!
+        val keys = ttsKeys(ctx).ifEmpty { throw IllegalStateException("no Gemini key") }
+        var last: Exception? = null
+        for (key in keys) {
+            try { return geminiSpeechWith(ctx, key, text) }
+            catch (e: Gemini.Failure) {
+                last = e
+                // a used-up limit or a turned-down key: this key rests from speech and the next key in the pool tries
+                if (!Speech.ttsKeyProblem(e.code)) throw e
+                ttsRest[key.takeLast(6)] = System.currentTimeMillis() + Speech.ttsRestMs(e.code, e.message ?: "", e.retryAfterMs.takeIf { it > 0 })
+                Log.w(TAG, "Gemini voice: key …${key.takeLast(4)} ${e.code}, trying the next key")
+            }
+        }
+        throw last ?: IllegalStateException("Gemini voice")
+    }
+    private fun geminiSpeechWith(ctx: Context, key: String, text: String): Pair<Int, ByteArray> {
         val c = current(ctx, "gemini")
         // "Atlas": its own designed voice; else a calm British man's voice from Google's library; else Charon
         val designed = if (c.id == "atlas") designedVoice(ctx, key) else null
-        val voice = if (c.id == "atlas") designed ?: britishVoice(ctx, key) ?: c.voice else c.voice
+        val library = if (c.id == "atlas" && designed == null) britishVoice(ctx, key) else null
+        val voice = designed ?: library ?: c.voice
         val style = c.style + Speech.pace(speed(ctx)).let { if (it.isEmpty()) "" else "; $it" }
         val r = try { geminiCall(key, text, voice, style) } catch (e: Exception) {
             if (voice == c.voice) throw e
-            // Gemini turned that voice down: don't try it again (a designed one falls back to the library's, then Charon).
-            // A dropped connection, a busy server or a used-up limit says nothing about the voice, so it is kept.
+            // Gemini turned that voice down: it's remembered as refused (for a few hours, not forever, and only for this
+            // revision of Atlas's voice). A dropped connection, a busy server or a used-up limit says nothing about the voice.
             val refused = e is Gemini.Failure && !e.offline && e.code in 400..499 && e.code != 429 && e.code != 408
-            if (refused) Store.putString(ctx, if (voice == designed) "atlas_voice_designed" else "atlas_voice_id", "-")
+            if (e is Gemini.Failure && Speech.ttsKeyProblem(e.code)) throw e
+            if (refused) Store.putString(ctx, cacheKey(if (voice == designed) "designed" else "library", key), Speech.VoiceCache.entry(rev(), key.takeLast(6), null, System.currentTimeMillis()))
             geminiCall(key, text, c.voice, style)
         }
         val b64 = findAudio(r) ?: throw IllegalStateException("Gemini sent no audio")
@@ -324,7 +410,7 @@ object Voice {
 
     private fun geminiCall(key: String, text: String, voice: String, style: String): JSONObject {
         val body = JSONObject()
-            .put("model", "gemini-3.8-flash-tts")
+            .put("model", TTS_MODEL)
             .put("input", JSONArray().put(JSONObject().put("type", "user_input").put("content", JSONArray().put(
                 JSONObject().put("type", "text").put("text", text)
                     .put("annotations", JSONArray().put(JSONObject().put("type", "speech_metadata").put("style", style)))))))
@@ -333,38 +419,50 @@ object Voice {
         return Providers.post("https://generativelanguage.googleapis.com/v1beta/interactions", mapOf("x-goog-api-key" to key), body, "Gemini voice")
     }
 
+    /** The revision a remembered voice was made under: a new design (or [Speech.VoiceCache.REV]) makes it afresh. */
+    private fun rev() = Speech.VoiceCache.rev(ATLAS_DESIGN, TTS_MODEL)
+    /** One remembered voice per key (a designed voice belongs to the project of the key that made it). */
+    private fun cacheKey(kind: String, key: String) = "atlas_voice_${kind}@${key.takeLast(6)}"
+
     /**
-     * Atlas's own voice, designed once on this Gemini key from [ATLAS_DESIGN] and remembered (Google keeps a designed
-     * voice for a year after it was last used). Null if it can't be made; a refusal is remembered so it isn't asked again.
+     * Atlas's own voice, designed on this Gemini key from [ATLAS_DESIGN] and remembered (Google keeps a designed voice
+     * for a year after it was last used). Null if it can't be made; a refusal is remembered for a few hours.
      */
     private fun designedVoice(ctx: Context, key: String): String? {
-        val keyTag = key.takeLast(6)
-        Store.getString(ctx, "atlas_voice_designed")?.let { saved ->
-            if (saved == "-") return null
-            val (tag, id) = saved.split("|", limit = 2).let { if (it.size == 2) it[0] to it[1] else "" to saved }
-            if (tag == keyTag && id.isNotBlank()) return id   // a designed voice belongs to the project of the key that made it
+        val tag = key.takeLast(6); val now = System.currentTimeMillis()
+        when (val hit = Speech.VoiceCache.read(Store.getString(ctx, cacheKey("designed", key)), rev(), tag, now)) {
+            is Speech.VoiceCache.Hit.Use -> return hit.id
+            Speech.VoiceCache.Hit.Refused -> return null
+            Speech.VoiceCache.Hit.Miss -> {}
         }
         val body = JSONObject().put("store", true).put("voice", JSONObject()
-            .put("model", "gemini-3.8-flash-tts").put("type", "prompted").put("display_name", "Atlas")
+            .put("model", TTS_MODEL).put("type", "prompted").put("display_name", "Atlas")
             .put("gender", "male").put("language_code", "en-GB")
             .put("prompted", JSONObject().put("input", ATLAS_DESIGN)))
         return try {
             val r = Providers.post("https://generativelanguage.googleapis.com/v1beta/voices", mapOf("x-goog-api-key" to key), body, "Gemini voice design")
             val id = Speech.voiceId(r)
-            Store.putString(ctx, "atlas_voice_designed", if (id != null) "$keyTag|$id" else "-")
+            Store.putString(ctx, cacheKey("designed", key), Speech.VoiceCache.entry(rev(), tag, id, now))
+            engineState["gemini-design"] = if (id != null) "Atlas's voice designed on Gemini" else "Gemini designed no voice"
             id
         } catch (e: Gemini.Failure) {
             Log.w(TAG, "voice design", e)
-            // turned down (no access, bad request): don't ask again; a dropped connection or a busy server tries again next time
-            if (!e.offline && e.code in 400..499 && e.code != 429 && e.code != 408) Store.putString(ctx, "atlas_voice_designed", "-")
+            engineState["gemini-design"] = "Gemini voice design: ${e.message}"
+            // turned down (no access, bad request): not again for a few hours; a dropped connection or a busy server tries again next time
+            if (!e.offline && e.code in 400..499 && e.code != 429 && e.code != 408) Store.putString(ctx, cacheKey("designed", key), Speech.VoiceCache.entry(rev(), tag, null, now))
             null
         } catch (e: Exception) { Log.w(TAG, "voice design", e); null }
     }
 
-    /** A calm British male voice from Google's voice library, looked up once and remembered. Null if none. */
+    /** A calm British male voice from Google's voice library, looked up once per key (and voice revision) and remembered. */
     private fun britishVoice(ctx: Context, key: String): String? {
-        Store.getString(ctx, "atlas_voice_id")?.let { return it.takeIf { it != "-" } }
-        // "-" (don't look again) only once the library has actually answered; a dropped connection tries again next time
+        val tag = key.takeLast(6); val now = System.currentTimeMillis()
+        when (val hit = Speech.VoiceCache.read(Store.getString(ctx, cacheKey("library", key)), rev(), tag, now)) {
+            is Speech.VoiceCache.Hit.Use -> return hit.id
+            Speech.VoiceCache.Hit.Refused -> return null
+            Speech.VoiceCache.Hit.Miss -> {}
+        }
+        // "none" is remembered only once the library has actually answered; a dropped connection tries again next time
         var answered = false
         val found = try {
             val q = "language_code=en-GB&gender=male&type=prebuilt&page_size=50"
@@ -388,7 +486,7 @@ object Voice {
                 }
             } finally { con.disconnect() }
         } catch (e: Exception) { Log.w(TAG, "voice library", e); null }
-        if (found != null || answered) Store.putString(ctx, "atlas_voice_id", found ?: "-")
+        if (found != null || answered) Store.putString(ctx, cacheKey("library", key), Speech.VoiceCache.entry(rev(), tag, found, now))
         return found
     }
 
@@ -518,6 +616,7 @@ object Voice {
                 fallback = { playing = false; rest() })
         }
         if (lastSpoke == null || engine(ctx) != null) lastSpoke = "the phone's voice"
+        Log.i(TAG, "speaking with the phone's voice (natural voice: ${lastProblem ?: if (engine(ctx) == null) "none available" else "failed"})")
         synth(0)
     }
 

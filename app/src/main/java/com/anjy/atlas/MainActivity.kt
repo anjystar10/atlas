@@ -2622,6 +2622,19 @@ class MainActivity : Activity() {
             else -> "Natural voices come from ElevenLabs, Gemini or OpenAI: add one of their keys. Until then Atlas uses the phone's best voice."
         } + (Voice.lastSpoke?.let { "\nLast reply was spoken by $it." } ?: "")
           + (Voice.lastProblem?.let { "\nThe natural voice failed last time ($it), so another voice stood in." } ?: ""), 13f, MUTED), 6)
+        // >>> voice check: which voice really speaks, and exactly why another one can't (Voice.testAll)
+        Voice.engineState.filterKeys { it in Voice.ENGINES }.takeIf { it.isNotEmpty() }?.let { st ->
+            vc.add(text(st.entries.joinToString("\n") { "${Voice.engineName(it.key)}: ${it.value}" }, 13f, MUTED), 6)
+        }
+        vc.add(secondary("Test Each Voice") {
+            showBanner("Testing each voice in turn…")
+            Voice.testAll(this) { report ->
+                if (isFinishing) return@testAll
+                android.app.AlertDialog.Builder(this).setTitle("Atlas's voices").setMessage(report).setPositiveButton("OK", null).show()
+                if (tab == 2) render(keepScroll = true)
+            }
+        }, 10)
+        // <<< voice check
         // >>> atlas voice: Atlas's designed voice from the linked laptop (LaptopVoice.kt)
         if (Sync.linked(this)) {
             vc.add(switchRow(null, "Atlas Voice from My Laptop", LaptopVoice.enabled(this)) { on -> LaptopVoice.setEnabled(this, on); render(keepScroll = true) }, 10)

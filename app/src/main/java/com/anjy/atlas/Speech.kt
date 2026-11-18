@@ -455,4 +455,47 @@ object Speech {
         val end = maxOf(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "))
         return (if (end > max / 3) cut.take(end + 1) else cut.substringBeforeLast(' ') + "…") + " The full report is in the chat."
     }
+
+    // ---- why the voice never changed: a voice remembered forever, and failures nobody saw (see VoiceCache, ttsKeyProblem) ----
+
+    /**
+     * Remembered voices (Gemini's designed Atlas voice, the library voice) used to be kept forever per key: once made (or
+     * once turned down), no later change to the design, the choice or the code could ever reach the user. Every entry
+     * now carries the voice revision it was made under, and a refusal is only remembered for [RETRY_MS].
+     * Saved form: "rev|keyTag|id|madeAtMs" (id "-" = turned down).
+     */
+    object VoiceCache {
+        /** Bump to make every device make Atlas's voice afresh (the design or the way it's chosen changed). */
+        const val REV = "v3"
+        const val RETRY_MS = 6 * 60 * 60_000L
+        sealed class Hit { data class Use(val id: String) : Hit(); object Refused : Hit(); object Miss : Hit() }
+        fun rev(design: String, model: String) = REV + "-" + Integer.toHexString((design + "|" + model).hashCode())
+        fun entry(rev: String, keyTag: String, id: String?, now: Long) = "$rev|$keyTag|${id ?: "-"}|$now"
+        fun read(saved: String?, rev: String, keyTag: String, now: Long): Hit {
+            val p = saved?.split("|") ?: return Hit.Miss
+            if (p.size != 4 || p[0] != rev || p[1] != keyTag) return Hit.Miss       // old format, older voice, another key
+            if (p[2] == "-") return if (now - (p[3].toLongOrNull() ?: 0L) < RETRY_MS) Hit.Refused else Hit.Miss
+            return if (p[2].isNotBlank()) Hit.Use(p[2]) else Hit.Miss
+        }
+    }
+
+    /**
+     * A speech request the next key in the pool should try: a used-up limit (Gemini's speech model allows only about
+     * 10 requests a minute and 100 a day per project) or a key that's turned down. Not a bad request, not the network.
+     */
+    fun ttsKeyProblem(code: Int) = code == 429 || code == 401 || code == 403
+    /** How long a key rests from speech after [code]: a daily limit until tomorrow-ish, a per-minute one for a minute. */
+    fun ttsRestMs(code: Int, message: String, retryAfterMs: Long?): Long = when {
+        code == 429 && Regex("(?i)per ?day|PerDay|daily").containsMatchIn(message) -> 6 * 60 * 60_000L
+        code == 429 -> (retryAfterMs ?: 0L).coerceIn(30_000L, 10 * 60_000L)
+        code == 401 || code == 403 -> 60 * 60_000L
+        else -> 0L
+    }
+    /** Natural voices: fewer, longer pieces (every piece is one request against a small limit); a short first one so it starts fast. */
+    const val NATURAL_FIRST = 220
+    const val NATURAL_REST = 900
+    /** One plain line for "the natural voice didn't work, so the phone's voice spoke" (shown once, not every reply). */
+    fun fallbackNote(problem: String?, phone: String = "the phone's voice"): String =
+        if (problem.isNullOrBlank()) "Atlas's natural voice isn't available, so $phone spoke. Add a Gemini, ElevenLabs or OpenAI key (Me → Voice)."
+        else "Atlas's natural voice didn't work ($problem), so $phone spoke. Me → Voice → Test Each Voice shows why."
 }

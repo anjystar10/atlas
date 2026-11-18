@@ -5,7 +5,7 @@
 import { keyFor, readyKey, byId, modelOf, keys as poolKeys } from './brain.js';
 import { applyPcm } from './finish.js';
 import { pref, setPref, db } from './store.js';
-import { Endpointer, Pace, minVoiceFor, heardFrom, chunks, fixHeard, names, rate, pace, speed as speedOf } from './speech.js';
+import { Endpointer, Pace, minVoiceFor, heardFrom, chunks, fixHeard, names, rate, pace, speed as speedOf, voiceRev, voiceEntry, voiceRead, ttsKeyProblem, ttsRestMs, NATURAL_FIRST, NATURAL_REST, fallbackNote } from './speech.js';
 import { plainSpoken } from './plain.js';
 const host = window.atlasHost;
 
@@ -79,7 +79,19 @@ export const setSir = (on) => setPref('voiceSir', !!on);
 export const voices = (eng = engine()) => (eng === 'atlas' ? LOCAL_VOICES : eng === 'openai' ? OPENAI_VOICES : eng === 'elevenlabs' ? ELEVEN_VOICES : GEMINI_VOICES);
 export const current = (eng = engine()) => voices(eng).find((v) => v.id === pref('voice_' + (eng || 'gemini'), 'atlas')) || voices(eng)[0];
 // busy: from the moment Atlas is asked to speak until it has finished or been hushed (so also while the voice is fetched)
-export const state = { speaking: false, busy: false, lastSpoke: null, lastProblem: null };
+export const state = { speaking: false, busy: false, lastSpoke: null, lastProblem: null, engines: {} };
+const stamp = () => new Date().toTimeString().slice(0, 5);
+/** Called with a line to show the user (app.js sets it to its toast). */
+export const notices = { show: null };
+let notedAt = 0;
+/** Once every few hours: the system voice spoke instead of a natural one, and why (before, this happened silently). */
+function noteFallback() {
+  if (!pref('voiceNatural', true) || Date.now() - notedAt < 3 * 60 * 60_000) return;
+  notedAt = Date.now();
+  const msg = fallbackNote(state.lastProblem);
+  console.warn('[AtlasVoice] fallback to Windows voice:', state.lastProblem || 'no natural voice');
+  try { notices.show && notices.show(msg); } catch {}
+}
 export const speed = () => speedOf(pref('voiceSpeed', 'normal'));
 export const setSpeed = (v) => { const sp = speedOf(v); setPref('voiceSpeed', sp); return sp; };
 
@@ -96,15 +108,15 @@ export async function speak(text, onDone) {
   state.busy = true;
   const finish = () => { if (mine !== gen) return; state.busy = false; state.speaking = false; onDone && onDone(); };
   const eng = engine();
-  const parts = chunks(say);
-  if (!eng) return systemSpeak(parts, finish, mine);
+  if (!eng) { noteFallback(); return systemSpeak(chunks(say), finish, mine); }
+  const parts = chunks(say, NATURAL_FIRST, NATURAL_REST);
   // each piece from the chosen voice; if it fails, the next natural voice there's a key for says that piece
   const fetchPart = async (i) => {
     let error = null;
     for (const e of [eng, ...engines().filter((x) => x !== eng)]) {
       if (mine !== gen) break;
-      try { return { clip: await speechClip(e, parts[i], parts[i - 1], parts[i + 1]), used: e }; }
-      catch (err) { error = err; state.lastProblem = `${engineName(e)}: ${err.message || String(err)}`; }
+      try { const clip = await speechClip(e, parts[i], parts[i - 1], parts[i + 1]); state.engines[e] = `worked ${stamp()}`; return { clip, used: e }; }
+      catch (err) { error = err; state.lastProblem = `${engineName(e)}: ${err.message || String(err)}`; state.engines[e] = `failed ${stamp()}: ${err.message || String(err)}`; }
     }
     return { error: error || new Error('stopped') };
   };
@@ -112,12 +124,12 @@ export async function speak(text, onDone) {
   for (let i = 0; i < parts.length; i++) {
     const got = await next;
     if (mine !== gen) { free(got.clip); return; }
-    if (got.error) return systemSpeak(parts.slice(i), finish, mine);
+    if (got.error) { noteFallback(); return systemSpeak(parts.slice(i), finish, mine); }
     if (i === 0) { if (got.used === eng) state.lastProblem = null; state.lastSpoke = `${current(got.used).label} (${engineName(got.used)})`; }
     next = i + 1 < parts.length ? fetchPart(i + 1) : null;
     const ok = await play(got.clip, mine, got.used);
     if (mine !== gen) { if (next) next.then((n) => free(n.clip)); return; }
-    if (!ok) { if (next) next.then((n) => free(n.clip)); return systemSpeak(parts.slice(i), finish, mine); }
+    if (!ok) { if (next) next.then((n) => free(n.clip)); state.lastProblem = `${engineName(got.used)}: the audio couldn't be played`; noteFallback(); return systemSpeak(parts.slice(i), finish, mine); }
   }
   finish();
 }
@@ -236,37 +248,71 @@ export function voiceId(o) {
  * Atlas's own voice, designed once on this Gemini key and remembered (Google keeps it a year after last use).
  * A refusal is remembered so it isn't asked again; a dropped connection or a busy server tries again next time.
  */
+const TTS_MODEL = 'gemini-3.8-flash-tts';
+const rev = () => voiceRev(ATLAS_DESIGN, TTS_MODEL);
+const designKey = (key) => 'atlasVoiceDesigned@' + key.slice(-6);
 async function designedVoice(key) {
-  const tag = key.slice(-6); const saved = pref('atlasVoiceDesigned', '');
-  if (saved === '-') return null;
-  if (saved) { const [t, id] = saved.split('|'); if (t === tag && id) return id; }
-  const body = { store: true, voice: { model: 'gemini-3.8-flash-tts', type: 'prompted', display_name: 'Atlas', gender: 'male', language_code: 'en-GB', prompted: { input: ATLAS_DESIGN } } };
+  const tag = key.slice(-6), now = Date.now();
+  const hit = voiceRead(pref(designKey(key), ''), rev(), tag, now);
+  if (hit.use) return hit.use;
+  if (hit.refused) return null;
+  const body = { store: true, voice: { model: TTS_MODEL, type: 'prompted', display_name: 'Atlas', gender: 'male', language_code: 'en-GB', prompted: { input: ATLAS_DESIGN } } };
   const r = await host.fetch('https://generativelanguage.googleapis.com/v1beta/voices', { method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body), timeout: 60000 });
-  if (!r.ok) { if (r.status >= 400 && r.status < 500 && r.status !== 429 && r.status !== 408) setPref('atlasVoiceDesigned', '-'); return null; }
+  if (!r.ok) {
+    state.engines['gemini-design'] = `Gemini voice design: ${r.status || r.error}`;
+    // turned down: not again for a few hours (it used to be never again, so the voice could never change)
+    if (r.status >= 400 && r.status < 500 && r.status !== 429 && r.status !== 408) setPref(designKey(key), voiceEntry(rev(), tag, null, now));
+    return null;
+  }
   let id = null; try { id = voiceId(JSON.parse(r.text)); } catch {}
-  setPref('atlasVoiceDesigned', id ? `${tag}|${id}` : '-');
+  setPref(designKey(key), voiceEntry(rev(), tag, id, now));
   return id;
 }
 /** Gemini refused the voice itself (not the network, a busy server or a limit). */
 export const refusedVoice = (status) => status >= 400 && status < 500 && status !== 429 && status !== 408;
 async function geminiCall(key, text, voice, style) {
-  const body = { model: 'gemini-3.8-flash-tts', input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style }] }] }],
+  const body = { model: TTS_MODEL, input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style }] }] }],
     response_format: { type: 'audio' }, generation_config: { speech_config: [{ voice }] } };
   return host.fetch('https://generativelanguage.googleapis.com/v1beta/interactions', { method: 'POST', headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' }, body: JSON.stringify(body), timeout: 60000 });
 }
+/** Keys resting from speech only (the speech model's limit is far smaller than chat's): key tail → until. */
+const ttsRest = new Map();
+/** Every Gemini key in the pool that isn't turned down, those not resting from speech first. */
+export function ttsKeyOrder(all, rest, now) {
+  const list = [...new Set(all.filter((e) => e && !e.bad).map((e) => e.key))];
+  const resting = (k) => (rest.get(k.slice(-6)) || 0) > now;
+  return [...list.filter((k) => !resting(k)), ...list.filter(resting)];
+}
 async function geminiSpeech(text, v) {
-  const key = keyFor('gemini');
+  const order = ttsKeyOrder(poolKeys('gemini'), ttsRest, Date.now());
+  if (!order.length) { const k = keyFor('gemini'); if (k) order.push(k); else throw new Error('no Gemini key'); }
+  let last = null;
+  for (const key of order) {
+    try { return await geminiSpeechWith(key, text, v); }
+    catch (e) {
+      last = e;
+      if (!ttsKeyProblem(e.code)) throw e;
+      // a used-up limit or a turned-down key: this key rests from speech and the next key in the pool tries
+      ttsRest.set(key.slice(-6), Date.now() + ttsRestMs(e.code, e.message, 0));
+    }
+  }
+  throw last || new Error('Gemini voice');
+}
+async function geminiSpeechWith(key, text, v) {
   const style = v.style + (pace(speed()) ? '; ' + pace(speed()) : '');
   // "Atlas": its own designed voice when it can be made, else Charon
   const designed = v.id === 'atlas' ? await designedVoice(key).catch(() => null) : null;
   let r = await geminiCall(key, text, designed || v.voice, style);
-  if (!r.ok && designed) {
+  if (!r.ok && designed && !ttsKeyProblem(r.status)) {
     // only Gemini turning the voice down (a 4xx other than 429/408) means it's gone; a dropped connection (status 0),
     // a busy server or a used-up limit says nothing about the voice, so it's kept for next time
-    if (refusedVoice(r.status)) setPref('atlasVoiceDesigned', '-');
+    if (refusedVoice(r.status)) setPref(designKey(key), voiceEntry(rev(), key.slice(-6), null, Date.now()));
     r = await geminiCall(key, text, v.voice, style);
   }
-  if (!r.ok) throw new Error(`Gemini voice: ${r.status || r.error}`);
+  if (!r.ok) {
+    let msg = ''; try { msg = (JSON.parse(r.text || '{}').error || {}).message || ''; } catch {}
+    throw Object.assign(new Error(`Gemini voice: ${r.status || r.error}${msg ? ' ' + String(msg).slice(0, 160) : ''}`), { code: r.status || 0 });
+  }
   let best = null;
   (function walk(x) { if (Array.isArray(x)) x.forEach(walk); else if (x && typeof x === 'object') for (const [k, val] of Object.entries(x)) { if (k === 'data' && typeof val === 'string' && val.length > (best ? best.length : 200)) best = val; else walk(val); } })(JSON.parse(r.text));
   if (!best) throw new Error('Gemini sent no audio');
@@ -455,4 +501,29 @@ async function transcribeWhisper(id, key, b64, h) {
 }
 
 /** Plays a voice right away (Me → Voice → Hear It). */
+/**
+ * Me → Voice → Test Each Voice: each natural voice says a line in turn (or says exactly why it can't), then Windows'
+ * voice. Resolves to one line per voice: the way to see, in seconds, which voice really speaks.
+ */
+export async function testAll() {
+  hush(); const mine = gen; state.busy = true;
+  const lines = [];
+  for (const e of ENGINES) {
+    if (mine !== gen) break;
+    const missing = e === 'atlas' ? (local.ready ? null : 'not set up or not running (Set Up below)') : (poolKeys(e).some((k) => !k.bad) ? null : 'no key added');
+    if (missing) { lines.push(`${engineName(e)}: ${missing}`); continue; }
+    try {
+      const clip = await speechClip(e, `This is ${engineName(e)}, speaking for Atlas.`);
+      state.engines[e] = `worked ${stamp()}`;
+      const ok = await play(clip, mine, e);
+      lines.push(`${engineName(e)}: ${ok ? 'works ✓ (' + current(e).label + ')' : "made the audio but it couldn't be played"}`);
+    } catch (err) {
+      const m = err.message || String(err); state.engines[e] = `failed ${stamp()}: ${m}`; state.lastProblem = `${engineName(e)}: ${m}`;
+      lines.push(`${engineName(e)}: failed — ${m}`);
+    }
+  }
+  lines.push("Windows' voice: always there (the fallback when the others fail)" + (pref('voiceNatural', true) ? '' : '. Natural Voice is off, so it speaks every reply.'));
+  if (mine === gen) { state.busy = false; state.speaking = false; }
+  return lines.join('\n');
+}
 export function preview(eng, id) { setPref('voice_' + eng, id); speak("Good day. I'm Atlas. This is how I sound. What can I do for you?"); }

@@ -183,3 +183,31 @@ export function names(text) {
   });
   return out;
 }
+
+// ---- why the voice never changed: a voice remembered forever, and failures nobody saw (the same rules as Speech.kt) ----
+/** Bump to make every device make Atlas's voice afresh. Saved form: "rev|keyTag|id|madeAtMs" (id "-" = turned down). */
+export const VOICE_REV = 'v3';
+export const VOICE_RETRY_MS = 6 * 60 * 60_000;
+function javaHash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0; return h; }
+export const voiceRev = (design, model) => VOICE_REV + '-' + (javaHash(design + '|' + model) >>> 0).toString(16);
+export const voiceEntry = (rev, keyTag, id, now) => `${rev}|${keyTag}|${id || '-'}|${now}`;
+/** { use: id } | { refused: true } | { miss: true } */
+export function voiceRead(saved, rev, keyTag, now) {
+  const p = typeof saved === 'string' ? saved.split('|') : null;
+  if (!p || p.length !== 4 || p[0] !== rev || p[1] !== keyTag) return { miss: true };
+  if (p[2] === '-') return now - (Number(p[3]) || 0) < VOICE_RETRY_MS ? { refused: true } : { miss: true };
+  return p[2] ? { use: p[2] } : { miss: true };
+}
+/** A used-up limit or a turned-down key: the next key in the pool tries (Gemini's speech model: ~10 a minute, 100 a day). */
+export const ttsKeyProblem = (code) => code === 429 || code === 401 || code === 403;
+export function ttsRestMs(code, message, retryAfterMs) {
+  if (code === 429 && /per ?day|PerDay|daily/i.test(message || '')) return 6 * 60 * 60_000;
+  if (code === 429) return Math.min(10 * 60_000, Math.max(30_000, retryAfterMs || 0));
+  if (code === 401 || code === 403) return 60 * 60_000;
+  return 0;
+}
+/** Natural voices: fewer, longer pieces (each is one request against a small limit), a short first one so it starts fast. */
+export const NATURAL_FIRST = 220, NATURAL_REST = 900;
+export const fallbackNote = (problem, sys = "Windows' voice") => (problem
+  ? `Atlas's natural voice didn't work (${problem}), so ${sys} spoke. Me → Voice → Test Each Voice shows why.`
+  : `Atlas's natural voice isn't available, so ${sys} spoke. Add a Gemini, ElevenLabs or OpenAI key (Me → Voice).`);

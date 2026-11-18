@@ -47,6 +47,7 @@ function toast(msg, ms = 2600) {
   document.querySelectorAll('.toast').forEach((t) => t.remove());
   const t = h(`<div class="toast">${esc(msg)}</div>`); document.body.appendChild(t); setTimeout(() => t.remove(), ms);
 }
+voice.notices.show = (msg) => toast(msg, 7000);   // the natural voice failed and Windows' voice spoke: say so (once every few hours)
 function sheet({ title, body = '', html = '', primary = 'OK', danger = false, secondary = 'Cancel', onPrimary = () => true, onOpen }) {
   return new Promise((resolve) => {
     const o = h(`<div class="overlay"><div class="card sheet"><h2>${esc(title)}</h2>${body ? `<p class="muted">${esc(body)}</p>` : ''}${html}
@@ -738,6 +739,13 @@ function renderMe(page) {
   vc.appendChild(settingRow('Natural Voice', pref('voiceNatural', true), (on) => { setPref('voiceNatural', on); render(true); }));
   const eng = voice.engine();
   vc.appendChild(h(`<p class="small muted">${!pref('voiceNatural', true) ? "Using Windows' own voice." : eng === 'atlas' ? "Atlas Voice: Atlas's own designed voice, spoken on this laptop's graphics card." : eng === 'elevenlabs' ? "Atlas's own voice, designed for it on ElevenLabs from a description (made once, then kept)." : eng === 'gemini' ? 'A human-sounding voice from Gemini.' : eng === 'openai' ? 'A human-sounding voice from OpenAI.' : 'Natural voices come from ElevenLabs, Gemini or OpenAI: add one of their keys. Until then, the best Windows voice.'}${voice.state.lastSpoke ? ' Last reply: ' + esc(voice.state.lastSpoke) + '.' : ''}${voice.state.lastProblem ? ' The natural voice failed last time (' + esc(voice.state.lastProblem) + ').' : ''}</p>`));
+  // >>> voice check: which voice really speaks, and exactly why another one can't (voice.testAll)
+  const vst = Object.entries(voice.state.engines || {}).filter(([k]) => voice.ENGINES.includes(k));
+  if (vst.length) vc.appendChild(h(`<p class="small muted" style="white-space:pre-line">${esc(vst.map(([k, v]) => voice.engineName(k) + ': ' + v).join('\n'))}</p>`));
+  const vt = h('<button class="btn" style="margin-top:8px">Test Each Voice</button>');
+  vt.onclick = async () => { vt.disabled = true; vt.textContent = 'Testing each voice…'; const rep = await voice.testAll(); vt.disabled = false; vt.textContent = 'Test Each Voice'; sheet({ title: "Atlas's voices", html: `<p class="muted" style="white-space:pre-line">${esc(rep)}</p>`, secondary: '' }); render(true); };
+  vc.appendChild(vt);
+  // <<< voice check
   atlasVoiceCard(vc);   // >>> atlas voice
   const engs = voice.engines();
   if (engs.length > 1) {
