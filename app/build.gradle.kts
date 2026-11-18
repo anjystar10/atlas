@@ -52,6 +52,16 @@ kotlin {
     jvmToolchain(17)
 }
 
+// >>> self-awareness: CHANGELOG.json (repo root) goes into the APK's assets, so Atlas knows what changed in each version
+val changelogAssets = layout.buildDirectory.dir("generated/changelog")
+val copyChangelog by tasks.registering(Copy::class) {
+    from(rootProject.file("CHANGELOG.json"))
+    into(changelogAssets)
+}
+android.sourceSets.getByName("main").assets.srcDir(changelogAssets)
+tasks.named("preBuild") { dependsOn(copyChangelog) }
+tasks.matching { it.name.endsWith("Assets") && it.name != "copyChangelog" }.configureEach { dependsOn(copyChangelog) }
+
 dependencies {
     implementation(project(":lib"))
     implementation(libs.kotlinx.coroutines.android)

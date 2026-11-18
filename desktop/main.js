@@ -190,6 +190,13 @@ ipcMain.handle('app:autostart', (e, on) => {
   return app.getLoginItemSettings().openAtLogin;
 });
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, data: DATA() }));
+// >>> self-awareness: the changelog, what's around on this PC, and updating Atlas (selfhost.js)
+const selfhost = require('./selfhost');
+ipcMain.handle('self:changelog', (e) => (fromMain(e) ? selfhost.changelog() : ''));
+ipcMain.handle('self:facts', (e) => (fromMain(e) ? selfhost.facts(DATA()) : {}));
+ipcMain.handle('self:download', (e, url, sha256, version) => (fromMain(e) ? selfhost.download(DATA(), url, sha256, version) : { error: 'not allowed' }));
+ipcMain.handle('self:install', (e, version) => (fromMain(e) ? selfhost.install({ dialog, app }, DATA(), version) : { error: 'not allowed' }));
+// <<< self-awareness
 // ---- this PC's hardware, measured (device.js): for picking local models that fit and pacing bots ----
 ipcMain.handle('device:profile', async (e) => { if (!fromMain(e)) return null; try { return await require('./device').profile(DATA()); } catch { return null; } });
 // ---- end hardware ----

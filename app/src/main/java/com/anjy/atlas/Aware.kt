@@ -44,6 +44,7 @@ object Capabilities {
         register(Email.cap)   // >>> email (Email.kt)
         register(Messages.cap)   // >>> background first: messages from notifications, texts (Messages.kt)
         register(AttachTools.cap)   // >>> attachments: file_read / file_search over attached and Library files (AttachSend.kt)
+        register(SelfAware.cap)   // >>> self-awareness: about_atlas, self_status, whats_around, check_updates, update_atlas (SelfAware.kt)
     }
 
     fun all(): List<Cap> = caps.toList()
@@ -161,6 +162,9 @@ object Situation {
         add("Waiting for the user (answer with answer_approval; if they just say \"yes\"/\"go ahead\"/\"no\" and one thing is waiting, that's the one)",
             pending(ctx).take(6).map { "[${it.ref}] ${if (it.question) "question" else "needs OK"} from ${it.from}: ${it.what.take(140)}" })
 
+        // around: the now line and alerts worth mentioning (whats_around has the rest)
+        try { add("Around you", SelfAware.aroundLines(ctx, markSeen)) } catch (_: Exception) {}
+
         // bots
         try {
             val jobs = withContext(Dispatchers.Main.immediate) { Bots.visible().map { BotView(it) } }
@@ -207,6 +211,9 @@ object Situation {
             add("AI services", listOf(if (ready.isEmpty()) "no key ready right now (offline brain only)" else "ready: ${ready.joinToString(", ")}" +
                 if (KeyRouter.dontSwitch(ctx)) " (Don't Switch is on)" else ""))
         } catch (_: Exception) {}
+
+        // Atlas itself: a recent update and what it can do now, the other device's version, a release waiting
+        try { add("This Atlas (about_atlas and self_status have the details)", withContext(Dispatchers.IO) { Updater.briefLines(ctx) }) } catch (_: Exception) {}
 
         // whatever else has registered
         val extra = Capabilities.all().mapNotNull { c -> try { c.brief?.invoke(ctx)?.trim()?.takeIf { it.isNotEmpty() } } catch (_: Exception) { null } }

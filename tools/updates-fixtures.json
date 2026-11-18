@@ -1,0 +1,277 @@
+{
+ "_doc": "Shared cases for desktop/renderer/updates.js and core/Updates.kt (with tools/updates-changelog-fixture.json): both must give exactly these results.",
+ "compare": [
+  {
+   "a": "0.10.2",
+   "b": "0.10.10",
+   "r": -1
+  },
+  {
+   "a": "0.11.0",
+   "b": "0.10.2",
+   "r": 1
+  },
+  {
+   "a": "1.0",
+   "b": "1.0.0",
+   "r": 0
+  },
+  {
+   "a": "v0.9.3",
+   "b": "0.9.3",
+   "r": 0
+  },
+  {
+   "a": "0.10.2-beta",
+   "b": "0.10.2",
+   "r": 0
+  },
+  {
+   "a": "x",
+   "b": "0.1",
+   "r": -1
+  },
+  {
+   "a": "",
+   "b": "",
+   "r": 0
+  }
+ ],
+ "launch": [
+  {
+   "last": null,
+   "current": "0.11.0",
+   "hadData": false,
+   "out": {
+    "kind": "fresh",
+    "from": null
+   }
+  },
+  {
+   "last": null,
+   "current": "0.11.0",
+   "hadData": true,
+   "out": {
+    "kind": "updated",
+    "from": null
+   }
+  },
+  {
+   "last": "0.10.2",
+   "current": "0.10.2",
+   "hadData": true,
+   "out": {
+    "kind": "same",
+    "from": "0.10.2"
+   }
+  },
+  {
+   "last": "0.10.1",
+   "current": "0.11.0",
+   "hadData": true,
+   "out": {
+    "kind": "updated",
+    "from": "0.10.1"
+   }
+  },
+  {
+   "last": "0.11.0",
+   "current": "0.10.2",
+   "hadData": true,
+   "out": {
+    "kind": "downgraded",
+    "from": "0.11.0"
+   }
+  }
+ ],
+ "messages": [
+  {
+   "from": "0.10.1",
+   "to": "0.11.0",
+   "where": "on your phone",
+   "out": "I've been updated to 0.11.0 on your phone (from 0.10.1). New:\n- Standing bots: a team of specialist bots, each with its own job, access and daily budget\n- Big jobs split into agents and sub-agents that work in parallel, with a checker before you see the result\n- Bots pick up where they left off after the phone restarts\n- Atlas knows its own version and what changed, and tells you when an update is ready\n- Hey Atlas opens a mini panel over whatever app you're in, instead of the full app\n- …and 6 more (ask me what's new)"
+  },
+  {
+   "from": null,
+   "to": "0.11.0",
+   "where": "on your PC",
+   "out": "I've been updated to 0.11.0 on your PC. New:\n- Standing bots: a team of specialist bots, each with its own job, access and daily budget\n- Big jobs split into agents and sub-agents that work in parallel, with a checker before you see the result\n- Bots pick up where they left off after the phone restarts\n- Atlas knows its own version and what changed, and tells you when an update is ready"
+  },
+  {
+   "from": "0.11.0",
+   "to": "0.11.0",
+   "where": "",
+   "out": "I've been updated to 0.11.0 (from 0.11.0)."
+  },
+  {
+   "from": "0.9.0",
+   "to": "0.11.0",
+   "where": "",
+   "out": "I've been updated to 0.11.0 (from 0.9.0). New:\n- Standing bots: a team of specialist bots, each with its own job, access and daily budget\n- Big jobs split into agents and sub-agents that work in parallel, with a checker before you see the result\n- Bots pick up where they left off after the phone restarts\n- Atlas knows its own version and what changed, and tells you when an update is ready\n- Hey Atlas opens a mini panel over whatever app you're in, instead of the full app\n- …and 14 more (ask me what's new)"
+  }
+ ],
+ "newer": [
+  {
+   "latest": {
+    "version": "0.11.0",
+    "versionCode": 21
+   },
+   "installed": {
+    "version": "0.10.2",
+    "versionCode": 20
+   },
+   "r": true
+  },
+  {
+   "latest": {
+    "version": "0.10.2",
+    "versionCode": 21
+   },
+   "installed": {
+    "version": "0.10.2",
+    "versionCode": 20
+   },
+   "r": true
+  },
+  {
+   "latest": {
+    "version": "0.11.0",
+    "versionCode": 0
+   },
+   "installed": {
+    "version": "0.10.2",
+    "versionCode": 20
+   },
+   "r": true
+  },
+  {
+   "latest": {
+    "version": "0.10.2",
+    "versionCode": 20
+   },
+   "installed": {
+    "version": "0.10.2",
+    "versionCode": 20
+   },
+   "r": false
+  },
+  {
+   "latest": {
+    "version": "0.12.0",
+    "versionCode": 19
+   },
+   "installed": {
+    "version": "0.10.2",
+    "versionCode": 20
+   },
+   "r": false
+  }
+ ],
+ "latest": [
+  {
+   "in": "{\"version\":\"0.11.0\",\"versionCode\":21,\"url\":\"https://raw.githubusercontent.com/anjystar10/atlas/releases/Atlas.apk\",\"sha256\":\"ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB\",\"size\":74180544,\"notes\":[\"one\",\"two\"]}",
+   "out": {
+    "version": "0.11.0",
+    "versionCode": 21,
+    "url": "https://raw.githubusercontent.com/anjystar10/atlas/releases/Atlas.apk",
+    "sha256": "abababababababababababababababababababababababababababababababab",
+    "size": 74180544,
+    "notes": [
+     "one",
+     "two"
+    ],
+    "builtFrom": ""
+   }
+  },
+  {
+   "in": "{\"version\":\"0.11.0\",\"url\":\"http://insecure.example/a.apk\"}",
+   "out": null
+  },
+  {
+   "in": "not json",
+   "out": null
+  },
+  {
+   "in": "{\"version\":\"0.11.0\",\"url\":\"https://x.example/a.exe\",\"sha256\":\"short\"}",
+   "out": {
+    "version": "0.11.0",
+    "versionCode": 0,
+    "url": "https://x.example/a.exe",
+    "sha256": "",
+    "size": 0,
+    "notes": [],
+    "builtFrom": ""
+   }
+  }
+ ],
+ "brief": [
+  {
+   "s": {
+    "version": "0.11.0",
+    "versionCode": 21,
+    "device": "the phone",
+    "from": "0.10.2",
+    "updatedAt": 1000,
+    "now": 86401005,
+    "others": [
+     {
+      "platform": "windows",
+      "name": "PC",
+      "app": "0.10.1"
+     }
+    ],
+    "latest": null
+   },
+   "out": [
+    "Updated to 0.11.0 from 0.10.2 yesterday. New since then (use these; about_atlas has the full list):",
+    "  Standing bots are the user's team: each has its own instructions, access and daily budget, and you can see them in the brief (\"Standing bots\").",
+    "  Missions split into agents and sub-agents that work in parallel; a checker reviews a bot's report before the user sees it.",
+    "  A bot that used up today's budget stops and asks; give it more only when the user says so.",
+    "  Standing bots resume after the phone restarts; a step that was cut off half-way is marked for checking, never simply repeated.",
+    "The PC runs Atlas 0.10.1 (older than this one: tell the user if it matters)."
+   ]
+  },
+  {
+   "s": {
+    "version": "0.10.2",
+    "versionCode": 20,
+    "device": "the PC",
+    "from": null,
+    "updatedAt": 0,
+    "now": 5,
+    "others": [
+     {
+      "platform": "android",
+      "name": "OPPO",
+      "app": "0.10.2"
+     }
+    ],
+    "latest": {
+     "version": "0.11.0",
+     "versionCode": 21,
+     "url": "https://x",
+     "sha256": "",
+     "size": 0,
+     "notes": [],
+     "builtFrom": ""
+    }
+   },
+   "out": [
+    "Update available: Atlas 0.11.0 (this is 0.10.2). Mention it once if it fits; update_atlas when the user says to."
+   ]
+  },
+  {
+   "s": {
+    "version": "0.11.0",
+    "versionCode": 21,
+    "device": "the phone",
+    "from": "0.10.1",
+    "updatedAt": 1000,
+    "now": 518401000,
+    "others": [],
+    "latest": null
+   },
+   "out": []
+  }
+ ]
+}

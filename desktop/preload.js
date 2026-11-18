@@ -16,6 +16,13 @@ contextBridge.exposeInMainWorld('atlasHost', {
   orbState: (st) => ipcRenderer.send('orb:state', st),
   autostart: (on) => ipcRenderer.invoke('app:autostart', on),
   info: () => ipcRenderer.invoke('app:info'),
+  // >>> self-awareness
+  self: {
+    changelog: () => ipcRenderer.invoke('self:changelog'),
+    facts: () => ipcRenderer.invoke('self:facts'),
+    download: (url, sha256, version) => ipcRenderer.invoke('self:download', url, sha256, version),
+    install: (version) => ipcRenderer.invoke('self:install', version),
+  },
   device: () => ipcRenderer.invoke('device:profile'),
   openExternal: (url) => ipcRenderer.invoke('open:external', url),
   pickFiles: () => ipcRenderer.invoke('file:pick'),
