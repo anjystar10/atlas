@@ -34,8 +34,9 @@ class AutonomyTest {
 
     @Test fun kindTableMatches() {
         val k = fx.getJSONObject("kinds")
-        assertEquals(k.keySet(), AutonomyRules.KINDS.keys)
-        for (id in k.keySet()) assertEquals(id, k.getString(id), AutonomyRules.tierOf(id))
+        val ids = k.keys().asSequence().toSet()
+        assertEquals(ids, AutonomyRules.KINDS.keys)
+        for (id in ids) assertEquals(id, k.getString(id), AutonomyRules.tierOf(id))
         assertEquals(strs(fx.getJSONArray("levels")), AutonomyRules.LEVELS)
     }
 
@@ -82,7 +83,7 @@ class AutonomyTest {
             assertEquals(c.toString(), c.getJSONArray("out").let { x -> List(x.length()) { grant(x.getJSONObject(it)) } }, got)
         } }
         fx.getJSONArray("afterApproval").let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { c ->
-            val counts = c.getJSONObject("counts").let { o -> o.keySet().associateWith { o.getInt(it) } }
+            val counts: Map<String, Int> = c.getJSONObject("counts").let { o -> o.keys().asSequence().toList().associateWith { k -> o.getInt(k) } }
             val (n, offer) = AutonomyRules.afterApproval(counts, strs(c.getJSONArray("suggested")), c.getString("kind"))
             assertEquals(c.toString(), c.getJSONObject("out").getInt("count"), n); assertEquals(c.toString(), c.getJSONObject("out").getBoolean("offer"), offer)
         } }
