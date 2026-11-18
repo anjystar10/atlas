@@ -299,7 +299,7 @@ textarea.field { resize: vertical; min-height: 64px; font: 400 var(--t-read)/1.4
 .bbadge.warn { color: #1A1405; background: var(--warm); }
 .convhead { position: sticky; top: 0; z-index: 3; padding: 10px 14px; margin-bottom: 14px; }
 .convhead .btn { padding: 9px 14px; }
-.thread { display: flex; flex-direction: column; gap: 14px; padding: 4px 2px 8px; }
+.thread { display: flex; flex-direction: column; justify-content: flex-end; gap: 14px; padding: 4px 2px 8px; min-height: calc(100vh - 300px); }
 .tempty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 40px 10px; text-align: center; }
 .tmsg { display: flex; gap: 10px; align-items: flex-start; max-width: 92%; }
 .tmsg .reply { margin-top: 4px; }

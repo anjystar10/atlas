@@ -540,7 +540,7 @@ function newThreadPage(col, k) {
   col.appendChild(k.h('<h1 class="title">New Group Chat</h1>'));
   const d = drafts.__thread || (drafts.__thread = { title: '', bots: [] });
   const f = k.h(`<div class="card"><input class="field" id="tt" maxlength="80" placeholder="What it's about (e.g. Launch week)" aria-label="Title">
-    <div class="small muted" style="margin:16px 0 8px;font-weight:600">WHO'S IN IT (2 TO 6 BOTS)</div><div class="chips" id="tb"></div>
+    <div class="small muted" style="margin:16px 0 8px;font-weight:600">WHO'S IN IT (UP TO SIX BOTS)</div><div class="chips" id="tb"></div>
     <div class="small faint" style="margin-top:8px">Atlas is always there: say @Atlas to ask it, or Sum Up for a summary. Bots can hand work to each other here, within limits, and you see everything.</div>
     <div class="row" style="margin-top:18px"><div class="grow"></div><button class="btn primary" id="tgo">Start</button></div></div>`);
   const tt = f.querySelector('#tt'); tt.value = d.title; tt.oninput = () => (d.title = tt.value);
