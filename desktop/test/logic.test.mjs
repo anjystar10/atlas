@@ -913,6 +913,7 @@ test('trading: every fixture case gives the answer the phone must also give', as
   }
   for (const r of fx.rounding) { assert.equal(TR.floorTo(r.value, r.step), r.floor); assert.equal(TR.roundTo(r.value, r.step), r.round); }
   for (const [h, m, d, want] of fx.hours) assert.equal(TR.inHours(h, m, d), want);
+  for (const [sym, entry, want] of fx.symbols) assert.equal(TR.symbolAllowed(sym, entry), want, `${sym} vs ${entry}`);   // "ETH" must not allow ETHFIUSDT
   const crypto = await import('node:crypto');
   assert.equal(crypto.createHmac('sha256', fx.hmac.key).update(fx.hmac.data).digest('hex'), fx.hmac.hex);
   const b = fx.bybitPayload; assert.equal(TR.bybitPayload(b.ts, b.key, b.recv, b.query), b.expect);
