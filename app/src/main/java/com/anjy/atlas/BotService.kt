@@ -91,6 +91,8 @@ class BotReceiver : BroadcastReceiver() {
         const val ACTION_DENY = "com.anjy.atlas.bot.DENY"
         const val ACTION_PAUSE = "com.anjy.atlas.bot.PAUSE"
         const val ACTION_STOP = "com.anjy.atlas.bot.STOP"
+        const val ACTION_APPROVE_PLAN = "com.anjy.atlas.bot.APPROVE_PLAN"   // >>> autonomy
+        const val ACTION_APPROVE_TODAY = "com.anjy.atlas.bot.APPROVE_TODAY"
     }
 
     override fun onReceive(ctx: Context, intent: Intent) {
@@ -99,6 +101,8 @@ class BotReceiver : BroadcastReceiver() {
         when (intent.action) {
             ACTION_APPROVE -> Bots.approve(id, true)
             ACTION_DENY -> Bots.approve(id, false)
+            ACTION_APPROVE_PLAN -> Bots.approve(id, true, scope = "plan")
+            ACTION_APPROVE_TODAY -> Bots.approve(id, true, scope = "today")
             ACTION_PAUSE -> Bots.pause(id)
             ACTION_STOP -> Bots.stop(id)
         }

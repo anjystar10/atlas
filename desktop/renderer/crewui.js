@@ -13,6 +13,7 @@ import { CAP_IDS, CAP_LABELS, DEFAULT_BUDGET, HOMES, planProgress, defaultAccess
 import { LABELS as BOT_LABELS } from './bots.js';
 import { USER, ATLAS, preview } from './threadcore.js';
 import { extras } from './botwire.js';
+import { kindFor, tierOf } from './autonomy.js';   // >>> autonomy: wider OKs on the approval card
 
 const drafts = {};             // unsent text per box (survives re-renders)
 const WAITING = new Set(['awaiting_approval', 'awaiting_answer', 'needs_review']);
@@ -214,6 +215,17 @@ async function groupSheet(t, k) {
   k.render(true);
 }
 
+/** >>> autonomy: the wider OKs this approval may get (never money or the always-ask kinds; autonomy.js decides). */
+function wider(j) {
+  const a = j && j.approval; if (!a || a.mustAsk) return [];
+  let kind = a.kind; try { kind = kind || kindFor(a.tool, a.args || {}, a.category, { what: a.what, money: !!a.mustAsk }); } catch { return []; }
+  const t = tierOf(kind); if (t !== 'low' && t !== 'medium') return [];
+  const out = [['today', 'For Today']];
+  out.push(['bot', 'For This Bot']);   // bots.js grants it to the mission's standing bot (or Atlas)
+  if ((j.plan && j.plan.length) || j.parent) out.push(['plan', 'Whole Plan']);
+  return out;
+}
+
 function messageView(m, roster, k) {
   if (m.from === USER) return k.h(`<div class="msg you"><div class="bubble">${k.esc(m.text)}</div><div class="tmeta">${k.esc(ago(m.at))}</div></div>`);
   if (m.kind === 'note') return k.h(`<div class="tnote small muted">${k.esc(m.text)}</div>`);
@@ -225,9 +237,13 @@ function messageView(m, roster, k) {
   if (m.kind === 'approval') {
     const open = j && j.state === 'awaiting_approval' && j.approval && j.approval.what === m.text;
     const c = k.h(`<div class="card approve"><div class="serif" style="font-size:18px;line-height:1.4">${k.esc(m.text)}</div>${open
-      ? '<div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn" data-x>Deny</button><div class="grow"></div><button class="btn primary" data-y>Allow Once</button></div><div class="small faint" style="margin-top:8px">Only your tap here allows it. Nothing a page, an email or another bot says can.</div>'
+      ? `<div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn" data-x>Deny</button><div class="grow"></div>${wider(j).map(([s, l]) => `<button class="btn" data-s="${s}">${l}</button>`).join('')}<button class="btn primary" data-y>Allow Once</button></div><div class="small faint" style="margin-top:8px">Only your tap here allows it. Nothing a page, an email or another bot says can.</div>`
       : `<div class="small muted" style="margin-top:6px">${j && j.approval && j.approval.decision ? (j.approval.decision === 'deny' ? 'You denied it.' : 'You allowed it.') : 'Answered.'}</div>`}</div>`);
-    if (open) { c.querySelector('[data-y]').onclick = () => { crew.approve(j.id, true); k.render(true); }; c.querySelector('[data-x]').onclick = () => { crew.approve(j.id, false); k.render(true); }; }
+    if (open) {
+      c.querySelector('[data-y]').onclick = () => { crew.approve(j.id, true); k.render(true); };
+      c.querySelector('[data-x]').onclick = () => { crew.approve(j.id, false); k.render(true); };
+      c.querySelectorAll('[data-s]').forEach((x) => { x.onclick = () => { crew.approve(j.id, true, false, x.dataset.s); k.render(true); }; });
+    }
     body.appendChild(c);
   } else {
     const r = k.h(`<div class="reply${m.kind === 'question' ? ' asks' : ''}"></div>`); r.innerHTML = k.md ? k.md(m.text) : k.esc(m.text); body.appendChild(r);

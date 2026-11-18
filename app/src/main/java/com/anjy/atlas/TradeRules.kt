@@ -89,7 +89,9 @@ object TradeRules {
 
     class Reason(val code: String, val text: String)
     class Verdict(val ok: Boolean, val reasons: List<Reason> = emptyList(), val order: JSONObject? = null, val needsApproval: Boolean = false,
-                  val coveredByPlan: Boolean = false, val estUsd: Double = 0.0, val worstCaseUsd: Double? = null, val summary: String = "")
+                  val coveredByPlan: Boolean = false, val estUsd: Double = 0.0, val worstCaseUsd: Double? = null, val summary: String = "",
+                  /** Inside the user's pre-approved LIVE limits (Me → Trading), so no tap is needed. */
+                  val coveredByLimits: Boolean = false)
 
     private fun num(o: JSONObject, k: String): Double? = if (!o.has(k) || o.isNull(k) || o.optString(k).isEmpty()) null else o.optDouble(k).takeIf { it.isFinite() }
 
@@ -167,8 +169,27 @@ object TradeRules {
         val norm = JSONObject().put("symbol", sym).put("side", side).put("type", type).put("qty", q)
             .put("price", price ?: JSONObject.NULL).put("stop", stopPx ?: JSONObject.NULL).put("stopLoss", sl ?: JSONObject.NULL)
             .put("takeProfit", tp ?: JSONObject.NULL).put("closing", closing)
-        val covered = live && planCovers(plan, account, norm, estUsd, futures, state)
-        return Verdict(true, emptyList(), norm, live && !covered, covered, estUsd, worst, summary(account, norm, estUsd, worst, futures))
+        val byPlan = live && planCovers(plan, account, norm, estUsd, futures, state)
+        val byLimits = live && !byPlan && standingCovers(state.optJSONObject("standing"), account, norm, estUsd, worst, futures, state)
+        return Verdict(true, emptyList(), norm, live && !byPlan && !byLimits, byPlan, estUsd, worst, summary(account, norm, estUsd, worst, futures), byLimits)
+    }
+
+    /**
+     * The user's pre-approved LIVE limits (set only by their own tap in Me → Trading, never by the model): orders inside
+     * them go without a tap. They need an expiry and a list of instruments, and the worst case must be known. Same as the PC.
+     */
+    fun standingCovers(s: JSONObject?, account: JSONObject, o: JSONObject, estUsd: Double, worst: Double?, futures: Boolean, state: JSONObject): Boolean {
+        if (s == null || !s.optBoolean("enabled") || s.optString("accountId") != account.optString("id")) return false
+        val exp = num(s, "expiresAt") ?: return false; val now = num(state, "now") ?: return false
+        if (exp <= 0 || now > exp) return false
+        val syms = s.optJSONArray("symbols")?.let { a -> (0 until a.length()).map { a.optString(it).uppercase() }.filter { it.isNotBlank() } } ?: emptyList()
+        val sym = o.optString("symbol")
+        if (syms.isEmpty() || syms.none { sym == it || sym.startsWith(it) }) return false
+        if (o.optBoolean("closing")) return true   // closing or reducing on an allowed instrument only lowers the risk
+        val sizeOk = if (futures) (o.optString("qty").toDoubleOrNull() ?: Double.MAX_VALUE) <= s.optDouble("maxContracts", 0.0) else estUsd <= s.optDouble("maxOrderUsd", 0.0) + 1e-9
+        if (!sizeOk || worst == null) return false   // a loss with no cap is never pre-approved
+        val lost = lossToday(num(state, "dayStartEquity"), num(state, "equity"))
+        return lost + worst <= s.optDouble("maxDailyLossUsd", 0.0) + 1e-9
     }
 
     private fun fmt(x: Double): String = BigDecimal(x.toString()).stripTrailingZeros().toPlainString()

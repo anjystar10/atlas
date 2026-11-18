@@ -98,10 +98,15 @@ export function registerProjects(aware) {
       const r = await host.projects.run(call.name, call.args || {}, false);
       briefAt = 0;
       if (!r || !r.needs) return r || { out: 'Error: no answer.' };
-      const mode = aware.src.mode ? aware.src.mode(r.needs, call.name, call.args || {}) : 'ask';
-      if (mode === 'deny') return { out: `Error: the user's standing choice is never to allow this kind of action (${r.needs.slice(0, 100)}). Tell them; they can change it in Me → Bot Permissions.` };
-      if (mode === 'allow') return host.projects.run(call.name, call.args || {}, true);
-      const ref = aware.addAsk(r.needs, () => host.projects.run(call.name, call.args || {}, true));
+      // >>> autonomy: go / Undo / ask / never by the kind of action (aware.js chatGate); without it, the older per-category choice
+      const kind = aware.kindOf(call.name, call.args || {}, r.needs);
+      if (aware.src.autonomy) { const g = await aware.chatGate(kind, r.needs); if (g.result) return g.result; if (g.go) return host.projects.run(call.name, call.args || {}, true); }
+      else {
+        const mode = aware.src.mode ? aware.src.mode(r.needs, call.name, call.args || {}) : 'ask';
+        if (mode === 'deny') return { out: `Error: the user's standing choice is never to allow this kind of action (${r.needs.slice(0, 100)}). Tell them; they can change it in Me → Bot Permissions.` };
+        if (mode === 'allow') return host.projects.run(call.name, call.args || {}, true);
+      }
+      const ref = aware.addAsk(r.needs, () => { aware.approvedKind(kind); return host.projects.run(call.name, call.args || {}, true); });
       return { out: `Needs the user's OK first [${ref}]: ${r.needs}. Ask them in one short line; when they say yes, call answer_approval with ref ${ref}.`, step: 'Waiting for your OK: ' + r.needs.slice(0, 60) };
     },
   });

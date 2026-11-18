@@ -164,7 +164,9 @@ class Approval(val what: String, val tool: String?, val args: JSONObject?, val e
     /** The kind of action (BotExtras categories), and whether the user's standing rule decided it rather than a tap. */
     var category: String? = null, var auto: Boolean = false,
     /** Money is involved (a payment page, or the action or its form says buy/pay/order): no standing rule may allow it. */
-    var mustAsk: Boolean = false)
+    var mustAsk: Boolean = false,
+    /** The autonomy kind (AutonomyRules.KINDS) and when the user was asked (an old ask expires: AutonomyRules.expired). */
+    var kind: String? = null, var askedAt: Long = 0)
 
 /**
  * One job. Plain JSON with no secrets (never a key), an id, updated_ms and the device that owns it, so it can later
@@ -263,7 +265,8 @@ class BotJob(
         .put("toolCalls", toolCalls).put("workMs", workMs).put("provider", provider ?: JSONObject.NULL).put("pending", pending ?: JSONObject.NULL)
         .put("approval", approval?.let { a -> JSONObject().put("what", a.what).put("tool", a.tool ?: JSONObject.NULL).put("args", a.args ?: JSONObject.NULL)
             .put("elementLabel", a.elementLabel ?: JSONObject.NULL).put("decision", a.decision ?: JSONObject.NULL)
-            .put("category", a.category ?: JSONObject.NULL).put("auto", a.auto).put("mustAsk", a.mustAsk) } ?: JSONObject.NULL)
+            .put("category", a.category ?: JSONObject.NULL).put("auto", a.auto).put("mustAsk", a.mustAsk)
+            .put("kind", a.kind ?: JSONObject.NULL).put("askedAt", a.askedAt) } ?: JSONObject.NULL)
         .put("question", question ?: JSONObject.NULL).put("answer", answer ?: JSONObject.NULL).put("report", report ?: JSONObject.NULL)
         .put("error", error ?: JSONObject.NULL).put("retryAt", retryAt).put("retries", retries).put("current", current ?: JSONObject.NULL).put("posted", posted)
         .put("device", device).put("updated_ms", updatedAt).put("suggestPc", suggestPc ?: JSONObject.NULL)
@@ -287,7 +290,7 @@ class BotJob(
             notes.addAll(o.optJSONArray("notes").strings()); steps.addAll(o.optJSONArray("steps").strings())
             sources.addAll(o.optJSONArray("sources").strings()); recent.addAll(o.optJSONArray("recent").strings())
             toolCalls = o.optInt("toolCalls"); workMs = o.optLong("workMs"); provider = o.str("provider"); pending = o.str("pending")
-            approval = o.optJSONObject("approval")?.let { a -> Approval(a.optString("what"), a.str("tool"), a.optJSONObject("args"), a.str("elementLabel"), a.str("decision"), a.str("category"), a.optBoolean("auto"), a.optBoolean("mustAsk")) }
+            approval = o.optJSONObject("approval")?.let { a -> Approval(a.optString("what"), a.str("tool"), a.optJSONObject("args"), a.str("elementLabel"), a.str("decision"), a.str("category"), a.optBoolean("auto"), a.optBoolean("mustAsk"), a.str("kind"), a.optLong("askedAt")) }
             question = o.str("question"); answer = o.str("answer"); report = o.str("report"); error = o.str("error")
             retryAt = o.optLong("retryAt"); retries = o.optInt("retries"); current = o.str("current"); posted = o.optBoolean("posted")
             suggestPc = o.str("suggestPc")

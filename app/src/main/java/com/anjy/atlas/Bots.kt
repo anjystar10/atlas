@@ -197,15 +197,33 @@ object Bots {
         persist(); changed(); pump()
     }
 
-    /** [always]: also allow this kind of action from now on (the user's standing choice, in Me). */
-    fun approve(id: String, yes: Boolean, always: Boolean = false) {
+    /**
+     * The user's tap or own words on an approval. [always]: also allow this kind from now on. [scope] (autonomy):
+     * "today", "bot" (this standing bot), "mission" (this mission) or "plan" (every kind its plan names, for this mission).
+     * Money and the high kinds are only ever allowed once (AutonomyRules.makeGrant refuses them).
+     */
+    fun approve(id: String, yes: Boolean, always: Boolean = false, scope: String? = null) {
         val j = job(id) ?: return
         val a = j.approval ?: return
         if (j.state != BotRules.AWAITING_APPROVAL) return
-        if (yes && always) a.category?.let { BotExtras.setMode(it, "allow") }
         a.decision = if (yes) "approved" else "denied"
+        if (yes && ::app.isInitialized) {
+            // >>> autonomy: count it (after 3, offer "always"), remember who was messaged, and any wider OK the user gave
+            val kind = a.kind ?: Autonomy.kindFor(app, a.tool, a.args, a.category, a.what, money = a.mustAsk)
+            if (a.tool == "send_sms") Autonomy.rememberRecipients(app, a.args?.optString("to"))
+            if (a.tool == "email_send") Autonomy.rememberRecipients(app, Email.draftTo(a.args?.optString("draft_id")))
+            if (!a.mustAsk) when {
+                always -> Autonomy.grant(app, kind, "always")
+                scope == "today" -> Autonomy.grant(app, kind, "today")
+                scope == "bot" -> Autonomy.grant(app, kind, "bot", botId = botIdOf(j))
+                scope == "mission" -> Autonomy.grant(app, kind, "mission", missionId = rootOf(j).id)
+                scope == "plan" -> { val r = rootOf(j); (AutonomyRules.planKindsOf(r.plan.map { it.text }) { BotExtras.Rules.guessCategory(it) } + kind).distinct().forEach { Autonomy.grant(app, it, "mission", missionId = r.id) } }
+                else -> Autonomy.approved(app, kind)
+            }
+            // <<< autonomy
+        }
         j.move(BotRules.QUEUED, System.currentTimeMillis()); cancelAlert(j)
-        persist(); changed(); pump()
+        persist(); changed(); pump(); batchNotify()
     }
 
     fun answer(id: String, text: String) {
@@ -324,6 +342,7 @@ object Bots {
         if (!loaded) return
         wakeParents()
         val now = System.currentTimeMillis()
+        expireOldApprovals(now)   // >>> autonomy
         // how many may work at once depends on the phone right now: one when it's hot, short of memory or saving battery
         val slots = try { minOf(BotRules.MAX_RUNNING, ModelDirector.botSlots(DeviceProfiler.read(app))) } catch (_: Exception) { 1 }
         BotRules.toStart(jobs.filter { it.id !in workers && it.state != BotRules.RUNNING }, now, slots - workers.size)
@@ -567,7 +586,7 @@ object Bots {
                         // >>> trading: a LIVE order waits for the user's tap on the job page; "always allow" never covers it (Trading.kt)
                         in Trading.names -> {
                             val need = Trading.needForBot(app, j.id, c)
-                            if (need != null) { askApproval(j, Approval(need.take(600), c.name, JSONObject(c.args.toString()), null, category = "purchase", mustAsk = true)); return }
+                            if (need != null) { askApproval(j, Approval(need.take(600), c.name, JSONObject(c.args.toString()), null, category = "purchase", mustAsk = true, kind = "live_trade")); return }
                             results.add(c to runTrade(j, c, approved = false))
                         }
                         // <<< trading
@@ -575,8 +594,8 @@ object Bots {
                             if (c.name !in toolNames && !Connections.owns(c.name) && c.name !in Capabilities.names(app, forBots = true)) { results.add(c to "Error: there's no tool called ${c.name}."); continue }
                             val label = if (c.name == "tap" || c.name == "long_press") withContext(Dispatchers.Default) { PhoneControl.labelOf(c.args.optInt("element", -1)) } else null
                             BotRules.phoneApproval(c.name, c.args, label)?.let { what ->
-                                // >>> background first: a text message asks every time, whatever the standing rules say
-                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label, mustAsk = c.name == "send_sms")); return
+                                // >>> autonomy: a text to someone Atlas never texted with the user's OK is the "new person" kind and always asks
+                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label)); return
                             }
                             // >>> background first: a heads-up before a bot uses the screen (ScreenGate.kt); "always allow" can cover it
                             ScreenGate.botHeadsUp(app, j.id, c.name, c.args)?.let { what ->
@@ -673,6 +692,7 @@ object Bots {
         val a = j.approval ?: return
         val d = a.decision ?: return
         j.approval = null
+        if (d == "undone") { j.notes.add("The user tapped Undo on: ${a.what}. It was NOT done. Don't try it again; find another way or finish without it."); persist(); return }
         if (d == "denied") {
             j.notes.add(if (a.auto) "The user never allows this kind of action (${a.what}). Don't do it; find another way or finish without it." else "The user said NO to: ${a.what}. Don't do it; find another way or finish without it.")
             if (!a.auto) j.step("You said no to: ${a.what}")
@@ -715,22 +735,60 @@ object Bots {
     }
 
     private suspend fun askApproval(j: BotJob, a: Approval) {
-        // the user's standing choice for this kind of action: always allowed, never allowed, or ask (BotExtras)
+        // >>> autonomy: the kind of action, then go / go with 10 seconds to Undo / ask / never (Autonomy.kt; the PC's autonomy.js)
         a.category = a.category ?: BotExtras.Rules.categoryOf(a.tool, a.args, a.what)
-        // "Always allow" never covers money: a payment page, or a buy/pay/order action, always waits for a tap
-        val mode = BotExtras.mode(a.category!!).let { if (it == "allow" && a.mustAsk) "ask" else it }
-        if (mode != "ask") {
-            a.decision = if (mode == "allow") "approved" else "denied"; a.auto = true
+        // money (a payment page, or a buy/pay/order action) is the purchase kind and always waits for a tap
+        a.kind = a.kind ?: Autonomy.kindFor(app, a.tool, a.args, a.category, a.what, money = a.mustAsk)
+        val d = Autonomy.decide(app, a.kind!!, a.mustAsk, botIdOf(j), rootOf(j).id)
+        var act = d.act
+        if (act == "undo") {
+            j.current = "About to: ${a.what.take(100)} (10 seconds to Undo)"; persistNow(); changed()
+            act = when (Autonomy.countdown(app, a.what)) { true -> "go"; false -> "undone"; null -> "ask" }
+        }
+        if (act != "ask") {
+            a.decision = when (act) { "go" -> "approved"; "deny" -> "denied"; else -> "undone" }; a.auto = act != "undone"
             j.approval = a; j.current = null
-            j.step((if (mode == "allow") "Allowed by your rule (you always allow: " else "Not done: you never allow ") + BotExtras.Rules.label(a.category).lowercase() + (if (mode == "allow") ")" else "") + ": ${a.what}")
+            j.step(when (act) {
+                "go" -> "Did it on its own (${d.why}): ${a.what}"
+                "deny" -> "Not done: you never allow ${AutonomyRules.kindLabel(a.kind).lowercase()}: ${a.what}"
+                else -> "You tapped Undo: ${a.what}"
+            })
+            if (act == "go") Autonomy.noteDone(app, a.what, a.kind!!)
             // straight back in the queue: the decision is acted on at the start of its next turn, like a tapped one
             j.move(BotRules.AWAITING_APPROVAL, System.currentTimeMillis()); j.move(BotRules.QUEUED, System.currentTimeMillis())
             persistNow(); changed(); main.post { pump() }
             return
         }
+        // <<< autonomy
+        a.askedAt = System.currentTimeMillis()
         j.approval = a; j.current = null
         j.move(BotRules.AWAITING_APPROVAL, System.currentTimeMillis()); j.step("Waiting for your OK: ${a.what}")
         persistNow(); notifyAlert(j, "Atlas Bot needs your OK", a.what, approval = true); changed()
+        batchNotify()
+    }
+
+    /** >>> autonomy: everything the bots are waiting on, as one batch (Approve All covers only what may be bulk-approved). */
+    private fun waitingApprovals(): List<BotJob> = (jobs.toList()).filter { it.state == BotRules.AWAITING_APPROVAL && it.approval != null && it.approval?.decision == null }
+    private fun batchNotify() {
+        if (!::app.isInitialized) return
+        Autonomy.batchNotify(app, waitingApprovals().map { AutonomyRules.Pending(it.id, it.approval!!.what, it.approval!!.kind ?: "other", it.approval!!.mustAsk) })
+    }
+    /** "Approve All" (the user's tap on the batch card): every waiting approval that may be bulk-approved; money and high kinds still need their own tap. */
+    fun approveAll() {
+        val list = waitingApprovals()
+        val b = AutonomyRules.batch(list.map { AutonomyRules.Pending(it.id, it.approval!!.what, it.approval!!.kind ?: "other", it.approval!!.mustAsk) })
+        b.bulk.forEach { approve(it.ref, true) }
+    }
+    /** Expires approvals nobody answered for too long (AutonomyRules.ASK_TTL_MS): the bot is told no and carries on without it. */
+    private fun expireOldApprovals(now: Long) {
+        for (j in waitingApprovals()) {
+            val a = j.approval ?: continue
+            if (!AutonomyRules.expired(a.askedAt, now, "bot")) continue
+            a.decision = "denied"; a.auto = false
+            j.notes.add("Nobody answered the request for: ${a.what} for over ${AutonomyRules.ASK_TTL_MS.getValue("bot") / 3_600_000} hours, so it was NOT done. Finish without it, or ask again if it's essential.")
+            j.step("Your OK expired (no answer): ${a.what.take(100)}")
+            j.move(BotRules.QUEUED, now); cancelAlert(j)
+        }
     }
 
     private fun waitAndRetry(j: BotJob, why: String) {
@@ -1081,6 +1139,12 @@ ${Tools.logContext(ctx)}
         if (approval) {
             b.addAction(Notification.Action.Builder(null, "Approve", actionIntent(app, j, BotReceiver.ACTION_APPROVE)).build())
             b.addAction(Notification.Action.Builder(null, "Deny", actionIntent(app, j, BotReceiver.ACTION_DENY)).build())
+            // >>> autonomy: one tap for the rest of this mission's plan (never for money or the always-ask kinds)
+            val ap = j.approval
+            if (ap != null && !ap.mustAsk && AutonomyRules.tierOf(ap.kind) == "medium") {
+                if (rootOf(j).plan.isNotEmpty()) b.addAction(Notification.Action.Builder(null, "Approve Whole Plan", actionIntent(app, j, BotReceiver.ACTION_APPROVE_PLAN)).build())
+                else b.addAction(Notification.Action.Builder(null, "Allow Today", actionIntent(app, j, BotReceiver.ACTION_APPROVE_TODAY)).build())
+            }
         }
         try { app.getSystemService(NotificationManager::class.java).notify(notifId(j), b.build()) } catch (e: SecurityException) { Log.w(TAG, "notify", e) }
     }

@@ -350,9 +350,17 @@ object Connections {
             return Tools.Result(if (entry(c.name) != null) "Error: that service isn't allowed for ${if (who == "bots") "bots" else "the chat"} (the user can change that in Me → Connections)." else "Error: there's no tool called ${c.name}. The connection may have been removed or switched off.")
         }
         if (!approved) approval(c.name, a)?.let { need ->
-            val ask = asker ?: return Tools.Result("Not done: this needs the user's OK ($need), and Atlas isn't open on screen to ask. Tell them what you'd do, and ask them to open Atlas and ask again.")
-            val yes = withTimeoutOrNull(120_000) { ask(need) } ?: false
-            if (!yes) return Tools.Result("The user said no to that.")
+            // >>> autonomy: go / Undo / ask / never by the kind of action (Autonomy.kt)
+            val kind = Autonomy.kindFor(ctx, c.name, a, BotExtras.Rules.connectionCategory(c.name, a), need)
+            var asked = false
+            Autonomy.chatGate(ctx, kind, need) { asked = true; Tools.Result("") }?.let { if (!asked) return it }
+            if (asked) {
+                val ask = asker ?: return Tools.Result("Not done: this needs the user's OK ($need), and Atlas isn't open on screen to ask. Tell them what you'd do, and ask them to open Atlas and ask again.")
+                val yes = withTimeoutOrNull(120_000) { ask(need) } ?: false
+                if (!yes) return Tools.Result("The user said no to that.")
+                Autonomy.approved(ctx, kind)
+            }
+            // <<< autonomy
         }
         return withContext(Dispatchers.IO) {
             if (c.name == McpWire.CALL_API) {

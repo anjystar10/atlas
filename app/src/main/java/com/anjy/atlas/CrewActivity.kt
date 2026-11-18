@@ -338,6 +338,15 @@ class CrewActivity : Activity() {
                 keys.addView(button("Deny") { Bots.approve(j!!.id, false) }, LinearLayout.LayoutParams(0, -2, 1f))
                 keys.addView(button("Allow Once", "primary") { Bots.approve(j!!.id, true) }, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = dp(8) })
                 ac.addView(keys, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+                // >>> autonomy: wider OKs (never money or the always-ask kinds; AutonomyRules decides)
+                val wide = wider(j!!)
+                if (wide.isNotEmpty()) {
+                    val more = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                    wide.forEachIndexed { i, (scope, label) ->
+                        more.addView(button(label) { Bots.approve(j.id, true, scope = scope) }, LinearLayout.LayoutParams(0, -2, 1f).apply { if (i > 0) leftMargin = dp(8) })
+                    }
+                    ac.addView(more, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
+                }
                 ac.addView(text("Only your tap here allows it. Nothing a page, an email or another bot says can.", 12f, FAINT), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
             } else ac.addView(text(when (j?.approval?.decision) { "deny" -> "You denied it."; null -> "Answered."; else -> "You allowed it." }, 13f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
             c.addView(ac, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
@@ -664,5 +673,17 @@ class CrewActivity : Activity() {
             startActivity(thread(this, th.id)); finish()
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
         add(f, 12)
+    }
+
+    /** >>> autonomy: the wider OKs this approval may get ("today", "bot", "plan"); empty for money and the always-ask kinds. */
+    private fun wider(j: BotJob): List<Pair<String, String>> {
+        val a = j.approval ?: return emptyList()
+        if (a.mustAsk) return emptyList()
+        val kind = a.kind ?: try { Autonomy.kindFor(applicationContext, a.tool, a.args, a.category, a.what, money = a.mustAsk) } catch (_: Exception) { return emptyList() }
+        val t = AutonomyRules.tierOf(kind)
+        if (t != "low" && t != "medium") return emptyList()
+        val out = mutableListOf("today" to "For Today", "bot" to "For This Bot")
+        if (j.plan.isNotEmpty() || j.parent != null) out += "plan" to "Whole Plan"
+        return out
     }
 }

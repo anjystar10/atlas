@@ -237,6 +237,8 @@ object Conversation {
         val t = text.trim()
         if (t.isEmpty()) return
         if (!busy) { send(ctx, t, spoken = true, onSpoken = onSpoken); return }
+        // what the user says while Atlas is still working is theirs too: a spoken "yes, go ahead" can approve (Situation.consent)
+        Situation.heard(t)
         messages.add(Msg(true, t, "You", System.currentTimeMillis()))
         live.add(t)
         changed()

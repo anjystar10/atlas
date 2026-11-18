@@ -161,6 +161,8 @@ object Situation {
         // waiting on the user: first, because it's what they most need to hear about
         add("Waiting for the user (answer with answer_approval; if they just say \"yes\"/\"go ahead\"/\"no\" and one thing is waiting, that's the one)",
             pending(ctx).take(6).map { "[${it.ref}] ${if (it.question) "question" else "needs OK"} from ${it.from}: ${it.what.take(140)}" })
+        // >>> autonomy: how freely Atlas may act (one short line)
+        Autonomy.briefLine(ctx).takeIf { it.isNotEmpty() }?.let { parts.add(it) }
 
         // around: the now line and alerts worth mentioning (whats_around has the rest)
         try { add("Around you", SelfAware.aroundLines(ctx, markSeen)) } catch (_: Exception) {}
@@ -252,8 +254,16 @@ object AwareTools {
         put(fn("answer_approval", "Give the user's yes or no to something waiting for their OK (a bot's action, the laptop's action, or one of yours), or their answer to a bot's question. Only when the user actually said so.",
             JSONObject().put("ref", str("The [ref] from the brief. May be empty if exactly one thing is waiting."))
                 .put("yes", bool("true: go ahead. false: don't."))
-                .put("always", bool("Also allow this kind of action from now on (only if the user's own message says 'always'; money never)."))
+.put("always", bool("Also allow this kind of action from now on (only if the user's own message says 'always'; money never)."))
+                .put("scope", str("When the user's yes covers more than this one: today (this kind, for today), bot (this kind, for this bot), plan (everything this bot's plan names, for this job). Money and new people are never covered.", listOf("once", "today", "bot", "plan")))
+                .put("all", bool("The user said yes to everything waiting (\"approve all\"): approves every waiting bot action except money and the always-ask kinds."))
                 .put("answer", str("For a bot's question: the user's answer.")), listOf("yes")))
+        // >>> autonomy: how freely Atlas acts (Autonomy.kt)
+        put(fn("autonomy", "See or change how freely Atlas acts without asking. Levels: careful (asks before anything that changes things), balanced (small things just happen with 10 seconds to Undo; asks once per kind of bigger thing), autopilot (only money, deleting, new people and security ask). Money, deleting, messaging someone new and security changes ALWAYS ask whatever the level. Only change it when the user's own message asks for it.",
+            JSONObject().put("action", str("status, set_level, set_bot_level, revoke", listOf("status", "set_level", "set_bot_level", "revoke")))
+                .put("level", str("careful, balanced or autopilot (for set_bot_level: empty = same as Atlas)"))
+                .put("bot", str("The bot's name or id (set_bot_level)"))
+                .put("index", JSONObject().put("type", "integer").put("description", "Which standing permission to remove (revoke), from status")), listOf("action")))
         put(fn("web", "Do something on a website yourself, right now, in Atlas's own browser (quick jobs of a few steps: look something up on a site, fill a short form, check a page). For long jobs send a bot instead. Each action returns the page as text with numbered links, buttons and fields. Risky clicks or submits (send, buy, post, delete…) wait for the user's OK.",
             JSONObject().put("action", str("open (needs url), read, click (target), type (target, text, submit), select (target, option), press (key), scroll, back", listOf("open", "read", "click", "type", "select", "press", "scroll", "back")))
                 .put("url", str("For open: the web address")).put("target", str("A number from the latest page list, or the visible text of the element"))
@@ -280,6 +290,7 @@ object AwareTools {
         return when (c.name) {
             "bots" -> withContext(Dispatchers.Main) { bots(ctx, a) }
             "answer_approval" -> withContext(Dispatchers.Main) { approve(ctx, a) }
+            "autonomy" -> autonomy(ctx, a)
             "web" -> web(ctx, a)
             else -> null
         }
@@ -315,8 +326,51 @@ object AwareTools {
         }
     }
 
+    // >>> autonomy
+    private fun autonomy(ctx: Context, a: JSONObject): Tools.Result {
+        BotExtras.init(ctx)
+        return when (a.optString("action")) {
+            "set_level" -> Autonomy.setLevel(ctx, a.optString("level"), byTap = false)?.let { Tools.Result("Error: not changed: $it. Ask the user to say so themselves, or to change it in Me → Permissions.") }
+                ?: Tools.Result("Autonomy is now ${a.optString("level")}: ${AutonomyRules.LEVEL_LABELS[a.optString("level")]}", "Autonomy: ${a.optString("level")}")
+            "set_bot_level" -> {
+                val q = a.optString("bot").trim().lowercase()
+                val b = BotExtras.specialists.toList().firstOrNull { it.optString("id").lowercase() == q || it.optString("name").lowercase() == q }
+                    ?: BotExtras.specialists.toList().firstOrNull { q.isNotEmpty() && it.optString("name").lowercase().contains(q) }
+                    ?: return Tools.Result("Error: no bot called ${a.optString("bot")}.")
+                val lv = a.optString("level").ifBlank { null }
+                Autonomy.setBotLevel(ctx, b.optString("id"), lv, byTap = false)?.let { Tools.Result("Error: not changed: $it.") }
+                    ?: Tools.Result("${b.optString("name")} now works at ${lv ?: "the same level as Atlas"} (never bolder than Atlas).", "${b.optString("name")}: ${lv ?: "same as Atlas"}")
+            }
+            "revoke" -> {
+                val i = a.optInt("index", -1); val g = Autonomy.grants(ctx)
+                if (i !in g.indices) return Tools.Result("Error: no standing permission ${a.optInt("index")}.")
+                Autonomy.revoke(ctx, i); Tools.Result("Removed: ${AutonomyRules.grantText(g[i])}. That kind asks again.", "Removed a permission")
+            }
+            else -> {
+                val p = Autonomy.policy(ctx)
+                Tools.Result(buildString {
+                    append("Level: ${AutonomyRules.levelOf(p)} — ${AutonomyRules.LEVEL_LABELS[AutonomyRules.levelOf(p)]}\n")
+                    if (p.botLevels.isNotEmpty()) append("Bots: " + p.botLevels.entries.joinToString { (id, lv) -> "${BotExtras.specialists.toList().firstOrNull { it.optString("id") == id }?.optString("name") ?: id}: $lv" } + "\n")
+                    append(if (p.grants.isEmpty()) "No standing permissions.\n" else "Standing permissions:\n" + p.grants.mapIndexed { i, g -> "$i. ${AutonomyRules.grantText(g) { id -> BotExtras.specialists.toList().firstOrNull { it.optString("id") == id }?.optString("name") ?: id ?: "" }}" }.joinToString("\n") + "\n")
+                    Autonomy.recent(ctx).takeLast(5).takeIf { it.isNotEmpty() }?.let { r -> append("Done without asking lately: " + r.joinToString("; ") { it.optString("what").take(60) }) }
+                }.trim())
+            }
+        }
+    }
+    // <<< autonomy
+
     private suspend fun approve(ctx: Context, a: JSONObject): Tools.Result {
         Bots.init(ctx)
+        // >>> autonomy: "approve all" — every waiting bot action that may be bulk-approved (never money or the always-ask kinds)
+        if (a.optBoolean("all") && a.optBoolean("yes")) {
+            val c = Situation.consent()
+            if (!c.yes) return Tools.Result("Error: not allowed: ${c.why}. Only the user's own words can approve these.")
+            val before = Situation.pending(ctx).size
+            Bots.approveAll()
+            val left = Situation.pending(ctx)
+            return Tools.Result("Approved ${before - left.size}. " + (if (left.isEmpty()) "Nothing else is waiting." else "Still waiting for their own yes (money, new people, deleting or security, or questions): " + left.joinToString("; ") { "[${it.ref}] ${it.what.take(60)}" }), "Approved all that could be")
+        }
+        // <<< autonomy
         val all = Situation.pending(ctx)
         if (all.isEmpty()) return Tools.Result("Nothing is waiting for the user's OK right now.")
         val p = Situation.pick(all, a.optString("ref").ifBlank { null })
@@ -333,7 +387,7 @@ object AwareTools {
         }
         return when {
             kind == "bot" && p.question -> { val t = a.optString("answer").trim(); if (t.isEmpty()) Tools.Result("Error: the bot asked “${p.what}”; give the user's answer in answer.") else { Bots.answer(id, t); Tools.Result("Gave the bot the answer.", "Answered the bot") } }
-            kind == "bot" -> { Bots.approve(id, yes, always = yes && always); Tools.Result(if (yes) "Allowed; the bot carries on." else "Denied; the bot will find another way or stop.", if (yes) "Allowed: ${p.what.take(60)}" else "Denied: ${p.what.take(60)}") }
+            kind == "bot" -> { Bots.approve(id, yes, always = yes && always, scope = if (yes) a.optString("scope").takeIf { it in listOf("today", "bot", "plan") } else null); Tools.Result(if (yes) "Allowed; the bot carries on." else "Denied; the bot will find another way or stop.", if (yes) "Allowed: ${p.what.take(60)}" else "Denied: ${p.what.take(60)}") }
             kind == "laptop" -> { withContext(Dispatchers.IO) { LinkTasks.answer(id, yes) }; Tools.Result(if (yes) "Allowed on the laptop." else "Denied on the laptop.", if (yes) "Allowed on your laptop: ${p.what.take(50)}" else "Denied on your laptop") }
             else -> { val ask = ChatAsk.take(p.ref) ?: return Tools.Result("Error: that request has expired; do it again.")
                 if (!yes) Tools.Result("OK, not doing it.", "Didn't: ${ask.what.take(60)}") else Tools.Result(ask.run(ctx), "Did: ${ask.what.take(60)}") }
@@ -353,18 +407,20 @@ object AwareTools {
             val what = BrowserRules.approval(tool, args, label, inForm, BotBrowser.site())
             if (what != null) {
                 BotExtras.init(ctx)
-                val cat = BotExtras.Rules.categoryOf(tool, args, what)
-                when (BotExtras.mode(cat)) {
-                    "deny" -> return@withContext Tools.Result("Error: the user's standing choice is never to allow this kind of action (${what.take(80)}). Tell them; they can change it in Me → Bot Permissions.")
-                    "allow" -> {}
-                    else -> {
-                        val ref = ChatAsk.add(what) { c2 -> withContext(Dispatchers.Main) {
-                            // the page must still show what they agreed to
-                            if (label != null && BotBrowser.inspect(c2, CHAT_JOB, tool, args).first != label) "The page changed, so I didn't do it. Read it again and ask again."
-                            else BotBrowser.run(c2, CHAT_JOB, tool, args).text } }
-                        return@withContext Tools.Result("Needs the user's OK first [$ref]: $what. Ask them in one short line; when they say yes, call answer_approval with ref $ref.", "Waiting for your OK: ${what.take(60)}")
-                    }
-                }
+                // >>> autonomy: the kind of action (money on the page makes it a purchase), then go / Undo / ask / never (Autonomy.kt)
+                val sig = if (tool in BrowserRules.moneyTools) BotBrowser.signals(ctx, CHAT_JOB, tool, args) else BrowserRules.Signals()
+                val money = BrowserRules.moneyRisk(tool, sig)
+                val kind = Autonomy.kindFor(ctx, tool, args, BotExtras.Rules.categoryOf(tool, args, what), what, money = money)
+                Autonomy.chatGate(ctx, kind, what, mustAsk = money) {
+                    val ref = ChatAsk.add(what) { c2 -> Autonomy.approved(c2, kind); withContext(Dispatchers.Main) {
+                        // the page must still show what they agreed to
+                        if (label != null && BotBrowser.inspect(c2, CHAT_JOB, tool, args).first != label) "The page changed, so I didn't do it. Read it again and ask again."
+                        else BotBrowser.run(c2, CHAT_JOB, tool, args).text } }
+                    Tools.Result("Needs the user's OK first [$ref]: $what. Ask them in one short line; when they say yes, call answer_approval with ref $ref.", "Waiting for your OK: ${what.take(60)}")
+                }?.let { return@withContext it }
+                // the page must still show what was decided on after the Undo wait
+                if (label != null && BotBrowser.inspect(ctx, CHAT_JOB, tool, args).first != label) return@withContext Tools.Result("The page changed while waiting, so I didn't do it. Read it again.")
+                // <<< autonomy
             }
             val out = BotBrowser.run(ctx, CHAT_JOB, tool, args)
             Tools.Result(out.text + (out.waitForUser?.let { "\n\n(The user must do this themselves: $it They can open the bot's browser from the Bots tab.)" } ?: ""), out.step)

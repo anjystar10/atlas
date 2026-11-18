@@ -118,4 +118,21 @@ async function resume(win) {
   core.resume(); return true;
 }
 
-module.exports = { core, list, save, remove, setLimits, test, resume, stopAll: (reason) => core.run('trade_stop_all', { reason: reason || 'from the tray' }) };
+/**
+ * Pre-approved LIVE limits: LIVE orders inside them go without a tap. Only from Me → Trading, and only after the user
+ * confirms in a native dialog (the page and the model can't answer it). lim null turns them off (no dialog needed).
+ */
+async function setStanding(win, id, lim) {
+  if (!lim) { core.setStanding(id, null); return { ok: true }; }
+  const a = (store.get().accounts || []).find((x) => x.id === id); if (!a) return { error: 'No such account.' };
+  const syms = (Array.isArray(lim.symbols) ? lim.symbols : String(lim.symbols || '').split(/[\s,]+/)).map((x) => String(x).trim().toUpperCase()).filter(Boolean);
+  if (!syms.length) return { error: 'List the instruments these limits cover.' };
+  const r = await dialog.showMessageBox(win, { type: 'warning', buttons: ['Pre-approve These Trades', 'Cancel'], defaultId: 1, cancelId: 1, title: 'LIVE trading without a tap',
+    message: `Let Atlas place LIVE orders on ${a.name} without asking you each time?`,
+    detail: `Only ${syms.join(', ')}; at most $${Number(lim.maxOrderUsd) || 0} (spot) or ${Number(lim.maxContracts) || 0} contract(s) per order; at most $${Number(lim.maxDailyLossUsd) || 0} lost in a day; for ${Math.max(1, Math.min(Number(lim.days) || 7, 90))} days. Every account limit still applies, and anything outside these still asks. This is real money: losses are possible.` });
+  if (r.response !== 0) return { ok: false };
+  const v = core.setStanding(id, lim);
+  return v && v.error ? v : { ok: true, standing: v };
+}
+
+module.exports = { core, list, save, remove, setLimits, setStanding, test, resume, stopAll: (reason) => core.run('trade_stop_all', { reason: reason || 'from the tray' }) };

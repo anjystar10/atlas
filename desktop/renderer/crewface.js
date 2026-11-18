@@ -60,7 +60,7 @@ export function tree(id) {
   return conv(t);
 }
 export const startMission = (botId, goal, opts = {}) => engine().startMission(botId, goal, opts);
-export const approve = (id, yes, always) => jobs().approve(id, yes, always);
+export const approve = (id, yes, always, scope = null) => jobs().approve(id, yes, always, scope);   // scope (autonomy): 'today' | 'bot' | 'plan'
 export const answer = (id, text) => jobs().answer(id, text);
 export const steer = (id, text) => jobs().steer(id, text);
 export const stop = (id) => jobs().stop(id);

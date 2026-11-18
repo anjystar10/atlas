@@ -9,6 +9,7 @@
 
 import { parsePlanTree, planText, planProgress, missionDefaults, allows as crewAllows, capabilityOf, narrowAccess, budgetCheck, usageToday, dayOf, agentSlice,
   dryRunSkips, userSaid, emitter, MAX_AGENT_DEPTH, MAX_AGENT_CHILDREN, MAX_AGENT_TREE } from './crew.js';
+import { planKindsOf, batch as autonomyBatch, expired as autonomyExpired } from './autonomy.js';   // >>> autonomy
 
 export const S = {
   QUEUED: 'queued', RUNNING: 'running', WAITING_RETRY: 'waiting_retry', AWAITING_APPROVAL: 'awaiting_approval', AWAITING_ANSWER: 'awaiting_answer',
@@ -340,12 +341,45 @@ export function createBots(deps) {
     for (const c of j.children || []) stop(c);   // its helpers stop with it
     persist(); changed(); finalHook(j); pump();
   }
-  /** [always]: also allow this kind of action from now on (the user's standing choice, in Me). */
-  function approve(id, yes, always = false) {
+  /**
+   * The user's tap or own words on an approval. [always]: also allow this kind from now on. [scope] (autonomy):
+   * 'today', 'bot' (this standing bot), 'mission', or 'plan' (every kind its plan names, for this mission).
+   * Money and the always-ask kinds are only ever allowed once (autonomy.js makeGrant refuses them).
+   */
+  function approve(id, yes, always = false, scope = null) {
     const j = job(id); if (!j || !j.approval || j.state !== S.AWAITING_APPROVAL) return;
-    j.approval.decision = yes ? 'approved' : 'denied';
-    if (yes && always && ex && j.approval.category) ex.setMode(j.approval.category, 'allow');
-    move(j, S.QUEUED, now()); persist(); changed(); pump();
+    const a = j.approval;
+    a.decision = yes ? 'approved' : 'denied';
+    const au = ex && ex.autonomy;
+    if (yes && au) {
+      // >>> autonomy: count it (after 3, offer "always"), remember who was messaged, and any wider OK the user gave
+      const kind = a.kind || au.kindFor(a.tool, a.args || {}, a.category, { what: a.what, money: !!a.mustAsk });
+      if (a.tool === 'send_sms' || a.tool === 'email_send') au.rememberRecipients((a.args && a.args.to) || a.to || '');
+      if (!a.mustAsk) {
+        if (always) au.grant(kind, 'always');
+        else if (scope === 'today') au.grant(kind, 'today');
+        else if (scope === 'bot') au.grant(kind, 'bot', { botId: botIdOf(j) });
+        else if (scope === 'mission') au.grant(kind, 'mission', { missionId: rootOf(j).id });
+        else if (scope === 'plan') { const r = rootOf(j); for (const k of new Set([...planKindsOf((r.plan || []).map((p) => p.text), ex.guessCategory || null), kind])) au.grant(k, 'mission', { missionId: r.id }); }
+        else { const o = au.approved(kind); if (o.offer && deps.offerAlways) deps.offerAlways(kind); }
+      }
+    } else if (yes && always && ex && a.category) ex.setMode(a.category, 'allow');
+    move(j, S.QUEUED, now()); persist(); changed(); pump(); batchNotify();
+  }
+  /** >>> autonomy: everything the bots are waiting on, as one batch; "Approve All" covers only what may be bulk-approved. */
+  const waitingApprovals = () => jobs.filter((x) => x.state === S.AWAITING_APPROVAL && x.approval && !x.approval.decision);
+  const pendingOf = (x) => ({ ref: x.id, what: x.approval.what, kind: x.approval.kind || 'other', mustAsk: !!x.approval.mustAsk });
+  function batchNotify() { if (deps.batch) { try { deps.batch(waitingApprovals().map(pendingOf)); } catch (e) { console.error(e); } } }
+  function approveAll() { const b = autonomyBatch(waitingApprovals().map(pendingOf)); for (const p of b.bulk) approve(p.ref, true); return b; }
+  /** Approvals nobody answered for too long: the bot is told no and carries on without it. */
+  function expireOldApprovals(t) {
+    for (const x of waitingApprovals()) {
+      if (!autonomyExpired(x.approval.askedAt || 0, t, 'bot')) continue;
+      x.approval.decision = 'denied'; x.approval.auto = false;
+      x.notes.push(`Nobody answered the request for: ${x.approval.what} for over 12 hours, so it was NOT done. Finish without it, or ask again if it's essential.`);
+      step(x, 'Your OK expired (no answer): ' + String(x.approval.what).slice(0, 100));
+      move(x, S.QUEUED, t);
+    }
   }
   function answer(id, text) {
     const j = job(id); if (!j || j.state !== S.AWAITING_ANSWER || !String(text || '').trim()) return;
@@ -393,6 +427,7 @@ export function createBots(deps) {
     if (!loaded) return;
     wakeParents();
     const t = now();
+    expireOldApprovals(t);   // >>> autonomy
     // how many bots and agents may work at once depends on the device right now (deps.slots), up to MAX_PARALLEL
     const cap = Math.max(1, Math.min(MAX_PARALLEL, (deps.slots && deps.slots()) || MAX_RUNNING));
     for (const j of toStart(jobs.filter((x) => !workers.has(x.id) && x.state !== S.RUNNING), t, cap - workers.size)) {
@@ -447,25 +482,42 @@ export function createBots(deps) {
   }
 
   async function askApproval(j, a) {
-    // the user's standing choice for this kind of action: always allowed, never allowed, or ask (botx.js)
     if (ex) {
       // its kind: the strongest risk in everything it says (the page around it too, when the browser looked)
       a.category = a.category || (a.riskText && ex.guess ? ex.guess(a.riskText + ' ' + a.what, a.tool, a.args) : ex.categoryOf(a.tool, a.args || {}, a.what));
-      // "Always allow" never covers money: a payment page, or a buy/pay/order action, always waits for a tap
-      let mode = ex.mode(a.category); if (mode === 'allow' && a.mustAsk) mode = 'ask';
-      if (mode !== 'ask') {
-        j.approval = { ...a, decision: mode === 'allow' ? 'approved' : 'denied', auto: true };
-        step(j, (mode === 'allow' ? 'Allowed by your rule (you always allow: ' : 'Not done: you never allow ') + ex.label(a.category).toLowerCase() + (mode === 'allow' ? ')' : '') + ': ' + a.what);
+      let act, why = '';
+      if (ex.autonomy) {
+        // >>> autonomy: go / go with 10 seconds to Undo / ask / never, by the kind of action (autonomy.js; the phone's AutonomyRules.kt)
+        // money (a payment page, or a buy/pay/order action) is the purchase kind and always waits for a tap
+        a.kind = a.kind || ex.autonomy.kindFor(a.tool, a.args || {}, a.category, { what: a.what, money: !!a.mustAsk });
+        const d = ex.autonomy.decide(a.kind, { mustAsk: !!a.mustAsk, botId: botIdOf(j), missionId: rootOf(j).id });
+        act = d.act; why = d.why;
+        if (act === 'undo') {
+          j.current = `About to: ${String(a.what).slice(0, 100)} (10 seconds to Undo)`; persist(); changed();
+          const r = deps.countdown ? await deps.countdown(a.what) : null;
+          act = r === true ? 'go' : r === false ? 'undone' : 'ask';
+        }
+      } else {
+        // (no autonomy: the older per-category choice) "Always allow" never covers money
+        act = ex.mode(a.category); if (act === 'allow' && a.mustAsk) act = 'ask';
+        act = act === 'allow' ? 'go' : act;
+      }
+      if (act !== 'ask') {
+        j.approval = { ...a, decision: act === 'go' ? 'approved' : act === 'deny' ? 'denied' : 'undone', auto: act !== 'undone' };
+        step(j, act === 'go' ? `Did it on its own${why ? ` (${why})` : ''}: ${a.what}` : act === 'deny' ? `Not done: you never allow ${ex.label(a.category).toLowerCase()}: ${a.what}` : 'You tapped Undo: ' + a.what);
+        if (act === 'go' && ex.autonomy) ex.autonomy.noteDone(a.what, a.kind);
         // straight back in the queue: the decision is acted on at the start of its next turn, like a tapped one
         move(j, S.AWAITING_APPROVAL, now()); move(j, S.QUEUED, now()); j.current = null;
         await persist(); changed(); deps.setTimer(pump, 0);
         return;
       }
+      // <<< autonomy
     }
+    a.askedAt = now();
     j.approval = a; j.current = null;
     move(j, S.AWAITING_APPROVAL, now()); step(j, 'Waiting for your OK: ' + a.what);
     await persist(); deps.notify('Atlas Bot needs your OK', a.what, 'bot:' + j.id); changed();
-    em.emit('approval.needed', { mission: j, what: a.what }); touch(j);
+    em.emit('approval.needed', { mission: j, what: a.what }); touch(j); batchNotify();
   }
 
   /** Today's budget for this bot is used up: the mission waits for the user ("give it more" or "stop"). */
@@ -546,6 +598,7 @@ export function createBots(deps) {
     if (j.answer) { j.question = null; j.answer = null; }
     const a = j.approval; if (!a || !a.decision) return;
     j.approval = null;
+    if (a.decision === 'undone') { j.notes.push(`The user tapped Undo on: ${a.what}. It was NOT done. Don't try it again; find another way or finish without it.`); persist(); return; }
     if (a.decision === 'denied') {
       j.notes.push(a.auto ? `The user never allows this kind of action (${a.what}). Don't do it; find another way or finish without it.` : `The user said NO to: ${a.what}. Don't do it; find another way or finish without it.`);
       if (!a.auto) step(j, 'You said no to: ' + a.what);
@@ -743,7 +796,7 @@ export function createBots(deps) {
   }
 
   return {
-    jobs, init, deploy, pause, resume, stop, approve, answer, handBack, carryOn, remove, pump, job, active, steer, wrapUp, giveMore,
+    jobs, init, deploy, pause, resume, stop, approve, approveAll, answer, handBack, carryOn, remove, pump, job, active, steer, wrapUp, giveMore,
     on: (ev, fn) => em.on(ev, fn),
     /** A mission and its agent tree, for the job page and Atlas: {job, agents: [{job, agents}]} */
     tree: (id) => { const walk = (j, d = 0) => ({ job: j, agents: d > 6 ? [] : (j.children || []).map(job).filter(Boolean).map((k) => walk(k, d + 1)) }); const j = job(id); return j ? walk(j) : null; },

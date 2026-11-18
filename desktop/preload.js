@@ -94,6 +94,8 @@ contextBridge.exposeInMainWorld('atlasHost', {
     save: (acc, secret) => ipcRenderer.invoke('trade:save', acc, secret),
     remove: (id) => ipcRenderer.invoke('trade:remove', id),
     limits: (id, limits) => ipcRenderer.invoke('trade:limits', id, limits),
+    standing: (id, lim) => ipcRenderer.invoke('trade:standing', id, lim),
+    standingGet: (id) => ipcRenderer.invoke('trade:standingGet', id),
     test: (acc, secret) => ipcRenderer.invoke('trade:test', acc, secret),
     resume: () => ipcRenderer.invoke('trade:resume'),
   },

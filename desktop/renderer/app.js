@@ -12,6 +12,7 @@ import { renderMarkdown } from './md.js';
 import * as UI from './uishape.js';   // replies: prose plus tidy rows (same rules as the phone)
 import { plainMemory } from './plain.js';
 import { bots, extras } from './botwire.js';
+import { autonomyCard } from './autonomyui.js';   // >>> autonomy: Me → How Freely Atlas Acts
 import * as BX from './botsui.js';
 import * as CREW from './crewui.js';   // the Bots page, built like Grok Bot's (conversations first)
 import * as THREADS from './threads.js';
@@ -808,6 +809,7 @@ function renderMe(page) {
   trade.renderTrading(col, { h, esc, sheet, toast, render });   // >>> trading <<<
 
   // Devices
+  autonomyCard(col, kit(), extras.autonomy, (id) => (extras.data.specialists.find((b) => b.id === id) || {}).name || 'a bot');   // >>> autonomy
   BX.permissionsCard(col, kit());
   col.appendChild(h('<div class="eyebrow">Your Devices</div>'));
   const dc = h('<div class="card"></div>'); col.appendChild(dc);

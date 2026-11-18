@@ -80,7 +80,7 @@ class Busy extends Error { constructor() { super('Busy.'); this.code = 503; } }
 class Sw extends Error { constructor(to) { super('Keys out.'); this.to = to; } }
 
 /** A bot world with a scripted model: each call takes the next turn from [script] (a function of the brief, or a turn). */
-function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false, tools = null, extraApproval = null, checkApproval = null } = {}) {
+function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gemini' }], switchAt = -1, failAt = -1, extras = null, ids = false, tools = null, extraApproval = null, checkApproval = null, countdown = null } = {}) {
   const w = { saved: journal, notes: [], posts: [], ran: [], briefs: [], tools: [], timers: [], calls: 0, prov: providers, made: 0 };
   let n = 0, clock = 1000;
   w.bots = B.createBots({
@@ -94,7 +94,7 @@ function world(script, { journal = null, providers = [{ id: 'gemini', name: 'Gem
     runTool: async (c, o) => { w.ran.push([c.name, !!(o && o.approved)]); return { out: `${c.name} result`, step: `Did ${c.name}` }; },
     systemPrompt: (j) => { w.sysFor = (w.sysFor || []).concat([j && j.id]); return 'sys'; }, notify: (t, b, tag) => w.notes.push(['notify', t, tag]), post: (m) => w.posts.push(m),
     plainReply: (s) => String(s).trim(), plainMemory: (s) => String(s).trim(),
-    now: () => (clock += 10), uid: ids ? (() => 'job' + (++w.made)) : () => 'job1', deviceId: () => 'pc-1', extras,
+    now: () => (clock += 10), uid: ids ? (() => 'job' + (++w.made)) : () => 'job1', deviceId: () => 'pc-1', extras, ...(countdown ? { countdown } : {}),
     setTimer: (f, ms) => { if (ms <= 0) { setTimeout(f, 0); return 0; } w.timers.push(ms); return w.timers.length; }, clearTimer: () => {},
   });
   return w;
@@ -506,16 +506,52 @@ test('approvals: "always allow" runs that kind without asking; "never" refuses i
     (brief) => { assert.ok(brief.includes('Approved and done'), 'allowed by the rule, then done'); return turn(call('request_approval', { action: 'Buy the blue case for $20' })); },
     (brief) => { assert.ok(brief.includes('never allows'), 'the bot is told the user never allows it'); return turn(call('request_approval', { action: 'Send the summary to Sam by email' })); },
     turn(call('finish', { report: 'Done what I could.' })),
-  ], { extras: e.ex });
+  ], { extras: e.ex, countdown: async () => true });   // (autonomy: an allowed kind runs after the 10-second Undo, which nobody clicks here)
   await w.bots.init(); const j = w.bots.deploy('Tidy and shop', ''); await settle(w);
   assert.deepEqual(w.ran, [['run_command', true]], 'the allowed command ran without a tap, as approved');
   assert.equal(j.state, B.S.AWAITING_APPROVAL, 'an email still asks');
   assert.equal(j.approval.category, 'message');
   assert.ok(!w.notes.some((x) => Array.isArray(x) && x[1] === 'Atlas Bot needs your OK' && /Stop-Process|Buy/.test(x[2] || '')), 'no OK asked for the allowed or never kinds');
   w.bots.approve(j.id, true, true);   // Always allow this kind
-  assert.equal(e.ex.mode('message'), 'allow', 'Always allow sets the standing choice');
+  // autonomy: "always" is a grant for this exact kind (a message to someone known), not the whole category: a new person still asks
+  assert.deepEqual(e.ex.autonomy.grants().map((g) => [g.kind, g.scope]), [['message_send', 'always']], 'Always allow saves a standing grant');
+  assert.equal(e.ex.autonomy.decide('message_new').act, 'ask', 'messaging someone new still asks');
   await settle(w);
   assert.equal(j.state, B.S.COMPLETED);
+});
+
+test('autonomy (Balanced): a small action waits 10 seconds for Undo; Undo stops it; with no way to show Undo it asks', async () => {
+  // screen: the "low" kind (a heads-up before using the screen) — request_approval wording picks the kind
+  const e = extrasFor(); await e.ex.init();
+  let w = world([turn(call('run_command', { command: 'Stop-Process -Name notepad' })), turn(call('finish', { report: 'ok' }))], { extras: e.ex, countdown: async () => false });
+  e.ex.autonomy.grant('command', 'always');
+  await w.bots.init(); let j = w.bots.deploy('Tidy', ''); await settle(w);
+  assert.deepEqual(w.ran, [], 'Undo was clicked: nothing ran');
+  assert.ok(j.notes.some((n) => /tapped Undo/.test(n)), 'the bot is told the user clicked Undo');
+  assert.ok(j.steps.some((t) => /You tapped Undo/.test(t)));
+  const e2 = extrasFor(); await e2.ex.init(); e2.ex.autonomy.grant('command', 'always');
+  w = world([turn(call('run_command', { command: 'Stop-Process -Name notepad' }))], { extras: e2.ex });   // no countdown: Atlas isn't on screen
+  await w.bots.init(); j = w.bots.deploy('Tidy', ''); await settle(w);
+  assert.equal(j.state, B.S.AWAITING_APPROVAL, 'no Undo possible, so it asks');
+  assert.ok(j.approval.askedAt > 0 && j.approval.kind === 'command');
+});
+
+test('autonomy: approving a plan covers the kinds its steps name for that mission; Approve All skips money', async () => {
+  const e = extrasFor(); await e.ex.init();
+  const w = world([
+    turn(call('update_plan', { plan: '1. Run the cleanup command\n2. Post the summary\n3. Pay the invoice' })),
+    turn(call('request_approval', { action: 'Run the cleanup command' })),
+    turn(call('request_approval', { action: 'Post the summary on the team page' })),
+    turn(call('request_approval', { action: 'Pay the invoice of $40' })),
+  ], { extras: e.ex, countdown: async () => true });
+  await w.bots.init(); const j = w.bots.deploy('Wrap up the month', ''); await settle(w);
+  assert.equal(j.state, B.S.AWAITING_APPROVAL); assert.equal(j.approval.kind, 'command');
+  w.bots.approve(j.id, true, false, 'plan'); await settle(w);
+  assert.ok(j.steps.some((t) => /Did it on its own .*Post the summary/.test(t)), 'the plan approval covered posting');
+  assert.equal(j.state, B.S.AWAITING_APPROVAL, 'paying still asks'); assert.equal(j.approval.kind, 'purchase');
+  const b = w.bots.approveAll();
+  assert.equal(b.bulk.length, 0, 'Approve All never covers money'); assert.equal(j.state, B.S.AWAITING_APPROVAL);
+  // (expiry itself: autonomy.test.mjs, 'approvals raised while the user is away expire'; the test clock here never reaches 12 hours)
 });
 
 test('approval kinds come from what the action does, including browser clicks', () => {
