@@ -10,29 +10,29 @@ class VoiceFixTest {
 
     @Test fun aRememberedVoiceIsUsedForTheSameRevisionAndKey() {
         val e = C.entry(rev, "abc123", "voice_x", 1000)
-        assertEquals(C.Hit.Use("voice_x"), C.read(e, rev, "abc123", 5000))
+        assertEquals(Speech.VoiceCache.Hit.Use("voice_x"), C.read(e, rev, "abc123", 5000))
     }
 
     @Test fun aNewDesignMakesTheVoiceAfresh() {
         val e = C.entry(rev, "abc123", "voice_x", 1000)
-        assertEquals(C.Hit.Miss, C.read(e, C.rev("design two", "gemini-3.8-flash-tts"), "abc123", 5000))
+        assertEquals(Speech.VoiceCache.Hit.Miss, C.read(e, C.rev("design two", "gemini-3.8-flash-tts"), "abc123", 5000))
     }
 
     @Test fun theOldForeverFormatIsNeverTrustedAgain() {
         // before: "abc123|voice_old" or "-" kept for good, so the voice could never change
-        assertEquals(C.Hit.Miss, C.read("abc123|voice_old", rev, "abc123", 5000))
-        assertEquals(C.Hit.Miss, C.read("-", rev, "abc123", 5000))
-        assertEquals(C.Hit.Miss, C.read(null, rev, "abc123", 5000))
+        assertEquals(Speech.VoiceCache.Hit.Miss, C.read("abc123|voice_old", rev, "abc123", 5000))
+        assertEquals(Speech.VoiceCache.Hit.Miss, C.read("-", rev, "abc123", 5000))
+        assertEquals(Speech.VoiceCache.Hit.Miss, C.read(null, rev, "abc123", 5000))
     }
 
     @Test fun anotherKeyMakesItsOwn() {
-        assertEquals(C.Hit.Miss, C.read(C.entry(rev, "abc123", "voice_x", 1000), rev, "zzz999", 5000))
+        assertEquals(Speech.VoiceCache.Hit.Miss, C.read(C.entry(rev, "abc123", "voice_x", 1000), rev, "zzz999", 5000))
     }
 
     @Test fun aRefusalIsOnlyRememberedForAFewHours() {
         val e = C.entry(rev, "abc123", null, 1000)
-        assertEquals(C.Hit.Refused, C.read(e, rev, "abc123", 1000 + 60_000))
-        assertEquals(C.Hit.Miss, C.read(e, rev, "abc123", 1000 + C.RETRY_MS + 1))
+        assertEquals(Speech.VoiceCache.Hit.Refused, C.read(e, rev, "abc123", 1000 + 60_000))
+        assertEquals(Speech.VoiceCache.Hit.Miss, C.read(e, rev, "abc123", 1000 + C.RETRY_MS + 1))
     }
 
     @Test fun usedUpLimitsAndTurnedDownKeysTryTheNextKey() {
