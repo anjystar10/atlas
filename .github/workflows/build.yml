@@ -101,15 +101,18 @@ jobs:
         # Only builds from main count as releases; test builds from other branches never reach anyone's phone.
         if: github.ref == 'refs/heads/main'
         run: |
-          V=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -1)
-          C=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)
+          # an earlier step switched to the apk-builds branch, so read the sources from this commit, not the work tree
+          git show "$GITHUB_SHA:app/build.gradle.kts" > /tmp/gradle.kts
+          git show "$GITHUB_SHA:CHANGELOG.json" > /tmp/CHANGELOG.json
+          V=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' /tmp/gradle.kts | head -1)
+          C=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' /tmp/gradle.kts | head -1)
           mkdir -p rel && cp out/*.apk rel/Atlas.apk
           python3 - "$V" "$C" "$GITHUB_SHA" <<'PY'
           import hashlib, json, os, sys
           v, code, sha = sys.argv[1], int(sys.argv[2]), sys.argv[3]
           apk = "rel/Atlas.apk"
           h = hashlib.sha256(open(apk, "rb").read()).hexdigest()
-          cl = json.load(open("CHANGELOG.json"))
+          cl = json.load(open("/tmp/CHANGELOG.json"))
           notes = next((e.get("notes", []) for e in cl.get("versions", []) if e.get("version") == v), [])
           json.dump({"version": v, "versionCode": code, "url": "https://raw.githubusercontent.com/anjystar10/atlas/releases/Atlas.apk",
                      "sha256": h, "size": os.path.getsize(apk), "notes": notes, "builtFrom": sha}, open("rel/latest.json", "w"), indent=1)
@@ -128,7 +131,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          V=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -1)
+          V=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' <(git show "$GITHUB_SHA:app/build.gradle.kts") | head -1)
           gh release create "build-${{ github.run_number }}" out/*.apk \
             --title "Atlas ${V} build ${{ github.run_number }}" \
             --notes "Debug build from commit ${GITHUB_SHA::7}." --target "$GITHUB_SHA"
