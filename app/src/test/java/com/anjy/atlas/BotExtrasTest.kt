@@ -59,6 +59,8 @@ class BotExtrasTest {
         assertEquals("Every weekday at 08:00", R.describeSchedule(s))
         val m = R.parseSchedule("every month on the 31st at 9am", now, zone)
         assertEquals(28, local(R.nextRun(m, ms(2027, 2, 1, 0), zone)).dayOfMonth)   // a short month uses its last day
+        // a broken time (from sync or a model) is clamped, never thrown inside the alarm
+        assertTrue(R.nextRun(org.json.JSONObject().put("kind", "daily").put("time", "24:75"), now, zone) > now)
     }
 
     @Test fun skillsAreFoundAndDraftedFromAJob() {
