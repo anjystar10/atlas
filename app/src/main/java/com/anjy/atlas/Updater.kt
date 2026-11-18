@@ -129,8 +129,10 @@ object Updater {
         downloading = true
         try {
             val dir = File(app.cacheDir, "updates").apply { mkdirs() }
-            dir.listFiles()?.forEach { if (it.name != "Atlas-${l.version}.apk") it.delete() }
-            val f = File(dir, "Atlas-${l.version}.apk")
+            // the name comes from the published version text: keep only safe characters so it can never point outside this folder
+            val name = "Atlas-${l.version.replace(Regex("[^0-9A-Za-z._-]"), "_").replace("..", "_")}.apk"
+            dir.listFiles()?.forEach { if (it.name != name) it.delete() }
+            val f = File(dir, name)
             val c = URL(l.url).openConnection() as HttpURLConnection
             c.connectTimeout = 20_000; c.readTimeout = 60_000
             val md = MessageDigest.getInstance("SHA-256")
