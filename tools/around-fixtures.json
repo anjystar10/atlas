@@ -1,0 +1,188 @@
+{
+ "_doc": "Shared cases for desktop/renderer/around.js and core/Around.kt: both must give exactly these results. Regenerate the expected values only when a change is meant.",
+ "cases": [
+  {
+   "name": "phone, ordinary",
+   "facts": {
+    "time": "Wed 18 Nov 02:30",
+    "zone": "Africa/Lagos",
+    "battery": 64,
+    "charging": false,
+    "network": "wifi",
+    "ringer": "normal",
+    "dnd": false,
+    "audio": "speaker",
+    "foreground": "WhatsApp",
+    "notifications": 3
+   },
+   "ctx": {
+    "botsRunning": 0
+   },
+   "nowLine": "Wed 18 Nov 02:30 (Africa/Lagos) · battery 64% · Wi-Fi · in WhatsApp · 3 notifications",
+   "alerts": []
+  },
+  {
+   "name": "low battery while the trading bot runs",
+   "facts": {
+    "time": "Wed 18 Nov 02:30",
+    "zone": "Africa/Lagos",
+    "battery": 9,
+    "charging": false,
+    "network": "mobile",
+    "dnd": true,
+    "audio": "bluetooth"
+   },
+   "ctx": {
+    "botsRunning": 1,
+    "tradingRunning": true
+   },
+   "nowLine": "Wed 18 Nov 02:30 (Africa/Lagos) · battery 9% · mobile data · Do Not Disturb · Bluetooth audio",
+   "alerts": [
+    {
+     "key": "battery-low",
+     "text": "Battery at 9% and not charging while the trading bot is running: it stops if the device dies."
+    }
+   ]
+  },
+  {
+   "name": "low battery, nothing running",
+   "facts": {
+    "battery": 8,
+    "charging": false
+   },
+   "ctx": {
+    "botsRunning": 0
+   },
+   "nowLine": "battery 8%",
+   "alerts": [
+    {
+     "key": "battery-low",
+     "text": "Battery at 8% and not charging."
+    }
+   ]
+  },
+  {
+   "name": "low-ish battery, nothing running: no alert",
+   "facts": {
+    "battery": 14,
+    "charging": false
+   },
+   "ctx": {
+    "botsRunning": 0
+   },
+   "nowLine": "battery 14%",
+   "alerts": []
+  },
+  {
+   "name": "charging: no alert",
+   "facts": {
+    "battery": 5,
+    "charging": true,
+    "network": "wifi"
+   },
+   "ctx": {
+    "botsRunning": 2
+   },
+   "nowLine": "battery 5% charging · Wi-Fi",
+   "alerts": []
+  },
+  {
+   "name": "offline with two bots",
+   "facts": {
+    "network": "none",
+    "ringer": "vibrate",
+    "storageFreeGb": 0.6,
+    "thermal": "hot"
+   },
+   "ctx": {
+    "botsRunning": 2
+   },
+   "nowLine": "offline · vibrate · hot",
+   "alerts": [
+    {
+     "key": "offline",
+     "text": "No internet: 2 bots are running but can't reach anything until it's back."
+    },
+    {
+     "key": "storage",
+     "text": "Storage almost full: 0.6 GB free, so downloads and recordings may fail."
+    },
+    {
+     "key": "thermal",
+     "text": "The device is hot: heavy work is held back."
+    }
+   ]
+  },
+  {
+   "name": "offline, no bots",
+   "facts": {
+    "network": "none"
+   },
+   "ctx": {},
+   "nowLine": "offline",
+   "alerts": [
+    {
+     "key": "offline",
+     "text": "No internet right now: only the offline brain works."
+    }
+   ]
+  },
+  {
+   "name": "PC busy",
+   "facts": {
+    "time": "Wed 18 Nov 02:31",
+    "zone": "Africa/Lagos",
+    "network": "ethernet",
+    "foreground": "Visual Studio Code",
+    "cpu": 95.4,
+    "ram": 72,
+    "gpu": 30
+   },
+   "ctx": {
+    "botsRunning": 0
+   },
+   "nowLine": "Wed 18 Nov 02:31 (Africa/Lagos) · Ethernet · in Visual Studio Code · CPU 95%, RAM 72%",
+   "alerts": [
+    {
+     "key": "load",
+     "text": "The PC is under heavy load (CPU 95%, RAM 72%)."
+    }
+   ]
+  },
+  {
+   "name": "nothing known",
+   "facts": {},
+   "ctx": {},
+   "nowLine": "",
+   "alerts": []
+  }
+ ],
+ "markNew": [
+  {
+   "list": [
+    {
+     "key": "battery-low",
+     "text": "B"
+    },
+    {
+     "key": "offline",
+     "text": "O"
+    }
+   ],
+   "seen": [
+    "offline",
+    "storage"
+   ],
+   "out": {
+    "lines": [
+     "B (NEW: mention it briefly if it matters)",
+     "O"
+    ],
+    "seen": [
+     "battery-low",
+     "offline"
+    ]
+   }
+  }
+ ]
+}

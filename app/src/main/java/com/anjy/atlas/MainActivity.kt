@@ -831,6 +831,7 @@ class MainActivity : Activity() {
         Reminders.channels(this)
         Conversation.load(applicationContext)
         Bots.init(applicationContext)
+        Updater.onLaunch(applicationContext)   // >>> self-awareness: "I've been updated…" once after an update; looks for a newer release
         Link.init(applicationContext); LinkTasks.watchJobs()   // >>> device link: report on jobs the laptop sent
         if (Link.reachable(this)) LinkService.start(this)
         if (Build.VERSION.SDK_INT >= 33) onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT) { handleBack() }

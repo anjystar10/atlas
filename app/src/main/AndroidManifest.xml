@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Gemini, Atlas's online brain -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Atlas installs its own updates only through Android's installer, after the user taps Install -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- talking to Atlas, and "Hey Atlas" -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -156,6 +158,12 @@
         <provider
             android:name=".SnapProvider"
             android:authorities="com.anjy.atlas.snap"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+        <!-- An update Atlas downloaded, handed to Android's installer (not exported; read access per install) -->
+        <provider
+            android:name=".UpdateProvider"
+            android:authorities="com.anjy.atlas.updates"
             android:exported="false"
             android:grantUriPermissions="true" />
         <provider
