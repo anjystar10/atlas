@@ -257,7 +257,7 @@ ipcMain.handle('pc:run', async (e, name, args) => {
   if (!fromMain(e)) return { error: 'not allowed' };
   args = args || {};
   // opening a program, script or installer runs it: the user says yes first (a web page Atlas read can't make it run things)
-  const target = name === 'open_path' ? args.path : name === 'open_app' && /[\\/]|\.\w{2,5}$/.test(String(args.name || '')) ? args.name : null;
+  const target = name === 'open_path' ? args.path : name === 'open_app' && /[\\/]|\.\w{2,5}[. ]*$/.test(String(args.name || '').trim()) ? args.name : null;
   if (target && pc.runsSomething(target)) {
     const r = await dialog.showMessageBox(win, { type: 'warning', buttons: ['Open It', 'Cancel'], defaultId: 1, cancelId: 1, title: 'Atlas',
       message: 'Open this program?', detail: `Atlas wants to open:\n${String(target).slice(0, 300)}\n\nThis runs it. Only say yes if you asked for it.` });

@@ -348,6 +348,8 @@ test('PowerShell quoting and programs that need a yes', async () => {
   assert.equal(pc.q('a\u2019b'), "'a''b'");
   assert.equal(pc.q('$(Remove-Item x)'), "'$(Remove-Item x)'");
   for (const p of ['C:\\x\\setup.exe', '~/Downloads/run.BAT', '"C:\\a b\\s.ps1"', 'thing.lnk']) assert.equal(pc.runsSomething(p), true, p);
+  // Windows runs "setup.exe." and "setup.exe " as setup.exe; installers and disk images count too
+  for (const p of ['C:\\x\\setup.exe.', 'C:\\x\\setup.exe .. ', 'C:\\x\\a.exe::$DATA', 'app.msix', 'disk.iso', 'x.msc']) assert.equal(pc.runsSomething(p), true, p);
   for (const p of ['~/Documents/notes.txt', 'C:\\Pictures', 'photo.jpg']) assert.equal(pc.runsSomething(p), false, p);
   assert.equal(pc.sendKeysCombo('ctrl+shift+t'), '^+t');
 });
