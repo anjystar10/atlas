@@ -1203,7 +1203,10 @@ class MainActivity : Activity() {
             val name = s.settings.name.trim().split(" ").firstOrNull().orEmpty()
             val orb = OrbView(this).apply { still = Prefs.reduceMotion(this@MainActivity); isClickable = true; contentDescription = "Talk to Atlas"; setOnClickListener { voice() } }
             homeOrb = orb
-            body.add(orb, 18, dp(184), dp(184))
+            val hDp = resources.displayMetrics.heightPixels / density
+            val short = hDp < 720
+            val orbDp = (hDp * 0.24f).coerceIn(124f, 184f).toInt()
+            body.add(orb, if (short) 6 else 18, dp(orbDp), dp(orbDp))
             (orb.layoutParams as LinearLayout.LayoutParams).gravity = Gravity.CENTER_HORIZONTAL
             body.add(text(if (name.isNotEmpty()) "Hey $name,\nWhat can I help with?" else "Hey there,\nWhat can I help with?", 29f, FG, DISPLAY).apply {
                 gravity = Gravity.CENTER; setLineSpacing(0f, 1.05f)
@@ -1217,6 +1220,7 @@ class MainActivity : Activity() {
                 setOnClickListener { if (botLine().isNotEmpty() && !line.startsWith("Next") && line.contains("bot")) switchTab(3, 1) else switchTab(1, 1) }
             }, 10)
             val ideas = listOf("Remind me to call mum tomorrow at 6pm", "Open ChatGPT and ask it how to find diamonds in Minecraft", "What can you do?")
+                .let { if (short) listOf(it[0], it[2]) else it }
             val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
             ideas.forEachIndexed { i, idea ->
                 col.add(text(idea, 14f, FG, MED, keepEmoji = true).apply {
@@ -1466,7 +1470,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL; background = Finish(SURFACE, dp(18).toFloat(), dark, density, glass = true)
             setPadding(dp(16), dp(4), dp(16), dp(4)); setOnLongClickListener(onHold)
         }
-        val keyW = (resources.displayMetrics.widthPixels / density * 0.27f).coerceIn(78f, 120f)
+        val keyW = (resources.displayMetrics.widthPixels / density * 0.3f).coerceIn(96f, 132f)
         rows.forEachIndexed { i, r ->
             if (i > 0) card.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(11), 0, dp(11)) }
@@ -1475,7 +1479,7 @@ class MainActivity : Activity() {
                 UiShape.Tone.DONE -> DONE; UiShape.Tone.PLAIN -> MUTED
             }
             val key = if (r.tone == UiShape.Tone.TIME) text(r.key, 14f, keyColor, MONO)
-                else text(r.key.uppercase(Locale.getDefault()), 11.5f, keyColor, SEMI).apply { letterSpacing = 0.06f; maxLines = 2 }
+                else text(r.key.uppercase(Locale.getDefault()), 11.5f, keyColor, SEMI).apply { letterSpacing = 0.05f; maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END }
             if (r.tone == UiShape.Tone.ALERT) line.addView(View(this).apply { background = rounded(ACCENT, 99) }, LinearLayout.LayoutParams(dp(6), dp(6)).apply { rightMargin = dp(8) })
             line.addView(key, LinearLayout.LayoutParams(dp(keyW.toInt()) - if (r.tone == UiShape.Tone.ALERT) dp(14) else 0, WRAP))
             line.addView(text(r.value, 15f, FG, keepEmoji = true).apply { setLineSpacing(0f, 1.2f); setTextIsSelectable(false) }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
@@ -1636,7 +1640,7 @@ class MainActivity : Activity() {
         }
         val attach = FrameLayout(this).apply {
             background = null; isClickable = true; contentDescription = "Add: take a photo, photos and videos, or files (hold to take a photo now)"
-            addView(LineIcon(this@MainActivity, "plus").apply { color = quietInk() }, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER))
+            addView(LineIcon(this@MainActivity, "plus").apply { color = FG }, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER))
             setOnClickListener { choose("Add to Your Message", listOf("Take a Photo", "Record a Video", "Photos & Videos", "Files (any kind)")) { i ->
                 when (i) { 0 -> snap(false); 1 -> snap(true); 2 -> pickMedia(); else -> pickFiles() } } }
             // >>> attachments: Snap is a hold away
@@ -2154,6 +2158,7 @@ class MainActivity : Activity() {
         }
         var v = ""
         lateinit var key: FrameLayout
+        var paintKey: (Boolean) -> Unit = {}
         val f = EditText(this).apply {
             hint = "Remember something…"; setTextColor(FG); setHintTextColor(MUTED); textSize = 15f; typeface = MED
             background = null; setPadding(dp(12), dp(10), dp(8), dp(10)); maxLines = 4; minHeight = dp(44)
@@ -2162,13 +2167,13 @@ class MainActivity : Activity() {
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
                 override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-                override fun afterTextChanged(s: Editable?) { v = s?.toString() ?: ""; key.alpha = if (v.isBlank()) 0.35f else 1f; key.isEnabled = v.isNotBlank() }
+                override fun afterTextChanged(s: Editable?) { v = s?.toString() ?: ""; paintKey(v.isNotBlank()) }
             })
         }
+        val tick = LineIcon(this@MainActivity, "check")
         key = FrameLayout(this).apply {
-            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; colors = intArrayOf(Palette.DARK.primaryTop, Palette.DARK.primaryBottom) }
-            addView(LineIcon(this@MainActivity, "check").apply { color = Palette.DARK.onPrimary }, FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER))
-            isClickable = true; isEnabled = false; alpha = 0.35f; contentDescription = "Save to memory"
+            addView(tick, FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER))
+            isClickable = true; contentDescription = "Save to memory"
             setOnClickListener {
                 val t = Plain.memory(v)
                 if (t.isEmpty()) return@setOnClickListener
@@ -2177,6 +2182,12 @@ class MainActivity : Activity() {
             }
             pressFx()
         }
+        paintKey = { on ->
+            key.isEnabled = on
+            key.background = if (on) GradientDrawable().apply { shape = GradientDrawable.OVAL; colors = intArrayOf(Palette.DARK.primaryTop, Palette.DARK.primaryBottom) } else quietBg()
+            tick.color = if (on) Palette.DARK.onPrimary else quietMuted()
+        }
+        paintKey(false)
         row.addView(f, LinearLayout.LayoutParams(0, WRAP, 1f))
         row.addView(key, LinearLayout.LayoutParams(dp(44), dp(44)))
         return row
