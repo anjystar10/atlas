@@ -4,13 +4,19 @@
     {
       "version": "0.11.0",
       "versionCode": 21,
-      "date": "",
-      "released": false,
+      "date": "2026-11-18",
+      "released": true,
       "notes": [
         "Standing bots: a team of specialist bots, each with its own job, access and daily budget",
         "Big jobs split into agents and sub-agents that work in parallel, with a checker before you see the result",
         "Bots pick up where they left off after the phone restarts",
-        "Atlas knows its own version and what changed, and tells you when an update is ready"
+        "New Bots tab, built like a messaging app: Atlas starred first, then your bots and group chats; each bot has its own chat with Stop and inline approvals, and a details page (screen, triggers, skills, budget, memory, work, settings). The Bot jobs list is gone",
+        "Bot triggers: start a bot on a schedule, a new email, a price level, a notification or when you open an app",
+        "One-tap bot templates (Trader, Inbox, Reel Poster, Researcher and more) and group chats where you @mention a bot",
+        "Atlas tab: a fixed header with Chats and New chat (your old chats are kept and searchable), one roomy message bar, and replies with tidy rows and 'done' receipts",
+        "Atlas knows its own version and what changed, notices its surroundings (battery, network, the app you're in, your laptop's load), and tells you when an update is ready",
+        "PC: HUD mode, a full-screen voice-first view with a holographic core, live work cards, a results wall and a terminal (Ctrl+`); the classic window is still in Me",
+        "Atlas Voice: an original designed voice that runs on your laptop's graphics card, also used by the phone when linked (one-click setup in Me → Voice)"
       ],
       "abilities": [
         "Standing bots are the user's team: each has its own instructions, access and daily budget, and you can see them in the brief (\"Standing bots\").",
@@ -18,7 +24,13 @@
         "A bot that used up today's budget stops and asks; give it more only when the user says so.",
         "Standing bots resume after the phone restarts; a step that was cut off half-way is marked for checking, never simply repeated.",
         "You know your version and what changed in each update, and can answer \"what version are you\", \"what's new\" and \"what can you do now\" from it.",
-        "check_updates looks for a newer Atlas; when there is one, update downloads it in the background and the user taps Install."
+        "check_updates looks for a newer Atlas; when there is one, update downloads it in the background and the user taps Install.",
+        "Each standing bot has its own conversation in the Bots tab; group chats let the user and several bots talk, and @mentioning a bot hands it the job.",
+        "Bots can start on triggers: schedules, new email, prices crossing a level, notifications, or an app being opened.",
+        "Ready-made bot templates (Trader on demo, Inbox, Reel Poster, Researcher, Builder, Chief of Staff, Market Watcher) set up a bot in one step.",
+        "whats_around and self_status tell you about the device (battery, network, the app in front, the laptop's CPU/GPU) and about yourself (keys, permissions, bots, errors); mention changes only when they matter.",
+        "On the PC, show_panels lays a rich answer out as a results wall (text, stat, chart, table, image, video, link panels); use only images and videos your research actually found.",
+        "With Atlas Voice set up on the laptop, your replies are spoken in your own designed voice on the PC, and on the phone when it is linked."
       ]
     },
     {
