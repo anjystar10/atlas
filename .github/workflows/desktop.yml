@@ -35,14 +35,20 @@ jobs:
       - uses: actions/upload-artifact@v4
         continue-on-error: true   # a full artifact store must never stop the installer being published
         with: { name: windows-check, path: desktop/shots/, retention-days: 3 }
+      - name: Describe the release for Atlas's own update check
+        # latest.json: what Atlas on the PC compares itself with (selfwire.js); its SHA-256 is checked before installing
+        run: node scripts/latest-json.js
       - name: Publish the installer
+        # builds from main are the release ("desktop"); a test build from another branch goes to "desktop-test",
+        # so Atlas's update check never offers it
         env: { GH_TOKEN: '${{ github.token }}' }
         shell: pwsh
         run: |
-          $notes = "Atlas for Windows, built from ${{ github.sha }}."
-          gh release view desktop 2>$null; if ($LASTEXITCODE -ne 0) { gh release create desktop --title "Atlas for Windows" --notes $notes --latest=false }
-          gh release upload desktop dist\Atlas-Setup.exe --clobber
-          gh release edit desktop --notes $notes
+          $rel = if ("${{ github.ref }}" -eq "refs/heads/main") { "desktop" } else { "desktop-test" }
+          $notes = "Atlas for Windows, built from ${{ github.sha }} (${{ github.ref_name }})."
+          gh release view $rel 2>$null; if ($LASTEXITCODE -ne 0) { gh release create $rel --title $(if ($rel -eq "desktop") { "Atlas for Windows" } else { "Atlas for Windows (test build)" }) --notes $notes --latest=false --prerelease=$($rel -ne "desktop") }
+          gh release upload $rel dist\Atlas-Setup.exe dist\latest.json --clobber
+          gh release edit $rel --notes $notes
       - name: Keep the screenshots on the windows-results branch
         shell: pwsh
         run: |

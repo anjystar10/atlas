@@ -96,6 +96,32 @@ jobs:
           git commit -m "APK from build ${{ github.run_number }} (${GITHUB_SHA::7})"
           git push -f origin apk-tmp:apk-builds
 
+      - name: Publish the release for Atlas's own update check (main only)
+        # latest.json + the APK on the "releases" branch: what Atlas on the phone compares itself with (Updater.kt).
+        # Only builds from main count as releases; test builds from other branches never reach anyone's phone.
+        if: github.ref == 'refs/heads/main'
+        run: |
+          V=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts | head -1)
+          C=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts | head -1)
+          mkdir -p rel && cp out/*.apk rel/Atlas.apk
+          python3 - "$V" "$C" "$GITHUB_SHA" <<'PY'
+          import hashlib, json, os, sys
+          v, code, sha = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+          apk = "rel/Atlas.apk"
+          h = hashlib.sha256(open(apk, "rb").read()).hexdigest()
+          cl = json.load(open("CHANGELOG.json"))
+          notes = next((e.get("notes", []) for e in cl.get("versions", []) if e.get("version") == v), [])
+          json.dump({"version": v, "versionCode": code, "url": "https://raw.githubusercontent.com/anjystar10/atlas/releases/Atlas.apk",
+                     "sha256": h, "size": os.path.getsize(apk), "notes": notes, "builtFrom": sha}, open("rel/latest.json", "w"), indent=1)
+          PY
+          cat rel/latest.json
+          git switch --orphan releases-tmp
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          cp rel/Atlas.apk rel/latest.json .
+          git add -f Atlas.apk latest.json
+          git commit -m "Release $V ($C) from ${GITHUB_SHA::7}"
+          git push -f origin releases-tmp:releases
+
       - name: Attach to a GitHub release
         # optional: some repos don't let workflows create releases; the apk-builds branch always has the APK
         continue-on-error: true

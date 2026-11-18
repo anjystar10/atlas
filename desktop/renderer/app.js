@@ -23,6 +23,7 @@ import { THEMES, DEFAULT as THEME_DEFAULT, findTheme } from './themes.js';   // 
 import * as AR from './attachrules.js';   // >>> attachments: what a file is, how Atlas reads it
 import { progressTo } from './attachsend.js';
 import { renderDevices } from './linkui.js';
+import * as selfwire from './selfwire.js';   // >>> self-awareness (version, changelog, updates, what's around)
 import { S as BOT, LABELS as BOT_LABELS, FINAL as BOT_FINAL, WAITING_ON_USER as BOT_WAITING, summary as botSummary } from './bots.js';
 const host = window.atlasHost;
 
@@ -1081,6 +1082,7 @@ async function main() {
   checkDue(); setInterval(checkDue, 15000);
   keyshare.register(); botmirror.register({ visible: () => bots.visible(), labels: BOT_LABELS });
   sync.loadStatus(); sync.syncSoon(800); sync.keepFresh();
+  selfwire.start().catch(() => {});   // >>> self-awareness: "I've been updated…" once; looks for a newer release
   // >>> device link: the live line to the phone (tasks both ways, remote control)
   LW.start({ sheet, toast }); brain.ui.onPhone = (task) => LW.sendTask(task);
   LW.onChange(() => { if (tab === 'me') render(true, true); });
