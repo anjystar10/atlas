@@ -85,6 +85,21 @@ for m in re.finditer(r'<node [^>]*>', x):
 PY
   [ -s /tmp/xy ] && adb shell input tap $(cat /tmp/xy)
 }
+# taps the first thing whose label starts with $1 (rows carry "Name. its line…")
+tap_prefix() {
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml >/dev/null 2>&1
+  python3 - "$1" <<'PY' > /tmp/xy || return 1
+import re, sys
+x = open('/tmp/ui.xml', encoding='utf-8').read()
+for m in re.finditer(r'<node [^>]*>', x):
+    n = m.group(0)
+    if f'content-desc="{sys.argv[1]}' in n or f'text="{sys.argv[1]}' in n:
+        b = re.search(r'bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', n)
+        if b:
+            a, c, d, e = map(int, b.groups()); print((a + d) // 2, (c + e) // 2); break
+PY
+  [ -s /tmp/xy ] && adb shell input tap $(cat /tmp/xy)
+}
 FAILS=0
 say() {
   adb shell cmd statusbar collapse >/dev/null 2>&1; sleep 1
@@ -108,6 +123,14 @@ for theme in dark light; do
   up; shot "$theme-me-3"
   up; shot "$theme-me-4"
   launch log; up; shot "$theme-log-2"
+  # the Bots tab: the team list, History, one bot's own conversation and its details (Name & look)
+  log "bots tab ($theme)"
+  launch bots; shot "$theme-bots"
+  up; shot "$theme-bots-2"
+  launch bots; tap_prefix "History" && { sleep 3; shot "$theme-bots-history"; adb shell input keyevent 4; sleep 2; } || log "no History button"
+  launch bots; tap_prefix "Ted." && { sleep 3; shot "$theme-bot-chat"; tap_prefix "Details" && { sleep 3; shot "$theme-bot-details"; }; } || log "no Ted row"
+  launch bots; tap_prefix "New Bot" && { sleep 3; shot "$theme-bot-new"; } || log "no New Bot button"
+  if crashed || ! alive; then log "CRASH on bots ($theme)"; fi
 done
 
 # Offline: no Gemini key, so the fixed commands answer
