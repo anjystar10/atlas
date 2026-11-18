@@ -1,0 +1,18 @@
+{
+ "version": "0.11.2",
+ "versionCode": 23,
+ "url": "https://raw.githubusercontent.com/anjystar10/atlas/releases/Atlas.apk",
+ "sha256": "598bededf9cddec749bda7fdc92d7e130853a7cd955fd229844f8a33bb4d254a",
+ "size": 74797338,
+ "notes": [
+  "Voice: the saved voice from day one is thrown away and rebuilt, so voice changes finally take effect",
+  "Voice: Gemini speech now uses every key in your pool and asks for far fewer pieces per reply, so it stops running out",
+  "Voice: if the plain phone/Windows voice ever takes over, Atlas tells you why",
+  "Me \u2192 Voice: Test Each Voice plays a line from each voice and reports exactly what worked or failed",
+  "Safety: a message like \"please don't do it\" no longer counts as a yes",
+  "Trading: allowed symbols must match exactly (\"ETH\" no longer lets other ETH-named coins through)",
+  "PC: files like \"setup.exe.\" can no longer skip the \"Open this program?\" warning",
+  "Fixes: invisible Undo when a notification type is off, a bad schedule time crashing the alarm, update file names"
+ ],
+ "builtFrom": "7234ea84f62c3e5538250c3e66857ec5b693bd24"
+}
