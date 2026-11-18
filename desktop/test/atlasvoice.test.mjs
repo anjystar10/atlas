@@ -64,6 +64,8 @@ test('Atlas Voice speaks first whenever it runs, unless another voice was picked
   assert.equal(voice.chooseEngine([], 'atlas', false), null);                           // Windows' voice
   assert.equal(voice.ENGINES[0], 'atlas');
   assert.equal(voice.engineName('atlas'), 'Atlas Voice');
+  assert.equal(voice.enginePace('atlas'), 0.86);   // cloned replies run brisk: played a touch slower
+  assert.equal(voice.enginePace('gemini'), 1);
 });
 
 test('the language goes to Qwen3-TTS by name', () => {
@@ -72,4 +74,11 @@ test('the language goes to Qwen3-TTS by name', () => {
   assert.equal(voice.languageName('spanish'), 'Spanish');
   assert.equal(voice.languageName('yo'), 'English');   // not one of its ten: English
   assert.equal(voice.languageName(null), 'English');
+});
+
+test('the reference clip ships with the app: 16-bit mono WAV with its exact words', async () => {
+  const fs = await import('node:fs');
+  const ref = av.wavPcm(fs.readFileSync(new URL('../voice-server/atlas-voice.wav', import.meta.url)));
+  assert.ok(ref.rate >= 16000 && ref.pcm.length / 2 / ref.rate > 3, 'at least 3 seconds');
+  assert.ok(fs.readFileSync(new URL('../voice-server/atlas-voice.txt', import.meta.url), 'utf8').trim().split(/\s+/).length > 10);
 });

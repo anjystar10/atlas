@@ -15,6 +15,11 @@ object LaptopVoice {
     private const val WAIT_MS = 15_000L
     /** Longest piece sent to the laptop in one go (the voice server answers a few seconds of speech at a time). */
     const val MAX_CHARS = 1200
+    /**
+     * Playback pace for Atlas Voice: replies cloned from the designed voice come out about 20% brisker than it (voice lab:
+     * ~215 words a minute against ~176), so they play at 0.86 (pitch kept): calm and unhurried, like the designed voice.
+     */
+    const val PACE = 0.86f
 
     /** Off unless the laptop advertises Atlas Voice; the user can also switch it off ("voice_laptop"). */
     fun enabled(ctx: Context) = Store.getFlag(ctx, "voice_laptop", true)

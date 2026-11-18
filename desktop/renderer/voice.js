@@ -115,7 +115,7 @@ export async function speak(text, onDone) {
     if (got.error) return systemSpeak(parts.slice(i), finish, mine);
     if (i === 0) { if (got.used === eng) state.lastProblem = null; state.lastSpoke = `${current(got.used).label} (${engineName(got.used)})`; }
     next = i + 1 < parts.length ? fetchPart(i + 1) : null;
-    const ok = await play(got.clip, mine);
+    const ok = await play(got.clip, mine, got.used);
     if (mine !== gen) { if (next) next.then((n) => free(n.clip)); return; }
     if (!ok) { if (next) next.then((n) => free(n.clip)); return systemSpeak(parts.slice(i), finish, mine); }
   }
@@ -123,10 +123,12 @@ export async function speak(text, onDone) {
 }
 const free = (clip) => { if (clip && clip.startsWith('blob:')) URL.revokeObjectURL(clip); };
 /** Plays one clip to its end. Resolves true when it played, false when it couldn't. */
-function play(clip, mine) {
+/** Atlas Voice replies come out about 20% brisker than the designed voice (voice lab), so they play a touch slower. */
+export const enginePace = (eng) => (eng === 'atlas' ? 0.86 : 1);
+function play(clip, mine, eng) {
   return new Promise((resolve) => {
     const a = new Audio(clip); audio = a;
-    try { a.playbackRate = rate(speed()); a.preservesPitch = true; } catch {}
+    try { a.playbackRate = rate(speed()) * enginePace(eng); a.preservesPitch = true; } catch {}
     const end = (ok) => { free(clip); if (audio === a) audio = null; state.speaking = false; resolve(ok); };
     a.onended = () => end(true); a.onerror = () => end(false);
     a.onpause = () => { if (mine !== gen) end(true); };

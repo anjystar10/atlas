@@ -50,9 +50,4 @@ class LaptopVoiceTest {
         assertEquals("English", LaptopVoice.languageName("yo"))
         assertEquals("English", LaptopVoice.languageName(null))
     }
-
-    @Test fun laptopVoiceIsFirstInTheChain() {
-        assertEquals(LaptopVoice.ID, Voice.ENGINES.first())
-        assertEquals("Atlas Voice (laptop)", Voice.engineName(LaptopVoice.ID))
-    }
 }

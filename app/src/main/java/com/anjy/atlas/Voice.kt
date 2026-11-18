@@ -264,7 +264,7 @@ object Voice {
             mp.setOnCompletionListener { it.release(); if (player === it) player = null; file.delete(); speaking = false; if (mine == gen) onEnd() }
             mp.setOnErrorListener { m, _, _ -> m.release(); if (player === m) player = null; file.delete(); speaking = false; if (mine == gen) fallback(); true }
             mp.prepare()
-            val rate = Speech.rate(speed(app))
+            val rate = Speech.rate(speed(app)) * (if (file.name.startsWith("speech-paced-")) LaptopVoice.PACE else 1f)
             if (rate != 1f) try { mp.playbackParams = mp.playbackParams.setSpeed(rate) } catch (e: Exception) { Log.w(TAG, "speed", e) }
             mp.start(); speaking = true
             player = mp
@@ -284,7 +284,8 @@ object Voice {
         val (rate, pcm) = rawSpeech(ctx, eng, text, before, after)
         if (pcm.size < 200) throw IllegalStateException("${engineName(eng)} sent no audio")
         val out = if (finish(ctx)) AudioFinish.apply(pcm, rate) else pcm
-        return File(ctx.cacheDir, "speech-${System.nanoTime()}.wav").apply { writeBytes(wav(out, rate)) }
+        // Atlas Voice clips are tagged: cloned replies come out brisker than the designed voice, so they play a touch slower
+        return File(ctx.cacheDir, "speech-${if (eng == LaptopVoice.ID) "paced-" else ""}${System.nanoTime()}.wav").apply { writeBytes(wav(out, rate)) }
     }
 
     /** ElevenLabs, through the key pool: a key that's turned down or out of credit rests and the next key tries once. */
