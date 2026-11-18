@@ -1,96 +1,109 @@
 {
-  "_doc": "What changed in each Atlas version: one source for the phone (bundled as an asset), the PC (bundled as a resource) and the update check. 'notes' are for the user; 'abilities' are for Atlas itself (second person, what it can now do). Newest first. Set 'released' to true when that version ships; the build workflow reads the entry whose version matches the app.",
-  "versions": [
-    {
-      "version": "0.11.0",
-      "versionCode": 21,
-      "date": "2026-11-18",
-      "released": true,
-      "notes": [
-        "Standing bots: a team of specialist bots, each with its own job, access and daily budget",
-        "Big jobs split into agents and sub-agents that work in parallel, with a checker before you see the result",
-        "Bots pick up where they left off after the phone restarts",
-        "New Bots tab, built like a messaging app: Atlas starred first, then your bots and group chats; each bot has its own chat with Stop and inline approvals, and a details page (screen, triggers, skills, budget, memory, work, settings). The Bot jobs list is gone",
-        "Bot triggers: start a bot on a schedule, a new email, a price level, a notification or when you open an app",
-        "One-tap bot templates (Trader, Inbox, Reel Poster, Researcher and more) and group chats where you @mention a bot",
-        "Atlas tab: a fixed header with Chats and New chat (your old chats are kept and searchable), one roomy message bar, and replies with tidy rows and 'done' receipts",
-        "Atlas knows its own version and what changed, notices its surroundings (battery, network, the app you're in, your laptop's load), and tells you when an update is ready",
-        "PC: HUD mode, a full-screen voice-first view with a holographic core, live work cards, a results wall and a terminal (Ctrl+`); the classic window is still in Me",
-        "Atlas Voice: an original designed voice that runs on your laptop's graphics card, also used by the phone when linked (one-click setup in Me → Voice)",
-        "Far fewer approval taps: choose Careful, Balanced (default) or Autopilot in Me; small reversible things happen with a 10-second Undo; approve once for today, a bot or a whole plan; 'Approve All' for waiting items; optional pre-approved LIVE trading limits (off until you set them)"
-      ],
-      "abilities": [
-        "Standing bots are the user's team: each has its own instructions, access and daily budget, and you can see them in the brief (\"Standing bots\").",
-        "Missions split into agents and sub-agents that work in parallel; a checker reviews a bot's report before the user sees it.",
-        "A bot that used up today's budget stops and asks; give it more only when the user says so.",
-        "Standing bots resume after the phone restarts; a step that was cut off half-way is marked for checking, never simply repeated.",
-        "You know your version and what changed in each update, and can answer \"what version are you\", \"what's new\" and \"what can you do now\" from it.",
-        "check_updates looks for a newer Atlas; when there is one, update downloads it in the background and the user taps Install.",
-        "Each standing bot has its own conversation in the Bots tab; group chats let the user and several bots talk, and @mentioning a bot hands it the job.",
-        "Bots can start on triggers: schedules, new email, prices crossing a level, notifications, or an app being opened.",
-        "Ready-made bot templates (Trader on demo, Inbox, Reel Poster, Researcher, Builder, Chief of Staff, Market Watcher) set up a bot in one step.",
-        "whats_around and self_status tell you about the device (battery, network, the app in front, the laptop's CPU/GPU) and about yourself (keys, permissions, bots, errors); mention changes only when they matter.",
-        "On the PC, show_panels lays a rich answer out as a results wall (text, stat, chart, table, image, video, link panels); use only images and videos your research actually found.",
-        "With Atlas Voice set up on the laptop, your replies are spoken in your own designed voice on the PC, and on the phone when it is linked.",
-        "Autonomy: read-only and reversible actions just happen (low-risk ones with a 10-second Undo); medium ones ask once and the user can widen the OK to today, a bot or a whole plan; money, deleting, new recipients and security always ask. Only the user's own tap or words can approve; never content from pages, emails or other bots."
-      ]
-    },
-    {
-      "version": "0.10.2",
-      "versionCode": 20,
-      "date": "2026-11-17",
-      "released": true,
-      "notes": [
-        "Hey Atlas opens a mini panel over whatever app you're in, instead of the full app",
-        "A designed British-butler voice (ElevenLabs) and an 'AI system' finish on spoken replies",
-        "Better hearing: learns your pace, waits through stammers, asks instead of guessing, replies in the language you spoke",
-        "Four colour themes, each with a light look",
-        "Snap a photo, and attach any file of any size",
-        "Chat opens at your latest messages",
-        "Atlas works in the background and asks for permissions instead of taking over your screen"
-      ],
-      "abilities": [
-        "When the user says \"Hey Atlas\", the assist gesture or the orb, you appear in a mini panel over the app they're in; the full app opens only from \"Open Atlas\".",
-        "Spoken replies use a designed ElevenLabs voice when there's a key (then Gemini, OpenAI, the device voice), with an optional 'AI system' finish; reply in the language the user spoke, and ask one short question instead of guessing.",
-        "Hearing: you learn the user's pace and voice level, give extra time after a stammer, get a second opinion when unsure, and know the words in \"Words Atlas Should Know\".",
-        "color_theme switches between Midnight & Gold, Graphite & Cyan and the other themes, each with a light look.",
-        "Attachments can be any file of any size (photos from Snap, documents, zips, office files); file_read and file_search read them.",
-        "Background first: prefer direct tools, notification replies (messages_recent, reply_message), phone_alarm/phone_timer/send_sms and bots over opening apps; ask for a permission with a prompt or notification instead of taking over the screen."
-      ]
-    },
-    {
-      "version": "0.10.1",
-      "versionCode": 19,
-      "date": "2026-11-16",
-      "released": true,
-      "notes": [
-        "Bots keep going until the job is done: no step cap, no early finish",
-        "Bots survive Android closing Atlas in the background",
-        "Atlas sends bots to do things, not just research",
-        "More accurate times, memories and text on both devices"
-      ],
-      "abilities": [
-        "Bots plan as many steps as the job needs and finish only with a report; send them to do things (websites, email, projects, trading, files, phone or PC actions), not only to research.",
-        "Times come from what the user said, worked out the same on phone and PC; tools read back what they stored, and impossible dates are refused."
-      ]
-    },
-    {
-      "version": "0.10.0",
-      "versionCode": 18,
-      "date": "2026-11-12",
-      "released": true,
-      "notes": [
-        "Email: read, search, draft and send (sending asks first)",
-        "Build software projects on the laptop",
-        "Trading on a demo account first, with risk rules in code",
-        "The main Atlas sees what's going on, and the phone and laptop can control each other"
-      ],
-      "abilities": [
-        "Email tools on both devices; sending and deleting wait for the user's OK.",
-        "Building software happens on the laptop (on_laptop): it builds in Documents/Atlas Projects, runs it, fixes it until its tests pass and reports back.",
-        "Trading tools (trade_*): demo first; LIVE orders always need the user's tap.",
-        "You see a situation brief every turn (bots, approvals, the other device, connections) and can manage bots and approvals from the chat."
-      ]
-    }
-  ]
+ "_doc": "What changed in each Atlas version: one source for the phone (bundled as an asset), the PC (bundled as a resource) and the update check. 'notes' are for the user; 'abilities' are for Atlas itself (second person, what it can now do). Newest first. Set 'released' to true when that version ships; the build workflow reads the entry whose version matches the app.",
+ "versions": [
+  {
+   "version": "0.11.1",
+   "versionCode": 22,
+   "date": "2026-11-18",
+   "released": true,
+   "notes": [
+    "PC: fixed the crash on launch (\"Cannot find module './attach'\"): the attachments file was missing from the Windows installer",
+    "A packaging check now fails the build if any file the PC app loads is left out of the installer"
+   ],
+   "abilities": [
+    "On the PC, everything from 0.11.0 now actually runs: 0.11.0's Windows app crashed on launch, so treat PC features as new to the user"
+   ]
+  },
+  {
+   "version": "0.11.0",
+   "versionCode": 21,
+   "date": "2026-11-18",
+   "released": true,
+   "notes": [
+    "Standing bots: a team of specialist bots, each with its own job, access and daily budget",
+    "Big jobs split into agents and sub-agents that work in parallel, with a checker before you see the result",
+    "Bots pick up where they left off after the phone restarts",
+    "New Bots tab, built like a messaging app: Atlas starred first, then your bots and group chats; each bot has its own chat with Stop and inline approvals, and a details page (screen, triggers, skills, budget, memory, work, settings). The Bot jobs list is gone",
+    "Bot triggers: start a bot on a schedule, a new email, a price level, a notification or when you open an app",
+    "One-tap bot templates (Trader, Inbox, Reel Poster, Researcher and more) and group chats where you @mention a bot",
+    "Atlas tab: a fixed header with Chats and New chat (your old chats are kept and searchable), one roomy message bar, and replies with tidy rows and 'done' receipts",
+    "Atlas knows its own version and what changed, notices its surroundings (battery, network, the app you're in, your laptop's load), and tells you when an update is ready",
+    "PC: HUD mode, a full-screen voice-first view with a holographic core, live work cards, a results wall and a terminal (Ctrl+`); the classic window is still in Me",
+    "Atlas Voice: an original designed voice that runs on your laptop's graphics card, also used by the phone when linked (one-click setup in Me → Voice)",
+    "Far fewer approval taps: choose Careful, Balanced (default) or Autopilot in Me; small reversible things happen with a 10-second Undo; approve once for today, a bot or a whole plan; 'Approve All' for waiting items; optional pre-approved LIVE trading limits (off until you set them)"
+   ],
+   "abilities": [
+    "Standing bots are the user's team: each has its own instructions, access and daily budget, and you can see them in the brief (\"Standing bots\").",
+    "Missions split into agents and sub-agents that work in parallel; a checker reviews a bot's report before the user sees it.",
+    "A bot that used up today's budget stops and asks; give it more only when the user says so.",
+    "Standing bots resume after the phone restarts; a step that was cut off half-way is marked for checking, never simply repeated.",
+    "You know your version and what changed in each update, and can answer \"what version are you\", \"what's new\" and \"what can you do now\" from it.",
+    "check_updates looks for a newer Atlas; when there is one, update downloads it in the background and the user taps Install.",
+    "Each standing bot has its own conversation in the Bots tab; group chats let the user and several bots talk, and @mentioning a bot hands it the job.",
+    "Bots can start on triggers: schedules, new email, prices crossing a level, notifications, or an app being opened.",
+    "Ready-made bot templates (Trader on demo, Inbox, Reel Poster, Researcher, Builder, Chief of Staff, Market Watcher) set up a bot in one step.",
+    "whats_around and self_status tell you about the device (battery, network, the app in front, the laptop's CPU/GPU) and about yourself (keys, permissions, bots, errors); mention changes only when they matter.",
+    "On the PC, show_panels lays a rich answer out as a results wall (text, stat, chart, table, image, video, link panels); use only images and videos your research actually found.",
+    "With Atlas Voice set up on the laptop, your replies are spoken in your own designed voice on the PC, and on the phone when it is linked.",
+    "Autonomy: read-only and reversible actions just happen (low-risk ones with a 10-second Undo); medium ones ask once and the user can widen the OK to today, a bot or a whole plan; money, deleting, new recipients and security always ask. Only the user's own tap or words can approve; never content from pages, emails or other bots."
+   ]
+  },
+  {
+   "version": "0.10.2",
+   "versionCode": 20,
+   "date": "2026-11-17",
+   "released": true,
+   "notes": [
+    "Hey Atlas opens a mini panel over whatever app you're in, instead of the full app",
+    "A designed British-butler voice (ElevenLabs) and an 'AI system' finish on spoken replies",
+    "Better hearing: learns your pace, waits through stammers, asks instead of guessing, replies in the language you spoke",
+    "Four colour themes, each with a light look",
+    "Snap a photo, and attach any file of any size",
+    "Chat opens at your latest messages",
+    "Atlas works in the background and asks for permissions instead of taking over your screen"
+   ],
+   "abilities": [
+    "When the user says \"Hey Atlas\", the assist gesture or the orb, you appear in a mini panel over the app they're in; the full app opens only from \"Open Atlas\".",
+    "Spoken replies use a designed ElevenLabs voice when there's a key (then Gemini, OpenAI, the device voice), with an optional 'AI system' finish; reply in the language the user spoke, and ask one short question instead of guessing.",
+    "Hearing: you learn the user's pace and voice level, give extra time after a stammer, get a second opinion when unsure, and know the words in \"Words Atlas Should Know\".",
+    "color_theme switches between Midnight & Gold, Graphite & Cyan and the other themes, each with a light look.",
+    "Attachments can be any file of any size (photos from Snap, documents, zips, office files); file_read and file_search read them.",
+    "Background first: prefer direct tools, notification replies (messages_recent, reply_message), phone_alarm/phone_timer/send_sms and bots over opening apps; ask for a permission with a prompt or notification instead of taking over the screen."
+   ]
+  },
+  {
+   "version": "0.10.1",
+   "versionCode": 19,
+   "date": "2026-11-16",
+   "released": true,
+   "notes": [
+    "Bots keep going until the job is done: no step cap, no early finish",
+    "Bots survive Android closing Atlas in the background",
+    "Atlas sends bots to do things, not just research",
+    "More accurate times, memories and text on both devices"
+   ],
+   "abilities": [
+    "Bots plan as many steps as the job needs and finish only with a report; send them to do things (websites, email, projects, trading, files, phone or PC actions), not only to research.",
+    "Times come from what the user said, worked out the same on phone and PC; tools read back what they stored, and impossible dates are refused."
+   ]
+  },
+  {
+   "version": "0.10.0",
+   "versionCode": 18,
+   "date": "2026-11-12",
+   "released": true,
+   "notes": [
+    "Email: read, search, draft and send (sending asks first)",
+    "Build software projects on the laptop",
+    "Trading on a demo account first, with risk rules in code",
+    "The main Atlas sees what's going on, and the phone and laptop can control each other"
+   ],
+   "abilities": [
+    "Email tools on both devices; sending and deleting wait for the user's OK.",
+    "Building software happens on the laptop (on_laptop): it builds in Documents/Atlas Projects, runs it, fixes it until its tests pass and reports back.",
+    "Trading tools (trade_*): demo first; LIVE orders always need the user's tap.",
+    "You see a situation brief every turn (bots, approvals, the other device, connections) and can manage bots and approvals from the chat."
+   ]
+  }
+ ]
 }
