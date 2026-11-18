@@ -9,7 +9,7 @@ import { CAP_IDS } from '../renderer/crew.js';
 import * as TR from '../renderer/trigrules.js';
 
 test('the phone has the same templates (run node test/make-bot-templates.mjs after editing)', () => {
-  assert.equal(fs.readFileSync(ASSET, 'utf8'), assetText());
+  assert.equal(fs.readFileSync(ASSET, 'utf8').replace(/\r\n/g, '\n'), assetText());   // Windows checkouts may turn \n into \r\n
 });
 
 test('every template makes a complete standing bot', () => {
