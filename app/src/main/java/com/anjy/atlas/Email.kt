@@ -413,6 +413,10 @@ object Email {
     private val drafts = LinkedHashMap<String, Draft>()
     private var draftN = 0
     fun draftInfo(id: String?): Draft? = synchronized(drafts) { drafts[(id ?: "").trim()] }
+    /** Everyone a draft goes to (To and Cc), for "is this someone new?" (Autonomy). */
+    fun draftTo(id: String?): String? = draftInfo(id)?.let { d -> listOf(d.to, d.cc).filter { it.isNotBlank() }.joinToString(",") }
+    /** A reply in an existing thread, to no one extra (Cc empty). */
+    fun draftIsReply(id: String?): Boolean = draftInfo(id)?.let { it.inReplyTo != null && it.cc.isBlank() } == true
 
     suspend fun draft(ctx: Context, to: String?, cc: String?, subject: String?, body: String?, replyTo: String?): Draft {
         val orig = replyTo?.takeIf { it.isNotBlank() }?.let { read(ctx, it, full = false) }
@@ -557,9 +561,15 @@ object Email {
         val acct = account(ctx) ?: return Tools.Result("No email account is connected. Ask the user to connect one in Me → Email (Gmail, Yahoo, iCloud and others need an app password), or offer to send a bot to read their email in its own browser (deploy_bot).")
         if (acct.webmail != null) return Tools.Result("${acct.providerName} doesn't let apps sign in with a password, so this tool can't reach ${acct.email}. Send a bot to ${acct.webmail} instead (deploy_bot with what to do there); the user signs in there once.")
         if (!approved) approval(c.name, a)?.let { need ->
-            val ref = ChatAsk.add(need) { cx -> Email.run(cx, c, approved = true).out }
-            val shown = if (c.name == "email_send") draftInfo(a.optString("draft_id"))?.let { d -> "\n\nTo: ${d.to}${if (d.cc.isNotEmpty()) "\nCc: ${d.cc}" else ""}\nSubject: ${d.subject}\n\n${d.body.take(1500)}\n\n" } ?: " " else " "
-            return Tools.Result("Needs the user's OK first [$ref]: $need.${shown}Show them${if (c.name == "email_send") " the email" else ""} and ask in one short line; when they say yes, call answer_approval with ref $ref.", "Waiting for your OK: ${need.take(60)}")
+            // >>> autonomy: small things just happen (with Undo); new people, and anything the user hasn't allowed, ask (Autonomy.kt)
+            val kind = Autonomy.kindFor(ctx, c.name, a)
+            val sendTo = if (c.name == "email_send") draftTo(a.optString("draft_id")) else null
+            Autonomy.chatGate(ctx, kind, need) {
+                val ref = ChatAsk.add(need) { cx -> Autonomy.approved(cx, kind); Autonomy.rememberRecipients(cx, sendTo); Email.run(cx, c, approved = true).out }
+                val shown = if (c.name == "email_send") draftInfo(a.optString("draft_id"))?.let { d -> "\n\nTo: ${d.to}${if (d.cc.isNotEmpty()) "\nCc: ${d.cc}" else ""}\nSubject: ${d.subject}\n\n${d.body.take(1500)}\n\n" } ?: " " else " "
+                Tools.Result("Needs the user's OK first [$ref]: $need.${shown}Show them${if (c.name == "email_send") " the email" else ""} and ask in one short line; when they say yes, call answer_approval with ref $ref.", "Waiting for your OK: ${need.take(60)}")
+            }?.let { return it }
+            // <<< autonomy
         }
         return try {
             when (c.name) {

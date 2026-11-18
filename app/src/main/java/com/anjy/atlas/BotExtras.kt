@@ -347,6 +347,13 @@ object BotExtras {
     }
 
     // ---- approvals
+    /** A copy of the approval policy (autonomy: level, grants, recipients… live in it too, so they sync; Autonomy.kt). */
+    fun policySnapshot(): JSONObject = synchronized(lock) { JSONObject(policy.toString()) }
+    /** Changes the policy (only from the user's own tap or own words; Autonomy.kt checks that) and syncs it. */
+    fun editPolicy(f: (JSONObject) -> Unit) {
+        synchronized(lock) { f(policy); policy.put("updatedAt", System.currentTimeMillis()) }
+        if (::app.isInitialized) { persist(); changed(true) }
+    }
     fun mode(category: String) = synchronized(lock) { Rules.modeFor(policy, category) }
     fun setMode(category: String, mode: String) {
         if (category !in Rules.CATEGORY_IDS) return

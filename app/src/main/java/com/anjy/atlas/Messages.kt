@@ -121,7 +121,7 @@ object Messages {
             val text = a.optString("text").trim()
             if (to.length < 5) return Tools.Result("Error: give a full phone number (use find_contact first if they named a person).")
             if (text.isEmpty()) return Tools.Result("Error: the text is empty.")
-            if (!approved) return ask(c)
+            if (!approved) gate(ctx, c)?.let { return it }
             if (!PermissionCenter.ensure(ctx, "sms", PermFlow.waitMs(forBot))) return Tools.Result(PermissionCenter.stillNeeded("sms"))
             return withContext(Dispatchers.IO) {
                 try {
@@ -157,7 +157,7 @@ object Messages {
                 val sbn = sbnFor(a.optString("id")) ?: return Tools.Result("Error: that message isn't in the notifications any more (it was read or cleared). Call messages_recent again.")
                 val n = sbn.notification
                 val i = NotifRules.replyIndex(btns(n)).takeIf { it >= 0 } ?: return Tools.Result("Error: this notification has no reply box, so it can't be answered in the background. Use the app's website in a bot's browser, or the screen as a last resort.")
-                if (!approved) return ask(c)
+                if (!approved) gate(ctx, c)?.let { return it }
                 val act = n.actions[i]
                 val inputs = act.remoteInputs.filter { it.allowFreeFormInput }.toTypedArray()
                 val data = Intent()
@@ -178,9 +178,16 @@ object Messages {
         }
     }
 
-    private fun ask(c: Gemini.Call): Tools.Result {
+    /** >>> autonomy: null when it may go ahead now (allowed, or the Undo countdown passed); otherwise the answer for the model. */
+    private suspend fun gate(ctx: Context, c: Gemini.Call): Tools.Result? {
         val need = approval(c.name, c.args) ?: "Send this message"
-        val ref = ChatAsk.add(need) { cx -> run(cx, c, approved = true, forBot = false).out }
+        return Autonomy.chatGate(ctx, Autonomy.kindFor(ctx, c.name, c.args), need) { ask(ctx, c) }
+    }
+
+    private fun ask(ctx: Context, c: Gemini.Call): Tools.Result {
+        val need = approval(c.name, c.args) ?: "Send this message"
+        val kind = Autonomy.kindFor(ctx, c.name, c.args)
+        val ref = ChatAsk.add(need) { cx -> Autonomy.approved(cx, kind); if (c.name == "send_sms") Autonomy.rememberRecipients(cx, c.args.optString("to")); run(cx, c, approved = true, forBot = false).out }
         return Tools.Result("Needs the user's OK first [$ref]: $need. Ask them in one short line; when they say yes, call answer_approval with ref $ref.", "Waiting for your OK: ${need.take(60)}")
     }
 }

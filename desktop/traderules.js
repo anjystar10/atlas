@@ -137,9 +137,28 @@ function check(order, inst, market, account, state, plan) {
   if (reasons.length) return { ok: false, reasons };
 
   const norm = { symbol: sym, side, type, qty: q, price, stop: stopPx, stopLoss: sl, takeProfit: tp, closing };
-  const covered = live && planCovers(plan, account, norm, estUsd, futures, state);
-  const needsApproval = live && !covered;
-  return { ok: true, order: norm, needsApproval, coveredByPlan: covered, estUsd, worstCaseUsd: worst, summary: summary(account, norm, ref, estUsd, worst, futures) };
+  const byPlan = live && planCovers(plan, account, norm, estUsd, futures, state);
+  const byLimits = live && !byPlan && standingCovers(state.standing, account, norm, estUsd, worst, futures, state);
+  const needsApproval = live && !byPlan && !byLimits;
+  return { ok: true, order: norm, needsApproval, coveredByPlan: byPlan, coveredByLimits: byLimits, estUsd, worstCaseUsd: worst, summary: summary(account, norm, ref, estUsd, worst, futures) };
+}
+
+/**
+ * The user's pre-approved LIVE limits (set by their own tap in Me → Trading, never by the model): orders inside them go
+ * without a tap. Off unless set; they need an expiry date and a list of instruments, and the worst case must be known.
+ * standing: { accountId, enabled, maxOrderUsd, maxContracts, maxDailyLossUsd, symbols: [...], expiresAt }
+ */
+function standingCovers(standing, account, o, estUsd, worst, futures, state) {
+  const s = standing;
+  if (!s || !s.enabled || s.accountId !== account.id) return false;
+  if (!(Number(s.expiresAt) > 0) || state.now == null || state.now > Number(s.expiresAt)) return false;
+  const syms = Array.isArray(s.symbols) ? s.symbols.map((x) => String(x).toUpperCase()).filter(Boolean) : [];
+  if (!syms.length || !syms.some((x) => o.symbol === x || o.symbol.startsWith(x))) return false;
+  if (o.closing) return true;   // closing or reducing a position on an allowed instrument only lowers the risk
+  if (futures ? !(Number(o.qty) <= Number(s.maxContracts || 0)) : !(estUsd <= Number(s.maxOrderUsd || 0) + 1e-9)) return false;
+  if (worst == null) return false;   // a loss with no cap is never pre-approved
+  const lost = lossToday(state, state.equity);
+  return lost + worst <= Number(s.maxDailyLossUsd || 0) + 1e-9;
 }
 
 /** The user confirmed a plan: LIVE orders inside it don't ask again (still inside every account limit). */
@@ -169,4 +188,4 @@ function summary(account, o, ref, estUsd, worst, futures) {
 /** The string Bybit signs: timestamp + api key + recv window + (query string for GET | JSON body for POST). */
 function bybitPayload(ts, apiKey, recvWindow, queryOrBody) { return String(ts) + apiKey + String(recvWindow) + (queryOrBody || ''); }
 
-module.exports = { DEFAULT_LIMITS, PAPER_LIMITS, limitsFor, floorTo, roundTo, decimalsOf, inHours, rollDay, lossToday, check, planCovers, summary, bybitPayload, money };
+module.exports = { DEFAULT_LIMITS, PAPER_LIMITS, limitsFor, floorTo, roundTo, decimalsOf, inHours, rollDay, lossToday, check, planCovers, standingCovers, summary, bybitPayload, money };

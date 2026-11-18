@@ -396,6 +396,8 @@ ipcMain.handle('trade:list', (e) => (fromMain(e) ? trade().list() : { accounts: 
 ipcMain.handle('trade:save', (e, acc, secret) => (fromMain(e) && acc && typeof acc === 'object' ? trade().save(BrowserWindow.fromWebContents(e.sender), acc, secret && typeof secret === 'object' ? secret : null).catch((err) => ({ error: err.message })) : { error: 'not allowed' }));
 ipcMain.handle('trade:remove', (e, id) => (fromMain(e) && typeof id === 'string' ? trade().remove(id) : false));
 ipcMain.handle('trade:limits', (e, id, limits) => (fromMain(e) && typeof id === 'string' ? trade().setLimits(id, limits || {}) : false));
+ipcMain.handle('trade:standing', (e, id, lim) => (fromMain(e) && typeof id === 'string' ? trade().setStanding(BrowserWindow.fromWebContents(e.sender), id, lim && typeof lim === 'object' ? lim : null) : { error: 'not allowed' }));
+ipcMain.handle('trade:standingGet', (e, id) => (fromMain(e) && typeof id === 'string' ? trade().core.standing(id) : null));
 ipcMain.handle('trade:test', (e, acc, secret) => (fromMain(e) && acc ? trade().test(acc, secret) : { error: 'not allowed' }));
 ipcMain.handle('trade:resume', (e) => (fromMain(e) ? trade().resume(BrowserWindow.fromWebContents(e.sender)) : false));
 // <<< trading

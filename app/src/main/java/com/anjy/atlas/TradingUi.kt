@@ -109,6 +109,12 @@ private fun MainActivity.tradeAccountOptions(a: JSONObject) {
     row.addView(secondary("Remove") { closeIt(); tbg({ Trading.removeAccount(applicationContext, a.optString("id")); null }) { showBanner("Removed ${a.optString("name")}") } },
         LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(8) })
     col.add(row, 14)
+    // >>> autonomy: LIVE orders without a tap, inside limits the user sets here (off unless they do)
+    if (a.optString("mode") == "live") {
+        val st = Trading.standing(applicationContext, a.optString("id"))
+        col.add(secondary(if (st != null) "Pre-Approved LIVE Trades: On" else "Pre-Approve LIVE Trades…") { closeIt(); tradeStanding(a) }, 10)
+    }
+    // <<< autonomy
     closeIt = sheet(null, "${if (a.optString("mode") == "live") "LIVE" else "PAPER"} · ${a.optString("name")}", null, content = col, primaryLabel = "Save Limits", onPrimary = {
         val lim = JSONObject()
         order.toDoubleOrNull()?.let { lim.put("maxOrderUsd", it) }; contracts.toDoubleOrNull()?.let { lim.put("maxContracts", it) }; loss.toDoubleOrNull()?.let { lim.put("maxDailyLossUsd", it) }
@@ -118,4 +124,32 @@ private fun MainActivity.tradeAccountOptions(a: JSONObject) {
         lim.put("allowDerivatives", deriv)
         tbg({ Trading.setLimits(applicationContext, a.optString("id"), lim); null }) { showBanner("Limits saved", DONE) }
     }, secondaryLabel = "Close")
+}
+
+/**
+ * >>> autonomy: pre-approved LIVE trading. Orders inside these limits go without a tap; anything outside still asks.
+ * Only this sheet sets them (no tool can), after a second, red confirmation. The stop switch turns them off.
+ */
+private fun MainActivity.tradeStanding(a: JSONObject) {
+    val st = Trading.standing(applicationContext, a.optString("id")); val futures = a.optString("broker") == "projectx"; val l = TradeRules.limitsFor(a)
+    var symbols = st?.optJSONArray("symbols")?.let { x -> (0 until x.length()).joinToString(", ") { x.optString(it) } } ?: ""
+    var order = (st?.optDouble("maxOrderUsd") ?: minOf(25.0, l.maxOrderUsd)).toString(); var contracts = (st?.optDouble("maxContracts") ?: 1.0).toInt().toString()
+    var loss = (st?.optDouble("maxDailyLossUsd") ?: minOf(20.0, l.maxDailyLossUsd)).toString(); var days = "7"
+    val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+    col.addView(text("LIVE orders inside these limits go ahead without asking you each time. Anything bigger, on another instrument, past today's loss limit or after the end date still asks. Your account limits always apply. This is real money.", 13f, MUTED))
+    col.add(field("Instruments (required), e.g. BTCUSDT, MNQ", symbols) { symbols = it }, 8)
+    if (futures) col.add(field("Most contracts per order (account allows ${l.maxContracts.toInt()})", contracts, numeric = true) { contracts = it }, 8)
+    else col.add(field("Most dollars per order (account allows ${TradeRules.money(l.maxOrderUsd)})", order, decimal = true) { order = it }, 8)
+    col.add(field("Most loss in a day (dollars)", loss, decimal = true) { loss = it }, 8)
+    col.add(field("For how many days (1–90)", days, numeric = true) { days = it }, 8)
+    st?.let { col.addView(text("On until ${java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(java.util.Date(it.optLong("expiresAt")))}.", 13f, MUTED)) }
+    val lim = { JSONObject().put("symbols", symbols).put("maxOrderUsd", order.toDoubleOrNull() ?: 0.0).put("maxContracts", contracts.toDoubleOrNull() ?: 0.0)
+        .put("maxDailyLossUsd", loss.toDoubleOrNull() ?: 0.0).put("days", days.toDoubleOrNull() ?: 7.0) }
+    sheet(null, "Pre-Approve LIVE Trades", null, content = col, primaryLabel = "Review", onPrimary = {
+        val x = lim()
+        sheet(null, "Trade Real Money Without a Tap?", "Atlas may place LIVE orders on ${a.optString("name")} in ${symbols.ifBlank { "(no instruments)" }}, up to ${if (futures) "$contracts contract(s)" else TradeRules.money(x.optDouble("maxOrderUsd"))} each, losing at most ${TradeRules.money(x.optDouble("maxDailyLossUsd"))} in a day, for ${x.optDouble("days").toInt()} days. Losses are possible.",
+            primaryLabel = "Pre-Approve", primaryColor = MISS, onPrimary = {
+                tbg({ Trading.setStanding(applicationContext, a.optString("id"), x).second }) { err -> showBanner(err ?: "LIVE trades inside your limits won't ask now", if (err == null) DONE else MISS) }
+            }, secondaryLabel = "Cancel")
+    }, secondaryLabel = if (st != null) "Turn Off" else "Cancel", onSecondary = { if (st != null) tbg({ Trading.setStanding(applicationContext, a.optString("id"), null); null }) { showBanner("LIVE trades ask every time again", DONE) } })
 }

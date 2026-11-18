@@ -178,6 +178,10 @@ class PermissionsActivity : Activity() {
         fun dp(v: Int) = (v * d).toInt()
         list.removeAllViews()
         list.addView(TextView(this).apply { text = "Permissions"; textSize = 30f; setTextColor(P.fg); typeface = Type.serif(this@PermissionsActivity) })
+        // >>> autonomy: how freely Atlas acts, standing permissions and what it did on its own (AutonomyUi below)
+        AutonomyUi.render(this, list, P) { render() }
+        list.addView(TextView(this).apply { text = "Phone Access"; textSize = 22f; setTextColor(P.fg); typeface = Type.serif(this@PermissionsActivity); setPadding(0, dp(18), 0, 0) })
+        // <<< autonomy
         list.addView(TextView(this).apply { text = "What lets Atlas work in the background while you use your phone. Atlas asks when a job needs one; you can turn them on here too."
             textSize = 16f; setTextColor(P.muted); setPadding(0, dp(8), 0, dp(18)); typeface = Type.serif(this@PermissionsActivity) })
         for (p in PermissionCenter.ALL) {
@@ -191,6 +195,54 @@ class PermissionsActivity : Activity() {
                 if (!on) setOnClickListener { PermissionCenter.open(this@PermissionsActivity, p.id) }
             })
             list.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        }
+    }
+}
+
+/**
+ * >>> autonomy: Me → Permissions, top section. Every change here is the user's own tap. Same glass cards as the rest
+ * of the page (Palette tokens), so it follows the theme.
+ */
+object AutonomyUi {
+    fun render(a: Activity, list: LinearLayout, P: Palette, again: () -> Unit) {
+        val d = a.resources.displayMetrics.density
+        fun dp(v: Int) = (v * d).toInt()
+        fun card() = LinearLayout(a).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(P.surface); setStroke(dp(1), P.line) } }
+        fun lp() = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }
+        BotExtras.init(a)
+        list.addView(TextView(a).apply { text = "How Freely Atlas Acts"; textSize = 22f; setTextColor(P.fg); typeface = Type.serif(a); setPadding(0, dp(14), 0, 0) })
+        list.addView(TextView(a).apply { text = "Money, deleting, messaging someone new and security changes always ask, whatever you pick."
+            textSize = 15f; setTextColor(P.muted); setPadding(0, dp(6), 0, dp(12)); typeface = Type.serif(a) })
+        val now = Autonomy.level(a)
+        for (lv in AutonomyRules.LEVELS) {
+            val c = card()
+            val on = lv == now
+            c.addView(TextView(a).apply { text = (if (on) "● " else "○ ") + lv.replaceFirstChar { it.uppercase() } + if (lv == AutonomyRules.DEFAULT_LEVEL) " (recommended)" else ""
+                textSize = 17f; setTextColor(if (on) P.accentInk else P.fg); typeface = Type.serifMedium(a) })
+            c.addView(TextView(a).apply { text = AutonomyRules.LEVEL_LABELS[lv]?.substringAfter(": ") ?: ""; textSize = 14f; setTextColor(P.muted); setPadding(0, dp(4), 0, 0) })
+            c.minimumHeight = dp(44)
+            c.setOnClickListener { Autonomy.setLevel(a, lv, byTap = true); again() }
+            list.addView(c, lp())
+        }
+        val grants = Autonomy.grants(a)
+        if (grants.isNotEmpty()) {
+            list.addView(TextView(a).apply { text = "Allowed Without Asking"; textSize = 17f; setTextColor(P.fg); typeface = Type.serifMedium(a); setPadding(0, dp(10), 0, dp(6)) })
+            grants.forEachIndexed { i, g ->
+                val c = card()
+                c.addView(TextView(a).apply { text = AutonomyRules.grantText(g) { id -> BotExtras.specialists.toList().firstOrNull { it.optString("id") == id }?.optString("name") ?: "a bot" }; textSize = 15f; setTextColor(P.fg) })
+                c.addView(TextView(a).apply { text = "Ask Again ›"; textSize = 14f; setTextColor(P.accentInk); setPadding(0, dp(8), 0, 0); minHeight = dp(44); gravity = android.view.Gravity.CENTER_VERTICAL
+                    setOnClickListener { Autonomy.revoke(a, i); again() } })
+                list.addView(c, lp())
+            }
+        }
+        val recent = Autonomy.recent(a).takeLast(8).reversed()
+        if (recent.isNotEmpty()) {
+            list.addView(TextView(a).apply { text = "Done Without Asking"; textSize = 17f; setTextColor(P.fg); typeface = Type.serifMedium(a); setPadding(0, dp(10), 0, dp(6)) })
+            val c = card()
+            val fmt = java.text.SimpleDateFormat("EEE HH:mm", java.util.Locale.getDefault())
+            recent.forEach { r -> c.addView(TextView(a).apply { text = "${fmt.format(java.util.Date(r.optLong("at")))} · ${r.optString("what")}"; textSize = 14f; setTextColor(P.muted); setPadding(0, dp(3), 0, dp(3)) }) }
+            list.addView(c, lp())
         }
     }
 }

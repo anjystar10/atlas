@@ -139,6 +139,32 @@ object Trading {
         put("allowDerivatives", l.optBoolean("allowDerivatives"))
     }
     /** The user (never the model) turns trading back on. */
+    /**
+     * The user's pre-approved LIVE limits for an account: LIVE orders inside them go without a tap. Only Me → Trading
+     * calls this, after the user's own tap on a warning sheet; no tool reaches it. null turns them off.
+     * Returns the saved limits, or an error message.
+     */
+    fun setStanding(ctx: Context, accountId: String, lim: JSONObject?): Pair<JSONObject?, String?> {
+        if (lim == null) {
+            edit(ctx) { d -> (d.optJSONObject("standing") ?: JSONObject().also { d.put("standing", it) }).remove(accountId) }
+            audit(ctx, accountId, "live", "limits", result = "cleared", note = "pre-approved LIVE limits turned off by the user"); return null to null
+        }
+        val a = accounts(ctx).firstOrNull { it.optString("id") == accountId } ?: return null to "No such account."
+        val l = TradeRules.limitsFor(a)
+        val syms = (lim.optJSONArray("symbols")?.let { x -> (0 until x.length()).map { x.optString(it) } } ?: lim.optString("symbols").split(Regex("[\\s,]+")))
+            .map { it.trim().uppercase() }.filter { it.isNotBlank() }.take(10)
+        if (syms.isEmpty()) return null to "List the instruments these limits cover."
+        val days = lim.optDouble("days", 7.0).let { if (it.isFinite()) it else 7.0 }.coerceIn(1.0, 90.0)
+        fun cap(k: String, max: Double) = lim.optDouble(k, 0.0).let { if (it.isFinite()) it else 0.0 }.coerceIn(0.0, max)
+        val now = System.currentTimeMillis()
+        val v = JSONObject().put("accountId", accountId).put("enabled", true).put("symbols", JSONArray(syms)).put("setAt", now).put("expiresAt", now + (days * 86_400_000).toLong())
+            .put("maxOrderUsd", cap("maxOrderUsd", l.maxOrderUsd)).put("maxContracts", cap("maxContracts", l.maxContracts)).put("maxDailyLossUsd", cap("maxDailyLossUsd", l.maxDailyLossUsd))
+        edit(ctx) { d -> (d.optJSONObject("standing") ?: JSONObject().also { d.put("standing", it) }).put(accountId, v) }
+        audit(ctx, a.optString("name"), "live", "limits", result = "set", note = "pre-approved: ${syms.joinToString("/")}, ≤${TradeRules.money(v.optDouble("maxOrderUsd"))} or ${v.optDouble("maxContracts")} contract(s) per order, ≤${TradeRules.money(v.optDouble("maxDailyLossUsd"))} loss a day, until ${java.util.Date(v.optLong("expiresAt"))}")
+        return v to null
+    }
+    fun standing(ctx: Context, accountId: String): JSONObject? = state(ctx).optJSONObject("standing")?.optJSONObject(accountId)?.takeIf { it.optLong("expiresAt") > System.currentTimeMillis() }
+
     fun resume(ctx: Context) { edit(ctx) { it.put("killed", false).put("resumedAt", System.currentTimeMillis()) }; audit(ctx, "*", "", "resume", result = "resumed", note = "by the user") }
 
     // ---- the audit log, in the Library (bot/Trading/trading-log.csv)
@@ -403,6 +429,7 @@ object Trading {
         val open = acct.optJSONArray("positions")?.let { p -> JSONArray((0 until p.length()).map { p.getJSONObject(it).optString("symbol") }) } ?: JSONArray()
         val st = JSONObject().put("killed", killed(ctx)).put("day", d.optString("day")).put("dayStartEquity", d.optDouble("dayStartEquity")).put("equity", acct.optDouble("equity"))
             .put("ordersToday", d.optInt("ordersToday")).put("openSymbols", open).put("minuteOfDay", minute).put("isoDay", iso).put("now", System.currentTimeMillis())
+            .put("standing", state(ctx).optJSONObject("standing")?.optJSONObject(a.optString("id")) ?: JSONObject.NULL)
         val o = JSONObject(order.toString()).put("symbol", inst.optString("symbol"))
         return Assessed(TradeRules.check(o, inst, market, a, st, planFor(ctx, a)), market, b)
     }
@@ -416,7 +443,7 @@ object Trading {
             if (!o.optBoolean("closing")) d.optJSONObject("days")?.optJSONObject(a.optString("id"))?.let { it.put("ordersToday", it.optInt("ordersToday") + 1) }
             if (v.coveredByPlan) d.optJSONObject("plans")?.optJSONObject(a.optString("id"))?.let { it.put("used", it.optInt("used") + 1) }
         }
-        audit(ctx, a.optString("name"), a.optString("mode"), if (o.optBoolean("closing")) "close" else "order", o, "sent", id, notes.joinToString("; ").ifEmpty { if (v.coveredByPlan) "inside the confirmed plan" else "" })
+        audit(ctx, a.optString("name"), a.optString("mode"), if (o.optBoolean("closing")) "close" else "order", o, "sent", id, notes.joinToString("; ").ifEmpty { if (v.coveredByPlan) "inside the confirmed plan" else if (v.coveredByLimits) "inside your pre-approved LIVE limits" else "" })
         TradingNotify.sent(ctx, a.optString("mode") == "live", v.summary)
         return "Sent. ${v.summary}\nOrder id: $id${if (notes.isNotEmpty()) "\n" + notes.joinToString("\n") else ""}\n${if (a.optString("mode") == "live") "This was a LIVE order with real money." else "PAPER: no real money."} Check fills with trade_account."
     }
@@ -516,7 +543,7 @@ object Trading {
             .put("maxContracts", minOf(args.optDouble("max_contracts", l.maxContracts).takeIf { it.isFinite() && it > 0 } ?: l.maxContracts, l.maxContracts))
             .put("expiresAt", System.currentTimeMillis() + (hours * 3600_000).toLong()).put("used", 0).put("confirmed", false)
         val syms = list("symbols").map { it.uppercase() }; val sides = list("sides")
-        val text = "${label(a)}\n$summary\n\nUp to ${p.optInt("maxOrders")} order(s)${if (syms.isNotEmpty()) " in " + syms.joinToString(", ") else ""}${if (sides.isNotEmpty()) " (" + sides.joinToString("/") + " only)" else ""}, each at most ${TradeRules.money(p.optDouble("maxOrderUsd"))} (spot) or ${p.optDouble("maxContracts").toInt()} contract(s) (futures), for ${hours.toInt()} hours. Every account limit still applies. Losses are possible; nothing is guaranteed."
+        val text = "Covers up to ${p.optInt("maxOrders")} LIVE order(s), each up to ${TradeRules.money(p.optDouble("maxOrderUsd"))} (spot) or ${p.optDouble("maxContracts").toInt()} contract(s) (futures).\n\n${label(a)}\n$summary\n\nUp to ${p.optInt("maxOrders")} order(s)${if (syms.isNotEmpty()) " in " + syms.joinToString(", ") else ""}${if (sides.isNotEmpty()) " (" + sides.joinToString("/") + " only)" else ""}, each at most ${TradeRules.money(p.optDouble("maxOrderUsd"))} (spot) or ${p.optDouble("maxContracts").toInt()} contract(s) (futures), for ${hours.toInt()} hours. Every account limit still applies. Losses are possible; nothing is guaranteed."
         if (a.optString("mode") != "live") {
             if (prepare) return Res(out = "ok")
             edit(ctx) { d -> (d.optJSONObject("plans") ?: JSONObject().also { d.put("plans", it) }).put(a.optString("id"), JSONObject(p.toString()).put("confirmed", true)) }
@@ -537,7 +564,7 @@ object Trading {
 
     /** The stop switch: no new orders anywhere, open orders cancelled. Only the user can turn trading back on. */
     fun stopAll(ctx: Context, reason: String): Res {
-        edit(ctx) { it.put("killed", true).put("killedAt", System.currentTimeMillis()).put("killReason", reason.take(200)).put("plans", JSONObject()) }
+        edit(ctx) { it.put("killed", true).put("killedAt", System.currentTimeMillis()).put("killReason", reason.take(200)).put("plans", JSONObject()).put("standing", JSONObject()) }
         val notes = mutableListOf<String>()
         for (a in accounts(ctx)) try {
             val b = broker(ctx, a); val o = b.account().optJSONArray("orders")
@@ -552,7 +579,7 @@ object Trading {
         val list = accounts(ctx)
         if (list.isEmpty()) return Res("No trading accounts are connected. The user can connect one in Me → Trading.")
         return Res((if (killed(ctx)) "TRADING IS STOPPED (stop switch on).\n" else "") + list.joinToString("\n") { a -> val l = TradeRules.limitsFor(a)
-            "- ${a.optString("name")}: ${if (a.optString("mode") == "live") "LIVE (real money; each order asks unless a confirmed plan covers it)" else "PAPER (practice; no OK needed)"}, ${if (a.optString("broker") == "bybit") "Bybit spot" else "ProjectX futures"}. Limits: ${if (a.optString("broker") == "bybit") TradeRules.money(l.maxOrderUsd) + " per order" else "${l.maxContracts.toInt()} contract(s) per order"}, ${TradeRules.money(l.maxDailyLossUsd)} daily loss, ${l.maxOrdersPerDay} trades a day, ${l.maxOpenPositions} open positions${if (l.symbols.isNotEmpty()) ", only " + l.symbols.joinToString("/") else ""}${l.hours?.let { ", ${it.start}–${it.end}" } ?: ""}." })
+            "- ${a.optString("name")}: ${if (a.optString("mode") == "live") "LIVE (real money; each order asks unless a confirmed plan or the user's pre-approved limits cover it)${if (standing(ctx, a.optString("id")) != null) " [pre-approved limits on]" else ""}" else "PAPER (practice; no OK needed)"}, ${if (a.optString("broker") == "bybit") "Bybit spot" else "ProjectX futures"}. Limits: ${if (a.optString("broker") == "bybit") TradeRules.money(l.maxOrderUsd) + " per order" else "${l.maxContracts.toInt()} contract(s) per order"}, ${TradeRules.money(l.maxDailyLossUsd)} daily loss, ${l.maxOrdersPerDay} trades a day, ${l.maxOpenPositions} open positions${if (l.symbols.isNotEmpty()) ", only " + l.symbols.joinToString("/") else ""}${l.hours?.let { ", ${it.start}–${it.end}" } ?: ""}." })
     }
 
     private fun accountInfo(ctx: Context, args: JSONObject): Res {

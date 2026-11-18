@@ -62,7 +62,7 @@ function createTrading(deps) {
     const d = dayState(a, acct.equity);
     const t = local();
     const state = { killed: !!store.get().killed, day: d.day, dayStartEquity: d.dayStartEquity, equity: acct.equity, ordersToday: d.ordersToday || 0,
-      openSymbols: (acct.positions || []).map((p) => p.symbol), minuteOfDay: t.minuteOfDay, isoDay: t.isoDay, now: now() };
+      openSymbols: (acct.positions || []).map((p) => p.symbol), minuteOfDay: t.minuteOfDay, isoDay: t.isoDay, now: now(), standing: (store.get().standing || {})[a.id] || null };
     const v = R.check({ ...order, symbol: inst.symbol }, inst, market, a, state, planFor(a));
     return { v, inst, market, acct, b };
   }
@@ -76,7 +76,7 @@ function createTrading(deps) {
     else res = await assessed.b.place(o, tag);
     if (!o.closing) bumpOrders(a);
     if (verdict.coveredByPlan) usePlan(a);
-    audit({ at: now(), account: a.name, mode: a.mode, action: o.closing ? 'close' : 'order', symbol: o.symbol, side: o.side, qty: o.qty, type: o.type, price: o.price || '', stopLoss: o.stopLoss || '', takeProfit: o.takeProfit || '', result: 'sent', orderId: res.id, note: (res.notes || []).join('; ') || (verdict.coveredByPlan ? 'inside the confirmed plan' : '') });
+    audit({ at: now(), account: a.name, mode: a.mode, action: o.closing ? 'close' : 'order', symbol: o.symbol, side: o.side, qty: o.qty, type: o.type, price: o.price || '', stopLoss: o.stopLoss || '', takeProfit: o.takeProfit || '', result: 'sent', orderId: res.id, note: (res.notes || []).join('; ') || (verdict.coveredByPlan ? 'inside the confirmed plan' : verdict.coveredByLimits ? 'inside your pre-approved LIVE limits' : '') });
     if (a.mode === 'live') notify(`${label(a)}: order sent`, verdict.summary);
     return `Sent. ${verdict.summary}\nOrder id: ${res.id}${res.notes && res.notes.length ? '\n' + res.notes.join('\n') : ''}\n${a.mode === 'live' ? 'This was a LIVE order with real money.' : 'PAPER: no real money.'} Check fills with trade_account.`;
   }
@@ -162,7 +162,7 @@ function createTrading(deps) {
       expiresAt: now() + Math.max(1, Math.min(Number(args.hours) || 24, 24 * 7)) * 3600e3, used: 0, confirmed: false,
     };
     if (!p.summary) return { out: 'Error: describe the plan (strategy, entries and exits, risk per trade) in summary.' };
-    const text = `${label(a)}\n${p.summary}\n\nUp to ${p.maxOrders} order(s)${p.symbols.length ? ' in ' + p.symbols.join(', ') : ''}${p.sides.length ? ' (' + p.sides.join('/') + ' only)' : ''}, each at most ${R.money(p.maxOrderUsd)} (spot) or ${p.maxContracts} contract(s) (futures), for ${Math.round((p.expiresAt - now()) / 3600e3)} hours. Every account limit still applies. Losses are possible; nothing is guaranteed.`;
+    const text = `Covers up to ${p.maxOrders} LIVE order(s), each up to ${R.money(p.maxOrderUsd)} (spot) or ${p.maxContracts} contract(s) (futures).\n\n${label(a)}\n${p.summary}\n\nUp to ${p.maxOrders} order(s)${p.symbols.length ? ' in ' + p.symbols.join(', ') : ''}${p.sides.length ? ' (' + p.sides.join('/') + ' only)' : ''}, each at most ${R.money(p.maxOrderUsd)} (spot) or ${p.maxContracts} contract(s) (futures), for ${Math.round((p.expiresAt - now()) / 3600e3)} hours. Every account limit still applies. Losses are possible; nothing is guaranteed.`;
     if (opts.prepare && a.mode !== 'live') return { ok: true };
     if (a.mode !== 'live') {
       const s = store.get(); store.set({ ...s, plans: { ...(s.plans || {}), [a.id]: { ...p, confirmed: true, confirmedAt: now() } } });
@@ -211,7 +211,7 @@ function createTrading(deps) {
 
   /** The stop switch: no new orders anywhere, open orders cancelled. Only the user can turn trading back on. */
   async function stopAll(args) {
-    const s = store.get(); store.set({ ...s, killed: true, killedAt: now(), killReason: String(args.reason || '').slice(0, 200), plans: {} });
+    const s = store.get(); store.set({ ...s, killed: true, killedAt: now(), killReason: String(args.reason || '').slice(0, 200), plans: {}, standing: {} });
     const notes = [];
     for (const a of accounts()) {
       try { const b = broker(a); const acct = await b.account(); for (const o of acct.orders) { try { await b.cancel(o.id, o.symbol); notes.push(`${a.name} #${o.id} cancelled`); } catch (e) { notes.push(`${a.name} #${o.id} NOT cancelled (${e.message})`); } } }
@@ -225,7 +225,7 @@ function createTrading(deps) {
   function accountsList() {
     const list = accounts();
     if (!list.length) return { out: 'No trading accounts are connected. The user can connect one in Me → Trading.' };
-    return { out: (store.get().killed ? 'TRADING IS STOPPED (stop switch on).\n' : '') + list.map((a) => { const L = R.limitsFor(a); return `- ${a.name}: ${a.mode === 'live' ? 'LIVE (real money; each order asks unless a confirmed plan covers it)' : 'PAPER (practice; no OK needed)'}, ${a.broker === 'bybit' ? 'Bybit spot' : 'ProjectX futures'}. Limits: ${a.broker === 'bybit' ? R.money(L.maxOrderUsd) + ' per order' : L.maxContracts + ' contract(s) per order'}, ${R.money(L.maxDailyLossUsd)} daily loss, ${L.maxOrdersPerDay} trades a day, ${L.maxOpenPositions} open positions${L.symbols.length ? ', only ' + L.symbols.join('/') : ''}${L.hours ? `, ${L.hours.start}–${L.hours.end}` : ''}.`; }).join('\n') };
+    return { out: (store.get().killed ? 'TRADING IS STOPPED (stop switch on).\n' : '') + list.map((a) => { const L = R.limitsFor(a); return `- ${a.name}: ${a.mode === 'live' ? 'LIVE (real money; each order asks unless a confirmed plan or the user\'s pre-approved limits cover it)' + (standing(a.id) ? ' [pre-approved limits on]' : '') : 'PAPER (practice; no OK needed)'}, ${a.broker === 'bybit' ? 'Bybit spot' : 'ProjectX futures'}. Limits: ${a.broker === 'bybit' ? R.money(L.maxOrderUsd) + ' per order' : L.maxContracts + ' contract(s) per order'}, ${R.money(L.maxDailyLossUsd)} daily loss, ${L.maxOrdersPerDay} trades a day, ${L.maxOpenPositions} open positions${L.symbols.length ? ', only ' + L.symbols.join('/') : ''}${L.hours ? `, ${L.hours.start}–${L.hours.end}` : ''}.`; }).join('\n') };
   }
 
   async function run(name, args = {}, opts = {}) {
@@ -248,10 +248,31 @@ function createTrading(deps) {
     }
   }
 
+  /**
+   * The user's pre-approved LIVE limits for an account (set only from their own tap in Me → Trading; no tool can call it).
+   * null clears them. Returns the saved limits, or {error}.
+   */
+  function setStanding(accountId, lim) {
+    const s = store.get(); const all = { ...(s.standing || {}) };
+    if (!lim) { delete all[accountId]; store.set({ ...s, standing: all }); audit({ at: now(), account: accountId, mode: 'live', action: 'limits', result: 'cleared', note: 'pre-approved LIVE limits turned off by the user' }); return null; }
+    const a = (s.accounts || []).find((x) => x.id === accountId);
+    const L = a ? R.limitsFor(a) : R.DEFAULT_LIMITS;
+    const symbols = (Array.isArray(lim.symbols) ? lim.symbols : String(lim.symbols || '').split(/[\s,]+/)).map((x) => String(x).trim().toUpperCase()).filter(Boolean).slice(0, 10);
+    const days = Math.max(1, Math.min(Number(lim.days) || 7, 90));
+    const v = { accountId, enabled: true, symbols, setAt: now(), expiresAt: now() + days * 86400e3,
+      maxOrderUsd: Math.min(Math.max(0, Number(lim.maxOrderUsd) || 0), L.maxOrderUsd), maxContracts: Math.min(Math.max(0, Number(lim.maxContracts) || 0), L.maxContracts),
+      maxDailyLossUsd: Math.min(Math.max(0, Number(lim.maxDailyLossUsd) || 0), L.maxDailyLossUsd) };
+    if (!symbols.length) return { error: 'List the instruments these limits cover.' };
+    all[accountId] = v; store.set({ ...s, standing: all });
+    audit({ at: now(), account: accountId, mode: 'live', action: 'limits', result: 'set', note: `pre-approved: ${symbols.join('/')}, ≤${R.money(v.maxOrderUsd)} or ${v.maxContracts} contract(s) per order, ≤${R.money(v.maxDailyLossUsd)} loss a day, until ${new Date(v.expiresAt).toLocaleDateString()}` });
+    return v;
+  }
+  function standing(accountId) { const v = (store.get().standing || {})[accountId]; return v && v.expiresAt > now() ? v : null; }
+
   /** The user (never the model) turns trading back on. */
   function resume() { const s = store.get(); store.set({ ...s, killed: false, resumedAt: now() }); audit({ at: now(), account: '*', mode: '', action: 'resume', result: 'resumed', note: 'by the user' }); }
 
-  return { run, resume, pick, tickets };
+  return { run, resume, pick, tickets, setStanding, standing };
 }
 
 module.exports = { createTrading, TICKET_MS };
