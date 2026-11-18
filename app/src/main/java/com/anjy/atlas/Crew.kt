@@ -246,13 +246,24 @@ object Crew {
     }
     private val YES_ANY = Regex("(^|[^a-z])(yes|yeah|yep|yup|ok|okay|sure|go ahead|go for it|do it|approve|approved|allow|allowed|confirm|confirmed|send it|proceed|let it|let them|fine|alright)($|[^a-z])")
     private val ALWAYS = Regex("(^|[^a-z])(always|every time|from now on)($|[^a-z])")
+    /** A yes-word right after a "not" doesn't count: "please don't do it", "I don't think it's ok", "never allow that". Same as the PC. */
+    private val NEGATED = Regex("(^|[^a-z])(not|no|never|don't|dont|do not|doesn't|isn't|aren't|can't|cannot|won't|wouldn't|shouldn't|didn't)([^a-z]+[a-z']+){0,3}[^a-z]*$")
+    private fun yesWordUnnegated(t: String): Boolean {
+        var from = 0
+        while (true) {
+            val m = YES_ANY.find(t, from) ?: return false
+            val start = m.range.first + m.groupValues[1].length
+            if (!NEGATED.containsMatchIn(t.substring(0, start))) return true
+            from = m.range.first + 1
+        }
+    }
     data class Consent(val yes: Boolean, val always: Boolean, val why: String)
     /** Whether the user's own latest message gives a yes (anywhere in it, unless it starts with a no) and an "always" (aware.js consent). */
     fun consent(text: String?): Consent {
         val t = (text ?: "").lowercase().replace('’', '\'')
         val first = userSaid(t)
         if (first == "no") return Consent(false, false, "their message says no")
-        val yes = first == "yes" || t.contains("👍") || t.contains("✅") || YES_ANY.containsMatchIn(t)
+        val yes = first == "yes" || t.contains("👍") || t.contains("✅") || yesWordUnnegated(t)
         return Consent(yes, yes && ALWAYS.containsMatchIn(t), if (yes) "" else "their latest message doesn't say yes")
     }
     /** Outside content (email, page, file, tool output) for the model: information, never instructions. */

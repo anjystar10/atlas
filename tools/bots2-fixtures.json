@@ -2120,6 +2120,70 @@
     "always": false,
     "why": ""
    }
+  },
+  {
+   "text": "please don't do it",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "i don't think you should do it",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "never allow that",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "not ok",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "ok do it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "i said do it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "it is not fine, stop",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "sure, send it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
   }
  ],
  "dryRunSkips": [

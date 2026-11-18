@@ -216,12 +216,22 @@ export function userSaid(text) {
 }
 const YES_ANY = /(^|[^a-z])(yes|yeah|yep|yup|ok|okay|sure|go ahead|go for it|do it|approve|approved|allow|allowed|confirm|confirmed|send it|proceed|let it|let them|fine|alright)($|[^a-z])/;
 const ALWAYS = /(^|[^a-z])(always|every time|from now on)($|[^a-z])/;
+// a yes-word right after a "not" doesn't count: "please don't do it", "I don't think it's ok", "never allow that"
+const NEGATED = /(^|[^a-z])(not|no|never|don't|dont|do not|doesn't|isn't|aren't|can't|cannot|won't|wouldn't|shouldn't|didn't)([^a-z]+[a-z']+){0,3}[^a-z]*$/;
+function yesWordUnnegated(t) {
+  const re = new RegExp(YES_ANY.source, 'g');
+  for (let m; (m = re.exec(t)); re.lastIndex = m.index + 1) {
+    const start = m.index + m[1].length;
+    if (!NEGATED.test(t.slice(0, start))) return true;
+  }
+  return false;
+}
 /** Whether the user's own latest message gives a yes (anywhere in it, unless it starts with a no) and an "always": {yes, always, why}. */
 export function consent(text) {
   const t = String(text || '').toLowerCase().replace(/’/g, "'");
   const first = userSaid(t);
   if (first === 'no') return { yes: false, always: false, why: 'their message says no' };
-  const yes = first === 'yes' || t.includes('👍') || t.includes('✅') || YES_ANY.test(t);
+  const yes = first === 'yes' || t.includes('👍') || t.includes('✅') || yesWordUnnegated(t);
   return { yes, always: yes && ALWAYS.test(t), why: yes ? '' : "their latest message doesn't say yes" };
 }
 /** Wraps outside content (email, page, file, tool output) so the model reads it as information, never as instructions. */
