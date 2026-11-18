@@ -313,8 +313,9 @@ internal fun MainActivity.renderNavBar() {
         // the round Start button
         val go = FrameLayout(this).apply {
             // ink, so the coloured drop in the bar stays the one bright thing
-            background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(tint(BLUE, if (dark) Color.WHITE else blend(BLUE, ACCENT, 0.5f), 0.25f), BLUE)).apply { shape = GradientDrawable.OVAL }
-            elevation = dp(10).toFloat()
+            // the theme's main colour, lit glass like the drop in the bar, glowing softly in its own colour
+            background = finished(PRIMARY, -1f)
+            glowShadow(PRIMARY, dark, dp(if (dark) 10 else 6).toFloat())
             contentDescription = L.t("Talk to Atlas")
             isClickable = true
             setOnClickListener {
@@ -328,9 +329,11 @@ internal fun MainActivity.renderNavBar() {
                 }
                 false
             }
-            addView(LineIcon(this@renderNavBar, "mic").apply { color = ON }, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER))
+            addView(LineIcon(this@renderNavBar, "mic").apply { color = ON_PRIMARY }, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER))
         }
-        nav.addView(go, LinearLayout.LayoutParams(dp(goD), dp(goD)).apply { leftMargin = dp(gap) })
+        // as tall as the bar, so the two read as one control
+        val barH = cellH + padP * 2
+        nav.addView(go, LinearLayout.LayoutParams(dp(barH), dp(barH)).apply { leftMargin = dp(gap) })
         navGo = go
         navShown = -1
     }
@@ -383,8 +386,8 @@ internal fun MainActivity.renderNavBar() {
     }
 }
 
-/** Each tab's light, from the colour theme: the accent, the secondary, and the two blends between them (neighbours, so they sit together). */
-internal fun navColors(p: Palette) = intArrayOf(p.accent, p.blue, blend(p.accent, p.blue, 0.5f), blend(p.accent, p.warm, 0.35f))
+/** The current tab's light: one colour for every tab, the theme's main-action colour, so the bar reads as one piece with the mic beside it. */
+internal fun navColors(p: Palette) = IntArray(4) { p.primaryBottom }
 internal val NAV_COLORS: IntArray get() = navColors(Palette.DARK)
 
 /**

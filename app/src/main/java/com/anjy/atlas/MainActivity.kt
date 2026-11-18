@@ -104,10 +104,15 @@ class MainActivity : Activity() {
             STEEL = p.surface2; NAVBG = p.nav; BTN2 = p.surface
         }
         LIGHT_GLASS = hex(Palette.LIGHT.surface); LIGHT_FIELD = hex(Palette.LIGHT.surface2)
+        // the main action wears the theme's own colour (gold, cyan, coral, violet by night; deep ink by day)
+        PRIMARY = p.primaryBottom; ON_PRIMARY = p.onPrimary
         // <<< themes
     }
 
     private var shownTheme = ""
+    /** The main action's colour and the ink on it, from the theme (contrast-checked in tools/gen_themes.py). */
+    internal var PRIMARY = Color.parseColor("#DCA845")
+    internal var ON_PRIMARY = Color.parseColor("#1A1405")
     private fun hex(c: Int) = String.format("#%06X", c and 0xFFFFFF)
 
     /** Light mode's panels: frosted glass (white at about 45%) seen over the lavender-blue page. */
@@ -116,10 +121,10 @@ class MainActivity : Activity() {
     internal var LIGHT_FIELD = "#E9EAF9"
 
     /** A quieter button's background: glass at night, black glass by day. [radius] < 0 means a pill. */
-    internal fun quietBg(radius: Float = -1f): android.graphics.drawable.Drawable = if (dark) finished(SURFACE, radius, glass = true) else finished(BTN2, radius)
+    internal fun quietBg(radius: Float = -1f): android.graphics.drawable.Drawable = finished(SURFACE, radius, glass = true)
     /** Words and icons on a quieter button. */
-    internal fun quietInk() = if (dark) FG else Color.WHITE
-    internal fun quietMuted() = if (dark) MUTED else Color.argb(210, 255, 255, 255)
+    internal fun quietInk() = FG
+    internal fun quietMuted() = MUTED
 
     internal val MATCH = ViewGroup.LayoutParams.MATCH_PARENT
     internal val WRAP = ViewGroup.LayoutParams.WRAP_CONTENT
@@ -325,8 +330,10 @@ class MainActivity : Activity() {
         plain = true
         text = L.t(label); textSize = 16f; typeface = MED; gravity = Gravity.CENTER
         val plain = color == SURFACE2 || color == SURFACE || color == STEEL
-        setTextColor(when { plain -> quietInk(); color == BLUE -> ON; else -> inkOn(color) })
-        background = if (plain) quietBg() else finished(color)
+        val main = color == BLUE
+        setTextColor(when { plain -> quietInk(); main -> ON_PRIMARY; else -> inkOn(color) })
+        background = if (plain) quietBg() else finished(if (main) PRIMARY else color)
+        if (main) glowShadow(PRIMARY, dark, dp(if (dark) 8 else 4).toFloat())
         minHeight = dp(56)
         setPadding(dp(20), dp(15), dp(20), dp(15))
         pressFx()
@@ -463,8 +470,11 @@ class MainActivity : Activity() {
         val color = if (asked == DONE) BLUE else asked
         banner.text = noEmoji(L.t(msg))
         // the same glass finish as the buttons, so a message looks like part of the app
-        banner.background = Finish(color, -1f, dark, resources.displayMetrics.density)
-        banner.setTextColor(if (color == BLUE) ON else inkOn(color))
+        // plain news is a raised glass sheet (the same as the pop-ups); only warnings are coloured
+        val neutral = color == BLUE || color == MUTED
+        banner.background = if (neutral) SheetDrawable(SURFACE2, dp(999).toFloat(), dark, resources.displayMetrics.density) else Finish(color, -1f, dark, resources.displayMetrics.density)
+        banner.setTextColor(if (neutral) FG else inkOn(color))
+        banner.elevation = dp(12).toFloat(); banner.outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
         banner.animate().cancel()
         // quick in, a moment to read, quick out
         banner.alpha = 0f; banner.translationY = -dp(12).toFloat()
@@ -1032,7 +1042,7 @@ class MainActivity : Activity() {
     }
 
     // ---------------------------------------------------------------- the chat opens at your latest messages
-    private var latestChip: TextView? = null
+    private var latestChip: View? = null
     private var followUntil = 0L
     private var pausedAt = 0L
 
@@ -1055,24 +1065,37 @@ class MainActivity : Activity() {
         })
     }
 
-    /** "Latest ↓": shows on the Atlas tab once you've scrolled up more than about a screen; one tap takes you back down. */
+    /**
+     * "Latest": a glass pill with the theme's colour on its arrow. It rises in on the Atlas tab once you've scrolled up
+     * more than about a screen, sits just above the ask bar, and one tap glides you back down.
+     */
     private fun updateLatestChip() {
         val far = tab == 0 && Conversation.messages.isNotEmpty() && body.height - (scroll.scrollY + scroll.height) > scroll.height * 0.8f
         val chip = latestChip ?: run {
             if (!far) return
             val host = findViewById<ViewGroup>(android.R.id.content) ?: return
-            TextView(this).apply {
-                text = "Latest  ↓"; textSize = 14f; typeface = SEMI; setTextColor(ON)
-                setPadding(dp(18), dp(9), dp(18), dp(9))
-                background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(20).toFloat(); setColor(BLUE) }
-                elevation = dp(20).toFloat(); alpha = 0f; visibility = View.GONE
-                contentDescription = "Jump to the latest messages"
-                setOnClickListener { toLatest(smooth = true) }
-                host.addView(this, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(176) })
+            LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(14), dp(8), dp(16), dp(8)); minimumHeight = dp(40)
+                background = SheetDrawable(SURFACE2, dp(999).toFloat(), dark, density)
+                elevation = dp(14).toFloat(); outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+                alpha = 0f; visibility = View.GONE; isClickable = true
+                contentDescription = L.t("Jump to the latest messages")
+                val ring = FrameLayout(this@MainActivity).apply {
+                    background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(PRIMARY) }
+                    addView(LineIcon(this@MainActivity, "down").apply { color = ON_PRIMARY }, FrameLayout.LayoutParams(dp(14), dp(14), Gravity.CENTER))
+                }
+                addView(ring, LinearLayout.LayoutParams(dp(24), dp(24)))
+                addView(text("Latest", 14f, FG, SEMI), LinearLayout.LayoutParams(WRAP, WRAP).apply { leftMargin = dp(8) })
+                setOnClickListener { it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY); toLatest(smooth = true) }
+                pressFx()
+                host.addView(this, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(168) })
             }.also { latestChip = it }
         }
-        if (far && chip.visibility != View.VISIBLE) { chip.visibility = View.VISIBLE; chip.animate().alpha(1f).setDuration(160).start() }
-        else if (!far && chip.visibility == View.VISIBLE) chip.animate().alpha(0f).setDuration(120).withEndAction { if (chip.alpha == 0f) chip.visibility = View.GONE }.start()
+        if (far && chip.visibility != View.VISIBLE) {
+            chip.visibility = View.VISIBLE; chip.translationY = dp(10).toFloat(); chip.scaleX = 0.92f; chip.scaleY = 0.92f
+            chip.animate().alpha(1f).translationY(0f).scaleX(1f).scaleY(1f).setDuration(240).setInterpolator(android.view.animation.OvershootInterpolator(1.6f)).start()
+        } else if (!far && chip.visibility == View.VISIBLE) chip.animate().alpha(0f).translationY(dp(8).toFloat()).setDuration(140).setInterpolator(null).withEndAction { if (chip.alpha == 0f) chip.visibility = View.GONE }.start()
     }
 
     internal fun render(keepScroll: Boolean = false) {
@@ -1221,17 +1244,25 @@ class MainActivity : Activity() {
                 isClickable = true; contentDescription = line
                 setOnClickListener { if (botLine().isNotEmpty() && !line.startsWith("Next") && line.contains("bot")) switchTab(3, 1) else switchTab(1, 1) }
             }, 10)
-            val ideas = listOf("Remind me to call mum tomorrow at 6pm", "Open ChatGPT and ask it how to find diamonds in Minecraft", "What can you do?")
+            // a few things to try: compact glass pills, one line each, centred (never a stack tall enough to hide behind the ask bar)
+            val ideas = listOf("Remind me to call mum at 6pm", "Open ChatGPT and ask it something", "What can you do?")
                 .let { if (short) listOf(it[0], it[2]) else it }
-            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL }
+            val maxW = (resources.displayMetrics.widthPixels * 0.86f).toInt()
             ideas.forEachIndexed { i, idea ->
-                col.add(text(idea, 14f, FG, MED, keepEmoji = true).apply {
-                    background = finished(SURFACE, -1f, glass = true); setPadding(dp(16), dp(12), dp(16), dp(13)); gravity = Gravity.CENTER
-                    minHeight = dp(44)
-                    isClickable = true; setOnClickListener { composerField.setText(idea); composerField.setSelection(idea.length); composerField.requestFocus() }
-                }, if (i == 0) 0 else 8)
+                val pill = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                    background = finished(SURFACE, -1f, glass = true); setPadding(dp(14), dp(9), dp(16), dp(10)); minimumHeight = dp(44)
+                    isClickable = true; contentDescription = idea
+                    setOnClickListener { haptic(); composerField.setText(idea); composerField.setSelection(idea.length); composerField.requestFocus() }
+                    pressFx()
+                    addView(LineIcon(this@MainActivity, "spark").apply { color = ACCENT_INK }, LinearLayout.LayoutParams(dp(14), dp(14)))
+                    addView(text(idea, 14f, FG, MED, keepEmoji = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END; maxWidth = maxW - dp(52) },
+                        LinearLayout.LayoutParams(WRAP, WRAP).apply { leftMargin = dp(8) })
+                }
+                col.addView(pill, LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = if (i == 0) 0 else dp(8) })
             }
-            body.add(col, 22)
+            body.add(col, if (short) 16 else 22)
             if (!Conversation.online(this)) body.add(text("To think properly Atlas needs an API key (Gemini's is free): Me → Brain.", 13f, MUTED).apply { gravity = Gravity.CENTER }, 18)
             return
         }
@@ -1419,13 +1450,19 @@ class MainActivity : Activity() {
         val copy = { _: View -> messageMenu(m); true }
         if (m.fromUser) {
             if (m.media.isNotEmpty()) wrap.addView(mediaStrip(m.media, dp(84)), LinearLayout.LayoutParams(WRAP, WRAP).apply { bottomMargin = dp(6) })
+            // your words: a glass bubble tinted with the theme's colour, as wide as what you said, tucked to the right
+            val rr = dp(20).toFloat(); val tail = dp(6).toFloat()
             wrap.addView(text(m.text, Type.READ, FG, READ, keepEmoji = true).apply {
                 setLineSpacing(0f, 1.3f)
-                background = Finish(SURFACE, dp(20).toFloat(), dark, density, glass = true)
+                background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                    intArrayOf(blend(SURFACE, PRIMARY, if (dark) 0.20f else 0.12f), blend(SURFACE, PRIMARY, if (dark) 0.12f else 0.07f))).apply {
+                    cornerRadii = floatArrayOf(rr, rr, rr, rr, tail, tail, rr, rr)
+                    setStroke(dp(1), withAlpha(PRIMARY, if (dark) 90 else 70))
+                }
                 setPadding(dp(15), dp(10), dp(15), dp(11))
                 maxWidth = (resources.displayMetrics.widthPixels * 0.78).toInt()
                 setOnLongClickListener(copy)
-            })
+            }, LinearLayout.LayoutParams(WRAP, WRAP))
             return wrap
         }
         if (m.text.isBlank()) {
@@ -2013,22 +2050,9 @@ class MainActivity : Activity() {
     }
 
     private fun entryRow(e: Entry): View {
-        val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(14), 0, dp(14)); gravity = Gravity.CENTER_VERTICAL; isClickable = true }
+        val r = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(13), 0, dp(13)); gravity = Gravity.CENTER_VERTICAL; isClickable = true }
         val mid = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val t = e.task; val m = e.memory
-        if (t != null) {
-            mid.addView(text(Plain.memory(t.title), 16f, if (t.status in setOf("done", "skipped", "cancelled")) MUTED else FG, MED, keepEmoji = true))
-            val meta = mutableListOf<String>()
-            t.startAt?.let { meta.add("⏰ ${whenLabel(it)}") }
-            if (t.recurrence != "none") meta.add(t.recurrence.replaceFirstChar { it.uppercase() })
-            if (t.notes.isNotBlank()) meta.add(Plain.memory(t.notes))
-            meta.add("Logged ${logged(t.createdAt)}")
-            mid.addView(text(meta.joinToString(" · "), 13f, MUTED, keepEmoji = true))
-        } else if (m != null) {
-            mid.addView(text(Plain.memory(m.text), 16f, FG, keepEmoji = true))
-            mid.addView(text("Remembered · ${logged(m.createdAt)}", 13f, MUTED))
-        }
-        r.addView(mid, LinearLayout.LayoutParams(0, WRAP, 1f))
         val (label, colr) = when {
             m != null -> "Memory" to GOLD
             t == null -> "" to MUTED
@@ -2039,10 +2063,34 @@ class MainActivity : Activity() {
             t.status == "planned" && t.startAt != null -> "Rang" to MUTED
             else -> "Note" to MUTED
         }
-        if (label.isNotEmpty()) r.addView(text(label, 12f, colr, SEMI).apply {
-            background = Finish(SURFACE, -1f, dark, density, glass = true); setPadding(dp(10), dp(4), dp(10), dp(5))
-        })
+        // a small glass coin with what kind of entry this is, tinted with its state's colour
+        val kind = when { m != null -> "note"; t?.status == "done" -> "done"; t?.startAt != null -> "bell"; else -> "note" }
+        val coin = FrameLayout(this).apply {
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(withAlpha(if (colr == MUTED) FG else colr, if (dark) 30 else 26)) }
+            addView(LineIcon(this@MainActivity, kind).apply { color = if (colr == MUTED) MUTED else colr }, FrameLayout.LayoutParams(dp(17), dp(17), Gravity.CENTER))
+        }
+        r.addView(coin, LinearLayout.LayoutParams(dp(38), dp(38)).apply { rightMargin = dp(12) })
+        if (t != null) {
+            mid.addView(text(Plain.memory(t.title), 16f, if (t.status in setOf("done", "skipped", "cancelled")) MUTED else FG, MED, keepEmoji = true))
+            val meta = mutableListOf<String>()
+            t.startAt?.let { meta.add(whenLabel(it)) }
+            if (t.recurrence != "none") meta.add(t.recurrence.replaceFirstChar { it.uppercase() })
+            if (t.notes.isNotBlank()) meta.add(Plain.memory(t.notes))
+            // when it was logged only matters when there's no time of its own
+            if (t.startAt == null) meta.add("Logged ${logged(t.createdAt)}")
+            mid.addView(text(meta.joinToString(" · "), 13f, MUTED, keepEmoji = true).apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END },
+                LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(2) })
+        } else if (m != null) {
+            mid.addView(text(Plain.memory(m.text), 16f, FG, keepEmoji = true))
+            mid.addView(text("Remembered · ${logged(m.createdAt)}", 13f, MUTED), LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(2) })
+        }
+        r.addView(mid, LinearLayout.LayoutParams(0, WRAP, 1f))
+        if (label.isNotEmpty() && label != "Memory") r.addView(text(label, 12f, colr, SEMI).apply {
+            background = GradientDrawable().apply { cornerRadius = dp(999).toFloat(); setColor(withAlpha(if (colr == MUTED) FG else colr, if (dark) 26 else 22)) }
+            setPadding(dp(10), dp(4), dp(10), dp(5))
+        }, LinearLayout.LayoutParams(WRAP, WRAP).apply { leftMargin = dp(8) })
         r.setOnClickListener { if (t != null) taskActions(t) else if (m != null) forgetSheet(m) }
+        r.pressFx()
         return r
     }
 
@@ -2438,7 +2486,10 @@ class MainActivity : Activity() {
 
     private fun renderMe() {
         val st = Store.read(this) { it.settings }
-        pageTitle("Me")
+        // light and dark, one tap away at the top of Me (also in Appearance below, and by holding the orb)
+        pageTitle("Me", roundIcon(if (dark) "sun" else "moon", if (dark) "Switch to the light look" else "Switch to the dark look") {
+            haptic(); Store.putString(this@MainActivity, "theme2", if (dark) "light" else "dark"); relook()
+        }.apply { layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)) })
 
         // Brain: any AI service, with the user's own key
         body.add(eyebrow("Brain"), 16)

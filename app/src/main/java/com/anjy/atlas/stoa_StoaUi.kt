@@ -310,6 +310,22 @@ class LineIcon(context: android.content.Context, private val kind: String) : Vie
                 path.moveTo(17.5f, 3.5f); path.lineTo(20.5f, 6.5f); path.lineTo(12f, 15f); path.lineTo(8.5f, 15.5f); path.lineTo(9f, 12f); path.close(); c.drawPath(path, p)
             }
             "search" -> { c.drawCircle(10.5f, 10.5f, 6f, p); c.drawLine(15f, 15f, 20f, 20f, p) }
+            "sun" -> { c.drawCircle(12f, 12f, 4f, p); for (k in 0 until 8) { val an = Math.toRadians(k * 45.0); c.drawLine(12f + 7f * Math.cos(an).toFloat(), 12f + 7f * Math.sin(an).toFloat(), 12f + 9.5f * Math.cos(an).toFloat(), 12f + 9.5f * Math.sin(an).toFloat(), p) } }
+            "moon" -> { path.moveTo(19f, 14.5f); path.cubicTo(17.6f, 15.3f, 16f, 15.7f, 14.3f, 15.7f); path.cubicTo(9.6f, 15.7f, 6.3f, 12.2f, 6.3f, 7.6f); path.cubicTo(6.3f, 6.3f, 6.6f, 5.1f, 7.2f, 4f)
+                path.cubicTo(4.7f, 5.3f, 3f, 8f, 3f, 11.1f); path.cubicTo(3f, 15.6f, 6.6f, 19.2f, 11.1f, 19.2f); path.cubicTo(14.6f, 19.2f, 17.6f, 17.3f, 19f, 14.5f); path.close(); c.drawPath(path, p) }
+            "down" -> { c.drawLine(12f, 5f, 12f, 18.5f, p); path.moveTo(6.5f, 13f); path.lineTo(12f, 18.5f); path.lineTo(17.5f, 13f); c.drawPath(path, p) }
+            "bell" -> { // a reminder: a bell with its clapper
+                path.moveTo(6f, 16.5f); path.lineTo(6f, 11f); path.cubicTo(6f, 7.2f, 8.6f, 4.8f, 12f, 4.8f); path.cubicTo(15.4f, 4.8f, 18f, 7.2f, 18f, 11f); path.lineTo(18f, 16.5f)
+                path.lineTo(19.5f, 18f); path.lineTo(4.5f, 18f); path.close(); c.drawPath(path, p)
+                c.drawLine(10.2f, 20.6f, 13.8f, 20.6f, p)
+            }
+            "note" -> { // something remembered: a bookmark
+                path.moveTo(7f, 4f); path.lineTo(17f, 4f); path.lineTo(17f, 20f); path.lineTo(12f, 16.2f); path.lineTo(7f, 20f); path.close(); c.drawPath(path, p)
+            }
+            "done" -> { c.drawCircle(12f, 12f, 8.5f, p); path.moveTo(8.2f, 12.2f); path.lineTo(11f, 15f); path.lineTo(16f, 9.5f); c.drawPath(path, p) }
+            "spark" -> { // Atlas's four-point star
+                path.moveTo(12f, 3.5f); path.quadTo(13f, 11f, 20.5f, 12f); path.quadTo(13f, 13f, 12f, 20.5f); path.quadTo(11f, 13f, 3.5f, 12f); path.quadTo(11f, 11f, 12f, 3.5f); path.close(); c.drawPath(path, p)
+            }
             else -> { c.drawLine(5f, 12f, 19f, 12f, p); path.moveTo(13f, 6f); path.lineTo(19f, 12f); path.lineTo(13f, 18f); c.drawPath(path, p) }
         }
         c.restore()
