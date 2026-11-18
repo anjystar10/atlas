@@ -19,6 +19,14 @@ class BotFaceTest {
     }
     private val fx by lazy { JSONObject(File(root(), "tools/botface-fixtures.json").readText()) }
     private fun objs(a: JSONArray) = (0 until a.length()).map { a.getJSONObject(it) }
+    /** A JSON value as plain, order-free Kotlin values (the JVM's org.json has no similar()). */
+    private fun norm(v: Any?): Any? = when (v) {
+        is JSONObject -> v.keys().asSequence().map { it to norm(v.opt(it)) }.toMap(java.util.TreeMap())
+        is JSONArray -> (0 until v.length()).map { norm(v.opt(it)) }
+        is Number -> v.toDouble()
+        JSONObject.NULL -> null
+        else -> v
+    }
 
     @Test fun hashMatches() {
         for (c in objs(fx.getJSONArray("hash"))) assertEquals("hash of ${c.getString("s")}", c.getLong("out"), BotFace.hash(c.getString("s")))
@@ -35,7 +43,7 @@ class BotFaceTest {
             assertEquals("subtitle of $who", c.getString("subtitle"), BotFace.subtitle(b))
             val m = BotFace.migrate(b)!!
             assertEquals("changed: $who", c.getBoolean("changed"), m !== b)
-            assertTrue("migrated $who: $m", c.getJSONObject("migrated").similar(m))
+            assertEquals("migrated $who", norm(c.getJSONObject("migrated")), norm(m))
             val mf = BotFace.faceOf(m); val wm = c.getJSONObject("migratedFace")
             assertEquals(wm.getString("shape"), mf.shape); assertEquals(wm.getInt("color"), mf.color); assertEquals(wm.getString("motif"), mf.motif)
             assertEquals("label after: $who", c.getString("migratedLabel"), BotFace.label(m))
