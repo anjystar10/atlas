@@ -1295,10 +1295,12 @@ class MainActivity : Activity() {
     private fun newChat() {
         if (Conversation.messages.isEmpty()) { showBanner("This is already a new chat.", MUTED); return }
         haptic()
-        Conversation.newChat(applicationContext)
+        val kept = Conversation.newChat(applicationContext)
         render()
         undoBanner("New chat. The last one is under Chats.") {
-            ChatArchive.list(this).firstOrNull()?.let { Conversation.openSaved(applicationContext, it.id); render() }
+            // the chat just put away, by its id: the newest in the list is the one with the latest message, which isn't
+            // it when it was an older chat opened again
+            kept?.let { Conversation.openSaved(applicationContext, it); render() }
         }
     }
 

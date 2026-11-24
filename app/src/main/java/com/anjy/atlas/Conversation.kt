@@ -183,13 +183,14 @@ object Conversation {
         messages.clear(); history.clear(); save(ctx); changed()
     }
 
-    /** New chat: the conversation so far is kept in the Chats list (on this phone), then a fresh one starts. */
-    fun newChat(ctx: Context) {
+    /** New chat: the conversation so far is kept in the Chats list (on this phone), then a fresh one starts. Returns its id there (for Undo). */
+    fun newChat(ctx: Context): String? {
         val app = ctx.applicationContext
         load(app)
         stop()
-        keepCurrent(app)
+        val kept = keepCurrent(app)
         clear(app)
+        return kept
     }
 
     /** Opens a saved chat: it becomes the conversation, and the one you were in is kept in the list in its place. */
@@ -207,11 +208,11 @@ object Conversation {
         return true
     }
 
-    private fun keepCurrent(app: Context) {
+    private fun keepCurrent(app: Context): String? {
         val keep = messages.filter { it.text.isNotBlank() || it.media.isNotEmpty() }
-        if (keep.isEmpty()) return
+        if (keep.isEmpty()) return null
         val a = JSONArray(); keep.takeLast(KEEP_MESSAGES).forEach { a.put(record(it)) }
-        ChatArchive.save(app, a, keep.firstOrNull { it.fromUser }?.text, keep.last().at)
+        return ChatArchive.save(app, a, keep.firstOrNull { it.fromUser }?.text, keep.last().at)
     }
 
     // ---------------------------------------------------------------- talking
