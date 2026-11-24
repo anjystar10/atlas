@@ -192,7 +192,8 @@ function refreshLine() {
   if (!root) return;
   const m = lastAtlas();
   const line = $('#hudline');
-  const text = m && m.text ? H.spokenLine(m.text, 220) : '';
+  // first run: the one thing to do, where it can be read (the top line is cut short in a normal-sized window)
+  const text = m && m.text ? H.spokenLine(m.text, 220) : !brain.active() ? 'No brain yet: add an AI key in Classic → Me (Ctrl+Alt+H). Gemini\'s is free.' : '';
   if (line.dataset.v !== text) { line.dataset.v = text; line.textContent = text; line.classList.remove('in'); void line.offsetWidth; line.classList.add('in'); }
 }
 function stateNow() {
