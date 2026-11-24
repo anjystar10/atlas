@@ -120,6 +120,22 @@ test('a record that fails to merge is tried again, not lost', async () => {
   assert.deepEqual(got, [7]);
 });
 
+test('a kind that keeps its own newer copy sends it back, so the devices do not drift apart', async () => {
+  // like a bot skill: the copy with the later edit time wins, whichever device's sync saw it last
+  const mine = { s1: { id: 's1', v: 'laptop edit', updatedAt: 200 } };
+  sync.registerKind('skillish', { list: () => ({ ...mine }), apply: (id, rec) => { if (rec && (mine[id] ? rec.updatedAt >= mine[id].updatedAt : true)) { mine[id] = rec; return undefined; } return sync.KEPT_MINE; }, absentMeansDeleted: false });
+  await sync.runOnce();
+  assert.equal((await cloudHas('skillish', 's1')).v, 'laptop edit');
+  // the phone (its clock behind) sends an older edit after ours: it lands in the cloud last
+  await new Promise((r) => setTimeout(r, 5));
+  await phoneSends('skillish', 's1', { id: 's1', v: 'older phone edit', updatedAt: 100 }, { at: now() });
+  assert.equal((await cloudHas('skillish', 's1')).v, 'older phone edit', 'the cloud took the phone\'s send');
+  await new Promise((r) => setTimeout(r, 5));
+  await sync.runOnce();
+  assert.equal(mine.s1.v, 'laptop edit', 'the newer copy stays here');
+  assert.equal((await cloudHas('skillish', 's1')).v, 'laptop edit', 'and goes back up, so the phone gets it too');
+});
+
 test('a huge chat message is cut short for the phone; an oversized record is reported, and syncing carries on', async () => {
   const big = 'x'.repeat(1200000);
   store.db.chat.push({ id: 'huge', user: true, text: big, at: now() });

@@ -417,9 +417,12 @@ export function createExtras(deps) {
     timer = next ? deps.setTimer(tick, Math.min(60000, Math.max(1000, next - now()))) : null;
   }
 
-  /** From sync: another device's copy of one item ([rec] null = deleted there). */
+  /**
+   * From sync: another device's copy of one item ([rec] null = deleted there). Returns 'kept-mine' (sync.js KEPT_MINE)
+   * when this copy is newer and stays: sync then sends it back, so the other device ends with it too.
+   */
   function applySynced(kind, id, rec) {
-    if (kind === 'botpolicy') { if (rec && (rec.updatedAt || 0) >= (data.policy.updatedAt || 0)) data.policy = { ...emptyPolicy(), ...rec }; persist(); changed(null); return; }
+    if (kind === 'botpolicy') { if (rec && (rec.updatedAt || 0) >= (data.policy.updatedAt || 0)) { data.policy = { ...emptyPolicy(), ...rec }; persist(); changed(null); return undefined; } return rec ? 'kept-mine' : undefined; }
     const arr = kind === 'skill' ? data.skills : kind === 'routine' ? data.routines : kind === 'specialist' ? data.specialists : null; if (!arr) return;
     const i = arr.findIndex((x) => x.id === id);
     if (!rec) { if (i >= 0) arr.splice(i, 1); }
@@ -428,8 +431,9 @@ export function createExtras(deps) {
       // a routine's run times belong to the device that runs it
       if (kind === 'routine' && mine(arr[i])) { const keep = { nextAt: arr[i].nextAt, lastAt: arr[i].lastAt, history: arr[i].history }; arr[i] = { ...rec, ...keep }; if (rec.enabled) arr[i].nextAt = nextRun(rec.schedule, now()); }
       else arr[i] = rec;
-    }
+    } else return 'kept-mine';
     persist(); changed(null); if (kind === 'routine') tick();
+    return undefined;
   }
   /** For sync: everything to share, as {kind, id, json}. */
   function synced() {

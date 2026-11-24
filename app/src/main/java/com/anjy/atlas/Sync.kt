@@ -180,6 +180,9 @@ object Sync {
      * Records must be plain JSON with no secrets; a field "updatedAt", "updated_ms" or "at" is read as the edit time.
      */
     class Kind(val list: (Context) -> Map<String, JSONObject>?, val apply: (Context, String, JSONObject?) -> Unit, val absentMeansDeleted: Boolean = true)
+    /** Called by a kind's apply when it kept its own, newer copy ("kind:id"): that copy goes back up, so both devices end with it. */
+    private val keptMine = java.util.Collections.synchronizedSet(HashSet<String>())
+    fun keptMine(key: String) { keptMine.add(key) }
     private val kinds = java.util.concurrent.ConcurrentHashMap<String, Kind>()
     fun register(kind: String, k: Kind) { require(kind !in BUILT_IN); kinds[kind] = k }
     /** Kinds every Atlas of this version knows. "device" is each device saying it's there (and which Atlas it runs). */
@@ -343,13 +346,17 @@ object Sync {
                     changes.add(Triple(kind, id, plain)); revs[k] = rev; rowOf[k] = r
                 }
                 if (changes.isNotEmpty()) {
+                    keptMine.clear()
                     val failed = apply(ctx, changes)
+                    // a kind kept its own copy (newer by its edit time): not taken in, so send ours back rather than drift apart
+                    val kept = synchronized(keptMine) { keptMine.toSet().also { keptMine.clear() } }
+                    kept.forEach { k -> sent.remove(k); byKey[k]?.let { dirty.put(k, JSONObject().put("at", now).put("fp", fp(it.json))) } }
                     // a record of a known kind that couldn't be taken in just now: kept and tried again next time, not lost
                     failed.forEach { k -> rowOf[k]?.let { parked.put(k, it.put("retry", true)) }; sent.remove(k) }
                     got += changes.size - failed.size
                     // this device may write a record its own way (field order, defaults): that is not an edit to send back
                     val mine = records(ctx, presence).first.associateBy { "${it.kind}:${it.id}" }
-                    changes.forEach { (kind, id, rec) -> val k = "$kind:$id"; if (rec != null && k !in failed) mine[k]?.let { sent.put(k, fp(it.json)) } }
+                    changes.forEach { (kind, id, rec) -> val k = "$kind:$id"; if (rec != null && k !in failed && k !in kept) mine[k]?.let { sent.put(k, fp(it.json)) } }
                 }
             }
             // parked records this Atlas can take in now (it learnt the kind, or a merge that failed may work now)

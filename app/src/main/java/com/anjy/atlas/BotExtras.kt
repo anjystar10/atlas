@@ -334,7 +334,7 @@ object BotExtras {
             persist()
         }
         for (kind in listOf("skill", "routine", "specialist", "botpolicy")) {
-            Sync.register(kind, Sync.Kind(list = { _ -> synced(kind) }, apply = { _, id, rec -> applySynced(kind, id, rec) }))
+            Sync.register(kind, Sync.Kind(list = { _ -> synced(kind) }, apply = { _, id, rec -> if (!applySynced(kind, id, rec)) Sync.keptMine("$kind:$id") }))
         }
         schedule()
     }
@@ -522,9 +522,11 @@ object BotExtras {
             else -> emptyMap()
         }
     }
-    private fun applySynced(kind: String, id: String, rec: JSONObject?) {
+    /** Takes one item in from sync; false when this copy is newer and stays (Sync then sends it back, so both devices end with it). */
+    private fun applySynced(kind: String, id: String, rec: JSONObject?): Boolean {
+        var taken = true
         synchronized(lock) {
-            if (kind == "botpolicy") { if (rec != null && rec.optLong("updatedAt") >= policy.optLong("updatedAt")) policy = emptyPolicy().also { e -> rec.keys().forEach { k -> e.put(k, rec.get(k)) } } }
+            if (kind == "botpolicy") { if (rec != null && rec.optLong("updatedAt") >= policy.optLong("updatedAt")) policy = emptyPolicy().also { e -> rec.keys().forEach { k -> e.put(k, rec.get(k)) } } else if (rec != null) taken = false }
             else {
                 val arr = when (kind) { "skill" -> skills; "routine" -> routines; "specialist" -> specialists; else -> return }
                 val i = arr.indexOfFirst { it.optString("id") == id }
@@ -540,10 +542,13 @@ object BotExtras {
                         }
                         arr[i] = rec
                     }
+                    else -> taken = false
                 }
             }
         }
+        if (!taken) return false
         persist(); changed(false); if (kind == "routine" || kind == "specialist") schedule()
+        return true
     }
 }
 
