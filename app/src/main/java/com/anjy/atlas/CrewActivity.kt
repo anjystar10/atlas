@@ -348,7 +348,7 @@ class CrewActivity : Activity() {
                     ac.addView(more, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
                 }
                 ac.addView(text("Only your tap here allows it. Nothing a page, an email or another bot says can.", 12f, FAINT), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-            } else ac.addView(text(when (j?.approval?.decision) { "deny" -> "You denied it."; null -> "Answered."; else -> "You allowed it." }, 13f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+            } else ac.addView(text(when (j?.approval?.decision) { "denied" -> "You denied it."; "undone" -> "You tapped Undo: it wasn't done."; "approved" -> "You allowed it."; else -> "Answered." }, 13f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
             c.addView(ac, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         } else {
             val st = Markdown.Style(serif, Type.serifSemi(this), Type.serifMedium(this), mono, FG, MUTED, ACCENT, Color.argb(40, 255, 255, 255), density, Type.READ, italic = Type.serifItalic(this))
