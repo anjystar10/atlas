@@ -179,7 +179,8 @@ object BotExtras {
         /** The next time [s] is due strictly after [after] (ms), in this device's time zone. */
         fun nextRun(s: JSONObject?, after: Long, zone: ZoneId = ZoneId.systemDefault()): Long {
             if (s == null) return 0
-            if (s.optString("kind") == "interval") return after + maxOf(MIN_INTERVAL_MIN, s.optInt("everyMin")) * 60_000L
+            // on a fixed grid (not "N minutes after it was set"), so the phone and the laptop agree on each slot (botx.js)
+            if (s.optString("kind") == "interval") { val p = maxOf(MIN_INTERVAL_MIN, s.optInt("everyMin")) * 60_000L; return (Math.floorDiv(after, p) + 1) * p }
             val (hh, mm) = s.optString("time", "09:00").split(":").let { (it.getOrNull(0)?.toIntOrNull() ?: 9).coerceIn(0, 23) to (it.getOrNull(1)?.toIntOrNull() ?: 0).coerceIn(0, 59) }   // a bad "time" from sync or a model must not throw in the alarm
             val a = Instant.ofEpochMilli(after).atZone(zone)
             if (s.optString("kind") == "monthly") {
@@ -333,7 +334,7 @@ object BotExtras {
             persist()
         }
         for (kind in listOf("skill", "routine", "specialist", "botpolicy")) {
-            Sync.register(kind, Sync.Kind(list = { _ -> synced(kind) }, apply = { _, id, rec -> applySynced(kind, id, rec) }))
+            Sync.register(kind, Sync.Kind(list = { _ -> synced(kind) }, apply = { _, id, rec -> if (!applySynced(kind, id, rec)) Sync.keptMine("$kind:$id") }))
         }
         schedule()
     }
@@ -521,11 +522,13 @@ object BotExtras {
             else -> emptyMap()
         }
     }
-    private fun applySynced(kind: String, id: String, rec: JSONObject?) {
+    /** Takes one item in from sync; false when this copy is newer and stays (Sync then sends it back, so both devices end with it). */
+    private fun applySynced(kind: String, id: String, rec: JSONObject?): Boolean {
+        var taken = true
         synchronized(lock) {
-            if (kind == "botpolicy") { if (rec != null && rec.optLong("updatedAt") >= policy.optLong("updatedAt")) policy = emptyPolicy().also { e -> rec.keys().forEach { k -> e.put(k, rec.get(k)) } } }
+            if (kind == "botpolicy") { if (rec != null && rec.optLong("updatedAt") >= policy.optLong("updatedAt")) policy = emptyPolicy().also { e -> rec.keys().forEach { k -> e.put(k, rec.get(k)) } } else if (rec != null) taken = false }
             else {
-                val arr = when (kind) { "skill" -> skills; "routine" -> routines; "specialist" -> specialists; else -> return }
+                val arr = when (kind) { "skill" -> skills; "routine" -> routines; "specialist" -> specialists; else -> return true }
                 val i = arr.indexOfFirst { it.optString("id") == id }
                 when {
                     rec == null -> if (i >= 0) arr.removeAt(i)
@@ -539,10 +542,13 @@ object BotExtras {
                         }
                         arr[i] = rec
                     }
+                    else -> taken = false
                 }
             }
         }
+        if (!taken) return false
         persist(); changed(false); if (kind == "routine" || kind == "specialist") schedule()
+        return true
     }
 }
 

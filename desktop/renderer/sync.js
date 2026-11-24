@@ -215,6 +215,8 @@ function dropGone(keys) {
  * Records must be plain JSON with no secrets; "updatedAt", "updated_ms" or "at" is read as the edit time.
  */
 const kinds = new Map();
+/** What a kind's apply() returns when it kept its own, newer copy: that copy goes back up, so both devices end with it. */
+export const KEPT_MINE = 'kept-mine';
 /** Kinds every Atlas of this version knows. "device" is each device saying it's there (and which Atlas it runs). */
 const BUILT_IN = ['task', 'memory', 'log', 'profile', 'chat', 'device'];
 export function registerKind(kind, { list, apply, absentMeansDeleted = true }) {
@@ -258,7 +260,7 @@ async function rpc(fn, body) {
 
 /** Takes one record in. Throws when a registered kind can't take it in just now (it's kept and tried again, not lost). */
 async function applyRecord(kind, id, rec) {
-  if (kinds.has(kind)) { await kinds.get(kind).apply(id, rec); return kind; }
+  if (kinds.has(kind)) { const r = await kinds.get(kind).apply(id, rec); return r === KEPT_MINE ? KEPT_MINE : kind; }
   const arr = kind === 'task' ? db.state.tasks : kind === 'memory' ? db.state.memories : kind === 'log' ? db.state.log : null;
   // your name and how reminders behave (an older Atlas sends only the name; a blank name never wipes this one)
   if (kind === 'profile') { if (rec) Object.assign(db.state.settings, profileFields(rec)); return 'state'; }
@@ -388,7 +390,10 @@ async function runInner() {
         if (d && mineWins(d.at, me, r.updated_ms, r.device)) continue;        // ours is newer: it goes up below
         delete dirty[k];
         try {
-          const w = await applyRecord(r.kind, r.id, rec); if (w) touched.add(w); got++;
+          const w = await applyRecord(r.kind, r.id, rec);
+          // it kept its own copy (newer by its edit time): not taken in, so send ours back rather than drift apart
+          if (w === KEPT_MINE) { delete sent[k]; if (local[k]) dirty[k] = { at: now, fp: local[k].fp }; continue; }
+          if (w) touched.add(w); got++;
           if (r.deleted) delete sent[k]; else sent[k] = await fp(rec);
           if (rec) { applied.push(k); recOf[k] = rec; }
         } catch (e) {

@@ -53,7 +53,7 @@ export const TEMPLATES = [
     access: acc({ email: 'write', files: 'write', log: 'write', web: 'read' }),
     triggers: [
       { id: 'tr-digest', type: 'schedule', enabled: true, config: { schedule: 'every day at 7am', goal: 'Morning email digest: what needs the user today, drafts ready for their OK.' } },
-      { id: 'tr-new', type: 'email', enabled: false, config: { filter: 'important', goal: 'A new important email arrived: summarise it and draft a reply if it needs one.' } },
+      { id: 'tr-new', type: 'email', enabled: false, config: { goal: 'A new email arrived (this runs for every new unread email: add a sender or subject to narrow it). If it matters, summarise it and draft a reply if it needs one; if it is noise, say so in one line.' } },
     ],
     asks: ['Sending any email (unless you set a standing rule)', 'Deleting any email'],
     setup: ['Connect your email in Me → Email (for Gmail: turn on 2-Step Verification, then make an app password at myaccount.google.com/apppasswords)'],

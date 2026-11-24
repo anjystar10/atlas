@@ -377,7 +377,8 @@
     }
    },
    "out": "Log the spend\n\nWhat happened: New email from Bank: Debit alert\nfrom: Bank\nsubject: Debit alert\nn: 3",
-   "key": "b1|a|New email from Bank: Debit alert"
+   "key": "b1|a|New email from Bank: Debit alert",
+   "claim": "b1|a|New email from Bank: Debit alert"
   },
   {
    "bot": {
@@ -393,7 +394,28 @@
     "data": {}
    },
    "out": "Handle this:\n\nWhat happened: Started",
-   "key": "b2|t|Started"
+   "key": "b2|t|Started",
+   "claim": "b2|t|Started"
+  },
+  {
+   "bot": {
+    "id": "b3"
+   },
+   "trigger": {
+    "id": "p",
+    "type": "price",
+    "config": {}
+   },
+   "event": {
+    "type": "price",
+    "key": "above:100000:1762938000000",
+    "claim": "above:100000",
+    "title": "BTCUSDT went above 100000 (now 100500)",
+    "data": {}
+   },
+   "out": "Handle this:\n\nWhat happened: BTCUSDT went above 100000 (now 100500)",
+   "key": "b3|p|above:100000:1762938000000",
+   "claim": "b3|p|above:100000"
   }
  ],
  "where": [
@@ -583,17 +605,17 @@
   {
    "at": 1794475860000,
    "fire": 1794475800000,
-   "nextAt": 1794477660000
+   "nextAt": 1794477600000
   },
   {
    "at": 1794475920000,
    "fire": null,
-   "nextAt": 1794477660000
+   "nextAt": 1794477600000
   },
   {
    "at": 1794486000000,
-   "fire": 1794477660000,
-   "nextAt": 1794487800000
+   "fire": 1794477600000,
+   "nextAt": 1794486600000
   }
  ],
  "scheduleSpec": {
@@ -772,6 +794,7 @@
      {
       "type": "price",
       "key": "move:1794474010000",
+      "claim": "move",
       "title": "BTCUSDT moved +4.21% (from 95000 to 99000)",
       "data": {
        "symbol": "BTCUSDT",
@@ -796,6 +819,7 @@
      {
       "type": "price",
       "key": "above:100000:1794474020000",
+      "claim": "above:100000",
       "title": "BTCUSDT went above 100000 (now 100500)",
       "data": {
        "symbol": "BTCUSDT",
@@ -855,6 +879,7 @@
      {
       "type": "price",
       "key": "above:100000:1794474060000",
+      "claim": "above:100000",
       "title": "BTCUSDT went above 100000 (now 100100)",
       "data": {
        "symbol": "BTCUSDT",
@@ -878,6 +903,7 @@
      {
       "type": "price",
       "key": "below:90000:1794474070000",
+      "claim": "below:90000",
       "title": "BTCUSDT went below 90000 (now 89000)",
       "data": {
        "symbol": "BTCUSDT",
@@ -888,6 +914,7 @@
      {
       "type": "price",
       "key": "move:1794474070000",
+      "claim": "move",
       "title": "BTCUSDT moved -10.10% (from 99000 to 89000)",
       "data": {
        "symbol": "BTCUSDT",
@@ -924,6 +951,7 @@
      {
       "type": "price",
       "key": "move:1794474300000",
+      "claim": "move",
       "title": "BTCUSDT moved +3.37% (from 89000 to 92000)",
       "data": {
        "symbol": "BTCUSDT",
@@ -948,6 +976,7 @@
      {
       "type": "price",
       "key": "move:1794474310000",
+      "claim": "move",
       "title": "BTCUSDT moved +3.26% (from 92000 to 95000)",
       "data": {
        "symbol": "BTCUSDT",
@@ -1035,6 +1064,7 @@
      {
       "type": "price",
       "key": "above:50:1794474003000",
+      "claim": "above:50",
       "title": "X went above 50 (now 51)",
       "data": {
        "symbol": "X",
@@ -1068,14 +1098,15 @@
    "out": true,
    "event": {
     "type": "notification",
-    "key": "com.whatsapp:Mum:Call me ASAP",
+    "key": "com.whatsapp:Mum:Call me ASAP:498465",
     "title": "WhatsApp: Mum — Call me ASAP",
     "data": {
      "app": "WhatsApp",
      "title": "Mum",
      "text": "Call me ASAP"
     }
-   }
+   },
+   "at": 1794474000000
   },
   {
    "cfg": {
@@ -1091,14 +1122,15 @@
    "out": true,
    "event": {
     "type": "notification",
-    "key": "com.whatsapp:x:",
+    "key": "com.whatsapp:x::498465",
     "title": "WA: x",
     "data": {
      "app": "WA",
      "title": "x",
      "text": ""
     }
-   }
+   },
+   "at": 1794474000000
   },
   {
    "cfg": {
@@ -1114,14 +1146,15 @@
    "out": false,
    "event": {
     "type": "notification",
-    "key": "com.whatsapp:Mum:hello",
+    "key": "com.whatsapp:Mum:hello:498465",
     "title": "WhatsApp: Mum — hello",
     "data": {
      "app": "WhatsApp",
      "title": "Mum",
      "text": "hello"
     }
-   }
+   },
+   "at": 1794474000000
   },
   {
    "cfg": {
@@ -1137,14 +1170,15 @@
    "out": false,
    "event": {
     "type": "notification",
-    "key": "com.whatsapp:Mum:hello",
+    "key": "com.whatsapp:Mum:hello:498465",
     "title": "WhatsApp: Mum — hello",
     "data": {
      "app": "WhatsApp",
      "title": "Mum",
      "text": "hello"
     }
-   }
+   },
+   "at": 1794474000000
   },
   {
    "cfg": {
@@ -1160,14 +1194,15 @@
    "out": true,
    "event": {
     "type": "notification",
-    "key": "com.gtbank:Your OTP:123456",
+    "key": "com.gtbank:Your OTP:123456:498465",
     "title": "GTWorld: Your OTP — 123456",
     "data": {
      "app": "GTWorld",
      "title": "Your OTP",
      "text": "123456"
     }
-   }
+   },
+   "at": 1794474000000
   }
  ],
  "app": [

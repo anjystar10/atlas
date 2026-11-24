@@ -59,6 +59,11 @@ export function goalFor(bot, t, ev) {
 
 /** Same event, same key, so one event never starts two missions (both devices may see it). */
 export function eventKey(botId, trigId, ev) { return `${botId}|${trigId}|${clip(ev.key || ev.title, 200)}`; }
+/**
+ * The key both devices claim in the cloud before starting the mission. A price crossing is seen at a different moment on
+ * each device, so its key has no time in it ([ev.claim]); the claim lasting 10 minutes keeps a later real crossing free.
+ */
+export function claimKey(botId, trigId, ev) { return eventKey(botId, trigId, ev.claim ? { key: ev.claim } : ev); }
 
 // ------------------------------------------------------------------ de-duplication and rate limits (state is plain JSON)
 
@@ -142,18 +147,18 @@ export function priceEvents(state, price, now, cfg) {
   const sym = cfg.symbol || 'the price';
   if (s.last == null) return { events, state: { ...s, last: p, ref: p, refAt: now, armedAbove: !(cfg.above != null && p >= cfg.above), armedBelow: !(cfg.below != null && p <= cfg.below) } };
   if (cfg.above != null) {
-    if (s.armedAbove && s.last < cfg.above && p >= cfg.above) { events.push({ type: 'price', key: `above:${cfg.above}:${now}`, title: `${sym} went above ${cfg.above} (now ${p})`, data: { symbol: cfg.symbol, price: p, level: cfg.above } }); s.armedAbove = false; }
+    if (s.armedAbove && s.last < cfg.above && p >= cfg.above) { events.push({ type: 'price', key: `above:${cfg.above}:${now}`, claim: `above:${cfg.above}`, title: `${sym} went above ${cfg.above} (now ${p})`, data: { symbol: cfg.symbol, price: p, level: cfg.above } }); s.armedAbove = false; }
     else if (!s.armedAbove && p < cfg.above * (1 - HYSTERESIS)) s.armedAbove = true;
   }
   if (cfg.below != null) {
-    if (s.armedBelow && s.last > cfg.below && p <= cfg.below) { events.push({ type: 'price', key: `below:${cfg.below}:${now}`, title: `${sym} went below ${cfg.below} (now ${p})`, data: { symbol: cfg.symbol, price: p, level: cfg.below } }); s.armedBelow = false; }
+    if (s.armedBelow && s.last > cfg.below && p <= cfg.below) { events.push({ type: 'price', key: `below:${cfg.below}:${now}`, claim: `below:${cfg.below}`, title: `${sym} went below ${cfg.below} (now ${p})`, data: { symbol: cfg.symbol, price: p, level: cfg.below } }); s.armedBelow = false; }
     else if (!s.armedBelow && p > cfg.below * (1 + HYSTERESIS)) s.armedBelow = true;
   }
   if (cfg.movePct != null && cfg.movePct > 0) {
     if (now - s.refAt > cfg.windowMin * 60000) { s.ref = s.last; s.refAt = now; }
     const pct = ((p - s.ref) / s.ref) * 100;
     if (Math.abs(pct) >= cfg.movePct) {
-      events.push({ type: 'price', key: `move:${now}`, title: `${sym} moved ${pct > 0 ? '+' : ''}${pct.toFixed(2)}% (from ${s.ref} to ${p})`, data: { symbol: cfg.symbol, price: p, from: s.ref, pct: Number(pct.toFixed(2)) } });
+      events.push({ type: 'price', key: `move:${now}`, claim: 'move', title: `${sym} moved ${pct > 0 ? '+' : ''}${pct.toFixed(2)}% (from ${s.ref} to ${p})`, data: { symbol: cfg.symbol, price: p, from: s.ref, pct: Number(pct.toFixed(2)) } });
       s.ref = p; s.refAt = now;
     }
   }
@@ -172,8 +177,9 @@ export function notificationMatches(cfg, n) {
   const body = lc(`${n.title || ''} ${n.text || ''}`);
   return !ws.length || ws.some((w) => body.includes(w));
 }
-export function notificationEvent(n) {
-  return { type: 'notification', key: `${n.pkg}:${clip(n.title, 80)}:${clip(n.text, 120)}`, title: `${n.app || n.pkg}: ${clip(n.title, 120)}${n.text ? ' — ' + clip(n.text, 200) : ''}`, data: { app: n.app || n.pkg, title: n.title || '', text: n.text || '' } };
+/** [at]: when it came. The same words again in a later hour are a new notification ("Mum: Call me" tomorrow); a re-post within the hour isn't. */
+export function notificationEvent(n, at = 0) {
+  return { type: 'notification', key: `${n.pkg}:${clip(n.title, 80)}:${clip(n.text, 120)}:${Math.floor((Number(at) || 0) / 3600000)}`, title: `${n.app || n.pkg}: ${clip(n.title, 120)}${n.text ? ' — ' + clip(n.text, 200) : ''}`, data: { app: n.app || n.pkg, title: n.title || '', text: n.text || '' } };
 }
 
 // ------------------------------------------------------------------ an app opening (phone)

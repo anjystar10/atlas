@@ -414,7 +414,9 @@ object Trading {
         edit(ctx) { d ->
             val days = d.optJSONObject("days") ?: JSONObject().also { d.put("days", it) }
             val cur = days.optJSONObject(a.optString("id"))
-            out = if (cur != null && cur.optString("day") == day) cur else JSONObject().put("day", day).put("dayStartEquity", equity).put("ordersToday", 0)
+            // no equity when the day began: the first real reading that day starts it (traderules.js rollDay); NaN can't go in a JSONObject
+            out = if (cur != null && cur.optString("day") == day) cur.also { if (!it.optDouble("dayStartEquity").isFinite() && equity.isFinite()) it.put("dayStartEquity", equity) }
+                else JSONObject().put("day", day).put("ordersToday", 0).also { if (equity.isFinite()) it.put("dayStartEquity", equity) }
             days.put(a.optString("id"), out)
         }
         return out
@@ -427,7 +429,7 @@ object Trading {
         val inst = b.inst(order.optString("symbol")); val market = b.quote(inst.optString("symbol")); val acct = b.account()
         val d = dayState(ctx, a, acct.optDouble("equity")); val (_, minute, iso) = localNow()
         val open = acct.optJSONArray("positions")?.let { p -> JSONArray((0 until p.length()).map { p.getJSONObject(it).optString("symbol") }) } ?: JSONArray()
-        val st = JSONObject().put("killed", killed(ctx)).put("day", d.optString("day")).put("dayStartEquity", d.optDouble("dayStartEquity")).put("equity", acct.optDouble("equity"))
+        val st = JSONObject().put("killed", killed(ctx)).put("day", d.optString("day")).put("dayStartEquity", d.optDouble("dayStartEquity").takeIf { it.isFinite() } ?: JSONObject.NULL).put("equity", acct.optDouble("equity").takeIf { it.isFinite() } ?: JSONObject.NULL)
             .put("ordersToday", d.optInt("ordersToday")).put("openSymbols", open).put("minuteOfDay", minute).put("isoDay", iso).put("now", System.currentTimeMillis())
             .put("standing", state(ctx).optJSONObject("standing")?.optJSONObject(a.optString("id")) ?: JSONObject.NULL)
         val o = JSONObject(order.toString()).put("symbol", inst.optString("symbol"))

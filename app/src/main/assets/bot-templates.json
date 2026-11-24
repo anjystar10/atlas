@@ -120,8 +120,7 @@
      "type": "email",
      "enabled": false,
      "config": {
-      "filter": "important",
-      "goal": "A new important email arrived: summarise it and draft a reply if it needs one."
+      "goal": "A new email arrived (this runs for every new unread email: add a sender or subject to narrow it). If it matters, summarise it and draft a reply if it needs one; if it is noise, say so in one line."
      }
     }
    ],

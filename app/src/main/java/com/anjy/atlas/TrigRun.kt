@@ -85,9 +85,10 @@ object TrigRun {
         }
         if (!fresh) return null
         // both devices may see the same email or price move: only one starts the mission
-        val mine = try { Sync.claim(app, "trig:$key", 10 * 60_000L)?.mine } catch (_: Exception) { null }
+        val mine = try { Sync.claim(app, "trig:${TriggerRules.claimKey(botId, trigId, ev)}", 10 * 60_000L)?.mine } catch (_: Exception) { null }
         if (mine == false) return null
-        return fire(b, t, ev)
+        // saved straight away: if Android ends the wake before the pass is over, the next wake mustn't start it again
+        return fire(b, t, ev).also { if (it != null) save() }
     }
 
     /** Starts the bot's mission (on the main thread, where the bots' list lives). */
@@ -172,7 +173,7 @@ object TrigRun {
         val n = TriggerRules.Note(pkg, app, title, text)
         val now = System.currentTimeMillis()
         var any = false
-        for ((b, t) in watched(setOf("notification"))) if (TriggerRules.notificationMatches(t.optJSONObject("config") ?: JSONObject(), n)) { deliver(b, t, TriggerRules.notificationEvent(n), now); any = true }
+        for ((b, t) in watched(setOf("notification"))) if (TriggerRules.notificationMatches(t.optJSONObject("config") ?: JSONObject(), n)) { deliver(b, t, TriggerRules.notificationEvent(n, now), now); any = true }
         if (any) save()
     }
 

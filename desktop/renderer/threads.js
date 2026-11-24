@@ -216,7 +216,9 @@ sync.registerKind('thread', {
     else {
       const mine = data.threads[i];
       // merge messages from both devices (by id, in time order) so nothing said on either is lost
-      const byId = new Map([...mine.messages, ...incoming.messages].map((m) => [m.id, m]));
+      // (a copy from before its mission started doesn't lose the link to it, as on the phone)
+      const byId = new Map();
+      for (const m of [...mine.messages, ...incoming.messages]) { const old = byId.get(m.id); byId.set(m.id, old && old.mission && !m.mission ? { ...m, mission: old.mission } : m); }
       const merged = [...byId.values()].sort((a, b) => a.at - b.at).slice(-200);
       data.threads[i] = { ...(incoming.updatedAt >= mine.updatedAt ? incoming : mine), messages: merged, links: mine.links, updatedAt: Math.max(mine.updatedAt, incoming.updatedAt) };
     }

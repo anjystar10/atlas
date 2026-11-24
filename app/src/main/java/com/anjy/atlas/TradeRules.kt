@@ -173,8 +173,10 @@ object TradeRules {
             val open = state.optJSONArray("openSymbols")?.let { a -> (0 until a.length()).map { a.getString(it).uppercase() } } ?: emptyList()
             if (sym !in open && open.size >= l.maxOpenPositions) no("positions", "There are already ${open.size} open positions; this account allows ${l.maxOpenPositions}.")
             if (state.optInt("ordersToday") >= l.maxOrdersPerDay) no("orders_today", "That would be more than ${l.maxOrdersPerDay} trades today, the daily limit for this account.")
+            // LIVE: an equity that couldn't be read would make today's loss look like 0, so the loss limit would never stop it
             val lost = lossToday(num(state, "dayStartEquity"), num(state, "equity"))
-            if (lost >= l.maxDailyLossUsd - 1e-9) no("daily_loss", "Today's loss is ${money(lost)}, at the daily limit of ${money(l.maxDailyLossUsd)}. No new trades until tomorrow.")
+            if (live && (num(state, "dayStartEquity") == null || num(state, "equity") == null)) no("no_equity", "Couldn't read this account's equity, so today's loss can't be checked against the daily limit. Try again in a moment.")
+            else if (lost >= l.maxDailyLossUsd - 1e-9) no("daily_loss", "Today's loss is ${money(lost)}, at the daily limit of ${money(l.maxDailyLossUsd)}. No new trades until tomorrow.")
             else if (stopRisk != null && lost + stopRisk > l.maxDailyLossUsd + 1e-9) no("risk_exceeds", "If this goes wrong it could lose ${money(stopRisk)}; with ${money(lost)} lost today that passes the daily limit of ${money(l.maxDailyLossUsd)}. Use a smaller size or a tighter stop.")
         }
         if (reasons.isNotEmpty()) return Verdict(false, reasons)

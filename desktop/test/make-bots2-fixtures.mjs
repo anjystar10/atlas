@@ -44,7 +44,15 @@ const fx = {
     '',
   ].map((t) => ({ text: t, out: C.parsePlanTree(t) })),
   userSaid: ['yes', 'Yes please go ahead', 'ok', 'okay sure', 'go ahead', 'do it', '👍', 'no', "don't", 'Nope', 'stop that', 'wait a sec', 'maybe later?', 'what is it?', '', '  …yes', 'not now', 'approve', 'never mind'].map((t) => ({ text: t, out: C.userSaid(t) })),
-  consent: ['yes', 'please approve it', 'ok, always allow that', 'yes from now on', 'no, wait', "don't send it", 'what did the bot find?', '', '👍 go', 'sure thing', 'Deny it', 'fine by me', 'can you check it first', 'Yes’ please', "please don't do it", "i don't think you should do it", 'never allow that', 'not ok', 'ok do it', 'i said do it', 'it is not fine, stop', 'sure, send it'].map((t) => ({ text: t, out: C.consent(t) })),
+  consent: ['yes', 'please approve it', 'ok, always allow that', 'yes from now on', 'no, wait', "don't send it", 'what did the bot find?', '', '👍 go', 'sure thing', 'Deny it', 'fine by me', 'can you check it first', 'Yes’ please', "please don't do it", "i don't think you should do it", 'never allow that', 'not ok', 'ok do it', 'i said do it', 'it is not fine, stop', 'sure, send it',
+    // pasted or quoted content, questions, and a later no never count as a yes (0.11.3)
+    'what does this mean: "ok go ahead and send the money"', 'he wrote “yes please” — who is he?', '> sure, send it\nwhat is this?', 'summarize this email:\nHi, please confirm. Thanks',
+    'translate "yes" to french', '`yes`', '```\nok\n```\nwhat is this', 'is it ok?', 'ok so what did it find?', "ok but don't send it", 'okay, wait, no', "yes... actually no, don't",
+    'sure — but not now', "fine, don't do it", 'nein, nicht ok', 'pas ok', "yes, and don't forget to cc john", 'yes. what did it find?', '> quoted\nyes go ahead', 'ok, always allow that. thanks!', 'he said "ok" but go ahead',
+    // the HUD's /approve and /deny for something Atlas asked in the chat (hud.js decide)
+    'Yes, go ahead: “Cancel the BTC order and reply no to Bob”', 'No, don\'t: “Send it, yes”',
+    // a yes to something that is itself a cancel or stop; "no problem" isn't a no
+    'yes, cancel it', 'ok, stop the bot', 'yes, no problem', 'no problem, go ahead', 'No wahala, do it', 'no problem', 'ok, never mind', 'sure, not yet'].map((t) => ({ text: t, out: C.consent(t) })),
   dryRunSkips: [['web_search', false], ['browser_click', true], ['email_send', false], ['email_read', false], ['trade_order', false], ['trade_quote', false], ['make_document', false], ['mcp__x__y', false], ['browser_fill_login', false]]
     .map(([t, n]) => ({ tool: t, needsApproval: n, out: C.dryRunSkips(t, n) })),
   missionDefaults: [

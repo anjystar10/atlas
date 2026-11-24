@@ -1704,6 +1704,127 @@
      "size"
     ]
    }
+  },
+  {
+   "name": "live: no equity could be read today, so the loss limit can't be checked",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 20
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": null,
+    "equity": 900,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": false,
+    "codes": [
+     "no_equity"
+    ]
+   }
+  },
+  {
+   "name": "live: closing still works without an equity reading",
+   "order": {
+    "symbol": "BTCUSDT",
+    "side": "buy",
+    "notional": 20,
+    "closing": true
+   },
+   "inst": {
+    "tickSize": "0.01",
+    "qtyStep": "0.000001",
+    "minQty": "0.000048",
+    "minNotional": "1",
+    "pointValue": 1
+   },
+   "market": {
+    "bid": 67000.1,
+    "ask": 67000.2,
+    "last": 67000.15
+   },
+   "account": {
+    "id": "a2",
+    "name": "Bybit",
+    "broker": "bybit",
+    "mode": "live",
+    "limits": {
+     "maxOrderUsd": 100,
+     "maxDailyLossUsd": 30,
+     "maxOpenPositions": 2,
+     "maxOrdersPerDay": 2,
+     "symbols": [
+      "BTC",
+      "ETH"
+     ]
+    }
+   },
+   "state": {
+    "killed": false,
+    "day": "2026-11-12",
+    "dayStartEquity": null,
+    "equity": null,
+    "ordersToday": 0,
+    "openSymbols": [],
+    "minuteOfDay": 600,
+    "isoDay": 4,
+    "now": 1000
+   },
+   "plan": null,
+   "expect": {
+    "ok": true,
+    "order": {
+     "symbol": "BTCUSDT",
+     "side": "buy",
+     "type": "market",
+     "qty": "0.000298",
+     "price": null,
+     "stop": null,
+     "stopLoss": null,
+     "takeProfit": null,
+     "closing": true
+    },
+    "needsApproval": true,
+    "summary": "LIVE · Bybit: BUY 0.000298 BTCUSDT at market (about $19.97). This closes or reduces a position.",
+    "worstCaseUsd": 19.97,
+    "estUsd": 19.97
+   }
   }
  ],
  "rounding": [

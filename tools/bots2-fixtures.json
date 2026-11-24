@@ -2184,6 +2184,254 @@
     "always": false,
     "why": ""
    }
+  },
+  {
+   "text": "what does this mean: \"ok go ahead and send the money\"",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "he wrote “yes please” — who is he?",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "> sure, send it\nwhat is this?",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "summarize this email:\nHi, please confirm. Thanks",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "translate \"yes\" to french",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "`yes`",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "```\nok\n```\nwhat is this",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "is it ok?",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "ok so what did it find?",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "ok but don't send it",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "okay, wait, no",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "yes... actually no, don't",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "sure — but not now",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "fine, don't do it",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "nein, nicht ok",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "pas ok",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "yes, and don't forget to cc john",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "yes. what did it find?",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "> quoted\nyes go ahead",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "ok, always allow that. thanks!",
+   "out": {
+    "yes": true,
+    "always": true,
+    "why": ""
+   }
+  },
+  {
+   "text": "he said \"ok\" but go ahead",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "Yes, go ahead: “Cancel the BTC order and reply no to Bob”",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "No, don't: “Send it, yes”",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "yes, cancel it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "ok, stop the bot",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "yes, no problem",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "no problem, go ahead",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "No wahala, do it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "no problem",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "ok, never mind",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "sure, not yet",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
   }
  ],
  "dryRunSkips": [
