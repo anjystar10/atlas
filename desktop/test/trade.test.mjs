@@ -140,3 +140,15 @@ test('wrong keys and unknown symbols give plain answers, never a crash', async (
     assert.match((await none.run('trade_order', { symbol: 'BTCUSDT', side: 'buy', notional: 5 })).out, /No trading account is connected yet/);
   } finally { srv.close(); }
 });
+
+test('trading: a day that began without an equity reading still counts its loss once one comes in', async () => {
+  const { createRequire } = await import('node:module');
+  const R = createRequire(import.meta.url)('../traderules.js');
+  let s = R.rollDay({}, '2026-11-24', Number(undefined));   // the first look of the day couldn't read the equity
+  assert.equal(s.dayStartEquity, null);
+  s = R.rollDay(s, '2026-11-24', 1000);                      // the next reading starts the day
+  assert.equal(s.dayStartEquity, 1000);
+  s = R.rollDay(s, '2026-11-24', 960);                       // and later readings don't move it
+  assert.equal(s.dayStartEquity, 1000);
+  assert.equal(R.lossToday(s, 960), 40);
+});

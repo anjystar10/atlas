@@ -65,9 +65,11 @@ function inHours(hours, minuteOfDay, isoDay) {
 }
 
 /** A new day: start equity is now, order count back to 0. [day] is the user's local date 'YYYY-MM-DD'. */
+const known = (x) => x != null && x !== '' && Number.isFinite(Number(x));
+/** (No equity could be read when the day began: the first real reading that day starts it, so the loss limit still counts.) */
 function rollDay(state, day, equity) {
-  if (state.day === day) return { ...state };
-  return { ...state, day, dayStartEquity: equity, ordersToday: 0 };
+  if (state.day === day) return known(state.dayStartEquity) || !known(equity) ? { ...state } : { ...state, dayStartEquity: Number(equity) };
+  return { ...state, day, dayStartEquity: known(equity) ? Number(equity) : null, ordersToday: 0 };
 }
 function lossToday(state, equity) {
   if (state.dayStartEquity == null || equity == null) return 0;
@@ -140,8 +142,10 @@ function check(order, inst, market, account, state, plan) {
     const open = (state.openSymbols || []).map((s) => String(s).toUpperCase());
     if (!open.includes(sym) && open.length >= L.maxOpenPositions) no('positions', `There are already ${open.length} open positions; this account allows ${L.maxOpenPositions}.`);
     if ((state.ordersToday || 0) >= L.maxOrdersPerDay) no('orders_today', `That would be more than ${L.maxOrdersPerDay} trades today, the daily limit for this account.`);
+    // LIVE: an equity that couldn't be read would make today's loss look like 0, so the loss limit would never stop it
     const lost = lossToday(state, state.equity);
-    if (lost >= L.maxDailyLossUsd - 1e-9) no('daily_loss', `Today's loss is ${money(lost)}, at the daily limit of ${money(L.maxDailyLossUsd)}. No new trades until tomorrow.`);
+    if (live && !(known(state.dayStartEquity) && known(state.equity))) no('no_equity', "Couldn't read this account's equity, so today's loss can't be checked against the daily limit. Try again in a moment.");
+    else if (lost >= L.maxDailyLossUsd - 1e-9) no('daily_loss', `Today's loss is ${money(lost)}, at the daily limit of ${money(L.maxDailyLossUsd)}. No new trades until tomorrow.`);
     else if (stopRisk != null && lost + stopRisk > L.maxDailyLossUsd + 1e-9) no('risk_exceeds', `If this goes wrong it could lose ${money(worst)}; with ${money(lost)} lost today that passes the daily limit of ${money(L.maxDailyLossUsd)}. Use a smaller size or a tighter stop.`);
   }
   if (reasons.length) return { ok: false, reasons };
