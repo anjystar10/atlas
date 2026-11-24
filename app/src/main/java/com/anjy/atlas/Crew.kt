@@ -262,6 +262,11 @@ object Crew {
     private val QUOTED = listOf(Regex("`[^`]*(`|$)"), Regex("\"[^\"]*(\"|$)"), Regex("“[^”]*(”|$)"), Regex("«[^»]*(»|$)"))
     private val SENTENCE = Regex("[^.!?…]+[.!?…]*")
     private val CLAUSE = Regex("[,;:—–]|\\s-\\s|(?:^|[^a-z])(?:but|actually|except|though|although)(?=$|[^a-z])")
+    // after their yes, only a plain refusal turns it into a no: "yes, cancel it" or "ok, stop the bot" can be what they're approving
+    private val LATER_NO = Regex("^(no|nope|nah|don't|dont|do not|never|hold on|hold off|wait|not now|not yet)(?=$|[^a-z])")
+    // "no problem", "no wahala": not a no
+    private val NOT_A_NO = Regex("^no (problem|problems|worries|wahala|rush|issue|issues|qualms)(?=$|[^a-z])")
+    private fun saysNo(c: String): Boolean { val x = c.dropWhile { it in LEAD }; return !NOT_A_NO.containsMatchIn(x) && (x.startsWith("👎") || x.startsWith("❌") || LATER_NO.containsMatchIn(x)) }
     /**
      * The user's own words in a message: what they pasted or quoted doesn't count (code, "quoted text", > quoted lines, and
      * anything after the first line), and neither do questions ("is it ok?"). The same as crew.js.
@@ -276,11 +281,11 @@ object Crew {
     fun consent(text: String?): Consent {
         val t = (text ?: "").lowercase().replace('’', '\'')
         val first = userSaid(t)
-        if (first == "no") return Consent(false, false, "their message says no")
+        if (first == "no" && !NOT_A_NO.containsMatchIn(t.trim().dropWhile { it in LEAD })) return Consent(false, false, "their message says no")
         val own = ownSentences(t)
         val clauses = own.flatMap { it.split(CLAUSE) }
         // "ok but don't send it", "sure, wait", "yes… actually no": a no anywhere in their own words wins
-        if (clauses.any { userSaid(it) == "no" }) return Consent(false, false, "their message says no")
+        if (clauses.any { saysNo(it) }) return Consent(false, false, "their message says no")
         val words = own.joinToString(" ")
         val yes = clauses.any { userSaid(it) == "yes" } || words.contains("👍") || words.contains("✅") || yesWordUnnegated(words)
         return Consent(yes, yes && ALWAYS.containsMatchIn(words), if (yes) "" else "their latest message doesn't say yes")

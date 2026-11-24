@@ -2174,7 +2174,7 @@
    "out": {
     "yes": false,
     "always": false,
-    "why": "their message says no"
+    "why": "their latest message doesn't say yes"
    }
   },
   {
@@ -2351,6 +2351,86 @@
     "yes": true,
     "always": false,
     "why": ""
+   }
+  },
+  {
+   "text": "Yes, go ahead: “Cancel the BTC order and reply no to Bob”",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "No, don't: “Send it, yes”",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "yes, cancel it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "ok, stop the bot",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "yes, no problem",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "no problem, go ahead",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "No wahala, do it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "no problem",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "ok, never mind",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "sure, not yet",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
    }
   }
  ],

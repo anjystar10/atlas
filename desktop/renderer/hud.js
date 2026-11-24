@@ -552,5 +552,7 @@ function decide(arg, yes) {
     return;
   }
   // something Atlas asked in the chat: answer it in the chat, in your own words, so it goes through the usual check
-  deps.submit(false, yes ? `Yes, go ahead: ${p.what}` : `No, don't: ${p.what}`);
+  // what's waiting goes in quotes so its own words ("Cancel the order", "reply no to Bob") aren't read as the user's yes or no
+  const what = '“' + String(p.what).replace(/[“”"\n]/g, ' ') + '”';
+  deps.submit(false, yes ? `Yes, go ahead: ${what}` : `No, don't: ${what}`);
 }

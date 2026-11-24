@@ -236,15 +236,21 @@ function ownSentences(t) {
   return (first.match(/[^.!?…]+[.!?…]*/g) || []).filter((s) => !s.includes('?')).map((s) => s.trim()).filter(Boolean);
 }
 const CLAUSE = /[,;:—–]|\s-\s|(?:^|[^a-z])(?:but|actually|except|though|although)(?=$|[^a-z])/;
+// after their yes, only a plain refusal turns it into a no: "yes, cancel it" or "ok, stop the bot" can be what they're approving
+const LATER_NO = /^(no|nope|nah|don't|dont|do not|never|hold on|hold off|wait|not now|not yet)(?=$|[^a-z])/;
+// "no problem", "no wahala": not a no
+const NOT_A_NO = /^no (problem|problems|worries|wahala|rush|issue|issues|qualms)(?=$|[^a-z])/;
+const lead = (c) => { let i = 0; while (i < c.length && LEAD.includes(c[i])) i++; return c.slice(i); };
+const saysNo = (c) => { const x = lead(c); return !NOT_A_NO.test(x) && (x.startsWith('👎') || x.startsWith('❌') || LATER_NO.test(x)); };
 /** Whether the user's own latest message gives a yes (anywhere in their own words, unless any part of them says no) and an "always": {yes, always, why}. */
 export function consent(text) {
   const t = String(text || '').toLowerCase().replace(/’/g, "'");
   const first = userSaid(t);
-  if (first === 'no') return { yes: false, always: false, why: 'their message says no' };
+  if (first === 'no' && !NOT_A_NO.test(lead(t.trim()))) return { yes: false, always: false, why: 'their message says no' };
   const own = ownSentences(t);
   const clauses = own.flatMap((s) => s.split(CLAUSE));
   // "ok but don't send it", "sure, wait", "yes… actually no": a no anywhere in their own words wins
-  if (clauses.some((c) => userSaid(c) === 'no')) return { yes: false, always: false, why: 'their message says no' };
+  if (clauses.some(saysNo)) return { yes: false, always: false, why: 'their message says no' };
   const words = own.join(' ');
   const yes = clauses.some((c) => userSaid(c) === 'yes') || words.includes('👍') || words.includes('✅') || yesWordUnnegated(words);
   return { yes, always: yes && ALWAYS.test(words), why: yes ? '' : "their latest message doesn't say yes" };
