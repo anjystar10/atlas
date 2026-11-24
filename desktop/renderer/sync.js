@@ -367,7 +367,7 @@ async function runInner() {
     // 2. take in what the phone changed, unless this PC's own unsent edit is newer
     let got = 0, blocked = false; const touched = new Set();
     const takeIn = async (rows, replay) => {
-      const applied = [];
+      const applied = [], recOf = {};
       for (const r of rows) {
         const k = r.kind + ':' + r.id, rev = Number(r.rev) || 0;
         if (!replay && alreadyTaken(seen[k] === undefined ? -1 : seen[k], rev)) continue;
@@ -390,7 +390,7 @@ async function runInner() {
         try {
           const w = await applyRecord(r.kind, r.id, rec); if (w) touched.add(w); got++;
           if (r.deleted) delete sent[k]; else sent[k] = await fp(rec);
-          if (rec) applied.push(k);
+          if (rec) { applied.push(k); recOf[k] = rec; }
         } catch (e) {
           // couldn't be taken in just now: kept and tried again next time, not lost
           console.warn('sync: a record could not be taken in', r.kind, e && e.message);
@@ -400,7 +400,11 @@ async function runInner() {
       if (applied.length) {
         // this PC may keep a record its own way (field order, defaults): that is not an edit to send back
         const mine = {}; for (const r of (await records(presence)).recs) mine[r.kind + ':' + r.id] = r.json;
-        for (const k of applied) if (mine[k]) sent[k] = await fp(mine[k]);
+        for (const k of applied) {
+          // the other device has no name set and this one has: that's news for it, not a way of writing the record (it goes up)
+          if (kindOf(k) === 'profile' && mine[k] && mine[k].name && !recOf[k].name) continue;
+          if (mine[k]) sent[k] = await fp(mine[k]);
+        }
       }
     };
     // parked records this Atlas can take in now (it learnt the kind, or a merge that failed may work now)

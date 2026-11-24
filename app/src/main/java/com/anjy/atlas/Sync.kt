@@ -351,7 +351,11 @@ object Sync {
                     got += changes.size - failed.size
                     // this device may write a record its own way (field order, defaults): that is not an edit to send back
                     val mine = records(ctx, presence).first.associateBy { "${it.kind}:${it.id}" }
-                    changes.forEach { (kind, id, rec) -> val k = "$kind:$id"; if (rec != null && k !in failed) mine[k]?.let { sent.put(k, fp(it.json)) } }
+                    changes.forEach { (kind, id, rec) -> val k = "$kind:$id"; if (rec != null && k !in failed) mine[k]?.let {
+                        // the other device has no name set and this one has: that's news for it, not a way of writing the record (it goes up)
+                        if (kind == "profile" && it.json.has("name") && !rec.has("name")) return@let
+                        sent.put(k, fp(it.json))
+                    } }
                 }
             }
             // parked records this Atlas can take in now (it learnt the kind, or a merge that failed may work now)
