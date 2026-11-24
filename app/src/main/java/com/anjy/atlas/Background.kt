@@ -89,6 +89,22 @@ object RouteRules {
     fun needsHeadsUp(fromChat: Boolean, atlasInFront: Boolean, sessionActive: Boolean): Boolean =
         !sessionActive && !(fromChat && atlasInFront)
 
+    /**
+     * Who the user stopped with the screen's Stop (the chat or a bot job). Kept apart from the session's owner, which
+     * ends with the session: before, Stop cleared the owner too, so "stopped" never matched and the next action took
+     * the screen again (a bot with "always allow" for the screen carried straight on).
+     */
+    class StopMark {
+        @Volatile var key: String? = null; private set
+        fun stop(owner: String?) { if (owner != null) key = owner }
+        /** The chat may not use the screen again for this request. */
+        fun blocksChat() = key == "chat"
+        /** A stopped bot must ask by name before it uses the screen again; no standing rule covers it. */
+        fun mustAsk(jobId: String) = key == jobId
+        /** The user OK'd the screen again (a bot's approval tap, or a new chat request). */
+        fun cleared(k: String) { if (key == k) key = null }
+    }
+
     /** One line telling the model what to do instead of taking the screen (null when there's nothing better). */
     fun hint(appOrPackage: String, avail: Avail): String? {
         val alts = alternatives(appOrPackage, avail).ifEmpty { return null }

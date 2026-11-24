@@ -46,14 +46,15 @@ object ScreenGate {
 
     @Volatile private var lastTouch = 0L
     @Volatile private var owner: String? = null     // "chat" or a job id
-    @Volatile private var stopped = false
+    /** Who the user stopped (RouteRules.StopMark). */
+    val stops = RouteRules.StopMark()
     @Volatile private var returnTo: String? = null  // the app the user was in when Atlas took the screen
     @Volatile private var operated: String? = null  // the app Atlas last drove
     @Volatile private var answer: CompletableDeferred<Boolean>? = null
     private var banner: View? = null
     private val main = Handler(Looper.getMainLooper())
 
-    fun active(key: String): Boolean = !stopped && owner == key && System.currentTimeMillis() - lastTouch < SESSION_MS
+    fun active(key: String): Boolean = stops.key != key && owner == key && System.currentTimeMillis() - lastTouch < SESSION_MS
 
     /** For bots: the heads-up to ask as an approval before this screen action, or null (no heads-up needed). */
     fun botHeadsUp(ctx: Context, jobId: String, tool: String, args: JSONObject): String? {
@@ -88,7 +89,7 @@ object ScreenGate {
             return null
         }
         if (tool !in driving) return null
-        if (stopped && owner == key) return Tools.Result("The user tapped Stop: Atlas may not use the screen for this now. Do it another way (background tools, a bot's browser) or ask them.")
+        if (who?.jobId == null && stops.blocksChat()) return Tools.Result("The user tapped Stop: Atlas may not use the screen for this now. Do it another way (background tools, a bot's browser) or ask them.")
         val inFront = PermissionCenter.atlasInFront
         if (who?.jobId == null && RouteRules.needsHeadsUp(fromChat = true, atlasInFront = inFront, sessionActive = active(key))) {
             val app = currentApp(ctx)?.let { appLabel(ctx, it) } ?: "an app"
@@ -110,7 +111,8 @@ object ScreenGate {
     private fun begin(ctx: Context, key: String) {
         val app = ctx.applicationContext
         if (owner != key || System.currentTimeMillis() - lastTouch >= SESSION_MS) { returnTo = currentApp(app); operated = null }
-        owner = key; stopped = false; lastTouch = System.currentTimeMillis()
+        stops.cleared(key)   // (a bot only gets here after the user's own OK once it was stopped)
+        owner = key; lastTouch = System.currentTimeMillis()
         appRef = app
         main.post { showBanner(app) }
         main.removeCallbacks(endRunnable); main.postDelayed(endRunnable, END_AFTER_MS)
@@ -160,7 +162,7 @@ object ScreenGate {
         when (action) {
             ACTION_OK -> { answer?.complete(true); answer = null }
             ACTION_NO -> { answer?.complete(false); answer = null }
-            ACTION_STOP -> { stopped = true; end(ctx.applicationContext, putBack = false) }
+            ACTION_STOP -> { stops.stop(owner); end(ctx.applicationContext, putBack = false) }
         }
     }
 
@@ -182,7 +184,7 @@ object ScreenGate {
                 text = "Atlas is using your screen  ·  Stop"; textSize = 13f; setTextColor(Palette.NIGHT.fg)
                 setPadding((14 * d).toInt(), (7 * d).toInt(), (14 * d).toInt(), (7 * d).toInt())
                 background = GradientDrawable().apply { cornerRadius = 999f; setColor(0xE6171A3A.toInt()); setStroke((1 * d).toInt(), Palette.NIGHT.accent) }
-                setOnClickListener { stopped = true; end(ctx, putBack = false) }
+                setOnClickListener { stops.stop(owner); end(ctx, putBack = false) }
             }
             val lp = WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,

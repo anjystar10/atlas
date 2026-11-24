@@ -251,6 +251,7 @@ object Conversation {
         val q = text.trim().ifEmpty { when { media.isEmpty() -> ""; media.any { it.video } -> "What's in this video?"; media.any { it.isFile } -> "Have a look at this."; else -> "What's in this picture?" } }
         if (q.isEmpty()) return
         Situation.heard(text.trim())   // only what the user actually typed or said can approve things (Situation.consent)
+        ScreenGate.stops.cleared("chat")   // a new request: a Stop on the screen was for the last one
         if (busy) stop()
         live.clear()
         val asked = Msg(true, q, "You", System.currentTimeMillis(), media = media)

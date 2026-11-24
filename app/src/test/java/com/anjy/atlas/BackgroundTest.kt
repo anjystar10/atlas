@@ -94,4 +94,24 @@ class BackgroundTest {
         assertEquals(PermFlow.Step.ASK_BY_NOTIFICATION, PermFlow.next(false, false, now - PermFlow.QUIET_MS - 1, 0, now))
         assertTrue(PermFlow.waitMs(forBot = true) > PermFlow.waitMs(forBot = false))
     }
+
+    @Test fun theScreensStopHoldsAfterTheSessionEnds() {
+        val m = RouteRules.StopMark()
+        // the chat had the screen; Stop ends the session (the owner goes), the mark stays
+        m.stop("chat")
+        assertTrue(m.blocksChat())
+        assertFalse(m.mustAsk("job1"))
+        m.cleared("job1")
+        assertTrue("another owner's OK doesn't lift the chat's stop", m.blocksChat())
+        m.cleared("chat")   // the user's next request
+        assertFalse(m.blocksChat())
+        // a bot: it must ask by name until the user OKs it again
+        m.stop("job1")
+        assertTrue(m.mustAsk("job1")); assertFalse(m.blocksChat())
+        m.cleared("job1")
+        assertFalse(m.mustAsk("job1"))
+        // Stop with nobody driving changes nothing
+        m.stop(null)
+        assertNull(m.key)
+    }
 }
