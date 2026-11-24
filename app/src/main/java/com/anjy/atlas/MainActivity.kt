@@ -1329,7 +1329,7 @@ class MainActivity : Activity() {
                 return@launch
             }
             found.take(80).forEachIndexed { i, m ->
-                val r = LinearLayout(this).apply {
+                val r = LinearLayout(this@MainActivity).apply {
                     orientation = LinearLayout.VERTICAL; isClickable = true; minimumHeight = dp(56)
                     background = finished(SURFACE, dp(16).toFloat(), glass = true); setPadding(dp(16), dp(11), dp(16), dp(12))
                     contentDescription = "${m.title}, ${UiShape.chatWhen(m.at, now, Engine.zone)}"
