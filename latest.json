@@ -1,0 +1,17 @@
+{
+ "version": "0.11.4",
+ "versionCode": 25,
+ "url": "https://raw.githubusercontent.com/anjystar10/atlas/releases/Atlas.apk",
+ "sha256": "d344f3eb22ba20809656de5ee8d56088d992f5036890aa7189e1f110ee9aa213",
+ "size": 74825902,
+ "notes": [
+  "Trading: Stop All Trading on one device now stops trading (and trading bots) on the other too; you turn it back on yourself on each device, in Me \u2192 Trading",
+  "Approvals: \"no wahala, do it\", \"sharp\", \"oya\" and \"send am\" count as your yes; \"ok no\", \"ok wait\" and \"of course not\" count as a no",
+  "Trading (phone): an unreadable account balance no longer switches off the daily loss limit",
+  "PC: replies now show in the HUD terminal instead of 'Thinking\u2026' forever; the first-launch 'add a key' hint is readable",
+  "Keep Listening off is now respected by Hey Atlas, the orb and the mini panel",
+  "Bot approval cards no longer say 'You allowed it.' after you tapped Deny",
+  "Me \u2192 Brain now says correctly whether your AI keys are shared between your devices"
+ ],
+ "builtFrom": "cb812d0c61306cc8cc0bded14c40d6ac805fde51"
+}
