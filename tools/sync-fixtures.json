@@ -1780,5 +1780,85 @@
     }
    }
   ]
- }
+ },
+ "untouchedProfile": [
+  {
+   "name": "a fresh install: nothing set",
+   "profile": {
+    "tone": "firm",
+    "quietStart": "22:30",
+    "quietEnd": "06:30",
+    "graceMin": 15,
+    "followUps": 1
+   },
+   "want": true
+  },
+  {
+   "name": "a name is set",
+   "profile": {
+    "tone": "firm",
+    "quietStart": "22:30",
+    "quietEnd": "06:30",
+    "graceMin": 15,
+    "followUps": 1,
+    "name": "King Anjy"
+   },
+   "want": false
+  },
+  {
+   "name": "quiet hours changed",
+   "profile": {
+    "tone": "firm",
+    "quietStart": "23:00",
+    "quietEnd": "06:30",
+    "graceMin": 15,
+    "followUps": 1
+   },
+   "want": false
+  },
+  {
+   "name": "tone changed",
+   "profile": {
+    "tone": "gentle",
+    "quietStart": "22:30",
+    "quietEnd": "06:30",
+    "graceMin": 15,
+    "followUps": 1
+   },
+   "want": false
+  },
+  {
+   "name": "grace changed",
+   "profile": {
+    "tone": "firm",
+    "quietStart": "22:30",
+    "quietEnd": "06:30",
+    "graceMin": 30,
+    "followUps": 1
+   },
+   "want": false
+  },
+  {
+   "name": "follow-ups changed",
+   "profile": {
+    "tone": "firm",
+    "quietStart": "22:30",
+    "quietEnd": "06:30",
+    "graceMin": 15,
+    "followUps": 0
+   },
+   "want": false
+  },
+  {
+   "name": "quiet end changed",
+   "profile": {
+    "tone": "firm",
+    "quietStart": "22:30",
+    "quietEnd": "07:00",
+    "graceMin": 15,
+    "followUps": 1
+   },
+   "want": false
+  }
+ ]
 }

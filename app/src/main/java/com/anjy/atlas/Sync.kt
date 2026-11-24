@@ -232,7 +232,7 @@ object Sync {
         all.optJSONArray("memories")?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { out.add(Rec("memory", it.getString("id"), it)) } }
         all.optJSONArray("log")?.let { a -> val n = a.length(); for (i in maxOf(0, n - LOG_KEEP) until n) a.getJSONObject(i).let { out.add(Rec("log", it.getString("id"), it)) } }
         // your name and how reminders behave (a name that isn't set here is left out: it must never blank the other device's)
-        all.optJSONObject("settings")?.let { out.add(Rec("profile", "me", SyncPlan.profileOf(it))) }
+        all.optJSONObject("settings")?.let { SyncPlan.profileOf(it) }?.takeUnless { SyncPlan.untouchedProfile(it) }?.let { out.add(Rec("profile", "me", it)) }
         presence?.let { out.add(Rec("device", Store.read(ctx) { s -> s.deviceId }, it)) }
         val chat = Conversation.exportForSync(ctx)
         if (chat == null) skip.add("chat") else chat.takeLast(CHAT_KEEP).forEach { out.add(Rec("chat", it.getString("id"), it)) }
@@ -304,7 +304,9 @@ object Sync {
             val (recs, skip) = records(ctx, presence)
             val byKey = recs.associateBy { "${it.kind}:${it.id}" }
             val gone = readGone(ctx)
-            SyncPlan.stamp(sent, dirty, byKey.mapValues { SyncPlan.Local(fp(it.value.json), ownTime(it.value.json)) }, gone, now, first, skip,
+            // deletions were noted by this phone's clock: in cloud time, like every other edit (a slow clock's New Chat must not lose to the message)
+            val goneAt = gone.mapValues { minOf(now, it.value + skew) }
+            SyncPlan.stamp(sent, dirty, byKey.mapValues { SyncPlan.Local(fp(it.value.json), ownTime(it.value.json)) }, goneAt, now, first, skip,
                 kinds.filterValues { it.absentMeansDeleted }.keys)
             devices.put(me, presence)
             if (!first) saveState()           // an edit made offline keeps the time it was noticed, however long sending takes
@@ -349,7 +351,11 @@ object Sync {
                     got += changes.size - failed.size
                     // this device may write a record its own way (field order, defaults): that is not an edit to send back
                     val mine = records(ctx, presence).first.associateBy { "${it.kind}:${it.id}" }
-                    changes.forEach { (kind, id, rec) -> val k = "$kind:$id"; if (rec != null && k !in failed) mine[k]?.let { sent.put(k, fp(it.json)) } }
+                    changes.forEach { (kind, id, rec) -> val k = "$kind:$id"; if (rec != null && k !in failed) mine[k]?.let {
+                        // the other device has no name set and this one has: that's news for it, not a way of writing the record (it goes up)
+                        if (kind == "profile" && it.json.has("name") && !rec.has("name")) return@let
+                        sent.put(k, fp(it.json))
+                    } }
                 }
             }
             // parked records this Atlas can take in now (it learnt the kind, or a merge that failed may work now)

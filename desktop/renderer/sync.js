@@ -162,6 +162,11 @@ export function profileOf(s) {
   o.followUps = Number.isFinite(+s.followUps) && s.followUps !== '' && s.followUps != null ? Math.trunc(+s.followUps) : 1;
   return o;
 }
+/**
+ * A profile nobody has touched here (no name, every setting at its default): a fresh install's. It isn't sent, so
+ * linking a new device can never reset the name and reminder settings the other device already has.
+ */
+export const untouchedProfile = (p) => !p.name && p.tone === 'firm' && p.quietStart === '22:30' && p.quietEnd === '06:30' && p.graceMin === 15 && p.followUps === 1;
 /** The fields of a profile from the other device that may be taken in (an older Atlas sends only the name). */
 export function profileFields(rec) {
   const out = {}; if (!rec || typeof rec !== 'object') return out;
@@ -232,7 +237,7 @@ async function records(presence) {
   for (const m of db.state.memories) out.push({ kind: 'memory', id: m.id, json: m });
   for (const l of db.state.log.slice(-LOG_KEEP)) out.push({ kind: 'log', id: l.id, json: l });
   // your name and how reminders behave (a name that isn't set here is left out: it must never blank the phone's)
-  out.push({ kind: 'profile', id: 'me', json: profileOf(db.state.settings) });
+  const prof = profileOf(db.state.settings); if (!untouchedProfile(prof)) out.push({ kind: 'profile', id: 'me', json: prof });
   if (presence) out.push({ kind: 'device', id: db.state.deviceId, json: presence });
   for (const m of db.chat.filter((m) => !m.pending && m.source !== 'error').slice(-CHAT_KEEP))
     out.push({ kind: 'chat', id: m.id, json: { id: m.id, user: !!m.user, text: m.text, source: m.source || '', at: m.at, steps: m.steps || [], files: (m.media || []).length || m.files || 0 } });
@@ -352,7 +357,9 @@ async function runInner() {
     const byKey = {}, local = {};
     for (const r of recs) { const k = r.kind + ':' + r.id; byKey[k] = r; local[k] = { fp: await fp(r.json), ownTime: ownTime(r.json) }; }
     await goneQueue; const gone = await readGone();
-    stamp(sent, dirty, local, gone, now, first, skip, [...kinds].filter(([, k]) => k.absentMeansDeleted).map(([n]) => n));
+    // deletions were noted by this PC's clock: in cloud time, like every other edit (a slow clock's New Chat must not lose to the message)
+    const goneAt = Object.fromEntries(Object.entries(gone).map(([k, at]) => [k, Math.min(now, (Number(at) || 0) + skew)]));
+    stamp(sent, dirty, local, goneAt, now, first, skip, [...kinds].filter(([, k]) => k.absentMeansDeleted).map(([n]) => n));
     devices[me] = presence;
     if (!first) await save();        // an edit made offline keeps the time it was noticed, however long sending takes
     status.pendingOut = Object.keys(dirty).length > 0;
@@ -360,7 +367,7 @@ async function runInner() {
     // 2. take in what the phone changed, unless this PC's own unsent edit is newer
     let got = 0, blocked = false; const touched = new Set();
     const takeIn = async (rows, replay) => {
-      const applied = [];
+      const applied = [], recOf = {};
       for (const r of rows) {
         const k = r.kind + ':' + r.id, rev = Number(r.rev) || 0;
         if (!replay && alreadyTaken(seen[k] === undefined ? -1 : seen[k], rev)) continue;
@@ -383,7 +390,7 @@ async function runInner() {
         try {
           const w = await applyRecord(r.kind, r.id, rec); if (w) touched.add(w); got++;
           if (r.deleted) delete sent[k]; else sent[k] = await fp(rec);
-          if (rec) applied.push(k);
+          if (rec) { applied.push(k); recOf[k] = rec; }
         } catch (e) {
           // couldn't be taken in just now: kept and tried again next time, not lost
           console.warn('sync: a record could not be taken in', r.kind, e && e.message);
@@ -393,7 +400,11 @@ async function runInner() {
       if (applied.length) {
         // this PC may keep a record its own way (field order, defaults): that is not an edit to send back
         const mine = {}; for (const r of (await records(presence)).recs) mine[r.kind + ':' + r.id] = r.json;
-        for (const k of applied) if (mine[k]) sent[k] = await fp(mine[k]);
+        for (const k of applied) {
+          // the other device has no name set and this one has: that's news for it, not a way of writing the record (it goes up)
+          if (kindOf(k) === 'profile' && mine[k] && mine[k].name && !recOf[k].name) continue;
+          if (mine[k]) sent[k] = await fp(mine[k]);
+        }
       }
     };
     // parked records this Atlas can take in now (it learnt the kind, or a merge that failed may work now)

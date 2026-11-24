@@ -250,4 +250,40 @@ test('bot jobs show on the other device, read-only: the phone’s arrive, this P
   assert.deepEqual(bm.others(), []);
 });
 
+test('New Chat on a PC whose clock runs slow still clears the phone’s latest messages', async () => {
+  cloud.clockAhead = 0;
+  const real = Date.now;
+  Date.now = () => real() - 300000;             // this PC's clock is five minutes behind the cloud
+  try {
+    await sync.runOnce();                         // learns the clock is off
+    await phoneSends('chat', 'slow-q', { id: 'slow-q', user: true, text: 'what time is it', source: '', at: real(), steps: [], files: 0 }, { at: real() });
+    await sync.runOnce();
+    assert.ok(store.db.chat.find((m) => m.id === 'slow-q'), 'the phone’s message arrived');
+    await sync.noteDeleted('chat', store.db.chat.map((m) => m.id)); store.db.chat = [];
+    await sync.runOnce();
+    assert.deepEqual(await cloudHas('chat', 'slow-q'), { deleted: true }, 'the deletion was not refused as older than the message');
+  } finally { Date.now = real; }
+});
+
+test('linking a fresh PC (nothing set) never resets the name and reminder settings the phone already has', async () => {
+  const code2 = sync.newCode(); await sync.link(code2); const owner2 = await sync.owner(code2);
+  Object.assign(store.db.state.settings, { name: '', tone: 'firm', quietStart: '22:30', quietEnd: '06:30', graceMin: 15, followUps: 1 });
+  // the phone made the link: its first sync sent its settings with no edit time of their own (1), from a device id that loses a dead heat to this PC's
+  const mine = { name: 'King Anjy', tone: 'gentle', quietStart: '23:15', quietEnd: '07:00', graceMin: 20, followUps: 2 };
+  push2(owner2, [{ kind: 'profile', id: 'me', updated_ms: 1, payload: await sync.encrypt(code2, JSON.stringify(mine)), device: 'a-phone' }]);
+  await sync.runOnce(); await sync.runOnce();
+  const s = store.db.state.settings;
+  assert.deepEqual([s.name, s.tone, s.quietStart, s.quietEnd, s.graceMin, s.followUps], ['King Anjy', 'gentle', '23:15', '07:00', 20, 2]);
+  const r = cloud.rows.get(owner2 + '|profile|me');
+  assert.deepEqual(JSON.parse(await sync.decrypt(code2, r.payload)), mine, 'the cloud still holds the phone’s settings');
+
+  // a device with no name set changes its quiet hours: they come here, and this PC's name goes there
+  const nameless = { tone: 'gentle', quietStart: '21:00', quietEnd: '07:00', graceMin: 20, followUps: 2 };
+  push2(owner2, [{ kind: 'profile', id: 'me', updated_ms: now(), payload: await sync.encrypt(code2, JSON.stringify(nameless)), device: 'b-tablet' }]);
+  await sync.runOnce(); await sync.runOnce();
+  assert.deepEqual([s.name, s.quietStart], ['King Anjy', '21:00']);
+  const back = JSON.parse(await sync.decrypt(code2, cloud.rows.get(owner2 + '|profile|me').payload));
+  assert.deepEqual([back.name, back.quietStart], ['King Anjy', '21:00'], 'the name went up to the device that has none');
+});
+
 after(async () => { await sync.unlink(); });

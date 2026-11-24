@@ -325,6 +325,7 @@ test('sync, round two: pull position, batches, problems, shared settings and pre
   for (const c of fx.problem) assert.deepEqual(sync.problem(c.status, c.body), c.expect);
   for (const c of fx.profileOf) assert.equal(sync.canonical(sync.profileOf(c.settings)), sync.canonical(c.expect));
   for (const c of fx.profileFields) assert.deepEqual(sync.profileFields(c.rec), c.expect);
+  for (const c of fx.untouchedProfile) assert.equal(sync.untouchedProfile(c.profile), c.want, c.name);
   for (const c of fx.presenceDue) assert.equal(sync.presenceDue(c.last, c.now), c.want);
 });
 test('sharing AI keys: the same merge rules as the phone, and a key is never lost to the other device', async () => {

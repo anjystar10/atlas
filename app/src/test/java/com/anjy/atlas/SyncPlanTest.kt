@@ -106,6 +106,7 @@ class SyncPlanTest {
             val got = SyncPlan.profileOf(c.getJSONObject("settings")); val want = c.getJSONObject("expect")
             assertEquals(Sync.canonical(want), Sync.canonical(got))
         }
+        for (c in fx.arr("untouchedProfile")) assertEquals(c.getString("name"), c.getBoolean("want"), SyncPlan.untouchedProfile(c.getJSONObject("profile")))
         for (c in fx.arr("profileFields")) {
             val got = SyncPlan.profileFields(c.getJSONObject("rec")); val want = c.getJSONObject("expect")
             assertEquals(Sync.canonical(want), Sync.canonical(JSONObject(got)))

@@ -34,9 +34,13 @@ async function rpc(fn, body) {
 export function start(kit) {
   ui = kit;
   host.on('remote-stop', () => stopControlled('Stopped here.'));
+  let checking = false;   // stopping the old line can take a while (a long poll, a retry wait): never start two
   const check = async () => {
+    if (checking) return;
     const c = sync.code();
     if (c === linkCode) return;
+    checking = true;
+    try {
     if (link) { await link.stop(); link = null; }
     linkCode = c;
     if (!c) { fire(); return; }
@@ -47,6 +51,7 @@ export function start(kit) {
       alwaysLongPoll: true,   // a PC is plugged in: it hears the phone within a moment
       log: (...a) => console.warn('[link]', ...a) });
     link.start(); fire();
+    } finally { checking = false; }
   };
   check(); setInterval(check, 5000);
   // >>> sync: after this PC sends changes, tell the phone to fetch them now (at most every 3 s)
