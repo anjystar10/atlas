@@ -1162,3 +1162,11 @@ test("a local model that can't use tools still answers, in words", async () => {
     await assert.rejects(brain.session(brain.byId('groq'), 'gsk_x', [], 'hi', []).call('sys'), /support tools/);
   } finally { delete host.fetch; }
 });
+
+test('a local model that timed out is not asked three more times', async () => {
+  db.prefs = { model_local: 'qwen3:30b', keys: {} };
+  const sess = { key: 'local' }; let n = 0;
+  const slow = new brain.Failure('Local model took too long to answer.', 0, true);
+  await assert.rejects(brain.callWithKeys(brain.byId('local'), sess, async () => { n++; throw slow; }, 0, { onStatus: () => {}, cancelled: () => false, wait: async () => {} }), /took too long/);
+  assert.equal(n, 1);
+});

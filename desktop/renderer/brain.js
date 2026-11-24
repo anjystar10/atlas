@@ -701,7 +701,10 @@ export async function callWithKeys(p, sess, call, mine, { onStatus = (st) => { c
     if (c === 'other') throw f;
     // asked to wait more than a minute: not worth sitting through, move on to the next key
     const tooLong = (f.retryAfterMs || 0) > MAX_HINT_MS;
-    if (c === 'passing' && retries < RETRIES && !tooLong) {
+    // a local model that ran past its 10 minutes is too slow for the job, not having a hiccup: asking again would
+    // keep the user waiting up to 40 minutes for the same result
+    const slowLocal = p.local && f.offline && /took too long/.test(f.message || '');
+    if (c === 'passing' && retries < RETRIES && !tooLong && !slowLocal) {
       retries++;
       const [ms, asked] = waitFor(f, retries); const secs = Math.ceil(ms / 1000);
       onStatus(asked ? `${p.name} asked me to wait ${secs} s (${retries} of ${RETRIES})` : f.code === 429 ? `Waiting for ${p.name}'s limit, ${secs} s (${retries} of ${RETRIES})` : f.offline ? `Can't reach ${p.name}, trying again (${retries} of ${RETRIES})` : `${p.name} is busy, trying again (${retries} of ${RETRIES})`);
