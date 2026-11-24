@@ -106,6 +106,9 @@ object TriggerRules {
         return "$base\n\nWhat happened: ${clip(ev.opt("title"), 300)}" + (if (data.isNotEmpty()) "\n$data" else "")
     }
     fun eventKey(botId: String, trigId: String, ev: JSONObject): String = "$botId|$trigId|${clip(ev.opt("key")?.takeIf { it != JSONObject.NULL && it != "" } ?: ev.opt("title"), 200)}"
+    /** The key both devices claim in the cloud: a price crossing's has no time in it ("claim"), the same as trigrules.js claimKey. */
+    fun claimKey(botId: String, trigId: String, ev: JSONObject): String =
+        ev.optString("claim").takeIf { ev.opt("claim") is String && it.isNotEmpty() }?.let { eventKey(botId, trigId, JSONObject().put("key", it)) } ?: eventKey(botId, trigId, ev)
 
     // ------------------------------------------------------------------ de-duplication and rate limits
 
@@ -196,14 +199,14 @@ object TriggerRules {
         val last = s.optDouble("last")
         if (above != null) {
             if (s.optBoolean("armedAbove") && last < above && p >= above) {
-                events.add(JSONObject().put("type", "price").put("key", "above:${js(above)}:$now").put("title", "$sym went above ${js(above)} (now ${js(p)})")
+                events.add(JSONObject().put("type", "price").put("key", "above:${js(above)}:$now").put("claim", "above:${js(above)}").put("title", "$sym went above ${js(above)} (now ${js(p)})")
                     .put("data", JSONObject().put("symbol", cfg.optString("symbol")).put("price", p).put("level", above)))
                 s.put("armedAbove", false)
             } else if (!s.optBoolean("armedAbove") && p < above * (1 - HYSTERESIS)) s.put("armedAbove", true)
         }
         if (below != null) {
             if (s.optBoolean("armedBelow") && last > below && p <= below) {
-                events.add(JSONObject().put("type", "price").put("key", "below:${js(below)}:$now").put("title", "$sym went below ${js(below)} (now ${js(p)})")
+                events.add(JSONObject().put("type", "price").put("key", "below:${js(below)}:$now").put("claim", "below:${js(below)}").put("title", "$sym went below ${js(below)} (now ${js(p)})")
                     .put("data", JSONObject().put("symbol", cfg.optString("symbol")).put("price", p).put("level", below)))
                 s.put("armedBelow", false)
             } else if (!s.optBoolean("armedBelow") && p > below * (1 + HYSTERESIS)) s.put("armedBelow", true)
@@ -214,7 +217,7 @@ object TriggerRules {
             val pct = (p - ref) / ref * 100
             if (Math.abs(pct) >= move) {
                 val fixed = String.format(Locale.US, "%.2f", pct)
-                events.add(JSONObject().put("type", "price").put("key", "move:$now").put("title", "$sym moved ${if (pct > 0) "+" else ""}$fixed% (from ${js(ref)} to ${js(p)})")
+                events.add(JSONObject().put("type", "price").put("key", "move:$now").put("claim", "move").put("title", "$sym moved ${if (pct > 0) "+" else ""}$fixed% (from ${js(ref)} to ${js(p)})")
                     .put("data", JSONObject().put("symbol", cfg.optString("symbol")).put("price", p).put("from", ref).put("pct", fixed.toDouble())))
                 s.put("ref", p).put("refAt", now)
             }
@@ -234,7 +237,8 @@ object TriggerRules {
         val body = lc("${n.title} ${n.text}")
         return ws.isEmpty() || ws.any { body.contains(it) }
     }
-    fun notificationEvent(n: Note): JSONObject = JSONObject().put("type", "notification").put("key", "${n.pkg}:${clip(n.title, 80)}:${clip(n.text, 120)}")
+    /** [at]: when it came. The same words again in a later hour are a new notification; a re-post within the hour isn't (trigrules.js). */
+    fun notificationEvent(n: Note, at: Long = 0): JSONObject = JSONObject().put("type", "notification").put("key", "${n.pkg}:${clip(n.title, 80)}:${clip(n.text, 120)}:${Math.floorDiv(at, 3_600_000L)}")
         .put("title", "${n.app.ifEmpty { n.pkg }}: ${clip(n.title, 120)}" + (if (n.text.isNotEmpty()) " — ${clip(n.text, 200)}" else ""))
         .put("data", JSONObject().put("app", n.app.ifEmpty { n.pkg }).put("title", n.title).put("text", n.text))
 

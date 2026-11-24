@@ -50,6 +50,7 @@ class TriggerRulesTest {
             val want = c.getString("out").split("\n"); val got = TriggerRules.goalFor(c.getJSONObject("bot"), c.getJSONObject("trigger"), c.getJSONObject("event")).split("\n")
             assertEquals(want.take(3), got.take(3)); assertEquals(want.drop(3).toSet(), got.drop(3).toSet())
             assertEquals(c.getString("key"), TriggerRules.eventKey(c.getJSONObject("bot").getString("id"), c.getJSONObject("trigger").getString("id"), c.getJSONObject("event")))
+            assertEquals(c.getString("claim"), TriggerRules.claimKey(c.getJSONObject("bot").getString("id"), c.getJSONObject("trigger").getString("id"), c.getJSONObject("event")))
         }
         for (c in objs(fx.getJSONArray("where"))) {
             val bot = JSONObject(); if (!c.isNull("home")) bot.put("home", c.getString("home"))
@@ -105,7 +106,7 @@ class TriggerRulesTest {
         for (c in objs(fx.getJSONArray("notification"))) {
             val n = c.getJSONObject("n").let { TriggerRules.Note(it.optString("pkg"), it.optString("app"), it.optString("title"), it.optString("text")) }
             assertEquals(c.getBoolean("out"), TriggerRules.notificationMatches(c.getJSONObject("cfg"), n))
-            check("notification event", c.getJSONObject("event"), TriggerRules.notificationEvent(n))
+            check("notification event", c.getJSONObject("event"), TriggerRules.notificationEvent(n, c.getLong("at")))
         }
         for (c in objs(fx.getJSONArray("app"))) {
             val o = c.getJSONObject("o").let { TriggerRules.Opened(it.optString("pkg"), it.optString("app")) }

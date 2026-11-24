@@ -70,7 +70,7 @@ export function createTrigRun(deps) {
     if (!r.ok) { errors[keyOf(b, t)] = 'Skipped an event: it fired too often (its hourly limit).'; return null; }
     // both devices may see the same email or price move: only one starts the mission
     let mine = null;
-    try { mine = deps.claim ? await deps.claim(`trig:${key}`) : null; } catch { mine = null; }
+    try { mine = deps.claim ? await deps.claim(`trig:${R.claimKey(b.id, t.id, ev)}`) : null; } catch { mine = null; }
     if (mine === false) return null;
     try { return deps.fire(b.id, t, ev) || null; } catch (e) { errors[keyOf(b, t)] = String(e && e.message || e); return null; }
   }

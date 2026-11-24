@@ -116,3 +116,31 @@ test('trigger watcher: reads the last price out of a quote', () => {
   assert.equal(lastPrice('Error: no account'), null);
   assert.equal(lastPrice('last 0'), null);
 });
+
+test('trigger watcher: a price crossing seen by the phone and the laptop at different moments starts one mission, not two', async () => {
+  // one cloud: the first device to claim a key gets it for 10 minutes (Sync.claim / sync.claim)
+  const cloud = new Map(); let clock = Date.UTC(2026, 10, 18, 8, 0, 0);
+  const claim = async (k) => { const c = cloud.get(k); if (c && clock - c < 10 * MIN) return false; cloud.set(k, clock); return true; };
+  const bots = [{ id: 'b1', home: 'any', triggers: [{ id: 'tp', type: 'price', enabled: true, config: { symbol: 'BTCUSDT', above: 100000 } }] }];
+  const fired = []; const prices = { pc: 99000, phone: 99000 };
+  const dev = (name) => createTrigRun({ device: 'pc', bots: () => bots, fire: (b, t, ev) => { fired.push([name, ev.key]); return { id: name }; }, now: () => clock,
+    load: async () => null, save: async () => {}, quote: async () => prices[name], claim });
+  const pc = dev('pc'), phone = dev('phone');
+  await pc.tick(); await phone.tick();                         // first look: the baseline
+  clock += MIN; prices.pc = 100500; await pc.tick();           // the laptop sees it go above
+  clock += 3 * MIN; prices.phone = 100600; await phone.tick(); // the phone sees the same move a few minutes later
+  assert.equal(fired.length, 1, JSON.stringify(fired));
+  // a real crossing again later (it fell back and rose again) fires again
+  clock += 30 * MIN; prices.pc = 99000; await pc.tick(); clock += MIN; prices.pc = 100400; await pc.tick();
+  assert.equal(fired.length, 2);
+});
+
+test('trigger rules: the same notification words again in a later hour fire again; a re-post within the hour does not', async () => {
+  const { notificationEvent, eventKey, dedupe } = await import('../renderer/trigrules.js');
+  const n = { pkg: 'com.whatsapp', app: 'WhatsApp', title: 'Mum', text: 'Call me' };
+  const t0 = Date.UTC(2026, 10, 18, 8, 5, 0);
+  let s = {}; const seen = (at) => { const r = dedupe(s, eventKey('b', 't', notificationEvent(n, at)), at); s = r.state; return r.fresh; };
+  assert.equal(seen(t0), true);
+  assert.equal(seen(t0 + 10 * MIN), false, 'the same notification re-posted');
+  assert.equal(seen(t0 + 26 * 3600000), true, 'the same words the next day are a new notification');
+});

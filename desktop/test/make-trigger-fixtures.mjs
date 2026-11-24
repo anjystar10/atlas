@@ -27,7 +27,9 @@ const bot = { id: 'b1', home: 'pc', instructions: 'x', triggers: [{ type: 'email
 out.goal = [
   { bot, trigger: R.cleanTrigger(triggers[0]), event: { title: 'New email from Bank: Debit alert', data: { from: 'Bank', subject: 'Debit alert', email_id: null, n: 3 } } },
   { bot: { id: 'b2' }, trigger: { id: 't', type: 'manual', config: {} }, event: { title: 'Started', data: {} } },
-].map((c) => ({ ...c, out: R.goalFor(c.bot, c.trigger, c.event), key: R.eventKey(c.bot.id, c.trigger.id, c.event) }));
+  // a price crossing: the key has its time; the claim both devices make doesn't
+  { bot: { id: 'b3' }, trigger: { id: 'p', type: 'price', config: {} }, event: { type: 'price', key: 'above:100000:1762938000000', claim: 'above:100000', title: 'BTCUSDT went above 100000 (now 100500)', data: {} } },
+].map((c) => ({ ...c, out: R.goalFor(c.bot, c.trigger, c.event), key: R.eventKey(c.bot.id, c.trigger.id, c.event), claim: R.claimKey(c.bot.id, c.trigger.id, c.event) }));
 
 out.where = [['any', 'phone'], ['phone', 'phone'], ['phone', 'pc'], ['pc', 'pc'], [undefined, 'pc']].map(([home, device]) => ({ home: home || null, device, out: R.where({ home }, device) }));
 out.awake = [{ home: 'phone', triggers: [{ type: 'email', enabled: true }] }, { home: 'pc', triggers: [{ type: 'manual', enabled: true }] }, { home: 'any', triggers: [{ type: 'price', enabled: true }] }, { home: 'pc', triggers: [{ type: 'file', enabled: true }] }]
@@ -58,7 +60,7 @@ out.notification = [
   [{ app: 'whats', contains: 'urgent' }, { pkg: 'com.whatsapp', app: 'WhatsApp', title: 'Mum', text: 'hello' }],
   [{ app: 'Telegram', contains: '' }, { pkg: 'com.whatsapp', app: 'WhatsApp', title: 'Mum', text: 'hello' }],
   [{ app: '', contains: 'otp' }, { pkg: 'com.gtbank', app: 'GTWorld', title: 'Your OTP', text: '123456' }],
-].map(([cfg, n]) => ({ cfg, n, out: R.notificationMatches(cfg, n), event: R.notificationEvent(n) }));
+].map(([cfg, n]) => ({ cfg, n, out: R.notificationMatches(cfg, n), event: R.notificationEvent(n, T0), at: T0 }));
 
 out.app = [
   [{ app: 'Instagram' }, { pkg: 'com.instagram.android', app: 'Instagram' }],
