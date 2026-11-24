@@ -2,6 +2,27 @@
  "_doc": "What changed in each Atlas version: one source for the phone (bundled as an asset), the PC (bundled as a resource) and the update check. 'notes' are for the user; 'abilities' are for Atlas itself (second person, what it can now do). Newest first. Set 'released' to true when that version ships; the build workflow reads the entry whose version matches the app.",
  "versions": [
   {
+   "version": "0.11.3",
+   "versionCode": 24,
+   "date": "2026-11-24",
+   "released": true,
+   "notes": [
+    "Approvals: pasted text, quotes, questions and 'ok but don't…' no longer count as your yes; PC confirm dialogs start on No, so Enter or releasing push-to-talk can't approve by accident",
+    "Trading: a bad first balance reading no longer disables the daily-loss limit; new LIVE positions wait until it can be read",
+    "Bots: Pause during the Undo countdown really pauses; Stop closes the bot's browser; price and schedule triggers fire once, not on both devices; a repeated notification can trigger again",
+    "Screen control: Stop on 'Atlas is using your screen' really stops; with phone control off Atlas says so instead of asking",
+    "Reminders: daily and weekly reminders keep coming even if you dismiss or miss one, with one copy across phone and PC",
+    "Hey Atlas: talking to the orb no longer switches Hey Atlas on when it's off; it recovers by itself if a wake opens nothing",
+    "Answers: a working API key is no longer thrown away over an unrelated error; going offline mid-reply no longer saves a reminder twice; a cut-off reply no longer breaks the chat",
+    "Sync: linking a new device no longer resets your settings; New Chat clears the other device even when a clock runs slow; bot skills and routines no longer drift apart",
+    "PC: files like Desktop/todo.txt land in your real (OneDrive) Desktop; commands that open a program no longer freeze Atlas; non-English names read correctly; screenshots and clicks use the same monitor; Python/shell scripts ask before running; the floating orb works again",
+    "Phone: a snap survives Android closing Atlas; New Chat's Undo reopens the right chat; searching many chats no longer freezes"
+   ],
+   "abilities": [
+    "Your stop switch for trading is per device for now: stopping on one device doesn't stop trading bots on the other — say so if the user stops trading on one device"
+   ]
+  },
+  {
    "version": "0.11.2",
    "versionCode": 23,
    "date": "2026-11-18",

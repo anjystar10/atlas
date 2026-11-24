@@ -1,7 +1,7 @@
 {
   "name": "atlas-desktop",
   "productName": "Atlas",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "description": "Atlas, King Anjy's personal AI assistant, on Windows. Synced with Atlas on the phone.",
   "main": "main.js",
   "author": "King Anjy",
