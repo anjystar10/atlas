@@ -211,7 +211,8 @@ else { try { Start-Process ${q(n)} -ErrorAction Stop; "Opened " + ${q(n)} } catc
       const shotW = Math.round(real.w * s), shotH = Math.round(real.h * s);
       const src = await e.desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: shotW, height: shotH } });
       if (!src.length) return { error: 'Couldn\'t capture the screen.' };
-      const img = src[0].thumbnail;
+      // the primary screen (clicks are placed on it); with a second monitor it isn't always listed first
+      const img = (src.find((x) => String(x.display_id) === String(d.id)) || src[0]).thumbnail;
       const sz = img.getSize();
       lastShot = { w: sz.width, h: sz.height, realW: real.w, realH: real.h };
       return { out: `Here is the screen (${sz.width}×${sz.height}). Give clicks in these coordinates.`, image: { mime: 'image/jpeg', base64: img.toJPEG(80).toString('base64') }, step: 'Looked at the screen' };
