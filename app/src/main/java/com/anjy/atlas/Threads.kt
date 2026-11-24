@@ -152,7 +152,9 @@ object Threads {
     fun remove(id: String) { synchronized(lock) { threads.removeAll { it.id == id }; links.remove(id) }; persist(); emit(); if (::app.isInitialized) Sync.syncSoon(app) }
 
     private fun add(t: ThreadRules.Thread, from: String, text: String, kind: String? = null, mission: String? = null, mentions: List<String> = emptyList()): ThreadRules.Msg {
-        val m = ThreadRules.Msg("m-" + UUID.randomUUID().toString().take(12), now(), from, text.take(ThreadRules.MAX_TEXT), mentions, mission, kind)
+        // never at the same moment as the one before (two in one millisecond keep their order after a merge), as on the PC
+        val at = synchronized(lock) { maxOf(now(), (t.messages.lastOrNull()?.at ?: 0L) + 1) }
+        val m = ThreadRules.Msg("m-" + UUID.randomUUID().toString().take(12), at, from, text.take(ThreadRules.MAX_TEXT), mentions, mission, kind)
         synchronized(lock) { t.messages.add(m); while (t.messages.size > ThreadRules.MAX_MESSAGES) t.messages.removeAt(0) }
         touch(t); return m
     }
