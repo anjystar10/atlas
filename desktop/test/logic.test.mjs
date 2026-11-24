@@ -964,6 +964,7 @@ test('trading: the stop switch crosses devices the same way on the phone (tools/
   for (const c of fx.fromOther) assert.equal(TR.stopFromOther(c.state, c.rec), c.out, c.name);
   for (const c of fx.addStop) assert.deepEqual(TR.addStop(c.stops, c.id), c.out);
   // a record never lifts a stop, and a stop this device already had (and lifted here) doesn't come back
+  assert.equal(TR.money(NaN), 'an unknown amount'); assert.equal(TR.money(1234567.891), '$1,234,567.89');
   assert.ok(fx.fromOther.length >= 100);
   assert.ok(fx.fromOther.filter((c) => c.rec && c.rec.killed === false).every((c) => c.out === null));
   assert.equal(TR.stopFromOther({ killed: false, stopId: 'stop-a', stops: ['stop-a'] }, { killed: true, stop: 'stop-a' }), null);

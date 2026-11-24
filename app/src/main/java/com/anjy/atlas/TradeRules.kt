@@ -71,7 +71,7 @@ object TradeRules {
         val n = Math.floor(value / st + 0.5).toLong()   // Math.round in JS: halves go up
         return BigDecimal(s).multiply(BigDecimal(n)).setScale(decimalsOf(s), RoundingMode.HALF_UP).toPlainString()
     }
-    fun money(x: Double): String = "$" + String.format(Locale.US, "%,.2f", (x * 100).roundToLong() / 100.0)
+    fun money(x: Double): String = if (!x.isFinite()) "an unknown amount" else "$" + String.format(Locale.US, "%,.2f", (x * 100).roundToLong() / 100.0)
 
     // ---------------------------------------------------------------- time
 

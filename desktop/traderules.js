@@ -40,7 +40,7 @@ function roundTo(value, step) {
   const n = Math.round(v / st);
   return (n * st).toFixed(d);
 }
-const money = (x) => '$' + (Math.round(Number(x) * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const money = (x) => (Number.isFinite(Number(x)) ? '$' + (Math.round(Number(x) * 100) / 100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') : 'an unknown amount');
 
 // ---------------------------------------------------------------- time
 

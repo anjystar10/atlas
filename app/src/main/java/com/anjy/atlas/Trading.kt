@@ -290,7 +290,10 @@ object Trading {
             val orders = JSONArray()
             call("GET", "/v5/order/realtime", mapOf("category" to "spot"), true).optJSONArray("list")?.let { a -> for (i in 0 until a.length()) { val o = a.getJSONObject(i)
                 orders.put(JSONObject().put("id", o.optString("orderId")).put("symbol", o.optString("symbol")).put("side", o.optString("side").lowercase()).put("type", o.optString("orderType").lowercase()).put("qty", o.optString("qty")).put("price", o.optString("price"))) } }
-            return JSONObject().put("equity", w.optString("totalEquity").toDoubleOrNull() ?: 0.0).put("cash", cash).put("positions", positions).put("orders", orders)
+            // an equity that couldn't be read is left out (optDouble: NaN, as on the PC): read as 0 it started the day at $0,
+            // and the daily loss limit never stopped anything that day (NaN itself can't go in a JSONObject)
+            return JSONObject().put("cash", cash).put("positions", positions).put("orders", orders)
+                .also { o -> w.optString("totalEquity").toDoubleOrNull()?.takeIf { it.isFinite() }?.let { o.put("equity", it) } }
         }
         override fun place(o: JSONObject, tag: String): Pair<String, List<String>> {
             if (o.optString("type") == "stop") throw TradeError("Stop entry orders aren't supported on Bybit spot here. Use a market or limit order with a stop loss.")
@@ -368,7 +371,9 @@ object Trading {
             val orders = JSONArray(); safe("/api/Order/searchOpen", JSONObject().put("accountId", id)).optJSONArray("orders")?.let { o -> for (i in 0 until o.length()) { val x = o.getJSONObject(i)
                 orders.put(JSONObject().put("id", x.optString("id")).put("symbol", byId[x.optString("contractId")] ?: x.optString("contractId")).put("side", if (x.optInt("side") == 0) "buy" else "sell")
                     .put("type", TYPE.entries.firstOrNull { it.value == x.optInt("type") }?.key ?: x.optString("type")).put("qty", x.optString("size")).put("price", x.opt("limitPrice")?.takeIf { it != JSONObject.NULL } ?: x.opt("stopPrice"))) } }
-            return JSONObject().put("equity", a.optDouble("balance")).put("cash", a.optDouble("balance")).put("positions", positions).put("orders", orders)
+            // (a balance that couldn't be read is left out: NaN can't go in a JSONObject, and closing must still work)
+            return JSONObject().put("positions", positions).put("orders", orders)
+                .also { o -> a.optDouble("balance").takeIf { it.isFinite() }?.let { o.put("equity", it).put("cash", it) } }
         }
         override fun place(o: JSONObject, tag: String): Pair<String, List<String>> {
             val id = acct(); val c = contract(o.optString("symbol")); val tick = c.optString("tickSize").toDouble()

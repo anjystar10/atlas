@@ -98,5 +98,6 @@ class TradeRulesTest {
         val l = TradeRules.limitsFor(JSONObject().put("mode", "live"))
         assertEquals(50.0, l.maxOrderUsd, 0.0); assertEquals(2, l.maxOrdersPerDay); assertFalse(l.allowDerivatives)
         assertEquals("$1,234,567.89", TradeRules.money(1234567.891))
+        assertEquals("an unknown amount", TradeRules.money(Double.NaN))   // an equity that couldn't be read (it threw before)
     }
 }
