@@ -127,14 +127,23 @@ function loadAttachment(p) {
   return { kind: 'text', mime: 'text/plain', name, text };
 }
 
-function expand(p) {
+// The user's own folders, where Windows really keeps them (OneDrive often moves Desktop and Documents).
+const KNOWN = ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Music', 'Videos'];
+function knownFolder(k) {
+  try { const { app } = require('electron'); if (app && app.getPath) return app.getPath(k.toLowerCase()); } catch {}
+  return path.join(os.homedir(), k);
+}
+/** A path the model gave, as a full path: "~", "Desktop/notes.txt", "~/Documents/x" and bare names all start at the user's
+ *  home or their real known folders, never at the app's own working folder (its install folder, or System32 at sign-in). */
+function expand(p, folder = knownFolder) {
   let s = String(p || '').trim().replace(/^["']|["']$/g, '');
-  if (s.startsWith('~')) s = path.join(os.homedir(), s.slice(1));
   s = s.replace(/%([^%]+)%/g, (_m, v) => process.env[v] || _m);
-  for (const k of ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Music', 'Videos']) {
-    if (s.toLowerCase() === k.toLowerCase()) s = path.join(os.homedir(), k);
-  }
-  return path.resolve(s || os.homedir());
+  if (/^~([\\/]|$)/.test(s)) s = s.replace(/^~[\\/]*/, '');
+  else if (path.isAbsolute(s)) return path.resolve(s);
+  const [first, ...rest] = s.split(/[\\/]+/);
+  const k = KNOWN.find((n) => n.toLowerCase() === String(first).toLowerCase());
+  if (k) return path.join(folder(k), ...rest);
+  return path.resolve(os.homedir(), s);
 }
 
 // ------------------------------------------------------------------ the tools
