@@ -114,4 +114,10 @@ class BackgroundTest {
         m.stop(null)
         assertNull(m.key)
     }
+
+    @Test fun noHeadsUpWhilePhoneControlIsOff() {
+        assertTrue(RouteRules.needsHeadsUp(fromChat = true, atlasInFront = false, sessionActive = false))
+        assertFalse(RouteRules.needsHeadsUp(fromChat = true, atlasInFront = false, sessionActive = false, phoneControlOn = false))
+        assertFalse(RouteRules.needsHeadsUp(fromChat = false, atlasInFront = false, sessionActive = false, phoneControlOn = false))
+    }
 }

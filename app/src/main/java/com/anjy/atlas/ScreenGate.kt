@@ -63,6 +63,7 @@ object ScreenGate {
             return "Use your screen for about 20 seconds to work in ${args.optString("name").trim().ifEmpty { "an app" }} (there's no background way). You'll see a Stop banner; Atlas puts you back where you were after."
         }
         if (tool !in driving || active(jobId)) return null
+        if (!RouteRules.needsHeadsUp(fromChat = false, atlasInFront = false, sessionActive = false, phoneControlOn = PhoneControl.on())) return null   // it can only fail
         val app = currentApp(ctx)?.let { appLabel(ctx, it) } ?: "an app"
         return "Use your screen for about 20 seconds to work in $app. You'll see a Stop banner; Atlas puts you back where you were after."
     }
@@ -89,6 +90,8 @@ object ScreenGate {
             return null
         }
         if (tool !in driving) return null
+        // phone control is off: say so, without a heads-up or a "using your screen" banner for an action that can't happen
+        if (!PhoneControl.on()) return Tools.Result(PhoneControl.OFF)
         if (who?.jobId == null && stops.blocksChat()) return Tools.Result("The user tapped Stop: Atlas may not use the screen for this now. Do it another way (background tools, a bot's browser) or ask them.")
         val inFront = PermissionCenter.atlasInFront
         if (who?.jobId == null && RouteRules.needsHeadsUp(fromChat = true, atlasInFront = inFront, sessionActive = active(key))) {

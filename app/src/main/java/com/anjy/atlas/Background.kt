@@ -85,9 +85,13 @@ object RouteRules {
         return out.sortedBy { it.lane.ordinal }
     }
 
-    /** Whether Atlas must give a heads-up before driving the screen: always, unless the user is in Atlas and asked for it themselves. */
-    fun needsHeadsUp(fromChat: Boolean, atlasInFront: Boolean, sessionActive: Boolean): Boolean =
-        !sessionActive && !(fromChat && atlasInFront)
+    /**
+     * Whether Atlas must give a heads-up before driving the screen: always, unless the user is in Atlas and asked for it
+     * themselves. Never while phone control is off ([phoneControlOn]): nothing could be done, so the user isn't asked
+     * for their screen and shown a "using your screen" banner for nothing.
+     */
+    fun needsHeadsUp(fromChat: Boolean, atlasInFront: Boolean, sessionActive: Boolean, phoneControlOn: Boolean = true): Boolean =
+        phoneControlOn && !sessionActive && !(fromChat && atlasInFront)
 
     /**
      * Who the user stopped with the screen's Stop (the chat or a bot job). Kept apart from the session's owner, which
