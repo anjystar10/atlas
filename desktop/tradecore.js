@@ -211,7 +211,9 @@ function createTrading(deps) {
 
   /** The stop switch: no new orders anywhere, open orders cancelled. Only the user can turn trading back on. */
   async function stopAll(args) {
-    const s = store.get(); store.set({ ...s, killed: true, killedAt: now(), killReason: String(args.reason || '').slice(0, 200), plans: {}, standing: {} });
+    // a new stop, with its own id: the other device stops too (sync kind "tradestop", traderules.js stopFromOther)
+    const s = store.get(), stopId = `stop-${now()}-${Math.random().toString(36).slice(2, 10)}`;
+    store.set({ ...s, killed: true, killedAt: now(), killReason: String(args.reason || '').slice(0, 200), plans: {}, standing: {}, stopId, stops: R.addStop(s.stops, stopId) });
     const notes = [];
     for (const a of accounts()) {
       try { const b = broker(a); const acct = await b.account(); for (const o of acct.orders) { try { await b.cancel(o.id, o.symbol); notes.push(`${a.name} #${o.id} cancelled`); } catch (e) { notes.push(`${a.name} #${o.id} NOT cancelled (${e.message})`); } } }
@@ -269,10 +271,23 @@ function createTrading(deps) {
   }
   function standing(accountId) { const v = (store.get().standing || {})[accountId]; return v && v.expiresAt > now() ? v : null; }
 
+  /**
+   * The other device's stop switch came on (sync): no new orders here either, plans and pre-approved limits off, until the
+   * user turns trading back on here. Open orders on this device's accounts are left as they are. Returns whether it stopped.
+   */
+  function stopFromOther(rec) {
+    const s = store.get(); const id = R.stopFromOther(s, rec); if (!id) return false;
+    if (s.killed) { store.set({ ...s, stops: R.addStop(s.stops, id) }); return false; }   // already stopped here
+    store.set({ ...s, killed: true, killedAt: now(), killReason: 'stopped on your other device', plans: {}, standing: {}, stopId: id, stops: R.addStop(s.stops, id) });
+    audit({ at: now(), account: '*', mode: '', action: 'stop_all', result: 'stopped', note: 'stopped on your other device' });
+    notify('Trading stopped', 'The stop switch was turned on on your other device. No new orders here either until you turn trading back on in Me → Trading.');
+    return true;
+  }
+
   /** The user (never the model) turns trading back on. */
   function resume() { const s = store.get(); store.set({ ...s, killed: false, resumedAt: now() }); audit({ at: now(), account: '*', mode: '', action: 'resume', result: 'resumed', note: 'by the user' }); }
 
-  return { run, resume, pick, tickets, setStanding, standing };
+  return { run, resume, stopFromOther, stopRecord: () => R.stopRecord(store.get()), pick, tickets, setStanding, standing };
 }
 
 module.exports = { createTrading, TICKET_MS };

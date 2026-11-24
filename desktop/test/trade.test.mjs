@@ -73,6 +73,35 @@ test('the stop switch: cancels open orders, refuses new ones even with an approv
   } finally { srv.close(); }
 });
 
+test('the stop switch crosses devices: a stop on one stops trading on the other; turning it back on stays on each device', async () => {
+  const srv = await mock.start(); const phone = world(srv, [bybitLive]); const pc = world(srv, [bybitPaper]);
+  try {
+    assert.equal(pc.tr.stopRecord(), null, 'never stopped: nothing to tell the other device');
+    const pending = await pc.tr.run('trade_order', { symbol: 'BTCUSDT', side: 'buy', notional: 20 });
+    assert.ok(/^Sent/.test(pending.out), 'PAPER works before the stop');
+    await phone.tr.run('trade_stop_all', { reason: 'user said stop' });
+    const rec = phone.tr.stopRecord();
+    assert.equal(rec.killed, true); assert.match(rec.stop, /^stop-/);
+    // the record arrives on the PC (sync kind "tradestop")
+    assert.equal(pc.tr.stopFromOther(rec), true);
+    assert.equal(pc.data().killed, true); assert.deepEqual(pc.data().plans, {}); assert.deepEqual(pc.data().standing, {});
+    const after = await pc.tr.run('trade_order', { symbol: 'BTCUSDT', side: 'buy', notional: 20 });
+    assert.match(after.out, /stop switch is on/, 'a bot on the PC can\'t trade either');
+    // the PC's own record now says the same stop: the phone doesn't take it in again
+    assert.equal(phone.tr.stopFromOther(pc.tr.stopRecord()), false);
+    // turning it back on on the phone doesn't restart the PC; the phone's record can't lift a stop
+    phone.tr.resume();
+    assert.equal(pc.tr.stopFromOther(phone.tr.stopRecord()), false); assert.equal(pc.data().killed, true);
+    // and the PC's stop (the same one, still on there) doesn't stop the phone again: the user lifted it there
+    assert.equal(phone.tr.stopFromOther(pc.tr.stopRecord()), false); assert.equal(phone.data().killed, false);
+    pc.tr.resume(); assert.equal(pc.data().killed, false);
+    // a later stop on the PC stops the phone again
+    await pc.tr.run('trade_stop_all', { reason: 'something looks wrong' });
+    assert.equal(phone.tr.stopFromOther(pc.tr.stopRecord()), true); assert.equal(phone.data().killed, true);
+    assert.equal(phone.audit.at(-1).note, 'stopped on your other device');
+  } finally { srv.close(); }
+});
+
 test('limits are enforced in code: size, trades per day, daily loss', async () => {
   const srv = await mock.start(); const w = world(srv, [bybitLive]);
   try {

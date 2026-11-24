@@ -202,4 +202,35 @@ function summary(account, o, ref, estUsd, worst, futures) {
 /** The string Bybit signs: timestamp + api key + recv window + (query string for GET | JSON body for POST). */
 function bybitPayload(ts, apiKey, recvWindow, queryOrBody) { return String(ts) + apiKey + String(recvWindow) + (queryOrBody || ''); }
 
-module.exports = { symbolAllowed, DEFAULT_LIMITS, PAPER_LIMITS, limitsFor, floorTo, roundTo, decimalsOf, inHours, rollDay, lossToday, check, planCovers, standingCovers, summary, bybitPayload, money };
+// ---------------------------------------------------------------- the stop switch across devices (sync kind "tradestop")
+//
+// A stop on one device stops trading on the other too; turning trading back on is only ever done on the device itself
+// (the user's own tap there). Each device shares its own record { killed, stop, updatedAt }: [stop] is the id of the latest
+// stop it made or took in. A device takes in another's stop while that one is still on, unless it has already had that
+// stop (and maybe lifted it here). A record never lifts a stop. Same as TradeRules.kt (tools/trade-fixtures.json: stopSync).
+
+const STOPS_KEPT = 20;
+/** The id of the stop this device is under or last had ('' for none). A stop from before 0.11.4 has no id: only while it's on. */
+function stopIdOf(state) {
+  const s = state || {};
+  if (typeof s.stopId === 'string' && s.stopId) return s.stopId;
+  return s.killed ? `legacy-${Number(s.killedAt) || 0}` : '';
+}
+/** This device's record for the other device, or null (never stopped here: nothing to say). */
+function stopRecord(state) {
+  const s = state || {}; const stop = stopIdOf(s); if (!stop) return null;
+  const k = Number(s.killedAt) || 0, r = Number(s.resumedAt) || 0;
+  return { killed: !!s.killed, stop, updatedAt: s.killed ? k : Math.max(k, r) };
+}
+/** The stop to take in from the other device's record ([rec]), or null: only a stop that is still on there and is new here. */
+function stopFromOther(state, rec) {
+  if (!rec || typeof rec !== 'object' || rec.killed !== true || typeof rec.stop !== 'string') return null;
+  const stop = rec.stop.trim().slice(0, 100); if (!stop) return null;
+  const s = state || {};
+  if (stop === stopIdOf(s) || (Array.isArray(s.stops) && s.stops.includes(stop))) return null;
+  return stop;
+}
+/** The stops this device has had, with [id] added (the last few). */
+function addStop(stops, id) { return [...(Array.isArray(stops) ? stops : []).filter((x) => x !== id), id].slice(-STOPS_KEPT); }
+
+module.exports = { stopIdOf, stopRecord, stopFromOther, addStop, symbolAllowed, DEFAULT_LIMITS, PAPER_LIMITS, limitsFor, floorTo, roundTo, decimalsOf, inHours, rollDay, lossToday, check, planCovers, standingCovers, summary, bybitPayload, money };

@@ -165,6 +165,37 @@ object Trading {
     }
     fun standing(ctx: Context, accountId: String): JSONObject? = state(ctx).optJSONObject("standing")?.optJSONObject(accountId)?.takeIf { it.optLong("expiresAt") > System.currentTimeMillis() }
 
+    // ---- the stop switch across devices (sync kind "tradestop"; desktop/renderer/trade.js)
+    /** Registers the kind (before anything is pulled). A record from the other device can only stop trading here, never restart it. */
+    fun registerSync() {
+        try {
+            Sync.register("tradestop", Sync.Kind(list = { ctx -> stopRecords(ctx) }, apply = { ctx, id, rec -> stopFromOther(ctx, id, rec) }, absentMeansDeleted = false))
+        } catch (_: Exception) {}
+    }
+    private fun stopRecords(ctx: Context): Map<String, JSONObject> = try {
+        val me = Store.read(ctx) { s -> s.deviceId }
+        TradeRules.stopRecord(state(ctx))?.takeIf { me.isNotEmpty() }?.let { mapOf(me to it) } ?: emptyMap()
+    } catch (e: Exception) { Log.w(TAG, "stop record", e); emptyMap() }
+    /**
+     * The other device's stop switch came on: no new orders here either, plans and pre-approved limits off, until the user
+     * turns trading back on here. Open orders on this phone's accounts are left as they are.
+     */
+    private fun stopFromOther(ctx: Context, id: String, rec: JSONObject?) {
+        if (rec == null || id == Store.read(ctx) { s -> s.deviceId }) return
+        var stopped = false
+        edit(ctx) { d ->
+            val stop = TradeRules.stopFromOther(d, rec) ?: return@edit
+            d.put("stops", TradeRules.addStop(d.optJSONArray("stops"), stop))
+            if (d.optBoolean("killed")) return@edit                    // already stopped here
+            d.put("killed", true).put("killedAt", System.currentTimeMillis()).put("killReason", "stopped on your other device")
+                .put("plans", JSONObject()).put("standing", JSONObject()).put("stopId", stop)
+            stopped = true
+        }
+        if (!stopped) return
+        audit(ctx, "*", "", "stop_all", null, "stopped", note = "stopped on your other device")
+        TradingNotify.stopped(ctx)
+    }
+
     fun resume(ctx: Context) { edit(ctx) { it.put("killed", false).put("resumedAt", System.currentTimeMillis()) }; audit(ctx, "*", "", "resume", result = "resumed", note = "by the user") }
 
     // ---- the audit log, in the Library (bot/Trading/trading-log.csv)
@@ -566,7 +597,11 @@ object Trading {
 
     /** The stop switch: no new orders anywhere, open orders cancelled. Only the user can turn trading back on. */
     fun stopAll(ctx: Context, reason: String): Res {
-        edit(ctx) { it.put("killed", true).put("killedAt", System.currentTimeMillis()).put("killReason", reason.take(200)).put("plans", JSONObject()).put("standing", JSONObject()) }
+        // a new stop, with its own id: the other device stops too (sync kind "tradestop", TradeRules.stopFromOther)
+        val stopId = "stop-${System.currentTimeMillis()}-${java.util.UUID.randomUUID().toString().take(8)}"
+        edit(ctx) { it.put("killed", true).put("killedAt", System.currentTimeMillis()).put("killReason", reason.take(200)).put("plans", JSONObject()).put("standing", JSONObject())
+            .put("stopId", stopId).put("stops", TradeRules.addStop(it.optJSONArray("stops"), stopId)) }
+        try { Sync.syncSoon(ctx, 500) } catch (_: Exception) {}   // the other device hears it straight away
         val notes = mutableListOf<String>()
         for (a in accounts(ctx)) try {
             val b = broker(ctx, a); val o = b.account().optJSONArray("orders")

@@ -98,6 +98,8 @@ contextBridge.exposeInMainWorld('atlasHost', {
     standingGet: (id) => ipcRenderer.invoke('trade:standingGet', id),
     test: (acc, secret) => ipcRenderer.invoke('trade:test', acc, secret),
     resume: () => ipcRenderer.invoke('trade:resume'),
+    stopRecord: () => ipcRenderer.invoke('trade:stopRecord'),
+    stopFromOther: (rec) => ipcRenderer.invoke('trade:stopFromOther', rec),
   },
   // <<< trading
   // >>> atlas voice

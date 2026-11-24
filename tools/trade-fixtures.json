@@ -2016,5 +2016,1779 @@
    "",
    false
   ]
- ]
+ ],
+ "stopSync": {
+  "note": "A stop on one device stops the other; a record never lifts a stop (that is the user's own tap on each device).",
+  "stopIdOf": [
+   {
+    "name": "never",
+    "state": {},
+    "out": ""
+   },
+   {
+    "name": "neverResumedOnly",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "out": ""
+   },
+   {
+    "name": "legacyOn",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "out": "legacy-1762900000000"
+   },
+   {
+    "name": "legacyLifted",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "out": ""
+   },
+   {
+    "name": "on",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "out": "stop-a"
+   },
+   {
+    "name": "lifted",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "out": "stop-a"
+   },
+   {
+    "name": "liftedTwo",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "out": "stop-b"
+   },
+   {
+    "name": "onAfterOld",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "out": "stop-b"
+   }
+  ],
+  "record": [
+   {
+    "name": "never",
+    "state": {},
+    "out": null
+   },
+   {
+    "name": "neverResumedOnly",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyOn",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "out": {
+     "killed": true,
+     "stop": "legacy-1762900000000",
+     "updatedAt": 1762900000000
+    }
+   },
+   {
+    "name": "legacyLifted",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "out": null
+   },
+   {
+    "name": "on",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "out": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    }
+   },
+   {
+    "name": "lifted",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "out": {
+     "killed": false,
+     "stop": "stop-a",
+     "updatedAt": 1762900060000
+    }
+   },
+   {
+    "name": "liftedTwo",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "out": {
+     "killed": false,
+     "stop": "stop-b",
+     "updatedAt": 1762900090000
+    }
+   },
+   {
+    "name": "onAfterOld",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "out": {
+     "killed": true,
+     "stop": "stop-b",
+     "updatedAt": 1762900005000
+    }
+   }
+  ],
+  "fromOther": [
+   {
+    "name": "never + none",
+    "state": {},
+    "rec": null,
+    "out": null
+   },
+   {
+    "name": "never + notObject",
+    "state": {},
+    "rec": "stop-x",
+    "out": null
+   },
+   {
+    "name": "never + newOn",
+    "state": {},
+    "rec": {
+     "killed": true,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": "stop-x"
+   },
+   {
+    "name": "never + newOff",
+    "state": {},
+    "rec": {
+     "killed": false,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": null
+   },
+   {
+    "name": "never + killedNotTrue",
+    "state": {},
+    "rec": {
+     "killed": "true",
+     "stop": "stop-x",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "never + noStop",
+    "state": {},
+    "rec": {
+     "killed": true,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "never + blankStop",
+    "state": {},
+    "rec": {
+     "killed": true,
+     "stop": "   ",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "never + numberStop",
+    "state": {},
+    "rec": {
+     "killed": true,
+     "stop": 5,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "never + sameAsMine",
+    "state": {},
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-a"
+   },
+   {
+    "name": "never + oldOne",
+    "state": {},
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-a"
+   },
+   {
+    "name": "never + legacyOther",
+    "state": {},
+    "rec": {
+     "killed": true,
+     "stop": "legacy-1762900000000",
+     "updatedAt": 1762900000000
+    },
+    "out": "legacy-1762900000000"
+   },
+   {
+    "name": "never + padded",
+    "state": {},
+    "rec": {
+     "killed": true,
+     "stop": "  stop-y  ",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-y"
+   },
+   {
+    "name": "never + long",
+    "state": {},
+    "rec": {
+     "killed": true,
+     "stop": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+   },
+   {
+    "name": "neverResumedOnly + none",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": null,
+    "out": null
+   },
+   {
+    "name": "neverResumedOnly + notObject",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": "stop-x",
+    "out": null
+   },
+   {
+    "name": "neverResumedOnly + newOn",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": "stop-x"
+   },
+   {
+    "name": "neverResumedOnly + newOff",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": false,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": null
+   },
+   {
+    "name": "neverResumedOnly + killedNotTrue",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": "true",
+     "stop": "stop-x",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "neverResumedOnly + noStop",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "neverResumedOnly + blankStop",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "   ",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "neverResumedOnly + numberStop",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": 5,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "neverResumedOnly + sameAsMine",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-a"
+   },
+   {
+    "name": "neverResumedOnly + oldOne",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-a"
+   },
+   {
+    "name": "neverResumedOnly + legacyOther",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "legacy-1762900000000",
+     "updatedAt": 1762900000000
+    },
+    "out": "legacy-1762900000000"
+   },
+   {
+    "name": "neverResumedOnly + padded",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "  stop-y  ",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-y"
+   },
+   {
+    "name": "neverResumedOnly + long",
+    "state": {
+     "killed": false,
+     "resumedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+   },
+   {
+    "name": "legacyOn + none",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": null,
+    "out": null
+   },
+   {
+    "name": "legacyOn + notObject",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": "stop-x",
+    "out": null
+   },
+   {
+    "name": "legacyOn + newOn",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": "stop-x"
+   },
+   {
+    "name": "legacyOn + newOff",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": false,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyOn + killedNotTrue",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": "true",
+     "stop": "stop-x",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyOn + noStop",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyOn + blankStop",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "   ",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyOn + numberStop",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": 5,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyOn + sameAsMine",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-a"
+   },
+   {
+    "name": "legacyOn + oldOne",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-a"
+   },
+   {
+    "name": "legacyOn + legacyOther",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "legacy-1762900000000",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyOn + padded",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "  stop-y  ",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-y"
+   },
+   {
+    "name": "legacyOn + long",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+   },
+   {
+    "name": "legacyLifted + none",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": null,
+    "out": null
+   },
+   {
+    "name": "legacyLifted + notObject",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": "stop-x",
+    "out": null
+   },
+   {
+    "name": "legacyLifted + newOn",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": "stop-x"
+   },
+   {
+    "name": "legacyLifted + newOff",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": false,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyLifted + killedNotTrue",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": "true",
+     "stop": "stop-x",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyLifted + noStop",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": true,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyLifted + blankStop",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "   ",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyLifted + numberStop",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": true,
+     "stop": 5,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "legacyLifted + sameAsMine",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-a"
+   },
+   {
+    "name": "legacyLifted + oldOne",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-a"
+   },
+   {
+    "name": "legacyLifted + legacyOther",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "legacy-1762900000000",
+     "updatedAt": 1762900000000
+    },
+    "out": "legacy-1762900000000"
+   },
+   {
+    "name": "legacyLifted + padded",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "  stop-y  ",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-y"
+   },
+   {
+    "name": "legacyLifted + long",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+   },
+   {
+    "name": "on + none",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": null,
+    "out": null
+   },
+   {
+    "name": "on + notObject",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": "stop-x",
+    "out": null
+   },
+   {
+    "name": "on + newOn",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": "stop-x"
+   },
+   {
+    "name": "on + newOff",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": false,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": null
+   },
+   {
+    "name": "on + killedNotTrue",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": "true",
+     "stop": "stop-x",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "on + noStop",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "on + blankStop",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "   ",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "on + numberStop",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": 5,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "on + sameAsMine",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "on + oldOne",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "on + legacyOther",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "legacy-1762900000000",
+     "updatedAt": 1762900000000
+    },
+    "out": "legacy-1762900000000"
+   },
+   {
+    "name": "on + padded",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "  stop-y  ",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-y"
+   },
+   {
+    "name": "on + long",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900000000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+   },
+   {
+    "name": "lifted + none",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": null,
+    "out": null
+   },
+   {
+    "name": "lifted + notObject",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": "stop-x",
+    "out": null
+   },
+   {
+    "name": "lifted + newOn",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": "stop-x"
+   },
+   {
+    "name": "lifted + newOff",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": false,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": null
+   },
+   {
+    "name": "lifted + killedNotTrue",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": "true",
+     "stop": "stop-x",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "lifted + noStop",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "lifted + blankStop",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "   ",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "lifted + numberStop",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": 5,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "lifted + sameAsMine",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "lifted + oldOne",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "lifted + legacyOther",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "legacy-1762900000000",
+     "updatedAt": 1762900000000
+    },
+    "out": "legacy-1762900000000"
+   },
+   {
+    "name": "lifted + padded",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "  stop-y  ",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-y"
+   },
+   {
+    "name": "lifted + long",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900000000,
+     "resumedAt": 1762900060000,
+     "stopId": "stop-a",
+     "stops": [
+      "stop-a"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+   },
+   {
+    "name": "liftedTwo + none",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": null,
+    "out": null
+   },
+   {
+    "name": "liftedTwo + notObject",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": "stop-x",
+    "out": null
+   },
+   {
+    "name": "liftedTwo + newOn",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": "stop-x"
+   },
+   {
+    "name": "liftedTwo + newOff",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": false,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": null
+   },
+   {
+    "name": "liftedTwo + killedNotTrue",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": "true",
+     "stop": "stop-x",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "liftedTwo + noStop",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "liftedTwo + blankStop",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "   ",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "liftedTwo + numberStop",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": 5,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "liftedTwo + sameAsMine",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "liftedTwo + oldOne",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "liftedTwo + legacyOther",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "legacy-1762900000000",
+     "updatedAt": 1762900000000
+    },
+    "out": "legacy-1762900000000"
+   },
+   {
+    "name": "liftedTwo + padded",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "  stop-y  ",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-y"
+   },
+   {
+    "name": "liftedTwo + long",
+    "state": {
+     "killed": false,
+     "killedAt": 1762900005000,
+     "resumedAt": 1762900090000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+   },
+   {
+    "name": "onAfterOld + none",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": null,
+    "out": null
+   },
+   {
+    "name": "onAfterOld + notObject",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": "stop-x",
+    "out": null
+   },
+   {
+    "name": "onAfterOld + newOn",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": "stop-x"
+   },
+   {
+    "name": "onAfterOld + newOff",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": false,
+     "stop": "stop-x",
+     "updatedAt": 1762900001000
+    },
+    "out": null
+   },
+   {
+    "name": "onAfterOld + killedNotTrue",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": "true",
+     "stop": "stop-x",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "onAfterOld + noStop",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "onAfterOld + blankStop",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "   ",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "onAfterOld + numberStop",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": 5,
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "onAfterOld + sameAsMine",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "onAfterOld + oldOne",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-a",
+     "updatedAt": 1762900000000
+    },
+    "out": null
+   },
+   {
+    "name": "onAfterOld + legacyOther",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "legacy-1762900000000",
+     "updatedAt": 1762900000000
+    },
+    "out": "legacy-1762900000000"
+   },
+   {
+    "name": "onAfterOld + padded",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "  stop-y  ",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-y"
+   },
+   {
+    "name": "onAfterOld + long",
+    "state": {
+     "killed": true,
+     "killedAt": 1762900005000,
+     "stopId": "stop-b",
+     "stops": [
+      "stop-a",
+      "stop-b"
+     ]
+    },
+    "rec": {
+     "killed": true,
+     "stop": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+     "updatedAt": 1762900000000
+    },
+    "out": "stop-zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+   }
+  ],
+  "addStop": [
+   {
+    "stops": null,
+    "id": "a",
+    "out": [
+     "a"
+    ]
+   },
+   {
+    "stops": [
+     "a",
+     "b"
+    ],
+    "id": "a",
+    "out": [
+     "b",
+     "a"
+    ]
+   },
+   {
+    "stops": [
+     "s0",
+     "s1",
+     "s2",
+     "s3",
+     "s4",
+     "s5",
+     "s6",
+     "s7",
+     "s8",
+     "s9",
+     "s10",
+     "s11",
+     "s12",
+     "s13",
+     "s14",
+     "s15",
+     "s16",
+     "s17",
+     "s18",
+     "s19"
+    ],
+    "id": "new",
+    "out": [
+     "s1",
+     "s2",
+     "s3",
+     "s4",
+     "s5",
+     "s6",
+     "s7",
+     "s8",
+     "s9",
+     "s10",
+     "s11",
+     "s12",
+     "s13",
+     "s14",
+     "s15",
+     "s16",
+     "s17",
+     "s18",
+     "s19",
+     "new"
+    ]
+   }
+  ]
+ }
 }

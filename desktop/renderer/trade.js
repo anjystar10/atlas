@@ -2,6 +2,8 @@
 // and Me → Trading (accounts, limits, the stop switch). The keys, the risk engine and every order live in the main
 // process (trading.js); this side can only ask it. The model never approves an order and can't lift the stop switch.
 import * as aware from './aware.js';
+import * as sync from './sync.js';
+import { db } from './store.js';
 const host = window.atlasHost;
 
 const S = (d) => ({ type: 'string', description: d });
@@ -84,7 +86,17 @@ if (host && host.trading) {
       return `Trading${last.killed ? ' (STOPPED: the stop switch is on)' : ''}: ${parts.join('; ')}. "Stop all trading" → trade_stop_all.`;
     },
   });
-  try { host.on('trading-changed', () => refresh()); } catch {}
+  // a stop or a restart here (any way: chat, a bot, Me → Trading, the tray): the other device hears it straight away
+  try { host.on('trading-changed', () => { refresh(); sync.syncSoon(500); }); } catch {}
+  // the stop switch across devices: this PC's record (by its device id), and the other device's stop coming in. A record
+  // can only stop trading here (main process, traderules.js stopFromOther); only the user's own tap here turns it back on.
+  if (host.trading.stopRecord) {
+    sync.registerKind('tradestop', {
+      list: async () => { try { const r = await host.trading.stopRecord(); const me = db.state && db.state.deviceId; return r && me ? { [me]: r } : {}; } catch { return {}; } },
+      apply: async (id, rec) => { if (rec && id !== (db.state && db.state.deviceId) && (await host.trading.stopFromOther(rec))) refresh(); },
+      absentMeansDeleted: false,
+    });
+  }
 }
 
 // ---------------------------------------------------------------- Me → Trading

@@ -135,4 +135,4 @@ async function setStanding(win, id, lim) {
   return v && v.error ? v : { ok: true, standing: v };
 }
 
-module.exports = { core, list, save, remove, setLimits, setStanding, test, resume, stopAll: (reason) => core.run('trade_stop_all', { reason: reason || 'from the tray' }) };
+module.exports = { core, list, save, remove, setLimits, setStanding, test, resume, stopRecord: () => core.stopRecord(), stopFromOther: (rec) => core.stopFromOther(rec), stopAll: (reason) => core.run('trade_stop_all', { reason: reason || 'from the tray' }) };

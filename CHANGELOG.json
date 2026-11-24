@@ -2,6 +2,19 @@
  "_doc": "What changed in each Atlas version: one source for the phone (bundled as an asset), the PC (bundled as a resource) and the update check. 'notes' are for the user; 'abilities' are for Atlas itself (second person, what it can now do). Newest first. Set 'released' to true when that version ships; the build workflow reads the entry whose version matches the app.",
  "versions": [
   {
+   "version": "0.11.4",
+   "versionCode": 25,
+   "date": "2026-11-24",
+   "released": false,
+   "notes": [
+    "Trading: Stop All Trading on one device now stops trading (and trading bots) on the other too; you turn it back on yourself on each device, in Me → Trading",
+    "Approvals: \"no wahala, do it\", \"sharp\", \"oya\" and \"send am\" count as your yes; \"ok no\", \"ok wait\" and \"of course not\" count as a no"
+   ],
+   "abilities": [
+    "Your trading stop switch now covers both devices: a stop on one stops trading on the other at its next sync. Turning trading back on is per device: the user does it in Me → Trading on each one. A stop that came from the other device doesn't cancel this device's open orders: say so, and offer trade_cancel"
+   ]
+  },
+  {
    "version": "0.11.3",
    "versionCode": 24,
    "date": "2026-11-24",
@@ -19,7 +32,7 @@
     "Phone: a snap survives Android closing Atlas; New Chat's Undo reopens the right chat; searching many chats no longer freezes"
    ],
    "abilities": [
-    "Your stop switch for trading is per device for now: stopping on one device doesn't stop trading bots on the other — say so if the user stops trading on one device"
+    "Only the user's own words approve things: pasted text, quotes, questions and a yes followed by a no don't count. When a yes is refused, ask the user to say it plainly"
    ]
   },
   {

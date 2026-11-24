@@ -72,6 +72,27 @@ class TradeRulesTest {
         assertEquals(b.getString("expect"), TradeRules.bybitPayload(b.getString("ts"), b.getString("key"), b.getString("recv"), b.getString("query")))
     }
 
+    @Test fun theStopSwitchCrossesDevicesLikeThePc() {
+        val fx = fixtures().getJSONObject("stopSync")
+        fun arr(k: String) = fx.getJSONArray(k).let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
+        for (c in arr("stopIdOf")) assertEquals(c.getString("name"), c.getString("out"), TradeRules.stopIdOf(c.getJSONObject("state")))
+        for (c in arr("record")) {
+            val got = TradeRules.stopRecord(c.getJSONObject("state"))
+            if (c.isNull("out")) assertEquals(c.getString("name"), null, got)
+            else {
+                val o = c.getJSONObject("out"); val n = c.getString("name")
+                assertEquals(n, 3, got!!.length())
+                assertEquals(n, o.getBoolean("killed"), got.getBoolean("killed")); assertEquals(n, o.getString("stop"), got.getString("stop")); assertEquals(n, o.getLong("updatedAt"), got.getLong("updatedAt"))
+            }
+        }
+        val cases = arr("fromOther"); assertTrue(cases.size >= 100)
+        for (c in cases) {
+            val rec = c.opt("rec") as? JSONObject   // null, or a string that isn't a record at all
+            assertEquals(c.getString("name"), if (c.isNull("out")) null else c.getString("out"), TradeRules.stopFromOther(c.getJSONObject("state"), rec))
+        }
+        for (c in arr("addStop")) assertEquals(c.getJSONArray("out").toString(), TradeRules.addStop(c.optJSONArray("stops"), c.getString("id")).toString())
+    }
+
     @Test fun theModelCannotRaiseTheLimitsItself() {
         // limits come only from the account the user saved; a live account with no limits gets the strict defaults
         val l = TradeRules.limitsFor(JSONObject().put("mode", "live"))

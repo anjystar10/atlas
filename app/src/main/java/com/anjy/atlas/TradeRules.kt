@@ -238,6 +238,40 @@ object TradeRules {
         return parts.joinToString(" ")
     }
 
+    // ---------------------------------------------------------------- the stop switch across devices (sync kind "tradestop")
+    //
+    // A stop on one device stops trading on the other too; turning trading back on is only ever done on the device itself
+    // (the user's own tap there). Each device shares its own record { killed, stop, updatedAt }: [stop] is the id of the
+    // latest stop it made or took in. A device takes in another's stop while that one is still on, unless it has already had
+    // that stop (and maybe lifted it here). A record never lifts a stop. Same as traderules.js (trade-fixtures.json: stopSync).
+
+    private const val STOPS_KEPT = 20
+    /** The id of the stop this device is under or last had ("" for none). A stop from before 0.11.4 has no id: only while it's on. */
+    fun stopIdOf(state: JSONObject): String {
+        val id = state.opt("stopId"); if (id is String && id.isNotEmpty()) return id
+        return if (state.optBoolean("killed")) "legacy-${state.optLong("killedAt")}" else ""
+    }
+    /** This device's record for the other device, or null (never stopped here: nothing to say). */
+    fun stopRecord(state: JSONObject): JSONObject? {
+        val stop = stopIdOf(state); if (stop.isEmpty()) return null
+        val killed = state.optBoolean("killed"); val k = state.optLong("killedAt"); val r = state.optLong("resumedAt")
+        return JSONObject().put("killed", killed).put("stop", stop).put("updatedAt", if (killed) k else maxOf(k, r))
+    }
+    /** The stop to take in from the other device's record ([rec]), or null: only a stop that is still on there and is new here. */
+    fun stopFromOther(state: JSONObject, rec: JSONObject?): String? {
+        if (rec == null || rec.opt("killed") != true) return null
+        val raw = rec.opt("stop") as? String ?: return null
+        val stop = raw.trim().take(100); if (stop.isEmpty()) return null
+        if (stop == stopIdOf(state)) return null
+        val seen = state.optJSONArray("stops"); if (seen != null && (0 until seen.length()).any { seen.opt(it) == stop }) return null
+        return stop
+    }
+    /** The stops this device has had, with [id] added (the last few). */
+    fun addStop(stops: JSONArray?, id: String): JSONArray {
+        val list = (0 until (stops?.length() ?: 0)).mapNotNull { stops!!.opt(it) as? String }.filter { it != id } + id
+        return JSONArray(list.takeLast(STOPS_KEPT))
+    }
+
     // ---------------------------------------------------------------- Bybit request signing (bybit-exchange.github.io/docs/v5/guide)
 
     /** The string Bybit signs: timestamp + api key + recv window + (query string for GET | JSON body for POST). */

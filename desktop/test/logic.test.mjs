@@ -954,6 +954,20 @@ test('trading: every fixture case gives the answer the phone must also give', as
   assert.equal(crypto.createHmac('sha256', fx.hmac.key).update(fx.hmac.data).digest('hex'), fx.hmac.hex);
   const b = fx.bybitPayload; assert.equal(TR.bybitPayload(b.ts, b.key, b.recv, b.query), b.expect);
 });
+test('trading: the stop switch crosses devices the same way on the phone (tools/trade-fixtures.json stopSync)', async () => {
+  const { createRequire } = await import('node:module');
+  const TR = createRequire(import.meta.url)('../traderules.js');
+  const fs = await import('node:fs');
+  const fx = JSON.parse(fs.readFileSync(new URL('../../tools/trade-fixtures.json', import.meta.url), 'utf8')).stopSync;
+  for (const c of fx.stopIdOf) assert.equal(TR.stopIdOf(c.state), c.out, c.name);
+  for (const c of fx.record) assert.deepEqual(TR.stopRecord(c.state), c.out, c.name);
+  for (const c of fx.fromOther) assert.equal(TR.stopFromOther(c.state, c.rec), c.out, c.name);
+  for (const c of fx.addStop) assert.deepEqual(TR.addStop(c.stops, c.id), c.out);
+  // a record never lifts a stop, and a stop this device already had (and lifted here) doesn't come back
+  assert.ok(fx.fromOther.length >= 100);
+  assert.ok(fx.fromOther.filter((c) => c.rec && c.rec.killed === false).every((c) => c.out === null));
+  assert.equal(TR.stopFromOther({ killed: false, stopId: 'stop-a', stops: ['stop-a'] }, { killed: true, stop: 'stop-a' }), null);
+});
 test('trading: a new day resets the count and the starting equity; losses are measured from it', async () => {
   const { createRequire } = await import('node:module');
   const TR = createRequire(import.meta.url)('../traderules.js');

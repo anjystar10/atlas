@@ -423,7 +423,9 @@ const trade = () => (trading = trading || require('./trading'));
 ipcMain.handle('trade:run', async (e, name, args, opts) => {
   if (!fromMain(e) || !/^trade_[a-z_]+$/.test(String(name))) return { out: 'Error: not allowed' };
   const o = opts && typeof opts === 'object' ? { ticket: typeof opts.ticket === 'string' ? opts.ticket : undefined, prepare: !!opts.prepare } : {};
-  return trade().core.run(String(name), args && typeof args === 'object' ? args : {}, o);
+  const r = await trade().core.run(String(name), args && typeof args === 'object' ? args : {}, o);
+  if (name === 'trade_stop_all') try { e.sender.send('trading-changed'); } catch {}   // the page tells the other device straight away (sync)
+  return r;
 });
 ipcMain.handle('trade:list', (e) => (fromMain(e) ? trade().list() : { accounts: [] }));
 ipcMain.handle('trade:save', (e, acc, secret) => (fromMain(e) && acc && typeof acc === 'object' ? trade().save(BrowserWindow.fromWebContents(e.sender), acc, secret && typeof secret === 'object' ? secret : null).catch((err) => ({ error: err.message })) : { error: 'not allowed' }));
@@ -433,6 +435,15 @@ ipcMain.handle('trade:standing', (e, id, lim) => (fromMain(e) && typeof id === '
 ipcMain.handle('trade:standingGet', (e, id) => (fromMain(e) && typeof id === 'string' ? trade().core.standing(id) : null));
 ipcMain.handle('trade:test', (e, acc, secret) => (fromMain(e) && acc ? trade().test(acc, secret) : { error: 'not allowed' }));
 ipcMain.handle('trade:resume', (e) => (fromMain(e) ? trade().resume(BrowserWindow.fromWebContents(e.sender)) : false));
+// the stop switch across devices (sync kind "tradestop"): this PC's record, and the other device's stop coming in.
+// A record can only ever stop trading here, never turn it back on (that stays the user's own tap, above).
+ipcMain.handle('trade:stopRecord', (e) => (fromMain(e) ? trade().stopRecord() : null));
+ipcMain.handle('trade:stopFromOther', (e, rec) => {
+  if (!fromMain(e) || !rec || typeof rec !== 'object') return false;
+  const stopped = trade().stopFromOther(rec);
+  if (stopped) try { e.sender.send('trading-changed'); } catch {}
+  return stopped;
+});
 // <<< trading
 
 // >>> atlas voice: Atlas's designed voice on this laptop's graphics card (atlasvoice.js); optional, one click
