@@ -260,9 +260,18 @@ object Engine {
         return d.toInstant().toEpochMilli()
     }
 
+    /**
+     * A repeating task's next occurrence, made as soon as it rings, so a reminder left unanswered (dismissed, or the
+     * phone off) still comes round again. Null when it doesn't repeat or the next one is already there.
+     */
+    fun continueSeries(s: AtlasState, t: Task, now: Long): Task? = spawnNext(s, t, now)
+
     private fun spawnNext(s: AtlasState, t: Task, now: Long): Task? {
         val start = t.seriesAt ?: t.startAt ?: return null
         if (t.recurrence == "none") return null
+        // made already (when it rang): answering it later doesn't add a second one
+        val series = t.seriesId ?: t.id
+        if (s.tasks.any { it !== t && (it.seriesId ?: it.id) == series && it.status in OPEN && (it.startAt ?: 0L) > start }) return null
         var at = nextOcc(start, t.recurrence) ?: return null
         var missed = 0
         while (at <= now && missed < 1000) { at = nextOcc(at, t.recurrence) ?: return null; missed++ }

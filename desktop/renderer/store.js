@@ -93,6 +93,9 @@ export function nextOcc(ms, rec) {
 function spawnNext(t, now) {
   const start = t.seriesAt ?? t.startAt;
   if (start == null || t.recurrence === 'none') return null;
+  // made already (when it rang, here or on the phone): answering it later doesn't add a second one
+  const series = t.seriesId || t.id;
+  if (db.state.tasks.some((o) => o !== t && (o.seriesId || o.id) === series && OPEN.has(o.status) && (o.startAt ?? 0) > start)) return null;
   let at = nextOcc(start, t.recurrence), missed = 0;
   while (at != null && at <= now && missed < 1000) { at = nextOcc(at, t.recurrence); missed++; }
   if (at == null) return null;
@@ -127,14 +130,16 @@ export function logFocus(title, taskId, mins, now = Date.now()) {
 
 /** Due reminders: marks them reminded and returns them (the caller rings or notifies). */
 export function takeDue(now = Date.now()) {
-  const due = [];
+  const due = [], rang = [];
   for (const t of db.state.tasks) {
     if (t.status === 'planned' && t.remindedAt == null && t.startAt != null && t.startAt <= now + 30000) {
-      t.remindedAt = now;
+      t.remindedAt = now; rang.push(t);
       if (now - t.startAt <= 6 * 3600000) due.push(t);
       else log('note', t, 'missed: the PC was off at its time', now);
     }
   }
+  // a repeating one comes round again even if this one is never answered (before, only Done or Skip made the next)
+  for (const t of rang) spawnNext(t, now);
   if (due.length) saveState();
   return due;
 }

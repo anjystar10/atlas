@@ -103,6 +103,25 @@ class EngineTest {
         assertTrue(s.log.any { it.type == "note" && it.detail.startsWith("3 past") })
     }
 
+    @Test fun aRepeatingReminderLeftUnansweredStillComesRoundAgain() {
+        val s = state()
+        val t0 = at("2026-11-04T08:00:00")
+        val pill = Engine.create(s, "Pill", t0 - 60 * MIN, t0, 5, recurrence = "daily")
+        // it rings (Reminders): the next one is made right away, whether or not it's ever answered
+        pill.remindedAt = t0
+        val next = Engine.continueSeries(s, pill, t0)
+        assertEquals(at("2026-11-05T08:00:00"), next!!.startAt)
+        assertEquals(pill.id, next.seriesId)
+        assertNull(Engine.continueSeries(s, pill, t0 + MIN))
+        // answered later: no second copy of tomorrow's
+        val (_, again) = Engine.respond(s, pill.id, "done", t0 + 30 * MIN)
+        assertNull(again)
+        assertEquals(1, s.tasks.count { it.seriesId == pill.id })
+        // a one-off doesn't repeat
+        val once = Engine.create(s, "Call", t0, t0, 10)
+        assertNull(Engine.continueSeries(s, once, t0))
+    }
+
     @Test fun delayDoesNotDriftASeries() {
         val s = state()
         val t0 = at("2026-11-04T07:00:00")
