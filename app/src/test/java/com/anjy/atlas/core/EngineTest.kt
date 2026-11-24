@@ -112,6 +112,8 @@ class EngineTest {
         val next = Engine.continueSeries(s, pill, t0)
         assertEquals(at("2026-11-05T08:00:00"), next!!.startAt)
         assertEquals(pill.id, next.seriesId)
+        // the PC makes the same one with the same id, so after a sync there's one, not two
+        assertEquals("${pill.id}@${at("2026-11-05T08:00:00")}", next.id)
         assertNull(Engine.continueSeries(s, pill, t0 + MIN))
         // answered later: no second copy of tomorrow's
         val (_, again) = Engine.respond(s, pill.id, "done", t0 + 30 * MIN)

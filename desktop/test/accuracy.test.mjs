@@ -122,6 +122,7 @@ test('accuracy · a repeating reminder left unanswered still comes round again, 
   const series = () => store.db.state.tasks.filter((o) => o.seriesId === t.id);
   assert.equal(series().length, 1, 'the next one was made when it rang');
   assert.ok(series()[0].startAt > now && series()[0].recurrence === 'daily');
+  assert.equal(series()[0].id, `${t.id}@${series()[0].startAt}`, 'the same id the phone gives it (Engine.occurrenceId), so a sync keeps one');
   store.respond(t.id, 'done', {}, now + 60000);
   assert.equal(series().length, 1, 'answering later made no second copy');
 });

@@ -54,11 +54,11 @@ function touch(t, now) { t.updatedAt = now; t.version = (t.version || 1) + 1; t.
 function resetRem(t) { t.remindedAt = null; t.nextCheckAt = null; t.promptedAt = null; t.followUpsSent = 0; }
 export const findTask = (id) => db.state.tasks.find((t) => t.id === id);
 
-export function createTask(title, { startAt = null, durationMin = 30, notes = '', priority = 'normal', recurrence = 'none', seriesId = null } = {}, now = Date.now()) {
+export function createTask(title, { startAt = null, durationMin = 30, notes = '', priority = 'normal', recurrence = 'none', seriesId = null, id = null } = {}, now = Date.now()) {
   const clean = String(title || '').trim();
   if (!clean) throw new Error('Give the reminder a title.');
   const rec = startAt != null && RECURRENCES.includes(recurrence) ? recurrence : 'none';
-  const t = { id: uid(), title: clean, notes, priority, startAt, durationMin: clampDur(durationMin), recurrence: rec, status: 'planned',
+  const t = { id: id || uid(), title: clean, notes, priority, startAt, durationMin: clampDur(durationMin), recurrence: rec, status: 'planned',
     createdAt: now, updatedAt: now, version: 1, deviceId: db.state.deviceId, completedAt: null, blockedReason: '', skipReason: '',
     seriesId, seriesAt: rec !== 'none' ? startAt : null, remindedAt: null, nextCheckAt: null, promptedAt: null, followUpsSent: 0 };
   db.state.tasks.push(t); log('created', t, '', now); saveState();
@@ -99,7 +99,10 @@ function spawnNext(t, now) {
   let at = nextOcc(start, t.recurrence), missed = 0;
   while (at != null && at <= now && missed < 1000) { at = nextOcc(at, t.recurrence); missed++; }
   if (at == null) return null;
-  return createTask(t.title, { startAt: at, durationMin: t.durationMin, notes: t.notes, priority: t.priority, recurrence: t.recurrence, seriesId: t.seriesId || t.id }, now);
+  // the same id on both devices (each rings it and makes the next one): the sync takes them as one, not two (Engine.occurrenceId)
+  const nextId = `${series}@${at}`;
+  if (findTask(nextId)) return null;
+  return createTask(t.title, { startAt: at, durationMin: t.durationMin, notes: t.notes, priority: t.priority, recurrence: t.recurrence, seriesId: series, id: nextId }, now);
 }
 
 /** done | delay (startAt) | skipped */
