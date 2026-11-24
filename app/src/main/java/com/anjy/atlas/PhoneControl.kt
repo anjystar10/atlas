@@ -65,7 +65,7 @@ object PhoneControl {
 
     fun on() = AtlasAccess.instance != null
 
-    private val OFF = "Error: phone control is off, so Atlas can't see or touch the screen. Tell the user to turn it on in Atlas → Me → Phone control."
+    internal val OFF = "Error: phone control is off, so Atlas can't see or touch the screen. Tell the user to turn it on in Atlas → Me → Phone control."
 
     private fun svc(): AtlasAccess? = AtlasAccess.instance
 

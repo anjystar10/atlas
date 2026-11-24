@@ -599,7 +599,10 @@ object Bots {
                             }
                             // >>> background first: a heads-up before a bot uses the screen (ScreenGate.kt); "always allow" can cover it
                             ScreenGate.botHeadsUp(app, j.id, c.name, c.args)?.let { what ->
-                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label, category = "screen")); return
+                                // stopped with the screen's Stop: it asks by name again, whatever "always allow" says
+                                val stopped = ScreenGate.stops.mustAsk(j.id)
+                                askApproval(j, Approval(what, c.name, JSONObject(c.args.toString()), label, category = "screen", mustAsk = stopped,
+                                    kind = if (stopped) Autonomy.kindFor(app, c.name, c.args, "screen", what) else null)); return
                             }
                             // <<< background first
                             results.add(c to runTool(j, c))

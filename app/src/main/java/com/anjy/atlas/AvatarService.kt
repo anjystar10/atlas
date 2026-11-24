@@ -639,8 +639,8 @@ class AvatarService : Service() {
     override fun onDestroy() {
         panel?.close(); panel = null
         Conversation.unlisten(onChat)
+        removeOrb()   // (ending a talk here re-arms the sync timer: callbacks are cleared after it)
         handler.removeCallbacksAndMessages(null)
-        removeOrb()
         hideCaption()
         pill?.let { try { wm?.removeView(it) } catch (_: Exception) {} }; pill = null
         running = false; instance = null

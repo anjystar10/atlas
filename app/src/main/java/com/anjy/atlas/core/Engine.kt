@@ -99,12 +99,12 @@ object Engine {
 
     fun create(
         s: AtlasState, title: String, now: Long, startAt: Long? = null, durationMin: Int? = 30,
-        notes: String = "", priority: String = "normal", recurrence: String = "none", seriesId: String? = null
+        notes: String = "", priority: String = "normal", recurrence: String = "none", seriesId: String? = null, id: String? = null
     ): Task {
         val clean = title.trim()
         if (clean.isEmpty()) throw AtlasException("Give the task a title.")
         val t = Task(
-            id = uid(), title = clean, notes = notes, priority = priority, startAt = startAt,
+            id = id ?: uid(), title = clean, notes = notes, priority = priority, startAt = startAt,
             durationMin = clampDur(durationMin),
             recurrence = if (startAt != null && recurrence in RECURRENCES) recurrence else "none",
             createdAt = now, updatedAt = now, deviceId = s.deviceId, seriesId = seriesId
@@ -260,13 +260,28 @@ object Engine {
         return d.toInstant().toEpochMilli()
     }
 
+    /**
+     * A repeating task's next occurrence, made as soon as it rings, so a reminder left unanswered (dismissed, or the
+     * phone off) still comes round again. Null when it doesn't repeat or the next one is already there.
+     */
+    /** A repeating task's occurrence at [at]: the same on the phone and the PC (desktop/renderer/store.js). */
+    fun occurrenceId(series: String, at: Long) = "$series@$at"
+
+    fun continueSeries(s: AtlasState, t: Task, now: Long): Task? = spawnNext(s, t, now)
+
     private fun spawnNext(s: AtlasState, t: Task, now: Long): Task? {
         val start = t.seriesAt ?: t.startAt ?: return null
         if (t.recurrence == "none") return null
+        // made already (when it rang): answering it later doesn't add a second one
+        val series = t.seriesId ?: t.id
+        if (s.tasks.any { it !== t && (it.seriesId ?: it.id) == series && it.status in OPEN && (it.startAt ?: 0L) > start }) return null
         var at = nextOcc(start, t.recurrence) ?: return null
         var missed = 0
         while (at <= now && missed < 1000) { at = nextOcc(at, t.recurrence) ?: return null; missed++ }
-        val n = create(s, t.title, now, at, t.durationMin, t.notes, t.priority, t.recurrence, t.seriesId ?: t.id)
+        // the same id on both devices (each rings it and makes the next one): the sync takes them as one, not two
+        val nextId = occurrenceId(series, at)
+        if (s.tasks.any { it.id == nextId }) return null
+        val n = create(s, t.title, now, at, t.durationMin, t.notes, t.priority, t.recurrence, series, nextId)
         if (missed > 0) log(s, now, "note", n, "$missed past occurrence${if (missed == 1) "" else "s"} passed while Atlas was off")
         return n
     }

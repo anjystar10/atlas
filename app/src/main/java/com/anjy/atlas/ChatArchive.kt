@@ -31,6 +31,16 @@ object ChatArchive {
         }.sortedByDescending { it.at }
     } catch (e: Exception) { Log.w(TAG, "index unreadable", e); emptyList() }
 
+    /**
+     * The index after [added] joins [existing] (newest first), and the chats let go to stay within [keep]. The one just
+     * added is always kept: an older chat opened again and put away by New Chat sorts last, and was deleted at once
+     * when the list was full.
+     */
+    internal fun trimmed(existing: List<Meta>, added: Meta, keep: Int): Pair<List<Meta>, List<Meta>> {
+        val others = existing.filter { it.id != added.id }.sortedByDescending { it.at }
+        return (others.take(keep - 1) + added).sortedByDescending { it.at } to others.drop(keep - 1)
+    }
+
     private fun writeIndex(ctx: Context, metas: List<Meta>) {
         val a = JSONArray()
         metas.forEach { a.put(JSONObject().put("id", it.id).put("title", it.title).put("at", it.at).put("count", it.count)) }
@@ -48,9 +58,9 @@ object ChatArchive {
         val id = java.util.UUID.randomUUID().toString()
         return try {
             write(chatFile(ctx, id), records.toString())
-            val all = (list(ctx) + Meta(id, UiShape.chatTitle(firstQuestion), lastAt, records.length())).sortedByDescending { it.at }
-            all.drop(KEEP).forEach { chatFile(ctx, it.id).delete() }
-            writeIndex(ctx, all.take(KEEP))
+            val (kept, gone) = trimmed(list(ctx), Meta(id, UiShape.chatTitle(firstQuestion), lastAt, records.length()), KEEP)
+            gone.forEach { chatFile(ctx, it.id).delete() }
+            writeIndex(ctx, kept)
             id
         } catch (e: Exception) { Log.w(TAG, "couldn't keep the chat", e); null }
     }

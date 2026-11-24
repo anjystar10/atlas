@@ -23,6 +23,11 @@ import java.io.File
 class HotwordService : Service() {
     private var hotword: Hotword? = null
     private var held = false
+    /** A real start reached this service. A conversation's hold/release alone (Hey Atlas off) must not start listening. */
+    private var started = false
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    /** After a wake nothing took the microphone (the panel or sheet couldn't open): listen for "Hey Atlas" again. */
+    private val unstick = Runnable { if (held) { Log.w(TAG, "nothing took over after the wake word; listening again"); held = false; hotword?.start() } }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -42,22 +47,24 @@ class HotwordService : Service() {
             Log.e(TAG, "speech engine crashed twice; staying off: ${crashes.first()}")
             stopSelf(); return
         }
-        hotword = Hotword(applicationContext) { wake() }
-        hotword?.start()
+        hotword = Hotword(applicationContext) { wake() }   // it starts listening on a real start (onStartCommand)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_HOLD -> { held = true; hotword?.pause() }
-            ACTION_RELEASE -> { held = false; hotword?.start() }
+            ACTION_HOLD -> { held = true; handler.removeCallbacks(unstick); hotword?.pause() }
+            ACTION_RELEASE -> { held = false; handler.removeCallbacks(unstick); if (started) hotword?.start() }
             ACTION_STOP -> { hotword?.stop(); stopSelf() }
-            else -> if (!held) hotword?.start()
+            else -> { started = true; if (!held) hotword?.start() }
         }
+        // created only by a hold or release (a conversation while Hey Atlas is off): nothing to listen for
+        if (!started) { hotword?.stop(); stopSelf(startId); return START_NOT_STICKY }
         return START_STICKY
     }
 
     private fun wake() {
         held = true
+        handler.removeCallbacks(unstick); handler.postDelayed(unstick, 12_000)
         // the floating Atlas grows and listens; without it, the panel opens
         try { startService(Intent(this, AvatarService::class.java).setAction(AvatarService.ACTION_WAKE).putExtra(AvatarService.EXTRA_FROM_WAKE_WORD, true)) }
         catch (e: Exception) {
@@ -76,7 +83,7 @@ class HotwordService : Service() {
             .setContentIntent(open).setOngoing(true).build()
     }
 
-    override fun onDestroy() { hotword?.stop(); hotword = null; super.onDestroy() }
+    override fun onDestroy() { handler.removeCallbacks(unstick); hotword?.stop(); hotword = null; super.onDestroy() }
 
     companion object {
         private const val TAG = "AtlasHotwordProc"

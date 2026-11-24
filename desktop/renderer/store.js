@@ -54,11 +54,11 @@ function touch(t, now) { t.updatedAt = now; t.version = (t.version || 1) + 1; t.
 function resetRem(t) { t.remindedAt = null; t.nextCheckAt = null; t.promptedAt = null; t.followUpsSent = 0; }
 export const findTask = (id) => db.state.tasks.find((t) => t.id === id);
 
-export function createTask(title, { startAt = null, durationMin = 30, notes = '', priority = 'normal', recurrence = 'none', seriesId = null } = {}, now = Date.now()) {
+export function createTask(title, { startAt = null, durationMin = 30, notes = '', priority = 'normal', recurrence = 'none', seriesId = null, id = null } = {}, now = Date.now()) {
   const clean = String(title || '').trim();
   if (!clean) throw new Error('Give the reminder a title.');
   const rec = startAt != null && RECURRENCES.includes(recurrence) ? recurrence : 'none';
-  const t = { id: uid(), title: clean, notes, priority, startAt, durationMin: clampDur(durationMin), recurrence: rec, status: 'planned',
+  const t = { id: id || uid(), title: clean, notes, priority, startAt, durationMin: clampDur(durationMin), recurrence: rec, status: 'planned',
     createdAt: now, updatedAt: now, version: 1, deviceId: db.state.deviceId, completedAt: null, blockedReason: '', skipReason: '',
     seriesId, seriesAt: rec !== 'none' ? startAt : null, remindedAt: null, nextCheckAt: null, promptedAt: null, followUpsSent: 0 };
   db.state.tasks.push(t); log('created', t, '', now); saveState();
@@ -93,10 +93,16 @@ export function nextOcc(ms, rec) {
 function spawnNext(t, now) {
   const start = t.seriesAt ?? t.startAt;
   if (start == null || t.recurrence === 'none') return null;
+  // made already (when it rang, here or on the phone): answering it later doesn't add a second one
+  const series = t.seriesId || t.id;
+  if (db.state.tasks.some((o) => o !== t && (o.seriesId || o.id) === series && OPEN.has(o.status) && (o.startAt ?? 0) > start)) return null;
   let at = nextOcc(start, t.recurrence), missed = 0;
   while (at != null && at <= now && missed < 1000) { at = nextOcc(at, t.recurrence); missed++; }
   if (at == null) return null;
-  return createTask(t.title, { startAt: at, durationMin: t.durationMin, notes: t.notes, priority: t.priority, recurrence: t.recurrence, seriesId: t.seriesId || t.id }, now);
+  // the same id on both devices (each rings it and makes the next one): the sync takes them as one, not two (Engine.occurrenceId)
+  const nextId = `${series}@${at}`;
+  if (findTask(nextId)) return null;
+  return createTask(t.title, { startAt: at, durationMin: t.durationMin, notes: t.notes, priority: t.priority, recurrence: t.recurrence, seriesId: series, id: nextId }, now);
 }
 
 /** done | delay (startAt) | skipped */
@@ -127,14 +133,16 @@ export function logFocus(title, taskId, mins, now = Date.now()) {
 
 /** Due reminders: marks them reminded and returns them (the caller rings or notifies). */
 export function takeDue(now = Date.now()) {
-  const due = [];
+  const due = [], rang = [];
   for (const t of db.state.tasks) {
     if (t.status === 'planned' && t.remindedAt == null && t.startAt != null && t.startAt <= now + 30000) {
-      t.remindedAt = now;
+      t.remindedAt = now; rang.push(t);
       if (now - t.startAt <= 6 * 3600000) due.push(t);
       else log('note', t, 'missed: the PC was off at its time', now);
     }
   }
+  // a repeating one comes round again even if this one is never answered (before, only Done or Skip made the next)
+  for (const t of rang) spawnNext(t, now);
   if (due.length) saveState();
   return due;
 }

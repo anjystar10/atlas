@@ -190,7 +190,7 @@ class Hotword(private val ctx: Context, private val onWake: () -> Unit) {
             Log.e(TAG, "stopped", e)
             state = "error: ${e.message ?: e.javaClass.simpleName}"
             // try again a little later (the mic may have been busy)
-            main.postDelayed({ if (wanted && runFlag) { thread = null; start() } }, 8000)
+            main.postDelayed({ if (wanted && runFlag) start() }, 8000)   // (start() leaves a listener started meanwhile alone)
         } finally {
             try { ns?.release() } catch (_: Exception) {}
             try { agc?.release() } catch (_: Exception) {}

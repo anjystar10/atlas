@@ -84,6 +84,8 @@ object Reminders {
                 t.remindedAt = now
                 if (now - t.startAt!! <= STALE_MS) due.add(t.id)
                 else s.log.add(com.anjy.atlas.core.LogEntry(java.util.UUID.randomUUID().toString(), now, "note", t.id, t.title, "missed: the phone was off at its time"))
+                // a repeating one comes round again even if this one is never answered (before, only Done or Skip made the next)
+                Engine.continueSeries(s, t, now)
             }
             s.tasks.filter { it.status == "planned" && it.remindedAt == null && it.startAt != null && it.startAt!! > now }.minOfOrNull { it.startAt!! }
         }

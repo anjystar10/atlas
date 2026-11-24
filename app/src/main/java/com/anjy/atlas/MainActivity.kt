@@ -846,6 +846,7 @@ class MainActivity : Activity() {
         applyPalette()
         L.init(this)
         tab = savedInstanceState?.getInt("tab") ?: tabFor(intent?.getStringExtra("tab")) ?: 0
+        savedInstanceState?.getString("snap")?.let { snapFile = java.io.File(it) }   // a snap taken while Atlas was closed
         window.statusBarColor = washTop()
         window.navigationBarColor = BG
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(BG))
@@ -936,7 +937,12 @@ class MainActivity : Activity() {
     private fun fadeDrawable() = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
         intArrayOf(Color.argb(0, Color.red(BG), Color.green(BG), Color.blue(BG)), Color.argb(235, Color.red(BG), Color.green(BG), Color.blue(BG)), BG))
 
-    override fun onSaveInstanceState(outState: Bundle) { outState.putInt("tab", tab); super.onSaveInstanceState(outState) }
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("tab", tab)
+        // the camera is in front during a snap, and Android often closes Atlas meanwhile: the photo's file is kept here
+        snapFile?.let { outState.putString("snap", it.path) }
+        super.onSaveInstanceState(outState)
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
@@ -1295,10 +1301,12 @@ class MainActivity : Activity() {
     private fun newChat() {
         if (Conversation.messages.isEmpty()) { showBanner("This is already a new chat.", MUTED); return }
         haptic()
-        Conversation.newChat(applicationContext)
+        val kept = Conversation.newChat(applicationContext)
         render()
         undoBanner("New chat. The last one is under Chats.") {
-            ChatArchive.list(this).firstOrNull()?.let { Conversation.openSaved(applicationContext, it.id); render() }
+            // the chat just put away, by its id: the newest in the list is the one with the latest message, which isn't
+            // it when it was an older chat opened again
+            kept?.let { Conversation.openSaved(applicationContext, it); render() }
         }
     }
 
@@ -1309,16 +1317,19 @@ class MainActivity : Activity() {
         val listBox = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         var close: () -> Unit = {}
         var query = ""
-        fun fill() {
+        var gen = 0
+        // searching reads every saved chat (up to 200 files): off the main thread, or typing a search froze the screen
+        fun fill() { val mine = ++gen; val q = query; scope.launch {
+            val found = withContext(Dispatchers.IO) { ChatArchive.search(this@MainActivity, q) }
+            if (mine != gen) return@launch   // a newer search (or a rename/delete) is on its way
             listBox.removeAllViews()
             val now = System.currentTimeMillis()
-            val found = ChatArchive.search(this, query)
             if (found.isEmpty()) {
-                listBox.addView(text(if (query.isBlank()) "No earlier chats yet. New chat keeps the one you're in here." else "No chat mentions “${query.trim()}”.", 14f, MUTED).apply { setPadding(dp(4), dp(14), dp(4), dp(6)) })
-                return
+                listBox.addView(text(if (q.isBlank()) "No earlier chats yet. New chat keeps the one you're in here." else "No chat mentions “${q.trim()}”.", 14f, MUTED).apply { setPadding(dp(4), dp(14), dp(4), dp(6)) })
+                return@launch
             }
             found.take(80).forEachIndexed { i, m ->
-                val r = LinearLayout(this).apply {
+                val r = LinearLayout(this@MainActivity).apply {
                     orientation = LinearLayout.VERTICAL; isClickable = true; minimumHeight = dp(56)
                     background = finished(SURFACE, dp(16).toFloat(), glass = true); setPadding(dp(16), dp(11), dp(16), dp(12))
                     contentDescription = "${m.title}, ${UiShape.chatWhen(m.at, now, Engine.zone)}"
@@ -1347,7 +1358,7 @@ class MainActivity : Activity() {
                 r.addView(text("${UiShape.chatWhen(m.at, now, Engine.zone)}  ·  ${m.count} messages", 12f, MUTED), LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(2) })
                 listBox.addView(r, LinearLayout.LayoutParams(MATCH, WRAP).apply { if (i > 0) topMargin = dp(8) })
             }
-        }
+        } }
         // searching reads the saved chats, so it waits for a pause in typing
         val later = Runnable { fill() }
         val search = field("Search chats", "") { query = it; listBox.removeCallbacks(later); listBox.postDelayed(later, 220) }.apply { setSingleLine(true) }

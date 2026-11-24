@@ -113,3 +113,16 @@ test('accuracy · memory: saved word for word, no duplicates, forgetting names w
   assert.ok((await tool('forget', { id })).out.startsWith('Error'));
   assert.ok((await tool('remember', { text: '  ' })).out.startsWith('Error'));
 });
+
+test('accuracy · a repeating reminder left unanswered still comes round again, and answering it later adds no second copy', () => {
+  const now = Date.now();
+  const t = store.createTask('Pill', { startAt: now - 1000, durationMin: 5, recurrence: 'daily' }, now - 60000);
+  const due = store.takeDue(now);
+  assert.ok(due.includes(t), 'it rang');
+  const series = () => store.db.state.tasks.filter((o) => o.seriesId === t.id);
+  assert.equal(series().length, 1, 'the next one was made when it rang');
+  assert.ok(series()[0].startAt > now && series()[0].recurrence === 'daily');
+  assert.equal(series()[0].id, `${t.id}@${series()[0].startAt}`, 'the same id the phone gives it (Engine.occurrenceId), so a sync keeps one');
+  store.respond(t.id, 'done', {}, now + 60000);
+  assert.equal(series().length, 1, 'answering later made no second copy');
+});
