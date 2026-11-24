@@ -528,7 +528,7 @@ object BotExtras {
         synchronized(lock) {
             if (kind == "botpolicy") { if (rec != null && rec.optLong("updatedAt") >= policy.optLong("updatedAt")) policy = emptyPolicy().also { e -> rec.keys().forEach { k -> e.put(k, rec.get(k)) } } else if (rec != null) taken = false }
             else {
-                val arr = when (kind) { "skill" -> skills; "routine" -> routines; "specialist" -> specialists; else -> return }
+                val arr = when (kind) { "skill" -> skills; "routine" -> routines; "specialist" -> specialists; else -> return true }
                 val i = arr.indexOfFirst { it.optString("id") == id }
                 when {
                     rec == null -> if (i >= 0) arr.removeAt(i)
