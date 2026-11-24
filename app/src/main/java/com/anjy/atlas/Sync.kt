@@ -232,7 +232,7 @@ object Sync {
         all.optJSONArray("memories")?.let { a -> for (i in 0 until a.length()) a.getJSONObject(i).let { out.add(Rec("memory", it.getString("id"), it)) } }
         all.optJSONArray("log")?.let { a -> val n = a.length(); for (i in maxOf(0, n - LOG_KEEP) until n) a.getJSONObject(i).let { out.add(Rec("log", it.getString("id"), it)) } }
         // your name and how reminders behave (a name that isn't set here is left out: it must never blank the other device's)
-        all.optJSONObject("settings")?.let { out.add(Rec("profile", "me", SyncPlan.profileOf(it))) }
+        all.optJSONObject("settings")?.let { SyncPlan.profileOf(it) }?.takeUnless { SyncPlan.untouchedProfile(it) }?.let { out.add(Rec("profile", "me", it)) }
         presence?.let { out.add(Rec("device", Store.read(ctx) { s -> s.deviceId }, it)) }
         val chat = Conversation.exportForSync(ctx)
         if (chat == null) skip.add("chat") else chat.takeLast(CHAT_KEEP).forEach { out.add(Rec("chat", it.getString("id"), it)) }

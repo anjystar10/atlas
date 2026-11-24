@@ -265,4 +265,17 @@ test('New Chat on a PC whose clock runs slow still clears the phone’s latest m
   } finally { Date.now = real; }
 });
 
+test('linking a fresh PC (nothing set) never resets the name and reminder settings the phone already has', async () => {
+  const code2 = sync.newCode(); await sync.link(code2); const owner2 = await sync.owner(code2);
+  Object.assign(store.db.state.settings, { name: '', tone: 'firm', quietStart: '22:30', quietEnd: '06:30', graceMin: 15, followUps: 1 });
+  // the phone made the link: its first sync sent its settings with no edit time of their own (1), from a device id that loses a dead heat to this PC's
+  const mine = { name: 'King Anjy', tone: 'gentle', quietStart: '23:15', quietEnd: '07:00', graceMin: 20, followUps: 2 };
+  push2(owner2, [{ kind: 'profile', id: 'me', updated_ms: 1, payload: await sync.encrypt(code2, JSON.stringify(mine)), device: 'a-phone' }]);
+  await sync.runOnce(); await sync.runOnce();
+  const s = store.db.state.settings;
+  assert.deepEqual([s.name, s.tone, s.quietStart, s.quietEnd, s.graceMin, s.followUps], ['King Anjy', 'gentle', '23:15', '07:00', 20, 2]);
+  const r = cloud.rows.get(owner2 + '|profile|me');
+  assert.deepEqual(JSON.parse(await sync.decrypt(code2, r.payload)), mine, 'the cloud still holds the phone’s settings');
+});
+
 after(async () => { await sync.unlink(); });

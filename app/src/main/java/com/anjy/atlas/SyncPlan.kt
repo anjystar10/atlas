@@ -137,6 +137,13 @@ object SyncPlan {
         return o
     }
 
+    /**
+     * A profile nobody has touched here (no name, every setting at its default): a fresh install's. It isn't sent, so
+     * linking a new device can never reset the name and reminder settings the other device already has.
+     */
+    fun untouchedProfile(p: JSONObject) = !p.has("name") && p.optString("tone") == "firm" && p.optString("quietStart") == "22:30" &&
+        p.optString("quietEnd") == "06:30" && p.optInt("graceMin", -1) == 15 && p.optInt("followUps", -1) == 1
+
     /** The fields of a profile from the other device that may be taken in (an older Atlas sends only the name). */
     fun profileFields(rec: JSONObject): Map<String, Any> {
         val out = LinkedHashMap<String, Any>()

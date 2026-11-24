@@ -162,6 +162,11 @@ export function profileOf(s) {
   o.followUps = Number.isFinite(+s.followUps) && s.followUps !== '' && s.followUps != null ? Math.trunc(+s.followUps) : 1;
   return o;
 }
+/**
+ * A profile nobody has touched here (no name, every setting at its default): a fresh install's. It isn't sent, so
+ * linking a new device can never reset the name and reminder settings the other device already has.
+ */
+export const untouchedProfile = (p) => !p.name && p.tone === 'firm' && p.quietStart === '22:30' && p.quietEnd === '06:30' && p.graceMin === 15 && p.followUps === 1;
 /** The fields of a profile from the other device that may be taken in (an older Atlas sends only the name). */
 export function profileFields(rec) {
   const out = {}; if (!rec || typeof rec !== 'object') return out;
@@ -232,7 +237,7 @@ async function records(presence) {
   for (const m of db.state.memories) out.push({ kind: 'memory', id: m.id, json: m });
   for (const l of db.state.log.slice(-LOG_KEEP)) out.push({ kind: 'log', id: l.id, json: l });
   // your name and how reminders behave (a name that isn't set here is left out: it must never blank the phone's)
-  out.push({ kind: 'profile', id: 'me', json: profileOf(db.state.settings) });
+  const prof = profileOf(db.state.settings); if (!untouchedProfile(prof)) out.push({ kind: 'profile', id: 'me', json: prof });
   if (presence) out.push({ kind: 'device', id: db.state.deviceId, json: presence });
   for (const m of db.chat.filter((m) => !m.pending && m.source !== 'error').slice(-CHAT_KEEP))
     out.push({ kind: 'chat', id: m.id, json: { id: m.id, user: !!m.user, text: m.text, source: m.source || '', at: m.at, steps: m.steps || [], files: (m.media || []).length || m.files || 0 } });
