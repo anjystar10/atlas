@@ -230,7 +230,8 @@ object Crew {
 
     // ------------------------------------------------------------------ who may authorize
 
-    private val YES = Regex("^(yes|yeah|yep|yup|ya|ok|okay|sure|go ahead|go for it|go|do it|approve|approved|allow it|allow|confirm|confirmed|send it|proceed|alright|fine)(?=$|[^a-z])")
+    // (and the user's own Nigerian English: "oya", "send am", "do am", "carry go"; "sharp", "k" and "please do" only as the whole answer). Same as crew.js.
+    private val YES = Regex("^(yes|yeah|yea|yh|yep|yup|ya|ok|okay|kk?(?=[^a-z]*$)|sure|go ahead|go for it|go|do it|do am|approve|approved|allow it|allow|confirm|confirmed|send it|send am|proceed|alright|fine|oya|carry go|of course|ofc|absolutely|definitely|sharp(?: sharp)?(?=[^a-z]*$)|please do(?=[^a-z]*$))(?=$|[^a-z])")
     private val NO = Regex("^(no|nope|nah|don't|dont|do not|stop|cancel|deny|denied|reject|never|hold on|hold off|wait|not now)(?=$|[^a-z])")
     private const val LEAD = ".…,!?-–—*_~\"'( "
     /** What the user's OWN message says about a pending approval: "yes", "no" or null. The model's words never count. */
@@ -244,7 +245,7 @@ object Crew {
         if (YES.containsMatchIn(t)) return "yes"
         return null
     }
-    private val YES_ANY = Regex("(^|[^a-z])(yes|yeah|yep|yup|ok|okay|sure|go ahead|go for it|do it|approve|approved|allow|allowed|confirm|confirmed|send it|proceed|let it|let them|fine|alright)($|[^a-z])")
+    private val YES_ANY = Regex("(^|[^a-z])(yes|yeah|yep|yup|ok|okay|sure|go ahead|go for it|do it|do am|approve|approved|allow|allowed|confirm|confirmed|send it|send am|proceed|let it|let them|fine|alright)($|[^a-z])")
     private val ALWAYS = Regex("(^|[^a-z])(always|every time|from now on)($|[^a-z])")
     /** A yes-word right after a "not" doesn't count: "please don't do it", "I don't think it's ok", "never allow that". Same as the PC. */
     private val NEGATED = Regex("(^|[^a-z])(not|no|never|don't|dont|do not|doesn't|isn't|aren't|can't|cannot|won't|wouldn't|shouldn't|didn't|nicht|nein|non|pas|jamais|nunca)([^a-z]+[a-z']+){0,3}[^a-z]*$")
@@ -266,7 +267,17 @@ object Crew {
     private val LATER_NO = Regex("^(no|nope|nah|don't|dont|do not|never|hold on|hold off|wait|not now|not yet)(?=$|[^a-z])")
     // "no problem", "no wahala": not a no
     private val NOT_A_NO = Regex("^no (problem|problems|worries|wahala|rush|issue|issues|qualms)(?=$|[^a-z])")
-    private fun saysNo(c: String): Boolean { val x = c.dropWhile { it in LEAD }; return !NOT_A_NO.containsMatchIn(x) && (x.startsWith("👎") || x.startsWith("❌") || LATER_NO.containsMatchIn(x)) }
+    private fun refuses(x: String) = !NOT_A_NO.containsMatchIn(x) && (x.startsWith("👎") || x.startsWith("❌") || LATER_NO.containsMatchIn(x))
+    private val NOT = Regex("^not(?=$|[^a-z])")
+    // a refusal straight after their yes word, without a comma, is still a refusal: "ok no", "ok don't", "sure wait", "of course not"
+    private fun saysNo(c: String): Boolean {
+        val x = c.dropWhile { it in LEAD }; if (refuses(x)) return true
+        val m = YES.find(x) ?: return false
+        val y = x.substring(m.range.last + 1).dropWhile { it in LEAD }
+        return refuses(y) || NOT.containsMatchIn(y)
+    }
+    // "no problem", "no wahala" anywhere: not a "no" in front of what follows ("no wahala do it")
+    private val NO_PROBLEM = Regex("(^|[^a-z])no (problem|problems|worries|wahala|rush|issue|issues|qualms)(?=$|[^a-z])")
     /**
      * The user's own words in a message: what they pasted or quoted doesn't count (code, "quoted text", > quoted lines, and
      * anything after the first line), and neither do questions ("is it ok?"). The same as crew.js.
@@ -279,7 +290,7 @@ object Crew {
     }
     /** Whether the user's own latest message gives a yes (anywhere in their own words, unless any part of them says no) and an "always" (aware.js consent). */
     fun consent(text: String?): Consent {
-        val t = (text ?: "").lowercase().replace('’', '\'')
+        val t = (text ?: "").lowercase().replace('’', '\'').replace(NO_PROBLEM, "$1no$2")
         val first = userSaid(t)
         if (first == "no" && !NOT_A_NO.containsMatchIn(t.trim().dropWhile { it in LEAD })) return Consent(false, false, "their message says no")
         val own = ownSentences(t)

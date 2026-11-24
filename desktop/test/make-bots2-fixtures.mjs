@@ -52,7 +52,12 @@ const fx = {
     // the HUD's /approve and /deny for something Atlas asked in the chat (hud.js decide)
     'Yes, go ahead: “Cancel the BTC order and reply no to Bob”', 'No, don\'t: “Send it, yes”',
     // a yes to something that is itself a cancel or stop; "no problem" isn't a no
-    'yes, cancel it', 'ok, stop the bot', 'yes, no problem', 'no problem, go ahead', 'No wahala, do it', 'no problem', 'ok, never mind', 'sure, not yet'].map((t) => ({ text: t, out: C.consent(t) })),
+    'yes, cancel it', 'ok, stop the bot', 'yes, no problem', 'no problem, go ahead', 'No wahala, do it', 'no problem', 'ok, never mind', 'sure, not yet',
+    // the user's own Nigerian English: yeses without a comma, and refusals straight after a yes word (0.11.4)
+    'no wahala do it', 'no problem send it', 'ok no wahala', 'sharp', 'Sharp sharp!', 'oya', 'oya do it', 'ok send am', 'send am', 'do am', 'carry go', 'yes o', 'yes o, go ahead',
+    'k', 'kk.', 'yea', 'yh', 'ofc', 'of course', 'absolutely', 'please do',
+    'ok no', "ok don't", 'ok wait', 'yes wait', 'sure not now', 'of course not', 'absolutely not', 'oya no', 'no o', 'no abeg', "don't send am", 'make you no do am',
+    'no send am', 'sharp drop in btc, what now', 'k8s is down', 'please do not', 'no no wahala'].map((t) => ({ text: t, out: C.consent(t) })),
   dryRunSkips: [['web_search', false], ['browser_click', true], ['email_send', false], ['email_read', false], ['trade_order', false], ['trade_quote', false], ['make_document', false], ['mcp__x__y', false], ['browser_fill_login', false]]
     .map(([t, n]) => ({ tool: t, needsApproval: n, out: C.dryRunSkips(t, n) })),
   missionDefaults: [

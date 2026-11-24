@@ -2432,6 +2432,310 @@
     "always": false,
     "why": "their message says no"
    }
+  },
+  {
+   "text": "no wahala do it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "no problem send it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "ok no wahala",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "sharp",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "Sharp sharp!",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "oya",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "oya do it",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "ok send am",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "send am",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "do am",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "carry go",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "yes o",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "yes o, go ahead",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "k",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "kk.",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "yea",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "yh",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "ofc",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "of course",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "absolutely",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "please do",
+   "out": {
+    "yes": true,
+    "always": false,
+    "why": ""
+   }
+  },
+  {
+   "text": "ok no",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "ok don't",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "ok wait",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "yes wait",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "sure not now",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "of course not",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "absolutely not",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "oya no",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "no o",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "no abeg",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "don't send am",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "make you no do am",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "no send am",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
+  },
+  {
+   "text": "sharp drop in btc, what now",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "k8s is down",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "please do not",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their latest message doesn't say yes"
+   }
+  },
+  {
+   "text": "no no wahala",
+   "out": {
+    "yes": false,
+    "always": false,
+    "why": "their message says no"
+   }
   }
  ],
  "dryRunSkips": [

@@ -199,7 +199,8 @@ export function missionDefaults(j) {
 
 // ------------------------------------------------------------------ who may authorize
 
-const YES = /^(yes|yeah|yep|yup|ya|ok|okay|sure|go ahead|go for it|go|do it|approve|approved|allow it|allow|confirm|confirmed|send it|proceed|alright|fine)(?=$|[^a-z])/;
+// (and the user's own Nigerian English: "oya", "send am", "do am", "carry go"; "sharp", "k" and "please do" only as the whole answer)
+const YES = /^(yes|yeah|yea|yh|yep|yup|ya|ok|okay|kk?(?=[^a-z]*$)|sure|go ahead|go for it|go|do it|do am|approve|approved|allow it|allow|confirm|confirmed|send it|send am|proceed|alright|fine|oya|carry go|of course|ofc|absolutely|definitely|sharp(?: sharp)?(?=[^a-z]*$)|please do(?=[^a-z]*$))(?=$|[^a-z])/;
 const NO = /^(no|nope|nah|don't|dont|do not|stop|cancel|deny|denied|reject|never|hold on|hold off|wait|not now)(?=$|[^a-z])/;
 const LEAD = '.…,!?-–—*_~"\'( ';
 /** What the user's OWN message says about a pending approval: 'yes', 'no' or null (unclear). The model's words never count. */
@@ -214,7 +215,7 @@ export function userSaid(text) {
   if (YES.test(t)) return 'yes';
   return null;
 }
-const YES_ANY = /(^|[^a-z])(yes|yeah|yep|yup|ok|okay|sure|go ahead|go for it|do it|approve|approved|allow|allowed|confirm|confirmed|send it|proceed|let it|let them|fine|alright)($|[^a-z])/;
+const YES_ANY = /(^|[^a-z])(yes|yeah|yep|yup|ok|okay|sure|go ahead|go for it|do it|do am|approve|approved|allow|allowed|confirm|confirmed|send it|send am|proceed|let it|let them|fine|alright)($|[^a-z])/;
 const ALWAYS = /(^|[^a-z])(always|every time|from now on)($|[^a-z])/;
 // a yes-word right after a "not" doesn't count: "please don't do it", "I don't think it's ok", "never allow that" (and "nicht ok", "pas ok")
 const NEGATED = /(^|[^a-z])(not|no|never|don't|dont|do not|doesn't|isn't|aren't|can't|cannot|won't|wouldn't|shouldn't|didn't|nicht|nein|non|pas|jamais|nunca)([^a-z]+[a-z']+){0,3}[^a-z]*$/;
@@ -241,10 +242,14 @@ const LATER_NO = /^(no|nope|nah|don't|dont|do not|never|hold on|hold off|wait|no
 // "no problem", "no wahala": not a no
 const NOT_A_NO = /^no (problem|problems|worries|wahala|rush|issue|issues|qualms)(?=$|[^a-z])/;
 const lead = (c) => { let i = 0; while (i < c.length && LEAD.includes(c[i])) i++; return c.slice(i); };
-const saysNo = (c) => { const x = lead(c); return !NOT_A_NO.test(x) && (x.startsWith('👎') || x.startsWith('❌') || LATER_NO.test(x)); };
+const refuses = (x) => !NOT_A_NO.test(x) && (x.startsWith('👎') || x.startsWith('❌') || LATER_NO.test(x));
+// a refusal straight after their yes word, without a comma, is still a refusal: "ok no", "ok don't", "sure wait", "of course not"
+const saysNo = (c) => { const x = lead(c); if (refuses(x)) return true; const m = YES.exec(x); if (!m) return false; const y = lead(x.slice(m[0].length)); return refuses(y) || /^not(?=$|[^a-z])/.test(y); };
+// "no problem", "no wahala" anywhere: not a "no" in front of what follows ("no wahala do it")
+const NO_PROBLEM = /(^|[^a-z])no (problem|problems|worries|wahala|rush|issue|issues|qualms)(?=$|[^a-z])/g;
 /** Whether the user's own latest message gives a yes (anywhere in their own words, unless any part of them says no) and an "always": {yes, always, why}. */
 export function consent(text) {
-  const t = String(text || '').toLowerCase().replace(/’/g, "'");
+  const t = String(text || '').toLowerCase().replace(/’/g, "'").replace(NO_PROBLEM, '$1no$2');
   const first = userSaid(t);
   if (first === 'no' && !NOT_A_NO.test(lead(t.trim()))) return { yes: false, always: false, why: 'their message says no' };
   const own = ownSentences(t);
