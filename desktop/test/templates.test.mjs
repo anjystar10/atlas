@@ -39,3 +39,10 @@ test('requests pick the right template', () => {
   const p = propose('check my email every weekday at 8am', {}, Date.UTC(2026, 10, 18, 9));
   assert.equal(p.template, 'inbox'); assert.ok(p.timing.length >= 1);
 });
+
+test('every template trigger setting means something: nothing the trigger type would silently drop', () => {
+  for (const t of TEMPLATES) for (const tr of t.triggers || []) {
+    const kept = new Set([...Object.keys(TR.cleanTrigger(tr).config), 'schedule', 'parsed', 'text']);
+    for (const k of Object.keys(tr.config || {})) assert.ok(kept.has(k), `${t.id}/${tr.id}: "${k}" isn't a setting of a ${tr.type} trigger`);
+  }
+});
