@@ -352,7 +352,9 @@ async function runInner() {
     const byKey = {}, local = {};
     for (const r of recs) { const k = r.kind + ':' + r.id; byKey[k] = r; local[k] = { fp: await fp(r.json), ownTime: ownTime(r.json) }; }
     await goneQueue; const gone = await readGone();
-    stamp(sent, dirty, local, gone, now, first, skip, [...kinds].filter(([, k]) => k.absentMeansDeleted).map(([n]) => n));
+    // deletions were noted by this PC's clock: in cloud time, like every other edit (a slow clock's New Chat must not lose to the message)
+    const goneAt = Object.fromEntries(Object.entries(gone).map(([k, at]) => [k, Math.min(now, (Number(at) || 0) + skew)]));
+    stamp(sent, dirty, local, goneAt, now, first, skip, [...kinds].filter(([, k]) => k.absentMeansDeleted).map(([n]) => n));
     devices[me] = presence;
     if (!first) await save();        // an edit made offline keeps the time it was noticed, however long sending takes
     status.pendingOut = Object.keys(dirty).length > 0;

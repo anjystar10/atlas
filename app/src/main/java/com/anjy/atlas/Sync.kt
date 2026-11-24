@@ -304,7 +304,9 @@ object Sync {
             val (recs, skip) = records(ctx, presence)
             val byKey = recs.associateBy { "${it.kind}:${it.id}" }
             val gone = readGone(ctx)
-            SyncPlan.stamp(sent, dirty, byKey.mapValues { SyncPlan.Local(fp(it.value.json), ownTime(it.value.json)) }, gone, now, first, skip,
+            // deletions were noted by this phone's clock: in cloud time, like every other edit (a slow clock's New Chat must not lose to the message)
+            val goneAt = gone.mapValues { minOf(now, it.value + skew) }
+            SyncPlan.stamp(sent, dirty, byKey.mapValues { SyncPlan.Local(fp(it.value.json), ownTime(it.value.json)) }, goneAt, now, first, skip,
                 kinds.filterValues { it.absentMeansDeleted }.keys)
             devices.put(me, presence)
             if (!first) saveState()           // an edit made offline keeps the time it was noticed, however long sending takes

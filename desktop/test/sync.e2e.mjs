@@ -250,4 +250,19 @@ test('bot jobs show on the other device, read-only: the phone’s arrive, this P
   assert.deepEqual(bm.others(), []);
 });
 
+test('New Chat on a PC whose clock runs slow still clears the phone’s latest messages', async () => {
+  cloud.clockAhead = 0;
+  const real = Date.now;
+  Date.now = () => real() - 300000;             // this PC's clock is five minutes behind the cloud
+  try {
+    await sync.runOnce();                         // learns the clock is off
+    await phoneSends('chat', 'slow-q', { id: 'slow-q', user: true, text: 'what time is it', source: '', at: real(), steps: [], files: 0 }, { at: real() });
+    await sync.runOnce();
+    assert.ok(store.db.chat.find((m) => m.id === 'slow-q'), 'the phone’s message arrived');
+    await sync.noteDeleted('chat', store.db.chat.map((m) => m.id)); store.db.chat = [];
+    await sync.runOnce();
+    assert.deepEqual(await cloudHas('chat', 'slow-q'), { deleted: true }, 'the deletion was not refused as older than the message');
+  } finally { Date.now = real; }
+});
+
 after(async () => { await sync.unlink(); });
