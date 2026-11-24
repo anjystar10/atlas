@@ -846,6 +846,7 @@ class MainActivity : Activity() {
         applyPalette()
         L.init(this)
         tab = savedInstanceState?.getInt("tab") ?: tabFor(intent?.getStringExtra("tab")) ?: 0
+        savedInstanceState?.getString("snap")?.let { snapFile = java.io.File(it) }   // a snap taken while Atlas was closed
         window.statusBarColor = washTop()
         window.navigationBarColor = BG
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(BG))
@@ -936,7 +937,12 @@ class MainActivity : Activity() {
     private fun fadeDrawable() = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
         intArrayOf(Color.argb(0, Color.red(BG), Color.green(BG), Color.blue(BG)), Color.argb(235, Color.red(BG), Color.green(BG), Color.blue(BG)), BG))
 
-    override fun onSaveInstanceState(outState: Bundle) { outState.putInt("tab", tab); super.onSaveInstanceState(outState) }
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("tab", tab)
+        // the camera is in front during a snap, and Android often closes Atlas meanwhile: the photo's file is kept here
+        snapFile?.let { outState.putString("snap", it.path) }
+        super.onSaveInstanceState(outState)
+    }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
