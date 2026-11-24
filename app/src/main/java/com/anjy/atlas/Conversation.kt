@@ -166,7 +166,10 @@ object Conversation {
         history.clear()
         val open = if (busy) inFlight else null
         messages.filter { it !== open?.first && it !== open?.second }.takeLast(KEEP_TURNS * 2).forEach { m ->
-            if (m.source != "error") history.add(m.fromUser to (if (m.fromUser) m.text else m.text + stepNote(m.steps)))
+            // a message with no words (a reply cut off when the app was closed mid-answer) is left out: services refuse
+            // an empty turn (Gemini: "empty text parameter"), and one such turn would break every request after it
+            val t = if (m.fromUser) m.text else m.text + stepNote(m.steps)
+            if (m.source != "error" && t.isNotBlank()) history.add(m.fromUser to t)
         }
         fixHistory()
     }

@@ -501,7 +501,8 @@ const LABEL = { open_app: (a) => 'Opening ' + (a.name || ''), look_at_screen: ()
 
 function history() {
   const msgs = db.chat.filter((m) => m.source !== 'error' && !m.pending).slice(-KEEP_TURNS * 2);
-  const h = msgs.map((m) => [m.user, m.user ? m.text : m.text + (m.steps && m.steps.length ? `\n(What I did: ${m.steps.join('; ')})` : '')]);
+  // a message with no words is left out: services refuse an empty turn, and one would break every request after it
+  const h = msgs.map((m) => [m.user, m.user ? (m.text || '') : (m.text || '') + (m.steps && m.steps.length ? `\n(What I did: ${m.steps.join('; ')})` : '')]).filter(([, t]) => t.trim());
   while (h.length && !h[0][0]) h.shift();
   return h;
 }
