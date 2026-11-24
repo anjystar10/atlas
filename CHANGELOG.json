@@ -4,11 +4,16 @@
   {
    "version": "0.11.4",
    "versionCode": 25,
-   "date": "2026-11-24",
-   "released": false,
+   "date": "2026-11-25",
+   "released": true,
    "notes": [
     "Trading: Stop All Trading on one device now stops trading (and trading bots) on the other too; you turn it back on yourself on each device, in Me → Trading",
-    "Approvals: \"no wahala, do it\", \"sharp\", \"oya\" and \"send am\" count as your yes; \"ok no\", \"ok wait\" and \"of course not\" count as a no"
+    "Approvals: \"no wahala, do it\", \"sharp\", \"oya\" and \"send am\" count as your yes; \"ok no\", \"ok wait\" and \"of course not\" count as a no",
+    "Trading (phone): an unreadable account balance no longer switches off the daily loss limit",
+    "PC: replies now show in the HUD terminal instead of 'Thinking…' forever; the first-launch 'add a key' hint is readable",
+    "Keep Listening off is now respected by Hey Atlas, the orb and the mini panel",
+    "Bot approval cards no longer say 'You allowed it.' after you tapped Deny",
+    "Me → Brain now says correctly whether your AI keys are shared between your devices"
    ],
    "abilities": [
     "Your trading stop switch now covers both devices: a stop on one stops trading on the other at its next sync. Turning trading back on is per device: the user does it in Me → Trading on each one. A stop that came from the other device doesn't cancel this device's open orders: say so, and offer trade_cancel"
