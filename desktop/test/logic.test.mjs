@@ -378,7 +378,7 @@ test("PC paths start at the user's home and real folders, not the app's working 
     assert.equal(pc.expand('', folder), home);
     assert.equal(pc.expand('notes.txt', folder), path.join(home, 'notes.txt'));
     assert.equal(pc.expand('~/code/x.js', folder), path.join(home, 'code', 'x.js'));
-    assert.equal(pc.expand('/etc/hosts', folder), '/etc/hosts');
+    assert.equal(pc.expand('/etc/hosts', folder), path.resolve('/etc/hosts'));   // C:\etc\hosts on Windows
     assert.equal(pc.expand('"DesktopStuff/a.txt"', folder), path.join(home, 'DesktopStuff', 'a.txt'));
   } finally { process.chdir(cwd); }
 });
