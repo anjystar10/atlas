@@ -75,9 +75,17 @@ object KeyRouter {
 
     enum class Cause { PASSING, KEY, OTHER }
 
+    /**
+     * A 400 is about the key only when it says so ("That Gemini key isn't valid.", "API key expired"): a request a
+     * service refused for another reason may still name a tool or field with "key" in it (press_key, keywords), and
+     * that must not set the user's key aside for good. The same rule as keyProblem in brain.js.
+     */
+    fun keyProblem(message: String?) = KEY_400.containsMatchIn(message ?: "")
+    private val KEY_400 = Regex("""key isn't valid|\bapi[ _-]?(?:key|token)\b""", RegexOption.IGNORE_CASE)
+
     /** Whether retrying might help (PASSING), the key itself can't go on (KEY), or neither (OTHER: give up). */
     fun cause(code: Int, offline: Boolean, message: String): Cause = when {
-        code == 401 || code == 403 || code == 402 || (code == 400 && message.contains("key", ignoreCase = true)) -> Cause.KEY
+        code == 401 || code == 403 || code == 402 || (code == 400 && keyProblem(message)) -> Cause.KEY
         code == 429 || code == 500 || code == 502 || code == 503 || code == 504 || offline -> Cause.PASSING
         else -> Cause.OTHER
     }

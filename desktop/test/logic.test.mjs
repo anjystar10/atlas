@@ -258,6 +258,15 @@ test('a turned-down key switches at once', async () => {
   const r = await run([new brain.Failure('Gemini turned the key down: no', 401)]);
   assert.deepEqual(r.used, ['k1', 'k2']); assert.ok(brain.keys('gemini')[0].bad);
 });
+test("a 400 that only names a tool with \"key\" in it is not the key's fault: the key stays and nothing switches", async () => {
+  pool(['k1', 'k2'], { other: true });
+  const f = new brain.Failure("Groq didn't accept the request: tool call validation failed: parameters for tool press_keys did not match schema", 400);
+  await assert.rejects(run([f]), (e) => e === f, 'the refusal is reported as it is');
+  assert.ok(brain.keys('gemini').every((e) => !e.bad && !e.restUntil), 'no key was set aside or rested');
+  assert.equal(brain.cause(new brain.Failure("That Gemini key isn't valid.", 400)), 'key');
+  assert.equal(brain.cause(new brain.Failure("Gemini didn't accept the request: API key expired. Please renew the API key.", 400)), 'key');
+  assert.equal(brain.cause(new brain.Failure("OpenAI didn't accept the request: 'keywords' is not valid", 400)), 'other');
+});
 test('with no keys left it moves to another service, after the retries', async () => {
   pool(['k1'], { other: true });
   await assert.rejects(run(Array(10).fill(0).map(busy)), (e) => e instanceof brain.Switch && e.to.id === 'groq');

@@ -128,7 +128,11 @@ function rest(id, key, code, problem) {
   }));
 }
 function worked(id, key) { if (keys(id).some((e) => e.key === key && (e.fails || e.problem))) saveKeys(id, keys(id).map((e) => (e.key === key ? { ...e, fails: 0, problem: '' } : e))); }
-export const keyExhausted = (f) => [429, 402, 401, 403].includes(f.code) || (f.code === 400 && /key/i.test(f.message || ''));
+// A 400 is about the key only when it says so ("That Gemini key isn't valid.", "API key expired"): a request a service
+// refused for another reason may still name a tool or field with "key" in it (press_keys, keywords), and that must
+// not set the user's key aside for good. The same rule as KeyRouter.keyProblem on the phone.
+export const keyProblem = (msg) => /key isn't valid|\bapi[ _-]?(?:key|token)\b/i.test(String(msg || ''));
+export const keyExhausted = (f) => [429, 402, 401, 403].includes(f.code) || (f.code === 400 && keyProblem(f.message));
 const available = (p) => hasKeys(p.id) && (!p.custom || baseOf(p));
 export function fallbacks(except) { loadCustoms(); return PROVIDERS.filter((p) => p.id !== except && available(p) && readyKey(p.id)); }
 export function active() {
@@ -156,7 +160,7 @@ export class Failure extends Error { constructor(msg, code = 0, offline = false)
 function explain(service, code, body) {
   let msg = ''; try { const o = JSON.parse(body); msg = (o.error && (o.error.message || o.error)) || o.message || ''; if (typeof msg !== 'string') msg = JSON.stringify(msg); } catch {}
   if (code === 401 || code === 403) return `${service} turned the key down: ${(msg || 'not authorised').slice(0, 160)}`;
-  if (code === 400) return /key/i.test(msg) && /invalid|not valid/i.test(msg) ? `That ${service} key isn't valid.` : `${service} didn't accept the request: ${(msg || 'bad request').slice(0, 180)}`;
+  if (code === 400) return keyProblem(msg) && /invalid|not valid/i.test(msg) ? `That ${service} key isn't valid.` : `${service} didn't accept the request: ${(msg || 'bad request').slice(0, 180)}`;
   if (code === 404) return `${service} doesn't know that model: ${msg.slice(0, 160)}`;
   if (code === 402) return `${service} says the account has no credit left.`;
   if (code === 429) return `The ${service} limit is used up for now.`;
@@ -668,7 +672,7 @@ export function waitFor(f, n) {
 export const WAIT_OUT = [30000, 60000];
 export const dontSwitch = () => !!pref('dont_switch', false);
 export function cause(f) {
-  if ([401, 403, 402].includes(f.code) || (f.code === 400 && /key/i.test(f.message || ''))) return 'key';
+  if ([401, 403, 402].includes(f.code) || (f.code === 400 && keyProblem(f.message))) return 'key';
   if ([429, 500, 502, 503, 504].includes(f.code) || f.offline) return 'passing';
   return 'other';
 }

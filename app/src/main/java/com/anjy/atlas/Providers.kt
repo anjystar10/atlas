@@ -199,7 +199,7 @@ object Providers {
 
     /** Whether a failure means "this key can't go on" (switch keys), rather than a passing hiccup. */
     fun keyExhausted(f: Gemini.Failure) = f.code == 429 || f.code == 402 || f.code == 401 || f.code == 403 ||
-        (f.code == 400 && (f.message ?: "").contains("key", ignoreCase = true))
+        (f.code == 400 && KeyRouter.keyProblem(f.message))
 
     /** The services that can take over, in list order: those with a key ready now. */
     /** A service Atlas can call: built in, or one of the user's with its address filled in. */
@@ -275,7 +275,7 @@ object Providers {
         } catch (_: Exception) { "" }
         return when (code) {
             401, 403 -> "$service turned the key down: ${msg.ifBlank { "not authorised" }.take(160)}"
-            400 -> if (msg.contains("key", true) && (msg.contains("invalid", true) || msg.contains("not valid", true))) "That $service key isn't valid. Check it in Me."
+            400 -> if (KeyRouter.keyProblem(msg) && (msg.contains("invalid", true) || msg.contains("not valid", true))) "That $service key isn't valid. Check it in Me."
                    else "$service didn't accept the request: ${msg.ifBlank { "bad request" }.take(180)}"
             404 -> "$service doesn't know the model set in Me: ${msg.take(160)}"
             402 -> "$service says the account has no credit left: ${msg.take(120)}"

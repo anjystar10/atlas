@@ -41,6 +41,13 @@ class KeyRouterTest {
         assertEquals(KeyRouter.Cause.KEY, KeyRouter.cause(400, false, "That Gemini key isn't valid."))
         assertEquals(KeyRouter.Cause.OTHER, KeyRouter.cause(400, false, "bad request: model"))
         assertEquals(KeyRouter.Cause.OTHER, KeyRouter.cause(404, false, ""))
+        // a 400 about the key says so; one that only names a tool or field with "key" in it is not the key's fault
+        assertEquals(KeyRouter.Cause.KEY, KeyRouter.cause(400, false, "Gemini didn't accept the request: API key expired. Please renew the API key."))
+        assertEquals(KeyRouter.Cause.OTHER, KeyRouter.cause(400, false, "Groq didn't accept the request: tool call validation failed: parameters for tool press_key did not match schema"))
+        assertEquals(KeyRouter.Cause.OTHER, KeyRouter.cause(400, false, "OpenAI didn't accept the request: Invalid schema for function 'search': 'keywords' is not valid"))
+        assertEquals("Groq didn't accept the request: tool call validation failed: parameters for tool press_key did not match schema: invalid",
+            Providers.explain("Groq", 400, "{\"error\":{\"message\":\"tool call validation failed: parameters for tool press_key did not match schema: invalid\"}}"))
+        assertEquals("That Cohere key isn't valid. Check it in Me.", Providers.explain("Cohere", 400, "{\"message\":\"invalid api token\"}"))
     }
 
     @Test fun busyServerIsRetriedThreeTimesOnTheSameKey() {
