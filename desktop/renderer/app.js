@@ -48,7 +48,7 @@ function toast(msg, ms = 2600) {
   const t = h(`<div class="toast">${esc(msg)}</div>`); document.body.appendChild(t); setTimeout(() => t.remove(), ms);
 }
 voice.notices.show = (msg) => toast(msg, 7000);   // the natural voice failed and Windows' voice spoke: say so (once every few hours)
-function sheet({ title, body = '', html = '', primary = 'OK', danger = false, secondary = 'Cancel', onPrimary = () => true, onOpen }) {
+function sheet({ title, body = '', html = '', primary = 'OK', danger = false, secondary = 'Cancel', onPrimary = () => true, onOpen, safe = false }) {
   return new Promise((resolve) => {
     const o = h(`<div class="overlay"><div class="card sheet"><h2>${esc(title)}</h2>${body ? `<p class="muted">${esc(body)}</p>` : ''}${html}
       <div class="actions">${secondary ? `<button class="btn" data-k="no">${esc(secondary)}</button>` : ''}${primary ? `<button class="btn ${danger ? 'danger' : 'primary'}" data-k="yes">${esc(primary)}</button>` : ''}</div></div></div>`);
@@ -60,7 +60,14 @@ function sheet({ title, body = '', html = '', primary = 'OK', danger = false, se
       if (k === 'yes') { if ((await onPrimary(o)) !== false) close(true); }
     });
     onOpen && onOpen(o);
-    setTimeout(() => (o.querySelector('input,textarea') || o.querySelector('[data-k=yes]'))?.focus(), 30);
+    // a key already held when an approval opened (push-to-talk Space, an Enter on its way to the composer) does nothing here
+    if (safe) {
+      const down = new Set();
+      o.addEventListener('keydown', (e) => { if (e.repeat && !down.has(e.code)) e.preventDefault(); else down.add(e.code); }, true);
+      o.addEventListener('keyup', (e) => { if (!down.delete(e.code)) e.preventDefault(); }, true);
+    }
+    // an approval starts on its No: an Enter meant for the composer ("no wait") mustn't say yes to it
+    setTimeout(() => (o.querySelector('input,textarea') || o.querySelector(safe ? '[data-k=no]' : '[data-k=yes]'))?.focus(), 30);
   });
 }
 const fmtTime = (ms) => new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1032,8 +1039,8 @@ function showFocus() {
 
 // ------------------------------------------------------------------ Atlas's own settings (change_setting)
 
-brain.ui.confirm = (title, detail, yes) => sheet({ title, html: `<pre>${esc(detail)}</pre>`, primary: yes, secondary: 'No' });
-trade.setConfirm((title, detail, yes) => { try { host.show && host.show(); } catch {} return sheet({ title, html: `<pre style="white-space:pre-wrap">${esc(detail)}</pre>`, primary: yes, secondary: "Don't" }); });   // trading: a LIVE order waits for this tap
+brain.ui.confirm = (title, detail, yes) => sheet({ title, html: `<pre>${esc(detail)}</pre>`, primary: yes, secondary: 'No', safe: true });
+trade.setConfirm((title, detail, yes) => { try { host.show && host.show(); } catch {} return sheet({ title, html: `<pre style="white-space:pre-wrap">${esc(detail)}</pre>`, primary: yes, secondary: "Don't", safe: true }); });   // trading: a LIVE order waits for this tap
 brain.ui.startFocus = startFocus;
 brain.ui.settingsText = () => {
   const on = (b) => (b ? 'on' : 'off'); const eng = voice.engine();
