@@ -496,6 +496,8 @@ export function createBots(deps) {
           j.current = `About to: ${String(a.what).slice(0, 100)} (10 seconds to Undo)`; persist(); changed();
           const r = deps.countdown ? await deps.countdown(a.what) : null;
           act = r === true ? 'go' : r === false ? 'undone' : 'ask';
+          // paused or stopped during the countdown: nothing is done (on Resume it looks again and asks again)
+          if (j.state !== S.RUNNING) { j.current = null; persist(); changed(); return; }
         }
       } else {
         // (no autonomy: the older per-category choice) "Always allow" never covers money

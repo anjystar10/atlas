@@ -744,6 +744,8 @@ object Bots {
         if (act == "undo") {
             j.current = "About to: ${a.what.take(100)} (10 seconds to Undo)"; persistNow(); changed()
             act = when (Autonomy.countdown(app, a.what)) { true -> "go"; false -> "undone"; null -> "ask" }
+            // paused or stopped during the countdown: nothing is done (on Resume it looks again and asks again)
+            if (j.state != BotRules.RUNNING) { j.current = null; persist(); changed(); return }
         }
         if (act != "ask") {
             a.decision = when (act) { "go" -> "approved"; "deny" -> "denied"; else -> "undone" }; a.auto = act != "undone"
