@@ -301,6 +301,9 @@ object Conversation {
                 if (!f.offline) { reply.text = f.message ?: "${p.name} failed."; reply.source = "error"; return }
                 // Don't Switch Services: stay on the chosen service, so no answer from the offline model either
                 if (KeyRouter.dontSwitch(ctx)) { reply.text = "${f.message} Don't Switch Services is on, so I didn't answer with the offline model."; reply.source = "error"; return }
+                // part of it was already done online (a reminder logged, a memory saved): the fixed commands would do it
+                // a second time, so say what's done instead of starting over offline
+                if (reply.steps.isNotEmpty()) { reply.text = "${f.message} I'd already done the steps below before the connection dropped; ask me again for the rest once it's back."; reply.source = "Atlas"; return }
                 Log.i(TAG, "offline: ${f.message}")
                 reply.steps.add("${f.message} Answering offline.")
             }
