@@ -358,6 +358,7 @@ object Providers {
         }
         override fun call(system: String): Gemini.Turn {
             if (base.isEmpty()) throw Gemini.Failure("Set the address of your service in Me.")
+            if (model.isBlank()) throw Gemini.Failure("Choose a model for ${p.name} in Me.")
             val msgs = JSONArray().put(JSONObject().put("role", "system").put("content", system))
             trimToolScreens(messages).forEach { msgs.put(it) }
             val body = JSONObject().put("model", model).put("messages", msgs).put("tools", openAiTools(tools))
@@ -407,7 +408,7 @@ object Providers {
         }
         override fun call(system: String): Gemini.Turn {
             val msgs = JSONArray(); trimToolScreens(messages).forEach { msgs.put(it) }
-            val body = JSONObject().put("model", model).put("max_tokens", 2048).put("system", system)
+            val body = JSONObject().put("model", model).put("max_tokens", 4096).put("system", system)
                 .put("messages", msgs).put("tools", anthropicTools(tools))
             val r = post("$base/messages", mapOf("x-api-key" to key, "anthropic-version" to "2023-06-01"), body, "Claude")
             val content = r.optJSONArray("content") ?: JSONArray()
