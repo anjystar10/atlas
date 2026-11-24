@@ -1,0 +1,8 @@
+
+[page] [GroupMarkerNotSet(crbug.com/242999)!:A0C02F00FC2B0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader flag to opt in to lower security guarantees for trusted content. (index.html:0)
+[page] [GroupMarkerNotSet(crbug.com/242999)!:A0F02F00FC2B0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader flag to opt in to lower security guarantees for trusted content. (index.html:0)
+[pc] list_apps: Apps on this PC: | 7-Zip File Manager, 7-Zip Help, Anaconda PowerShell Prompt, Anaconda Prompt, Application Stack Builder, Application Verifier (WOW), Application
+[pc] run_command: Exit code 0. | 2026-11-24 | 5.1.26100.33822
+[pc] list_files: In C:\Users\runneradmin: | [folder] .cargo | [folder] .docker | [folder] .dotnet | [folder] .rustup | [folder] .templateengine | [folder] AppData | Application Data | [folder] 
+[pc] look_at_screen: Here is the screen (1024×768). Give clicks in these coordinates. (+ screenshot 86092 chars)
+[pc] press_keys: Pressed ctrl+shift+t.
