@@ -581,10 +581,11 @@ export function createBots(deps) {
 
   async function runTool(j, c, approved = false, approvedWhat = null) {
     const what = label(c, deps.labelFor);
+    // marked before it runs: a Stop while the first page is still opening must close the window too (onFinal)
+    if (String(c.name).startsWith('browser_')) j.browser = true;
     j.current = what; j.pending = what; await persist(); changed();
     const r = (await deps.runTool(c, { approved, job: j, approvedWhat })) || { out: '' };
     j.pending = null; j.toolCalls++;
-    if (String(c.name).startsWith('browser_')) j.browser = true;
     if (r.step !== null) step(j, r.step || what);
     const url = String((c.name === 'read_page' ? (c.args || {}).url : r.url) || '').trim();
     if (/^https?:/.test(url) && !/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(url) && !j.sources.includes(url)) { j.sources.push(url); if (j.sources.length > 40) j.sources.shift(); }
