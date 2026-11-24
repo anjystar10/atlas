@@ -16,14 +16,26 @@ function ps(script, timeoutMs = 60000) {
   return new Promise((resolve) => {
     if (!WIN) return resolve({ code: -1, out: '', err: 'This only works on Windows.' });
     // no progress bars (PowerShell sends them as noise on the error stream when run like this)
-    const enc = Buffer.from("$ProgressPreference = 'SilentlyContinue'\n" + script, 'utf16le').toString('base64');
+    // output as UTF-8 (piped, Windows PowerShell otherwise writes the OEM code page: "Résumé" came back garbled)
+    const enc = Buffer.from("$ProgressPreference = 'SilentlyContinue'\ntry { [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false } catch {}\n" + script, 'utf16le').toString('base64');
     const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', enc], { windowsHide: true });
-    let out = '', err = '';
-    const t = setTimeout(() => { try { p.kill(); } catch {} ; err += '\n(stopped after ' + Math.round(timeoutMs / 1000) + 's)'; }, timeoutMs);
-    p.stdout.on('data', (d) => { if (out.length < 200000) out += d.toString(); });
-    p.stderr.on('data', (d) => { if (err.length < 50000) err += d.toString(); });
-    p.on('close', (code) => { clearTimeout(t); resolve({ code, out: out.trim(), err: cleanErr(err) }); });
-    p.on('error', (e) => { clearTimeout(t); resolve({ code: -1, out: '', err: e.message }); });
+    let out = '', err = '', done = false, code = null;
+    const finish = (r) => { if (done) return; done = true; clearTimeout(t); clearTimeout(late); resolve(r); };
+    // a program the script started (a GUI app, "ping -t", a dev server) keeps the output pipes open after PowerShell
+    // ends, so 'close' may never come: settle shortly after the exit, and on timeout stop the whole process tree
+    let late = null;
+    const t = setTimeout(() => {
+      err += '\n(stopped after ' + Math.round(timeoutMs / 1000) + 's)';
+      try { spawn('taskkill', ['/pid', String(p.pid), '/T', '/F'], { windowsHide: true }).on('error', () => {}); } catch {}
+      try { p.kill(); } catch {}
+      late = setTimeout(() => finish({ code, out: out.trim(), err: cleanErr(err) }), 3000);
+    }, timeoutMs);
+    p.stdout.setEncoding('utf8'); p.stderr.setEncoding('utf8');
+    p.stdout.on('data', (d) => { if (out.length < 200000) out += d; });
+    p.stderr.on('data', (d) => { if (err.length < 50000) err += d; });
+    p.on('exit', (c) => { code = c; clearTimeout(late); late = setTimeout(() => finish({ code, out: out.trim(), err: cleanErr(err) }), 1500); });
+    p.on('close', (c) => finish({ code: c ?? code, out: out.trim(), err: cleanErr(err) }));
+    p.on('error', (e) => finish({ code: -1, out: '', err: e.message }));
   });
 }
 // a PowerShell single-quoted string (nothing inside it runs); PowerShell also ends these at the curly quotes ‘ ’ ‚ ‛
@@ -127,14 +139,23 @@ function loadAttachment(p) {
   return { kind: 'text', mime: 'text/plain', name, text };
 }
 
-function expand(p) {
+// The user's own folders, where Windows really keeps them (OneDrive often moves Desktop and Documents).
+const KNOWN = ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Music', 'Videos'];
+function knownFolder(k) {
+  try { const { app } = require('electron'); if (app && app.getPath) return app.getPath(k.toLowerCase()); } catch {}
+  return path.join(os.homedir(), k);
+}
+/** A path the model gave, as a full path: "~", "Desktop/notes.txt", "~/Documents/x" and bare names all start at the user's
+ *  home or their real known folders, never at the app's own working folder (its install folder, or System32 at sign-in). */
+function expand(p, folder = knownFolder) {
   let s = String(p || '').trim().replace(/^["']|["']$/g, '');
-  if (s.startsWith('~')) s = path.join(os.homedir(), s.slice(1));
   s = s.replace(/%([^%]+)%/g, (_m, v) => process.env[v] || _m);
-  for (const k of ['Desktop', 'Documents', 'Downloads', 'Pictures', 'Music', 'Videos']) {
-    if (s.toLowerCase() === k.toLowerCase()) s = path.join(os.homedir(), k);
-  }
-  return path.resolve(s || os.homedir());
+  if (/^~([\\/]|$)/.test(s)) s = s.replace(/^~[\\/]*/, '');
+  else if (path.isAbsolute(s)) return path.resolve(s);
+  const [first, ...rest] = s.split(/[\\/]+/);
+  const k = KNOWN.find((n) => n.toLowerCase() === String(first).toLowerCase());
+  if (k) return path.join(folder(k), ...rest);
+  return path.resolve(os.homedir(), s);
 }
 
 // ------------------------------------------------------------------ the tools
@@ -190,7 +211,8 @@ else { try { Start-Process ${q(n)} -ErrorAction Stop; "Opened " + ${q(n)} } catc
       const shotW = Math.round(real.w * s), shotH = Math.round(real.h * s);
       const src = await e.desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: shotW, height: shotH } });
       if (!src.length) return { error: 'Couldn\'t capture the screen.' };
-      const img = src[0].thumbnail;
+      // the primary screen (clicks are placed on it); with a second monitor it isn't always listed first
+      const img = (src.find((x) => String(x.display_id) === String(d.id)) || src[0]).thumbnail;
       const sz = img.getSize();
       lastShot = { w: sz.width, h: sz.height, realW: real.w, realH: real.h };
       return { out: `Here is the screen (${sz.width}×${sz.height}). Give clicks in these coordinates.`, image: { mime: 'image/jpeg', base64: img.toJPEG(80).toString('base64') }, step: 'Looked at the screen' };
@@ -228,7 +250,7 @@ for ($i = 0; $i -lt ${times}; $i++) { [AtlasInput]::mouse_event(${down}, 0, 0, 0
 /** Files that run something when opened (programs, scripts, installers, shortcuts): Atlas asks before opening these. */
 const RUNS = new Set(['exe', 'com', 'bat', 'cmd', 'ps1', 'psm1', 'psd1', 'vbs', 'vbe', 'vb', 'js', 'jse', 'wsf', 'wsh', 'ws', 'msi', 'msp', 'msix', 'msixbundle', 'appx',
   'appxbundle', 'application', 'scr', 'hta', 'lnk', 'reg', 'cpl', 'msc', 'jar', 'pif', 'appref-ms', 'url', 'scf', 'inf', 'chm', 'settingcontent-ms',
-  'diagcab', 'gadget', 'xbap', 'iso', 'img', 'vhd', 'vhdx']);
+  'diagcab', 'gadget', 'xbap', 'iso', 'img', 'vhd', 'vhdx', 'py', 'pyw', 'pyz', 'pyzw', 'sh']);   // Python and Git Bash run their scripts on open
 // Windows ignores trailing dots and spaces ("setup.exe." runs setup.exe) and a "::$DATA" stream suffix, so look past them
 function runsSomething(p) {
   const s = String(p || '').trim().replace(/["']/g, '').replace(/::\$data$/i, '').replace(/[. ]+$/, '');

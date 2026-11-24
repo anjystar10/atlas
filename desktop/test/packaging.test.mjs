@@ -45,3 +45,16 @@ test('everything main.js loads is inside the installer', () => {
   assert.deepEqual(missing, [], `not in package.json build.files: ${missing.join(', ')}`);
   assert.ok(seen.size > 10, 'walked the require graph');
 });
+
+// The app's own pages forbid inline scripts (script-src 'self'): an inline <script> there never runs.
+// The floating orb shipped like that and was a dead, invisible box on top of the screen.
+test("the app's pages keep their scripts in files their CSP allows", () => {
+  for (const f of fs.readdirSync(path.join(root, 'renderer')).filter((n) => n.endsWith('.html'))) {
+    const html = fs.readFileSync(path.join(root, 'renderer', f), 'utf8');
+    const csp = (html.match(/Content-Security-Policy" content="([^"]*)"/) || [])[1] || '';
+    if (!/script-src[^;]*'self'/.test(csp) || /script-src[^;]*'unsafe-inline'/.test(csp)) continue;
+    const inline = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)].filter((m) => !/\bsrc=/.test(m[1]) && m[2].trim());
+    assert.equal(inline.length, 0, `${f} has an inline <script> its CSP blocks`);
+    for (const m of html.matchAll(/<script\b[^>]*\bsrc="([^"]+)"/g)) assert.ok(fs.existsSync(path.join(root, 'renderer', m[1])), `${f} loads ${m[1]}, which is missing`);
+  }
+});

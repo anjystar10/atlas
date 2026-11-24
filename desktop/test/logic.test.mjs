@@ -359,9 +359,28 @@ test('PowerShell quoting and programs that need a yes', async () => {
   assert.equal(pc.q('$(Remove-Item x)'), "'$(Remove-Item x)'");
   for (const p of ['C:\\x\\setup.exe', '~/Downloads/run.BAT', '"C:\\a b\\s.ps1"', 'thing.lnk']) assert.equal(pc.runsSomething(p), true, p);
   // Windows runs "setup.exe." and "setup.exe " as setup.exe; installers and disk images count too
-  for (const p of ['C:\\x\\setup.exe.', 'C:\\x\\setup.exe .. ', 'C:\\x\\a.exe::$DATA', 'app.msix', 'disk.iso', 'x.msc']) assert.equal(pc.runsSomething(p), true, p);
+  for (const p of ['C:\\x\\setup.exe.', 'C:\\x\\setup.exe .. ', 'C:\\x\\a.exe::$DATA', 'app.msix', 'disk.iso', 'x.msc', '~/Downloads/fix.py', 'tool.pyw', 'go.sh']) assert.equal(pc.runsSomething(p), true, p);
   for (const p of ['~/Documents/notes.txt', 'C:\\Pictures', 'photo.jpg']) assert.equal(pc.runsSomething(p), false, p);
   assert.equal(pc.sendKeysCombo('ctrl+shift+t'), '^+t');
+});
+test("PC paths start at the user's home and real folders, not the app's working folder", async () => {
+  const { createRequire } = await import('node:module');
+  const pc = createRequire(import.meta.url)('../pc.js');
+  const os = await import('node:os'), path = await import('node:path');
+  const home = os.homedir(), folder = (k) => path.join('/od', k);   // e.g. OneDrive moved Desktop and Documents
+  const cwd = process.cwd(); process.chdir(os.tmpdir());
+  try {
+    assert.equal(pc.expand('Desktop', folder), path.join('/od', 'Desktop'));
+    assert.equal(pc.expand('Desktop/todo.txt', folder), path.join('/od', 'Desktop', 'todo.txt'));
+    assert.equal(pc.expand('documents\\report.txt', folder), path.join('/od', 'Documents', 'report.txt'));
+    assert.equal(pc.expand('~/Downloads/a.pdf', folder), path.join('/od', 'Downloads', 'a.pdf'));
+    assert.equal(pc.expand('~', folder), home);
+    assert.equal(pc.expand('', folder), home);
+    assert.equal(pc.expand('notes.txt', folder), path.join(home, 'notes.txt'));
+    assert.equal(pc.expand('~/code/x.js', folder), path.join(home, 'code', 'x.js'));
+    assert.equal(pc.expand('/etc/hosts', folder), '/etc/hosts');
+    assert.equal(pc.expand('"DesktopStuff/a.txt"', folder), path.join(home, 'DesktopStuff', 'a.txt'));
+  } finally { process.chdir(cwd); }
 });
 
 // ------------------------------------------------------------------ hearing and speaking: the plain rules (same as Speech.kt)
