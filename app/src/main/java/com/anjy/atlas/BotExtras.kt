@@ -179,7 +179,8 @@ object BotExtras {
         /** The next time [s] is due strictly after [after] (ms), in this device's time zone. */
         fun nextRun(s: JSONObject?, after: Long, zone: ZoneId = ZoneId.systemDefault()): Long {
             if (s == null) return 0
-            if (s.optString("kind") == "interval") return after + maxOf(MIN_INTERVAL_MIN, s.optInt("everyMin")) * 60_000L
+            // on a fixed grid (not "N minutes after it was set"), so the phone and the laptop agree on each slot (botx.js)
+            if (s.optString("kind") == "interval") { val p = maxOf(MIN_INTERVAL_MIN, s.optInt("everyMin")) * 60_000L; return (Math.floorDiv(after, p) + 1) * p }
             val (hh, mm) = s.optString("time", "09:00").split(":").let { (it.getOrNull(0)?.toIntOrNull() ?: 9).coerceIn(0, 23) to (it.getOrNull(1)?.toIntOrNull() ?: 0).coerceIn(0, 59) }   // a bad "time" from sync or a model must not throw in the alarm
             val a = Instant.ofEpochMilli(after).atZone(zone)
             if (s.optString("kind") == "monthly") {

@@ -595,6 +595,11 @@ test('routines: schedules in plain words', () => {
   assert.equal(X.describeSchedule(s), 'Every weekday at 08:00');
   const m = X.parseSchedule('every month on the 31st at 9am', now);
   assert.equal(new Date(X.nextRun(m, new Date(2027, 1, 1).getTime())).getDate(), 28, 'a short month uses its last day');
+  // "every 30 minutes" lands on the same slots whichever device works it out, and whenever
+  const every = { kind: 'interval', everyMin: 30 }, t = Date.UTC(2026, 10, 18, 8, 7, 13);
+  assert.equal(X.nextRun(every, t), Date.UTC(2026, 10, 18, 8, 30));
+  assert.equal(X.nextRun(every, t + 11 * 60000), Date.UTC(2026, 10, 18, 8, 30), 'the other device, 11 minutes later, agrees');
+  assert.equal(X.nextRun(every, Date.UTC(2026, 10, 18, 8, 30)), Date.UTC(2026, 10, 18, 9, 0), 'right on a slot: the next one');
 });
 
 test('routines: fire once when due, even after a long sleep; only the device the cloud picks runs it', async () => {

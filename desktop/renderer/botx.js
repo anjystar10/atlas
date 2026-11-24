@@ -154,7 +154,9 @@ export function describeSchedule(s) {
 /** The next time [s] is due strictly after [after] (ms), in this device's own time zone. */
 export function nextRun(s, after) {
   if (!s) return 0;
-  if (s.kind === 'interval') return after + Math.max(MIN_INTERVAL_MIN, s.everyMin) * 60000;
+  // on a fixed grid (not "N minutes after it was set"), so the phone and the laptop agree on each slot and the cloud
+  // claim lets only one of them run it
+  if (s.kind === 'interval') { const p = Math.max(MIN_INTERVAL_MIN, Number(s.everyMin) || 0) * 60000; return (Math.floor(after / p) + 1) * p; }
   const [hh, mm] = String(s.time || '09:00').split(':').map(Number);
   const a = new Date(after);
   if (s.kind === 'monthly') {

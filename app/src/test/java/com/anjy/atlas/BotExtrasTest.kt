@@ -59,6 +59,10 @@ class BotExtrasTest {
         assertEquals("Every weekday at 08:00", R.describeSchedule(s))
         val m = R.parseSchedule("every month on the 31st at 9am", now, zone)
         assertEquals(28, local(R.nextRun(m, ms(2027, 2, 1, 0), zone)).dayOfMonth)   // a short month uses its last day
+        // "every 30 minutes" lands on the same slots whichever device works it out (botx.js)
+        val every = org.json.JSONObject().put("kind", "interval").put("everyMin", 30); val t = java.time.Instant.parse("2026-11-18T08:07:13Z").toEpochMilli()
+        assertEquals(java.time.Instant.parse("2026-11-18T08:30:00Z").toEpochMilli(), R.nextRun(every, t, zone))
+        assertEquals(java.time.Instant.parse("2026-11-18T08:30:00Z").toEpochMilli(), R.nextRun(every, t + 11 * 60_000L, zone))
         // a broken time (from sync or a model) is clamped, never thrown inside the alarm
         assertTrue(R.nextRun(org.json.JSONObject().put("kind", "daily").put("time", "24:75"), now, zone) > now)
     }
