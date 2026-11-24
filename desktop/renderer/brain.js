@@ -241,7 +241,13 @@ export function session(p, key, history, user, media, tools = TOOLS) {
       if (p.id === 'openai' && model.startsWith('gpt-6')) body.reasoning_effort = 'none';
       const headers = p.local ? {} : { Authorization: `Bearer ${this.key}` };
       if (p.id === 'openrouter') { headers['HTTP-Referer'] = 'https://github.com/anjystar10/atlas'; headers['X-Title'] = 'Atlas'; }
-      const r = await post(`${base}/chat/completions`, headers, body, p.name, p.local ? 600000 : 180000);
+      let r;
+      try { r = await post(`${base}/chat/completions`, headers, body, p.name, p.local ? 600000 : 180000); }
+      catch (e) {
+        // a local model that can't use tools (Ollama: "gemma3 does not support tools") still answers in words
+        if (!(p.local && e instanceof Failure && e.code === 400 && /support(s)? tools/i.test(e.message))) throw e;
+        delete body.tools; r = await post(`${base}/chat/completions`, headers, body, p.name, 600000);
+      }
       const choice = (r.choices || [])[0]; const m = choice && choice.message;
       if (!m) throw new Failure(`${p.name} sent back an empty answer.`);
       const text = typeof m.content === 'string' ? m.content : '';

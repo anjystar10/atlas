@@ -1144,3 +1144,21 @@ test('triggers: every fixture case gives the answer the phone must also give', a
   assert.equal(F.priceStartAbove.steps[1].events.length, 0, 'already above at the first look: no event');
   assert.equal(F.file.steps.flatMap((x) => x.events).length, 1, 'one new pdf, once, after it settled; edits to an old file are not new');
 });
+
+test("a local model that can't use tools still answers, in words", async () => {
+  const host = globalThis.window.atlasHost; const sent = [];
+  db.prefs = { ...db.prefs, model_local: 'gemma3:4b' };
+  host.fetch = async (url, o) => {
+    const b = JSON.parse(o.body); sent.push(b);
+    if (b.tools) return { status: 400, ok: false, text: '{"error":{"message":"registry.ollama.ai/library/gemma3:4b does not support tools","type":"api_error"}}' };
+    return { status: 200, ok: true, text: '{"choices":[{"message":{"role":"assistant","content":"Hello there"}}]}' };
+  };
+  try {
+    const t = await brain.session(brain.byId('local'), 'local', [], 'hi', []).call('sys');
+    assert.equal(t.text, 'Hello there'); assert.equal(sent.length, 2); assert.ok(!sent[1].tools);
+    // a cloud service's refusal is not retried this way
+    host.fetch = async () => ({ status: 400, ok: false, text: '{"error":{"message":"model does not support tools"}}' });
+    db.prefs.keys = { groq: [{ key: 'gsk_x', restUntil: 0, bad: false, fails: 0, problem: '' }] };
+    await assert.rejects(brain.session(brain.byId('groq'), 'gsk_x', [], 'hi', []).call('sys'), /support tools/);
+  } finally { delete host.fetch; }
+});
