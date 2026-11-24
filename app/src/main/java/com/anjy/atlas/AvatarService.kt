@@ -428,7 +428,7 @@ class AvatarService : Service() {
                     Speech.WhileWorking.PASS_ON -> {
                         turns++
                         if (!Conversation.usingPhone) say(t, who = "You")
-                        Conversation.interject(this, t, onSpoken = { if (talking) handler.postDelayed({ listen() }, 400) })
+                        Conversation.interject(this, t, onSpoken = { if (talking && Hear.handsFree(this)) handler.postDelayed({ listen() }, 400) })
                         handler.postDelayed({ listenAlongside() }, 300)
                     }
                 }
@@ -463,7 +463,7 @@ class AvatarService : Service() {
                 turns++; hearFails = 0
                 say(t, who = "You")
                 // listen again once Atlas has finished speaking (a short gap, so the tail of its own voice isn't heard)
-                Conversation.send(this, t, spoken = true, onSpoken = { if (talking) handler.postDelayed({ listen() }, 400) })
+                Conversation.send(this, t, spoken = true, onSpoken = { if (talking && Hear.handsFree(this)) handler.postDelayed({ listen() }, 400) })
                 // the conversation goes on while it works
                 handler.postDelayed({ listenAlongside() }, 700)
             },

@@ -2544,7 +2544,7 @@ class MainActivity : Activity() {
         brain.add(switchRow(null, "Don't Switch Services", KeyRouter.dontSwitch(this)) { on -> KeyRouter.setDontSwitch(this, on); render(keepScroll = true) }, 14)
         brain.add(text(if (KeyRouter.dontSwitch(this)) "Atlas stays on ${active?.name ?: "the service you chose"}, even when it runs out or there's no internet. Your other ${active?.name ?: ""} keys can still take over.".replace("  ", " ")
             else "Off: when a service keeps failing (Atlas tries it 3 times first) or all its keys run out, Atlas moves to another service with a key and carries on.", 13f, MUTED), 6)
-        brain.add(text("Keys stay on this phone (not in backups). When Atlas thinks online, what you say goes to that service; free tiers may use it to improve their products.", 13f, MUTED), 12)
+        brain.add(text((if (KeyShare.on(this) && Sync.linked(this)) "Share My AI Keys is on: your keys also go to your PC, inside the encrypted sync (never in backups)." else "Keys stay on this phone (not in backups; they go to your PC only if you turn on Share My AI Keys under Your Devices).") + " When Atlas thinks online, what you say goes to that service; free tiers may use it to improve their products.", 13f, MUTED), 12)
         body.add(brain, 8)
 
         // Offline model

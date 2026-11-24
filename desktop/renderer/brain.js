@@ -575,8 +575,9 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
   const hist = history();
   const user = { id: crypto.randomUUID(), user: true, text: q, source: 'You', at: Date.now(), steps: [], media: attachments.map((x) => ({ kind: x.kind, name: x.name, thumb: x.thumb || null })) };
   const reply = { id: crypto.randomUUID(), user: false, text: '', source: 'Atlas', at: Date.now() + 1, steps: [], pending: true };
-  db.chat.push(user, reply); saveChat();
-  convo.busy = true; convo.status = 'Thinking'; const mine = ++convo.stopFlag; changed('chat');
+  db.chat.push(user, reply);
+  // busy before anyone hears of the new messages: the HUD terminal holds back a pending reply only while Atlas is busy
+  convo.busy = true; convo.status = 'Thinking'; const mine = ++convo.stopFlag; saveChat();
   try {
     let p = active();
     if (!p) { reply.text = 'Add an AI key in **Me → Brain** (Gemini\'s is free), or start a local model, so I can think.'; reply.source = 'Atlas'; return reply; }

@@ -735,7 +735,7 @@ function renderMe(page) {
   bc.appendChild(settingRow("Don't Switch Services", stayOn, (on) => { setPref('dont_switch', on); render(true); },
     stayOn ? `Atlas stays on ${act ? act.name : 'the service you chose'}, even when it runs out or you're offline (no local model either). Your other keys for it can still take over.`
       : 'Off: when a service keeps failing (Atlas tries it 3 times first) or all its keys run out, Atlas moves to another service, or a local model when offline, and carries on.'));
-  bc.appendChild(h('<p class="small muted" style="margin-top:10px">Keys stay on this PC (they don\'t sync). When Atlas thinks online, what you say goes to that service.</p>'));
+  bc.appendChild(h(`<p class="small muted" style="margin-top:10px">${keyshare.on() && sync.code() ? 'Share My AI Keys is on: your keys also go to your phone, inside the encrypted sync.' : 'Keys stay on this PC (they don\'t sync unless you turn on Share My AI Keys under Your Devices).'} When Atlas thinks online, what you say goes to that service.</p>`));
 
   // Voice
   deviceCard(col);

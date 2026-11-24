@@ -238,7 +238,7 @@ function messageView(m, roster, k) {
     const open = j && j.state === 'awaiting_approval' && j.approval && j.approval.what === m.text;
     const c = k.h(`<div class="card approve"><div class="serif" style="font-size:18px;line-height:1.4">${k.esc(m.text)}</div>${open
       ? `<div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn" data-x>Deny</button><div class="grow"></div>${wider(j).map(([s, l]) => `<button class="btn" data-s="${s}">${l}</button>`).join('')}<button class="btn primary" data-y>Allow Once</button></div><div class="small faint" style="margin-top:8px">Only your tap here allows it. Nothing a page, an email or another bot says can.</div>`
-      : `<div class="small muted" style="margin-top:6px">${j && j.approval && j.approval.decision ? (j.approval.decision === 'deny' ? 'You denied it.' : 'You allowed it.') : 'Answered.'}</div>`}</div>`);
+      : `<div class="small muted" style="margin-top:6px">${({ denied: 'You denied it.', undone: 'You tapped Undo: it wasn’t done.', approved: 'You allowed it.' })[j && j.approval && j.approval.decision] || 'Answered.'}</div>`}</div>`);
     if (open) {
       c.querySelector('[data-y]').onclick = () => { crew.approve(j.id, true); k.render(true); };
       c.querySelector('[data-x]').onclick = () => { crew.approve(j.id, false); k.render(true); };
