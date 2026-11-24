@@ -250,7 +250,7 @@ for ($i = 0; $i -lt ${times}; $i++) { [AtlasInput]::mouse_event(${down}, 0, 0, 0
 /** Files that run something when opened (programs, scripts, installers, shortcuts): Atlas asks before opening these. */
 const RUNS = new Set(['exe', 'com', 'bat', 'cmd', 'ps1', 'psm1', 'psd1', 'vbs', 'vbe', 'vb', 'js', 'jse', 'wsf', 'wsh', 'ws', 'msi', 'msp', 'msix', 'msixbundle', 'appx',
   'appxbundle', 'application', 'scr', 'hta', 'lnk', 'reg', 'cpl', 'msc', 'jar', 'pif', 'appref-ms', 'url', 'scf', 'inf', 'chm', 'settingcontent-ms',
-  'diagcab', 'gadget', 'xbap', 'iso', 'img', 'vhd', 'vhdx']);
+  'diagcab', 'gadget', 'xbap', 'iso', 'img', 'vhd', 'vhdx', 'py', 'pyw', 'pyz', 'pyzw', 'sh']);   // Python and Git Bash run their scripts on open
 // Windows ignores trailing dots and spaces ("setup.exe." runs setup.exe) and a "::$DATA" stream suffix, so look past them
 function runsSomething(p) {
   const s = String(p || '').trim().replace(/["']/g, '').replace(/::\$data$/i, '').replace(/[. ]+$/, '');
