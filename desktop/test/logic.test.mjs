@@ -1116,7 +1116,7 @@ test('triggers: every fixture case gives the answer the phone must also give', a
   const R = await import('../renderer/trigrules.js');
   const F = JSON.parse((await import('node:fs')).readFileSync(new URL('../../tools/trigger-fixtures.json', import.meta.url), 'utf8'));
   for (const c of F.clean) { const o = R.cleanTrigger(c.input, c.i); assert.deepEqual(o, c.out); assert.equal(R.summary(o), c.summary); }
-  for (const c of F.goal) { assert.equal(R.goalFor(c.bot, c.trigger, c.event), c.out); assert.equal(R.eventKey(c.bot.id, c.trigger.id, c.event), c.key); }
+  for (const c of F.goal) { assert.equal(R.goalFor(c.bot, c.trigger, c.event), c.out); assert.equal(R.eventKey(c.bot.id, c.trigger.id, c.event), c.key); assert.equal(R.claimKey(c.bot.id, c.trigger.id, c.event), c.claim); }
   for (const c of F.where) assert.equal(R.where({ home: c.home || undefined }, c.device), c.out);
   for (const c of F.awake) assert.equal(R.awakeLabel(c.bot), c.out);
   for (const c of F.watchable) assert.equal(R.watchable(c.type, c.device), c.out);
@@ -1126,7 +1126,7 @@ test('triggers: every fixture case gives the answer the phone must also give', a
   s = {}; for (const c of F.email.steps) { const r = R.emailEvents(s, c.messages, F.email.cfg); s = r.state; assert.deepEqual(r.events, c.events); assert.deepEqual(r.state, c.state); }
   { const r = R.emailEvents(F.emailFolderChange.before, F.emailFolderChange.messages, F.emailFolderChange.cfg); assert.deepEqual(r.events, []); assert.deepEqual(r.state, F.emailFolderChange.state); }
   for (const P of [F.price, F.priceStartAbove]) { s = {}; for (const c of P.steps) { const r = R.priceEvents(s, c.price, c.at, P.cfg); s = r.state; assert.deepEqual(r.events, c.events); assert.deepEqual(r.state, c.state); } }
-  for (const c of F.notification) { assert.equal(R.notificationMatches(c.cfg, c.n), c.out); assert.deepEqual(R.notificationEvent(c.n), c.event); }
+  for (const c of F.notification) { assert.equal(R.notificationMatches(c.cfg, c.n), c.out); assert.deepEqual(R.notificationEvent(c.n, c.at), c.event); }
   for (const c of F.glob) assert.equal(R.globMatch(c.pattern, c.name), c.out, c.pattern + ' ' + c.name);
   s = null; for (const c of F.file.steps) { const r = R.fileEvents(s, c.listing, c.at, F.file.cfg); s = r.state; assert.deepEqual(r.events, c.events); assert.deepEqual(r.state, c.state); }
   // the cases say what they should, not just what the code did
