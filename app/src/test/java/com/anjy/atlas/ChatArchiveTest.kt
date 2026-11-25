@@ -21,4 +21,14 @@ class ChatArchiveTest {
         val (kept, gone) = ChatArchive.trimmed(listOf(m("a", 5)), m("b", 9), 200)
         assertEquals(listOf("b", "a"), kept.map { it.id }); assertTrue(gone.isEmpty())
     }
+
+    /** An unreadable index is made again from the chat files: each one's title, time and size come from its records. */
+    @Test fun aChatsLineIsWorkedOutFromItsRecords() {
+        val recs = org.json.JSONArray("""[{"id":"1","user":false,"text":"Hi, I'm Atlas","at":100},{"id":"2","user":true,"text":"what's the  weather in Lagos","at":200},{"id":"3","user":false,"text":"Sunny","at":300}]""")
+        val m = ChatArchive.metaOf("abc-1", recs, 5)!!
+        assertEquals("abc-1", m.id); assertEquals("What's the weather in Lagos", m.title); assertEquals(300L, m.at); assertEquals(3, m.count)
+        // no time on the last record: the file's own time
+        assertEquals(5L, ChatArchive.metaOf("x", org.json.JSONArray("""[{"user":true,"text":"yo"}]"""), 5)!!.at)
+        assertEquals(null, ChatArchive.metaOf("x", org.json.JSONArray(), 5))
+    }
 }
