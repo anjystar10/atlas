@@ -26,4 +26,13 @@ class LinkTextTest {
         assertEquals("https://github.com/x", LinkText.web("github.com/x"))
         assertNull(LinkText.web("me@site.com")); assertNull(LinkText.web("notes.txt")); assertNull(LinkText.web("e.g"))
     }
+    @Test fun onlyWebAddressesBecomeWebLinks() {
+        // a reply (or a page Atlas read) can't make a tap run script, open another app's intent, or load raw data
+        assertNull(LinkText.web("javascript:alert(1)"))
+        assertNull(LinkText.web("intent://scan/#Intent;scheme=zxing;package=com.example;end"))
+        assertNull(LinkText.web("data:text/html,<b>hi</b>"))
+        assertNull(LinkText.web("file:///sdcard/secret.txt"))
+        assertNull(LinkText.web("content://com.anjy.atlas.files/x"))
+        assertEquals("https://example.com", LinkText.web("example.com"))
+    }
 }

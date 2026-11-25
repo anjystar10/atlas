@@ -2409,7 +2409,9 @@ class MainActivity : Activity() {
                 gradientRadius = dp(46) * 0.75f; setGradientCenter(0.34f, 0.28f); colors = intArrayOf(Color.parseColor("#DDE6FF"), Palette.NIGHT.blue, Palette.NIGHT.accent, BG) }
         } else TextView(this).apply {
             val b = BotExtras.specialist(botId)
-            text = b?.optString("icon")?.ifBlank { null } ?: b?.optString("name")?.trim()?.take(1)?.uppercase() ?: "•"
+            // the name's first letter as a whole character: take(1) split an emoji or a non-Latin letter in half (a box)
+            val n = b?.optString("name")?.trim().orEmpty()
+            text = b?.optString("icon")?.ifBlank { null } ?: (if (n.isEmpty()) "•" else n.substring(0, n.offsetByCodePoints(0, 1)).uppercase())
             textSize = 19f; gravity = Gravity.CENTER; setTextColor(FG); typeface = SEMI
             background = quietBg()
         }

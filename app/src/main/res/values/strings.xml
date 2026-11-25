@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="access_summary">Lets Atlas use your phone for you when you ask</string>
-    <string name="access_description">Atlas is your assistant. With this on, when you ask it to do something in an app (for example, open ChatGPT and ask a question), Atlas can read what is on the screen and tap, type and scroll to do it. It only acts on your requests, and what it reads is sent to Gemini only while it is doing a task you asked for.</string>
+    <string name="access_description">Atlas is your assistant. With this on, when you ask it to do something in an app (for example, open ChatGPT and ask a question), Atlas can read what is on the screen and tap, type and scroll to do it. It only acts on your requests, and what it reads is sent to the AI service you chose (with your own key) only while it is doing a task you asked for.</string>
 </resources>
