@@ -338,7 +338,8 @@ class AvatarService : Service() {
             onSend = { t -> panelSend(t) },
             onAnswer = { yes -> panelAnswer(yes) },
             onOpenApp = { closePanel(); try { startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (e: Exception) { Log.w(TAG, "open Atlas", e) } },
-            onDismiss = { closePanel() })
+            onDismiss = { closePanel() },
+            onTouched = { armPanelIdle() })
         p.show()
         if (!p.shown) return false
         panel = p
@@ -363,7 +364,10 @@ class AvatarService : Service() {
         updatePill()
     }
 
-    /** After a quiet spell with nothing going on (and you not typing), the panel goes by itself. */
+    /**
+     * After a quiet spell with nothing going on (and you not typing), the panel goes by itself. A touch on it counts as
+     * something going on: it used to close 30 s after the last word of a reply even while you were scrolling through it.
+     */
     private val panelIdle = Runnable { val p = panel ?: return@Runnable; if (!talking && !Conversation.busy && !Voice.busy && !p.typing) closePanel() else armPanelIdle() }
     private fun armPanelIdle() { handler.removeCallbacks(panelIdle); if (panel != null) handler.postDelayed(panelIdle, 30_000) }
 

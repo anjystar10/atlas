@@ -40,6 +40,8 @@ class MiniPanel(
     private val onAnswer: (allow: Boolean) -> Unit,
     private val onOpenApp: () -> Unit,
     private val onDismiss: () -> Unit,
+    /** Any touch on the panel (reading or scrolling a reply, tapping the field): it isn't idle. */
+    private val onTouched: () -> Unit = {},
 ) {
     private val dm = ctx.resources.displayMetrics
     private fun dp(v: Int) = (v * dm.density).roundToInt()
@@ -72,6 +74,10 @@ class MiniPanel(
         override fun dispatchKeyEvent(event: KeyEvent): Boolean {
             if (event.keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP) { onDismiss(); return true }
             return super.dispatchKeyEvent(event)
+        }
+        override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+            if (ev.actionMasked != MotionEvent.ACTION_OUTSIDE) onTouched()
+            return super.dispatchTouchEvent(ev)
         }
     }
     private val card = LinearLayout(ctx)
