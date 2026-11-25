@@ -811,6 +811,8 @@ class MainActivity : Activity() {
     private var brainShown: String? = null
 
     companion object {
+        /** The Notifications and Microphone rows in Me (apart from the asks at start and on first use). */
+        private const val REQ_NOTIF_ROW = 114; private const val REQ_MIC_ROW = 116
         private const val REQ_MODEL = 11; private const val REQ_IMPORT = 13; private const val REQ_NOTIF = 14; private const val REQ_MIC = 15; private const val REQ_MIC_WAKE = 16; private const val REQ_MEDIA = 17; private const val REQ_SNAP = 18
         const val AI_STUDIO_KEYS = "https://aistudio.google.com/apikey"
     }
@@ -1043,9 +1045,19 @@ class MainActivity : Activity() {
                 if (ok) enableWake() else showBanner("“Hey Atlas” needs the microphone.", MUTED)
                 if (tab == 2) render(keepScroll = true)
             }
+            REQ_NOTIF_ROW, REQ_MIC_ROW -> {
+                // after two "Don't allow"s Android stops asking: the answer comes straight back and the row seemed dead.
+                // Then its settings page opens instead (a quick answer means no question was shown).
+                if (!ok && android.os.SystemClock.elapsedRealtime() - askedAt < 600) try {
+                    startActivity(if (requestCode == REQ_NOTIF_ROW) Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                        else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+                } catch (_: Exception) { showBanner("Android won't ask again: allow it in Settings → Apps → Atlas.", MUTED) }
+                if (tab == 2) render(keepScroll = true)
+            }
             else -> if (tab == 2) render(keepScroll = true)
         }
     }
+    private var askedAt = 0L
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
@@ -1100,7 +1112,9 @@ class MainActivity : Activity() {
         val far = tab == 0 && Conversation.messages.isNotEmpty() && body.height - (scroll.scrollY + scroll.height) > scroll.height * 0.8f
         val chip = latestChip ?: run {
             if (!far) return
-            val host = findViewById<ViewGroup>(android.R.id.content) ?: return
+            // in the page's own frame (padded for the system bars and the keyboard): on the bare content view it sat under
+            // the keyboard, and over the ask bar with three-button navigation
+            val host = confetti.parent as? ViewGroup ?: return
             TextView(this).apply {
                 text = "Latest  ↓"; textSize = 14f; typeface = SEMI; setTextColor(ON)
                 setPadding(dp(18), dp(9), dp(18), dp(9))
@@ -1746,7 +1760,8 @@ class MainActivity : Activity() {
                 val uris = mutableListOf<Uri>()
                 for (i in 0 until clip.itemCount) { val u = clip.getItemAt(i).uri; if (u != null) uris.add(u) else tookAll = false }
                 if (uris.isNotEmpty()) addMedia(uris)
-                if (tookAll) null else payload
+                // what wasn't attached (plain text) goes back to the box; the attached files aren't pasted as text too
+                if (tookAll) null else if (uris.isEmpty()) payload else payload.partition { it.uri != null }.second
             }
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
@@ -1807,7 +1822,7 @@ class MainActivity : Activity() {
     private fun addMedia(uris: List<Uri>, afterEach: (Uri) -> Unit = {}) {
         // one batch after another: a second pick waits for the first to finish copying (Stop stops the one copying now)
         val before = copying
-        copying = scope.launch {
+        copying = scope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             before?.join()
             for (uri in uris) {
                 try {
@@ -1832,8 +1847,10 @@ class MainActivity : Activity() {
                 } finally { afterEach(uri) }
             }
             copyLine = null; showTray(); updateSend()
-        }
+        }.also { job -> copyJobs.add(job); job.invokeOnCompletion { runOnUiThread { copyJobs.remove(job) } }; job.start() }
     }
+    /** Every batch still adding (a second pick waits for the first): Stop cancels them all. */
+    private val copyJobs = mutableListOf<kotlinx.coroutines.Job>()
 
     // >>> smooth
     /** Hold a message: Copy, Share, Remember (saves it to Atlas's memory), Ask Again (sends the question once more). */
@@ -1924,7 +1941,8 @@ class MainActivity : Activity() {
         copyLine?.let { line ->
             t.addView(text(line, 12f, ACCENT_INK, SEMI).apply {
                 setPadding(dp(6), dp(6), dp(6), 0); isClickable = true; contentDescription = "Stop adding"
-                setOnClickListener { copying?.cancel(); copyLine = null; showTray(); showBanner("Stopped.", MUTED) }
+                // the batch copying now may be an earlier one than the last picked: cancelling only the last left it going
+                setOnClickListener { copyJobs.toList().forEach { it.cancel() }; copying?.cancel(); copyLine = null; showTray(); showBanner("Stopped.", MUTED) }
                 copyView = this
             })
         }
@@ -1955,7 +1973,8 @@ class MainActivity : Activity() {
         if (!::composer.isInitialized) return
         composer.visibility = if (tab == 0) View.VISIBLE else View.GONE
         fade.visibility = if (tab == 0) View.VISIBLE else View.GONE
-        nav.visibility = if (imeOpen && tab == 0) View.GONE else View.VISIBLE
+        // with the keyboard open the tab bar steps aside on every page: a field scrolled up to the keyboard's edge sat under it
+        nav.visibility = if (imeOpen) View.GONE else View.VISIBLE
         (composer.layoutParams as? FrameLayout.LayoutParams)?.let {
             val g = dp(gutterDp())
             it.bottomMargin = dp(if (imeOpen) 10 else 86); it.leftMargin = g; it.rightMargin = g; composer.layoutParams = it
@@ -2963,8 +2982,8 @@ class MainActivity : Activity() {
         val pm = getSystemService(PowerManager::class.java)
         val am = getSystemService(android.app.AlarmManager::class.java)
         val notifOk = checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        rel.add(settingRow("Notifications", if (notifOk) "Allowed" else "Blocked") { requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIF) })
-        rel.add(settingRow("Microphone", if (micOk) "Allowed" else "Not allowed") { requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC_WAKE + 100) }, 8)
+        rel.add(settingRow("Notifications", if (notifOk) "Allowed" else "Blocked") { askedAt = android.os.SystemClock.elapsedRealtime(); requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQ_NOTIF_ROW) })
+        rel.add(settingRow("Microphone", if (micOk) "Allowed" else "Not allowed") { askedAt = android.os.SystemClock.elapsedRealtime(); requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), REQ_MIC_ROW) }, 8)
         rel.add(settingRow("Exact Alarms", if (am.canScheduleExactAlarms()) "Allowed" else "Not allowed") {
             startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }, 8)
