@@ -128,6 +128,8 @@ function check(order, inst, market, account, state, plan) {
   const tp = order.takeProfit != null && order.takeProfit !== '' ? roundTo(order.takeProfit, inst.tickSize) : null;
   if (sl != null && ((side === 'buy' && Number(sl) >= ref) || (side === 'sell' && Number(sl) <= ref))) no('stop_side', `The stop loss (${sl}) is on the wrong side of the price (${ref}).`);
   if (tp != null && ((side === 'buy' && Number(tp) <= ref) || (side === 'sell' && Number(tp) >= ref))) no('tp_side', `The take profit (${tp}) is on the wrong side of the price (${ref}).`);
+  // Bybit spot takes a stop loss / take profit only with a limit order (its docs): on a market order it would not protect anything
+  if (inst.tpslLimitOnly && type !== 'limit' && (sl != null || tp != null)) no('tpsl_needs_limit', `On ${sym} a stop loss or take profit only goes with a limit order. Use a limit order, or leave them out.`);
 
   // worst case: what this order can lose if it goes wrong. With a stop: the distance to it. Spot bought with no stop:
   // at worst it goes to zero (shown to the user; the per-order size limit is what bounds it). Futures with no stop: no cap.
@@ -233,4 +235,17 @@ function stopFromOther(state, rec) {
 /** The stops this device has had, with [id] added (the last few). */
 function addStop(stops, id) { return [...(Array.isArray(stops) ? stops : []).filter((x) => x !== id), id].slice(-STOPS_KEPT); }
 
-module.exports = { stopIdOf, stopRecord, stopFromOther, addStop, symbolAllowed, DEFAULT_LIMITS, PAPER_LIMITS, limitsFor, floorTo, roundTo, decimalsOf, inHours, rollDay, lossToday, check, planCovers, standingCovers, summary, bybitPayload, money };
+// ---------------------------------------------------------------- orders that guard an open position
+/**
+ * Whether an open order guards an open futures position: in the same contract, on the other side of it (its stop loss or
+ * its target). Cancelling it would leave the position without its protection, so the stop switch keeps it and a LIVE
+ * cancel refuses it. positions: [{symbol, size, type: 1 long | 2 short}] (spot holdings have no type: never guarded here).
+ */
+function protectsPosition(order, positions) {
+  const sym = String((order && order.symbol) || '').trim().toUpperCase(), side = String((order && order.side) || '').toLowerCase();
+  if (!sym) return false;
+  return (Array.isArray(positions) ? positions : []).some((p) => p && String(p.symbol || '').trim().toUpperCase() === sym && Math.abs(Number(p.size)) > 0 &&
+    ((Number(p.type) === 1 && side === 'sell') || (Number(p.type) === 2 && side === 'buy')));
+}
+
+module.exports = { protectsPosition, stopIdOf, stopRecord, stopFromOther, addStop, symbolAllowed, DEFAULT_LIMITS, PAPER_LIMITS, limitsFor, floorTo, roundTo, decimalsOf, inHours, rollDay, lossToday, check, planCovers, standingCovers, summary, bybitPayload, money };

@@ -67,11 +67,14 @@ async function save(win, acc, secret) {
     broker: acc.broker === 'projectx' ? 'projectx' : 'bybit', mode: acc.mode === 'live' ? 'live' : 'paper',
     base: acc.broker === 'projectx' ? (String(acc.base || '').trim() || 'https://api.topstepx.com') : undefined,
     remoteId: acc.remoteId != null && acc.remoteId !== '' ? Number(acc.remoteId) : undefined,
-    limits: acc.limits || (was && was.limits) || undefined, default: !!acc.default, updatedAt: Date.now() };
+    // limits are only ever set in Limits (setLimits). The page sends back the limits it was shown, defaults included, so
+    // they are not taken from it: an edit must not turn PAPER's practice-sized defaults into this account's own limits.
+    // Becoming LIVE starts from the LIVE defaults: limits set for practice don't carry over to real money.
+    limits: becomesLive(acc, was) ? undefined : (was && was.limits) || undefined, default: !!acc.default, updatedAt: Date.now() };
   if (a.broker === 'projectx' && !/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(a.base)) return { error: 'The prop firm address must look like https://api.topstepx.com' };
   if (a.mode === 'live' && (!was || was.mode !== 'live')) {
     const r = await dialog.showMessageBox(win, { type: 'warning', buttons: ['Make It LIVE', 'Keep It Paper'], defaultId: 1, cancelId: 1, title: 'Real money',
-      message: `Make “${a.name}” a LIVE account?`, detail: 'Orders will use real money. Each LIVE order shows you what it is and its worst case, and waits for your OK (or a plan you confirmed). Losses are possible.' });
+      message: `Make “${a.name}” a LIVE account?`, detail: `Orders will use real money. Each LIVE order shows you what it is and its worst case, and waits for your OK (or a plan you confirmed). Its limits start at the LIVE defaults (${R.money(R.DEFAULT_LIMITS.maxOrderUsd)} or ${R.DEFAULT_LIMITS.maxContracts} contract an order, ${R.money(R.DEFAULT_LIMITS.maxDailyLossUsd)} loss a day, ${R.DEFAULT_LIMITS.maxOrdersPerDay} trades a day); change them in Limits. Losses are possible.` });
     if (r.response !== 0) return { error: 'Kept as paper.' };
   }
   if (secret && Object.values(secret).some((v) => v)) { const all = secrets(); all[a.id] = secret; saveSecrets(all); }
@@ -80,6 +83,8 @@ async function save(win, acc, secret) {
   store.set({ ...d, accounts });
   return { ok: a.id };
 }
+/** An account that becomes LIVE now (new, or PAPER until now). */
+function becomesLive(acc, was) { return acc.mode === 'live' && (!was || was.mode !== 'live'); }
 function remove(id) {
   const d = store.get();
   store.set({ ...d, accounts: (d.accounts || []).filter((a) => a.id !== id) });
@@ -106,8 +111,13 @@ async function test(acc, secret) {
   try {
     const s = secret && Object.values(secret).some((v) => v) ? secret : secrets()[acc.id];
     if (!s) return { error: 'The keys are needed.' };
-    const b = brokers.make({ ...acc, remoteId: acc.remoteId || undefined }, s);
-    if (acc.broker === 'projectx') { const list = await b.accounts(); return { ok: true, accounts: list }; }
+    // the same account save() would store: Bybit's address comes from the mode alone (the form also carries the prop firm
+    // field, which must never send a Bybit key elsewhere), and a prop firm's address must be https
+    const broker = acc.broker === 'projectx' ? 'projectx' : 'bybit';
+    const base = broker === 'projectx' ? (String(acc.base || '').trim() || 'https://api.topstepx.com') : undefined;
+    if (broker === 'projectx' && !/^https:\/\/[a-z0-9.-]+(:\d+)?$/i.test(base)) return { error: 'The prop firm address must look like https://api.topstepx.com' };
+    const b = brokers.make({ broker, mode: acc.mode === 'live' ? 'live' : 'paper', base, remoteId: acc.remoteId || undefined }, s);
+    if (broker === 'projectx') { const list = await b.accounts(); return { ok: true, accounts: list }; }
     const a = await b.account();
     return { ok: true, equity: a.equity };
   } catch (e) { return { error: e.message }; }

@@ -181,3 +181,70 @@ test('trading: a day that began without an equity reading still counts its loss 
   assert.equal(s.dayStartEquity, 1000);
   assert.equal(R.lossToday(s, 960), 40);
 });
+
+// ------------------------------------------------------------------ scan 3: money paths fail closed
+test('ProjectX: a stop entry measures its brackets from the stop price (where it fills), as the risk check did', async () => {
+  const srv = await mock.start(); const w = world(srv, [pxPaper]);
+  try {
+    const r = await w.tr.run('trade_order', { symbol: 'NQ', side: 'buy', qty: 1, type: 'stop', stop: 21010, stop_loss: 21000 });
+    assert.match(r.out, /^Sent\./, r.out);
+    const o = srv.log.at(-1);
+    assert.equal(o.type, 4); assert.equal(o.stopPrice, 21010);
+    assert.deepEqual(o.stopLossBracket, { ticks: 40, type: 4 }, '10 points under the entry, not 1 tick under the market');
+  } finally { srv.close(); }
+});
+
+test('ProjectX: with brackets refused, a limit entry is not placed with a stop resting on its own', async () => {
+  const srv = await mock.start(); const w = world(srv, [pxPaper]);
+  try {
+    srv.st.px.bracketsMode = false;
+    const r = await w.tr.run('trade_order', { symbol: 'NQ', side: 'buy', qty: 1, type: 'limit', limit: 20990, stop_loss: 20980 });
+    assert.match(r.out, /^Error: .*Nothing was placed/);
+    assert.equal(srv.log.length, 0); assert.equal(srv.st.px.orders.length, 0);
+    assert.equal((w.data().days.a3 || {}).ordersToday || 0, 0, 'not counted: nothing went out');
+  } finally { srv.close(); }
+});
+
+test('the stop switch and LIVE cancels keep the stop loss of an open futures position', async () => {
+  const srv = await mock.start(); const w = world(srv, [pxLive]);
+  try {
+    srv.st.px.bracketsMode = false;
+    const r = await w.tr.run('trade_order', { symbol: 'NQ', side: 'buy', qty: 1, stop_loss: 20990 });
+    await w.tr.run('trade_order', {}, { ticket: r.ticket });
+    assert.equal(srv.st.px.positions.length, 1); assert.equal(srv.st.px.orders.length, 1, 'the guard stop rests');
+    const guard = srv.st.px.orders[0].id;
+    srv.st.px.orders.push({ id: 7777, accountId: 465, contractId: 'CON.F.US.ENQ.Z26', status: 1, type: 1, side: 0, size: 1, limitPrice: 20900, stopPrice: null });   // a resting entry
+    const c = await w.tr.run('trade_cancel', { all: true });
+    assert.match(c.out, new RegExp(`#${guard} \\(not cancelled: it guards your open NQZ6 position`)); assert.match(c.out, /#7777/);
+    assert.deepEqual(srv.st.px.orders.map((o) => o.id), [guard], 'the entry went, the guard stayed');
+    srv.st.px.orders.push({ id: 7778, accountId: 465, contractId: 'CON.F.US.ENQ.Z26', status: 1, type: 1, side: 0, size: 1, limitPrice: 20900, stopPrice: null });
+    const s = await w.tr.run('trade_stop_all', { reason: 'test' });
+    assert.match(s.out, new RegExp(`#${guard} kept`)); assert.match(s.out, /#7778 cancelled/);
+    assert.deepEqual(srv.st.px.orders.map((o) => o.id), [guard]);
+  } finally { srv.close(); }
+});
+
+test('no answer after an order went out: counted, reported as unknown, never "Error" (so it is not sent twice)', async () => {
+  const srv = await mock.start();
+  let data = { accounts: [bybitPaper] }; const audit = [];
+  const flaky = async (url, init) => { if (String(url).includes('/v5/order/create')) { await fetch(url, init); throw Object.assign(new Error('timeout'), { name: 'TimeoutError' }); } return fetch(url, init); };
+  const tr = createTrading({ store: { get: () => data, set: (d) => { data = d; } }, secretFor: () => ({ key: 'k1', secret: 's1' }),
+    makeBroker: (a, s) => brokers.make({ ...a, base: srv.base }, s, { fetch: flaky }), audit: (e) => audit.push(e), local: () => ({ day: '2026-11-12', minuteOfDay: 600, isoDay: 4 }) });
+  try {
+    const r = await tr.run('trade_order', { symbol: 'BTCUSDT', side: 'buy', notional: 20 });
+    assert.match(r.out, /^Not sure it went through: Couldn't reach Bybit .*may have been placed.*Don't send it again/s);
+    assert.equal(srv.log.length, 1, 'it did reach the broker');
+    assert.equal(data.days.a1.ordersToday, 1, 'counted against the day');
+    assert.equal(audit.at(-1).result, 'unknown');
+  } finally { srv.close(); }
+});
+
+test('Bybit spot: a stop loss on a market order is refused before anything is asked or sent; on a limit order it goes', async () => {
+  const srv = await mock.start(); const w = world(srv, [bybitPaper]);
+  try {
+    const m = await w.tr.run('trade_order', { symbol: 'BTCUSDT', side: 'buy', qty: 0.001, stop_loss: 60000 });
+    assert.match(m.out, /^Not done .*only goes with a limit order/); assert.equal(srv.log.length, 0);
+    const l = await w.tr.run('trade_order', { symbol: 'BTCUSDT', side: 'buy', qty: 0.001, type: 'limit', limit: 66000, stop_loss: 60000 });
+    assert.match(l.out, /^Sent\./); assert.equal(srv.log.at(-1).stopLoss, '60000.00');
+  } finally { srv.close(); }
+});

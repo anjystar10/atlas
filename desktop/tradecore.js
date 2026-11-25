@@ -69,11 +69,23 @@ function createTrading(deps) {
 
   async function send(a, verdict, assessed, args) {
     // the one place an order leaves Atlas
-    const o = { ...verdict.order, refPrice: verdict.order.type === 'limit' ? verdict.order.price : assessed.market[verdict.order.side === 'buy' ? 'ask' : 'bid'] || assessed.market.last };
+    // the price it fills at: a stop entry fills at its stop, so its brackets are measured from there (as check() measured the risk)
+    const o = { ...verdict.order, refPrice: verdict.order.type === 'limit' ? verdict.order.price : verdict.order.type === 'stop' ? verdict.order.stop : assessed.market[verdict.order.side === 'buy' ? 'ask' : 'bid'] || assessed.market.last };
     const tag = 'atlas-' + now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
     let res;
-    if (o.closing && o.closeContract && assessed.b.closeContract) { await assessed.b.closeContract(o.closeContract); res = { id: 'close', tag }; }
-    else res = await assessed.b.place(o, tag);
+    try {
+      if (o.closing && o.closeContract && assessed.b.closeContract) { await assessed.b.closeContract(o.closeContract); res = { id: 'close', tag }; }
+      else res = await assessed.b.place(o, tag);
+    } catch (e) {
+      // no (readable) answer after the order went out: it may be at the broker. Counted against today's limits (fail
+      // closed) and reported as unknown, so it is checked rather than sent a second time.
+      if (!(e instanceof BrokerError && (e.code === 'network' || e.code === 'bad_reply'))) throw e;
+      if (!o.closing) bumpOrders(a);
+      if (verdict.coveredByPlan) usePlan(a);
+      audit({ at: now(), account: a.name, mode: a.mode, action: o.closing ? 'close' : 'order', symbol: o.symbol, side: o.side, qty: o.qty, type: o.type, price: o.price || '', stopLoss: o.stopLoss || '', takeProfit: o.takeProfit || '', result: 'unknown', orderId: tag, note: e.message });
+      if (a.mode === 'live') notify(`${label(a)}: order may have gone through`, verdict.summary);
+      return `Not sure it went through: ${e.message} The order was sent, so it may have been placed. ${verdict.summary}\nDon't send it again: check trade_account (open orders and positions) first.${a.mode === 'live' ? ' This was a LIVE order with real money.' : ''}`;
+    }
     if (!o.closing) bumpOrders(a);
     if (verdict.coveredByPlan) usePlan(a);
     audit({ at: now(), account: a.name, mode: a.mode, action: o.closing ? 'close' : 'order', symbol: o.symbol, side: o.side, qty: o.qty, type: o.type, price: o.price || '', stopLoss: o.stopLoss || '', takeProfit: o.takeProfit || '', result: 'sent', orderId: res.id, note: (res.notes || []).join('; ') || (verdict.coveredByPlan ? 'inside the confirmed plan' : verdict.coveredByLimits ? 'inside your pre-approved LIVE limits' : '') });
@@ -204,9 +216,13 @@ function createTrading(deps) {
     const which = args.order_id ? acct.orders.filter((o) => String(o.id) === String(args.order_id)) : args.all ? acct.orders : [];
     if (!which.length) return { out: args.order_id ? `${label(a)}: no open order #${args.order_id}.` : 'Say which order (order_id), or all: true.' };
     const done = [];
-    for (const o of which) { try { await b.cancel(o.id, o.symbol); done.push('#' + o.id); } catch (e) { done.push(`#${o.id} (not cancelled: ${e.message})`); } }
+    for (const o of which) {
+      // LIVE: the stop loss or target of an open futures position isn't cancelled here (that would leave it unprotected)
+      if (a.mode === 'live' && R.protectsPosition(o, acct.positions)) { done.push(`#${o.id} (not cancelled: it guards your open ${o.symbol} position; close the position with trade_close instead)`); continue; }
+      try { await b.cancel(o.id, o.symbol); done.push('#' + o.id); } catch (e) { done.push(`#${o.id} (not cancelled: ${e.message})`); }
+    }
     audit({ at: now(), account: a.name, mode: a.mode, action: 'cancel', result: 'sent', note: done.join(' ') });
-    return { out: `${label(a)}: cancelled ${done.join(', ')}.` };   // cancelling only lowers risk: no OK needed
+    return { out: `${label(a)}: cancelled ${done.join(', ')}.` };   // cancelling an entry only lowers risk: no OK needed
   }
 
   /** The stop switch: no new orders anywhere, open orders cancelled. Only the user can turn trading back on. */
@@ -216,12 +232,18 @@ function createTrading(deps) {
     store.set({ ...s, killed: true, killedAt: now(), killReason: String(args.reason || '').slice(0, 200), plans: {}, standing: {}, stopId, stops: R.addStop(s.stops, stopId) });
     const notes = [];
     for (const a of accounts()) {
-      try { const b = broker(a); const acct = await b.account(); for (const o of acct.orders) { try { await b.cancel(o.id, o.symbol); notes.push(`${a.name} #${o.id} cancelled`); } catch (e) { notes.push(`${a.name} #${o.id} NOT cancelled (${e.message})`); } } }
-      catch (e) { notes.push(`${a.name}: couldn't reach it (${e.message})`); }
+      try {
+        const b = broker(a); const acct = await b.account();
+        for (const o of acct.orders) {
+          // an open position's stop loss and target stay: stopping must never strip a position of its protection
+          if (R.protectsPosition(o, acct.positions)) { notes.push(`${a.name} #${o.id} kept (it guards the open ${o.symbol} position)`); continue; }
+          try { await b.cancel(o.id, o.symbol); notes.push(`${a.name} #${o.id} cancelled`); } catch (e) { notes.push(`${a.name} #${o.id} NOT cancelled (${e.message})`); }
+        }
+      } catch (e) { notes.push(`${a.name}: couldn't reach it (${e.message})`); }
     }
     audit({ at: now(), account: '*', mode: '', action: 'stop_all', result: 'stopped', note: [args.reason, ...notes].filter(Boolean).join('; ') });
     notify('Trading stopped', 'No new orders on any account until you turn trading back on in Me → Trading.');
-    return { out: `Trading is STOPPED on every account. ${notes.length ? notes.join('; ') + '. ' : ''}Open positions were left as they are (close them with trade_close if the user wants). Only the user can turn trading back on, in Me → Trading.` };
+    return { out: `Trading is STOPPED on every account. ${notes.length ? notes.join('; ') + '. ' : ''}Open positions were left as they are, with their stop losses and targets (close them with trade_close if the user wants). Only the user can turn trading back on, in Me → Trading.` };
   }
 
   function accountsList() {

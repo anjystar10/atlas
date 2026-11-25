@@ -57,7 +57,7 @@ function bybit({ key, secret, base, fetch: f = fetch, now = () => Date.now() }) 
       const i = (res.list || [])[0];
       if (!i) throw new BrokerError(`Bybit has no spot market called ${s}. Use the pair name, like BTCUSDT.`, 'symbol');
       const lot = i.lotSizeFilter || {}, pf = i.priceFilter || {};
-      const out = { symbol: s, tickSize: pf.tickSize, qtyStep: lot.basePrecision, minQty: lot.minOrderQty, minNotional: lot.minOrderAmt, pointValue: 1, futures: false, quote: i.quoteCoin, base: i.baseCoin };
+      const out = { symbol: s, tickSize: pf.tickSize, qtyStep: lot.basePrecision, minQty: lot.minOrderQty, minNotional: lot.minOrderAmt, pointValue: 1, futures: false, tpslLimitOnly: true, quote: i.quoteCoin, base: i.baseCoin };
       insts.set(s, out); return out;
     },
     async quote(symbol) {
@@ -186,6 +186,9 @@ function projectx({ userName, apiKey, base = 'https://api.topstepx.com', account
       try { const j = await call('/api/Order/place', body); return { id: j.orderId, tag }; }
       catch (e) {
         if (!(e.pxCode === 2 && (body.stopLossBracket || body.takeProfitBracket))) throw e;
+        // the stop and target can only go as their own orders. That is safe once a market entry has filled; a limit or stop
+        // entry may not fill for a while, and a stop or target resting without its position would open one the other way
+        if (o.type !== 'market') throw new BrokerError("This prop firm account doesn't take a stop loss or target attached to an order (it's in Position Brackets mode), so a limit or stop entry can't carry its protection. Nothing was placed. Use a market order, or turn on Auto OCO Brackets in the platform's Risk Settings.", 'refused');
       }
       // brackets refused (Position Brackets mode): entry, then a protective stop (and the target) as their own orders
       delete body.stopLossBracket; delete body.takeProfitBracket;
