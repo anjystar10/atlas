@@ -903,6 +903,7 @@ class MainActivity : Activity() {
         // Atlas: the ask bar floats over the page above the tab bar, on the Atlas tab
         composer = buildComposer()
         root.addView(composer, FrameLayout.LayoutParams(MATCH, WRAP, Gravity.BOTTOM).apply { val g = dp(gutterDp()); leftMargin = g; rightMargin = g; bottomMargin = dp(86) })
+        savedInstanceState?.let { b -> restoreDraft(b) }
         root.addView(nav, FrameLayout.LayoutParams(WRAP, WRAP, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = dp(16) })
 
         confetti = ConfettiView(this).apply { isClickable = false }
@@ -938,6 +939,19 @@ class MainActivity : Activity() {
         render()
     }
 
+    /** The draft and the attachments waiting to be sent, as [onSaveInstanceState] kept them (files that are gone are skipped). */
+    private fun restoreDraft(b: Bundle) {
+        b.getString("draft")?.takeIf { it.isNotEmpty() }?.let { composerField.setText(it); composerField.setSelection(it.length) }
+        val a = try { org.json.JSONArray(b.getString("pending") ?: return) } catch (_: Exception) { return }
+        for (i in 0 until a.length()) {
+            val o = a.optJSONObject(i) ?: continue
+            val item = Attach.Item(o.optString("path"), o.optString("mime"), o.optString("name"))
+            if (item.path.isEmpty() || !item.file.exists() || pending.any { it.path == item.path } || pending.size >= Attach.MAX_ITEMS) continue
+            pending.add(item); o.optString("note").takeIf { it.isNotEmpty() }?.let { notes[item.path] = it }
+        }
+        showTray(); updateSend()
+    }
+
     private fun fadeDrawable() = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
         intArrayOf(Color.argb(0, Color.red(BG), Color.green(BG), Color.blue(BG)), Color.argb(235, Color.red(BG), Color.green(BG), Color.blue(BG)), BG))
 
@@ -945,6 +959,12 @@ class MainActivity : Activity() {
         outState.putInt("tab", tab)
         // the camera is in front during a snap, and Android often closes Atlas meanwhile: the photo's file is kept here
         snapFile?.let { outState.putString("snap", it.path) }
+        // what you were writing and what's waiting to go with it: Android often closes Atlas while the camera or a picker
+        // is in front, and a font-size change rebuilds the screen; both lost the words and the earlier pictures
+        if (::composerField.isInitialized) outState.putString("draft", composerField.text.toString())
+        if (pending.isNotEmpty()) outState.putString("pending", org.json.JSONArray().apply {
+            pending.forEach { put(org.json.JSONObject().put("path", it.path).put("mime", it.mime).put("name", it.name).put("note", notes[it.path] ?: "")) }
+        }.toString())
         super.onSaveInstanceState(outState)
     }
 
@@ -1033,7 +1053,17 @@ class MainActivity : Activity() {
         val wasDark = dark
         applyPalette()
         if (dark != wasDark) relook()
+        else if (newConfig.screenWidthDp != shownW || newConfig.screenHeightDp != shownH) {
+            // turned, unfolded or resized: the side margins and sizes were worked out for the old width (started in
+            // landscape and turned upright, the page was squeezed into a strip down the middle). Not while typing in
+            // the page, which a redraw would wipe: then only the margins follow.
+            val f = currentFocus
+            if (f is EditText && generateSequence(f.parent) { it.parent }.any { it === body }) { shownW = newConfig.screenWidthDp; shownH = newConfig.screenHeightDp; placeComposer() }
+            else render(keepScroll = true)
+        }
     }
+    private var shownW = 0
+    private var shownH = 0
 
     /** With a Gemini key, the offline model is loaded only when it's needed (it takes a lot of memory). */
     private fun autoLoadModel() {
@@ -1096,7 +1126,8 @@ class MainActivity : Activity() {
         window.statusBarColor = washTop()
         placeComposer()
         fillChatHead()
-        body.setPadding(body.paddingLeft, dp(if (tab == 0) 6 else 24), body.paddingRight, dp(if (tab == 0) 200 else 120))
+        shownW = resources.configuration.screenWidthDp; shownH = resources.configuration.screenHeightDp
+        body.setPadding(dp(gutterDp()), dp(if (tab == 0) 6 else 24), dp(gutterDp()), dp(if (tab == 0) 200 else 120))
         when (tab) {
             0 -> renderAtlas()
             1 -> renderLog()
@@ -1899,7 +1930,11 @@ class MainActivity : Activity() {
         composer.visibility = if (tab == 0) View.VISIBLE else View.GONE
         fade.visibility = if (tab == 0) View.VISIBLE else View.GONE
         nav.visibility = if (imeOpen && tab == 0) View.GONE else View.VISIBLE
-        (composer.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = dp(if (imeOpen) 10 else 86); composer.layoutParams = it }
+        (composer.layoutParams as? FrameLayout.LayoutParams)?.let {
+            val g = dp(gutterDp())
+            it.bottomMargin = dp(if (imeOpen) 10 else 86); it.leftMargin = g; it.rightMargin = g; composer.layoutParams = it
+        }
+        if (::body.isInitialized && body.paddingLeft != dp(gutterDp())) body.setPadding(dp(gutterDp()), body.paddingTop, dp(gutterDp()), body.paddingBottom)
     }
 
     private fun submit() {
@@ -2662,7 +2697,7 @@ class MainActivity : Activity() {
         vc.add(secondary("Test Each Voice") {
             showBanner("Testing each voice in turn…")
             Voice.testAll(this) { report ->
-                if (isFinishing) return@testAll
+                if (isFinishing || isDestroyed) return@testAll   // the screen was rebuilt meanwhile (font size, language): its dialog would crash
                 android.app.AlertDialog.Builder(this).setTitle("Atlas's voices").setMessage(report).setPositiveButton("OK", null).show()
                 if (tab == 2) render(keepScroll = true)
             }
