@@ -29,6 +29,16 @@ class UiShapeTest {
         assertNull(UiShape.row(""))
     }
 
+    @Test fun boldInsideAValueKeepsBothStars() {
+        // the value's closing stars were cut off, so "**leg day" showed with its stars
+        assertEquals("08:00 — **leg day**", UiShape.row("Gym: 08:00 — **leg day**")?.value)
+        assertEquals("Stretch, **10 min**", UiShape.row("23:30 Stretch, **10 min**")?.value)
+        // the line's own bold still goes
+        assertEquals("Code Atlas", UiShape.row("**Now: Code Atlas**")?.value)
+        assertEquals("Code Atlas", UiShape.row("Now: Code Atlas**")?.value)
+        assertEquals("Fix bike", UiShape.row("- **Blocked:** Fix bike")?.value)
+    }
+
     @Test fun pricesRatesAndVersionsAreNotTimes() {
         // these used to become rows keyed "12:50", "1:08", "0:11", "12:30" (a price list, a trading report, release notes)
         assertNull(UiShape.row("- 12.50 for a coffee"))

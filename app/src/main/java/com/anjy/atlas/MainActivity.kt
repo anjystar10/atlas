@@ -1432,10 +1432,27 @@ class MainActivity : Activity() {
 
     /** Draws the conversation into [list]. */
     private fun fillChat(list: LinearLayout) {
-        list.removeAllViews()
         val msgs = Conversation.messages
-        msgs.forEachIndexed { i, m -> list.add(bubble(m, i == msgs.size - 1), if (i == 0) 0 else 10) }
+        // only bubbles that changed are drawn again: the offline model sends its reply a word at a time, and redrawing the
+        // whole conversation (every reply's formatting, every picture decoded again) on each word made long chats stall
+        msgs.forEachIndexed { i, m ->
+            val last = i == msgs.size - 1
+            val sig = bubbleSig(m, last)
+            val old = list.getChildAt(i)
+            if (old != null && old.tag == sig) return@forEachIndexed
+            if (old != null) list.removeViewAt(i)
+            list.addView(bubble(m, last).also { it.tag = sig }, i, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(if (i == 0) 0 else 10) })
+        }
+        while (list.childCount > msgs.size) list.removeViewAt(list.childCount - 1)
         shownCount = msgs.size
+    }
+
+    /** Everything a bubble is drawn from: the same signature means the bubble on screen is still right. */
+    private fun bubbleSig(m: Conversation.Msg, last: Boolean): String {
+        val working = !m.fromUser && last && Conversation.busy
+        return "${m.id}|${m.fromUser}|${m.text.length}:${m.text.hashCode()}|${m.source}|${m.steps.size}:${m.steps.hashCode()}|" +
+            m.media.joinToString(",") { it.path } + "|$working|" + (if (working) Conversation.status.orEmpty() else "") + "|" +
+            (if (m.media.any { it.mime.startsWith("audio/") }) memoPlaying.orEmpty() else "")
     }
 
     /** The conversation moved on: update the Atlas tab in place (or draw it, if it just began). */
@@ -1479,7 +1496,7 @@ class MainActivity : Activity() {
                 setPadding(dp(15), dp(10), dp(15), dp(11))
                 maxWidth = (resources.displayMetrics.widthPixels * 0.78).toInt()
                 setOnLongClickListener(copy)
-            })
+            }, LinearLayout.LayoutParams(WRAP, WRAP))   // without these it filled the width, not "compact, on the right"
             return wrap
         }
         if (m.text.isBlank()) {
@@ -1527,6 +1544,8 @@ class MainActivity : Activity() {
             setPadding(dp(16), dp(4), dp(16), dp(4)); setOnLongClickListener(onHold)
         }
         val keyW = (resources.displayMetrics.widthPixels / density * 0.3f).coerceIn(96f, 132f)
+        val rowStyle = Markdown.Style(BODY, SEMI, SEMI, MONO, FG, MUTED, ACCENT_INK,
+            if (dark) Color.argb(40, 255, 255, 255) else Color.argb(26, 10, 11, 31), density, 15f)
         rows.forEachIndexed { i, r ->
             if (i > 0) card.addView(hairline(), LinearLayout.LayoutParams(MATCH, dp(1)))
             val line = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(11), 0, dp(11)) }
@@ -1538,7 +1557,14 @@ class MainActivity : Activity() {
                 else text(r.key.uppercase(Locale.getDefault()), 11.5f, keyColor, SEMI).apply { letterSpacing = 0.05f; maxLines = 3; ellipsize = android.text.TextUtils.TruncateAt.END }
             if (r.tone == UiShape.Tone.ALERT) line.addView(View(this).apply { background = rounded(ACCENT, 99) }, LinearLayout.LayoutParams(dp(6), dp(6)).apply { rightMargin = dp(8) })
             line.addView(key, LinearLayout.LayoutParams(dp(keyW.toInt()) - if (r.tone == UiShape.Tone.ALERT) dp(14) else 0, WRAP))
-            line.addView(text(r.value, 15f, FG, keepEmoji = true).apply { setLineSpacing(0f, 1.2f); setTextIsSelectable(false) }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
+            // the value's own bold, code and links are drawn (they showed as ** and [text](address), and nothing was tappable)
+            val value = linkified(Markdown.inlineText(r.value, rowStyle))
+            line.addView(text("", 15f, FG, keepEmoji = true).apply {
+                text = value; setLineSpacing(0f, 1.2f); setTextIsSelectable(false)
+                if (value is android.text.Spanned && value.getSpans(0, value.length, android.text.style.URLSpan::class.java).isNotEmpty()) {
+                    movementMethod = android.text.method.LinkMovementMethod.getInstance(); setOnLongClickListener(onHold)
+                }
+            }, LinearLayout.LayoutParams(0, WRAP, 1f).apply { leftMargin = dp(8) })
             card.addView(line, LinearLayout.LayoutParams(MATCH, WRAP))
         }
         return card

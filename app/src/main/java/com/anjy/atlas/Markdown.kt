@@ -44,7 +44,8 @@ object Markdown {
                                        text: CharSequence, start: Int, end: Int, first: Boolean, layout: Layout?) {
             if (!first || (text as? Spanned)?.getSpanStart(this) != start) return
             val oldC = p.color; val oldF = p.typeface; val oldA = p.textAlign
-            p.color = color; p.typeface = face; p.textAlign = Paint.Align.RIGHT
+            // right-to-left text (Arabic, Hebrew) has its margin on the right: the marker mirrors, or "12." ran into the words
+            p.color = color; p.typeface = face; p.textAlign = if (dir < 0) Paint.Align.LEFT else Paint.Align.RIGHT
             c.drawText(mark, (x + dir * (width - width * 0.28f)), baseline.toFloat(), p)
             p.color = oldC; p.typeface = oldF; p.textAlign = oldA
         }
@@ -164,8 +165,18 @@ object Markdown {
 
     private val INLINE = Regex("""\*\*(.+?)\*\*|__(.+?)__|`([^`]+)`|\[([^\]]+)]\((https?://[^)\s]+)\)|(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?!\w)|(?<![\w_])_(?!\s)(.+?)(?<!\s)_(?!\w)|\\([\\`*_\[\]()#+\-.!|~])""")   // last: "\*" shows a plain * (same as md.js)
 
+    /** One line's bold, italics, inline code and links, with no block layout (a row's value). */
+    fun inlineText(s: String, st: Style): CharSequence = SpannableStringBuilder().also { inline(it, s, st) }
+
+    /**
+     * A line longer than this is shown as written: finding its bold and italics takes time that grows with the square of
+     * its length (a 24,000-character line of "*x" froze the screen for seconds), and no real paragraph is this long.
+     */
+    private const val LONG_LINE = 3000
+
     /** Bold, italics, inline code and links within one line. */
     private fun inline(sb: SpannableStringBuilder, s: String, st: Style) {
+        if (s.length > LONG_LINE) { sb.append(s); return }
         var last = 0
         for (m in INLINE.findAll(s)) {
             sb.append(s, last, m.range.first)

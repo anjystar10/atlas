@@ -34,15 +34,28 @@ object UiShape {
         val l = line.replace(BULLET, "").trim()
         if (l.isEmpty() || l.length > 140) return null
         TIME.matchEntire(l)?.let { m ->
-            val v = m.groupValues[2].trim().trim('*').trim()
+            val v = stars(m.groupValues[2])
             if (v.isNotEmpty()) return Row(m.groupValues[1].replace('.', ':').trim(), v, Tone.TIME)
         }
         val m = LABEL.matchEntire(l) ?: return null
         val key = m.groupValues[1].trim()
-        val value = m.groupValues[2].trim().trim('*').trim()
+        val value = stars(m.groupValues[2])
         if (value.isEmpty() || key.split(' ').size > 4 || key.contains("http", ignoreCase = true)) return null
         if (value.startsWith("//")) return null   // "https: //…" isn't a label
         return Row(key, value, toneOf(key))
+    }
+
+    /**
+     * A value with the stray stars of the line's own bold taken off ("**Now: Code Atlas**" → "Code Atlas"), but a pair
+     * inside it kept: "08:00 — **leg day**" lost its closing stars and showed "**leg day".
+     */
+    internal fun stars(v: String): String {
+        var t = v.trim()
+        val lead = t.takeWhile { it == '*' }
+        if (lead.isNotEmpty() && !t.drop(lead.length).contains(lead)) t = t.drop(lead.length).trim()
+        val tail = t.takeLastWhile { it == '*' }
+        if (tail.isNotEmpty() && !t.dropLast(tail.length).contains(tail)) t = t.dropLast(tail.length).trim()
+        return t
     }
 
     fun toneOf(key: String): Tone {
