@@ -656,7 +656,9 @@ class MainActivity : Activity() {
      */
     internal fun sheet(icon: String?, title: String, message: String?, content: View? = null,
                       primaryLabel: String? = "OK", primaryColor: Int = BLUE, onPrimary: () -> Unit = {},
-                      secondaryLabel: String? = null, onSecondary: () -> Unit = {}, locked: Boolean = false): () -> Unit {
+                      secondaryLabel: String? = null, onSecondary: () -> Unit = {}, locked: Boolean = false,
+                      /** Runs once when the sheet closes, however it closes (a button, ✕, a tap outside, Back). */
+                      onClose: (() -> Unit)? = null): () -> Unit {
         val root = confetti.parent as ViewGroup
         val scrim = FrameLayout(this).apply { setBackgroundColor(Color.argb(if (dark) 170 else 110, 0, 0, 0)); isClickable = true; alpha = 0f }
         val d = resources.displayMetrics.density
@@ -675,6 +677,7 @@ class MainActivity : Activity() {
                 scrim.animate().alpha(0f).setDuration(150).withEndAction { root.removeView(scrim) }.start()
                 panel.animate().scaleX(0.96f).scaleY(0.96f).alpha(0f).translationY(dp(12).toFloat()).setDuration(140)
                     .setInterpolator(android.view.animation.AccelerateInterpolator(1.4f)).start()
+                onClose?.invoke()
             }
         }
         // a locked sheet can't be waved away: tapping outside does nothing and Back keeps it up
@@ -695,9 +698,10 @@ class MainActivity : Activity() {
         panel.addView(head, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(16) })
         if (message != null) panel.addView(text(noEmoji(L.t(message)), 15f, MUTED), LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(10) })
         if (content != null) panel.addView(content, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(16) })
-        if (primaryLabel != null) panel.addView(primary(primaryLabel, primaryColor) { keepSheet = false; onPrimary(); if (!keepSheet) close() }, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(20) })
+        // a second tap while the card is going away does nothing (a quick double tap on Add made two reminders)
+        if (primaryLabel != null) panel.addView(primary(primaryLabel, primaryColor) { if (!closed) { keepSheet = false; onPrimary(); if (!keepSheet) close() } }, LinearLayout.LayoutParams(MATCH, WRAP).apply { topMargin = dp(20) })
         if (secondaryLabel != null) panel.addView(text(secondaryLabel, 15f, MUTED, MED).apply {
-            gravity = Gravity.CENTER; setPadding(0, dp(14), 0, dp(2)); setOnClickListener { close(); onSecondary() }
+            gravity = Gravity.CENTER; setPadding(0, dp(14), 0, dp(2)); setOnClickListener { if (!closed) { close(); onSecondary() } }
         })
         // a tall card (or one pushed up by the keyboard) scrolls instead of running off the top of the screen
         val holder = QuickScroll(this).apply { isVerticalScrollBarEnabled = false; overScrollMode = View.OVER_SCROLL_NEVER; clipChildren = false; clipToPadding = false }
@@ -1165,7 +1169,8 @@ class MainActivity : Activity() {
     private fun choose(title: String, options: List<String>, onPick: (Int) -> Unit) {
         val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         var close: () -> Unit = {}
-        options.forEachIndexed { i, o -> col.add(secondary(o) { close(); onPick(i) }, if (i == 0) 0 else 8) }
+        var picked = false   // one pick: a double tap sent "Ask Again" twice, or opened the camera twice
+        options.forEachIndexed { i, o -> col.add(secondary(o) { if (!picked) { picked = true; close(); onPick(i) } }, if (i == 0) 0 else 8) }
         close = sheet(null, title, null, content = col, primaryLabel = null, secondaryLabel = "Cancel")
     }
 
@@ -1303,6 +1308,8 @@ class MainActivity : Activity() {
         haptic()
         val kept = Conversation.newChat(applicationContext)
         render()
+        // nothing was kept (no words in it, or it couldn't be saved): don't claim it's under Chats or offer an Undo that does nothing
+        if (kept == null) { showBanner("New chat.", MUTED); return }
         undoBanner("New chat. The last one is under Chats.") {
             // the chat just put away, by its id: the newest in the list is the one with the latest message, which isn't
             // it when it was an older chat opened again
@@ -1318,6 +1325,7 @@ class MainActivity : Activity() {
         var close: () -> Unit = {}
         var query = ""
         var gen = 0
+        var opened = false
         // searching reads every saved chat (up to 200 files): off the main thread, or typing a search froze the screen
         fun fill() { val mine = ++gen; val q = query; scope.launch {
             val found = withContext(Dispatchers.IO) { ChatArchive.search(this@MainActivity, q) }
@@ -1334,8 +1342,12 @@ class MainActivity : Activity() {
                     background = finished(SURFACE, dp(16).toFloat(), glass = true); setPadding(dp(16), dp(11), dp(16), dp(12))
                     contentDescription = "${m.title}, ${UiShape.chatWhen(m.at, now, Engine.zone)}"
                     setOnClickListener {
+                        if (opened) return@setOnClickListener   // a double tap opened it, then said it couldn't
+                        opened = true
                         close()
-                        if (Conversation.openSaved(applicationContext, m.id)) { render(); showBanner("Opened “${m.title}”. The chat you were in is under Chats.") }
+                        // only a chat with something in it is kept (an empty new chat isn't): say so only when it was
+                        val kept = Conversation.messages.any { it.text.isNotBlank() || it.media.isNotEmpty() }
+                        if (Conversation.openSaved(applicationContext, m.id)) { render(); showBanner(if (kept) "Opened “${m.title}”. The chat you were in is under Chats." else "Opened “${m.title}”.") }
                         else showBanner("Couldn't open that chat.", MUTED)
                     }
                     setOnLongClickListener {
@@ -1355,7 +1367,7 @@ class MainActivity : Activity() {
                     pressFx()
                 }
                 r.addView(text(m.title, 15f, FG, MED, keepEmoji = true).apply { maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END })
-                r.addView(text("${UiShape.chatWhen(m.at, now, Engine.zone)}  ·  ${m.count} messages", 12f, MUTED), LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(2) })
+                r.addView(text("${UiShape.chatWhen(m.at, now, Engine.zone)}  ·  ${m.count} message${if (m.count == 1) "" else "s"}", 12f, MUTED), LinearLayout.LayoutParams(WRAP, WRAP).apply { topMargin = dp(2) })
                 listBox.addView(r, LinearLayout.LayoutParams(MATCH, WRAP).apply { if (i > 0) topMargin = dp(8) })
             }
         } }
@@ -1947,7 +1959,9 @@ class MainActivity : Activity() {
         homeOrb?.energy = 1f; headOrb?.energy = 1f
         closeVoiceSheet = sheet(null, "Talk to Atlas", null, content = col, primaryLabel = "Done", onPrimary = {
             keepSheet = true; heard.text = got ?: "One moment…"; vi.finish()
-        }, secondaryLabel = "Cancel", onSecondary = { stopVoice() })
+        }, secondaryLabel = "Cancel", onSecondary = { stopVoice() },
+            // ✕, a tap outside or Back cancels too: before, the microphone kept listening and sent what it heard
+            onClose = { stopVoice() })
         vi.start()
     }
 
@@ -1991,7 +2005,9 @@ class MainActivity : Activity() {
             onError = { msg -> if (!over) { over = true; AvatarService.holdMic(this, false); close(); showBanner(msg, MUTED) } })
         close = sheet(null, "Teach Atlas Your Voice · ${step + 1} of ${phrases.size}", "Read this aloud the way you'd normally say it. Take your time.", content = col,
             primaryLabel = "Done", onPrimary = { keepSheet = true; heard.text = "One moment…"; vi.finish() },
-            secondaryLabel = "Stop", onSecondary = { if (!over) { over = true; vi.cancel(); AvatarService.holdMic(this, false) } })
+            secondaryLabel = "Stop", onSecondary = { if (!over) { over = true; vi.cancel(); AvatarService.holdMic(this, false) } },
+            // ✕, a tap outside or Back stops the reading too (it went on listening and opened the next phrase)
+            onClose = { if (!over) { over = true; vi.cancel(); AvatarService.holdMic(this, false) } })
         vi.start()
     }
 
@@ -2440,7 +2456,13 @@ class MainActivity : Activity() {
         sheet(null, if (editing == null) "Add a Service" else editing.name, "Any service that speaks the OpenAI chat format, with tool calling. Its keys work like the others: Atlas switches between them when one runs out.",
             content = box, primaryLabel = "Save", onPrimary = {
                 val b = base.trim()
-                if (name.isBlank() || !(b.startsWith("https://") || b.startsWith("http://"))) { showBanner("It needs a name and an address starting with https://", MUTED); return@sheet }
+                // Android lets Atlas use plain http:// only for 127.0.0.1 (network_security_config.xml): any other http://
+                // address saved fine here and then failed on every request. The card stays open so nothing typed is lost.
+                if (name.isBlank() || !(b.startsWith("https://", true) || Regex("^http://127\\.0\\.0\\.1(:\\d+)?(/.*)?$", RegexOption.IGNORE_CASE).matches(b))) {
+                    keepSheet = true
+                    showBanner(if (b.startsWith("http://", true)) "Android only allows https:// addresses (plain http:// works only for 127.0.0.1)." else "It needs a name and an address starting with https://", MUTED)
+                    return@sheet
+                }
                 if (editing == null) { val p = Providers.addCustom(this, name, b, model); brainShown = p.id }
                 else Providers.updateCustom(this, editing.id, name, b, model)
                 render(keepScroll = true)
@@ -2915,7 +2937,9 @@ class MainActivity : Activity() {
         // Backup
         body.add(eyebrow("Backup"), 16)
         val bk = card()
-        bk.addView(text("Your Log lives only on this phone. The backup doesn't include your keys.", 15f, MUTED))
+        // linked, the Log is on the PC too (Your Devices says they share it): don't say it lives only here
+        bk.addView(text((if (Sync.linked(this)) "Your Log is on this phone and, through the encrypted sync, on your PC." else "Your Log lives only on this phone.") +
+            " The backup doesn't include your keys.", 15f, MUTED))
         val bkr = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         bkr.addView(secondary("Copy Backup") {
             getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("Atlas backup", Store.exportJson(this)))
@@ -3031,7 +3055,10 @@ class MainActivity : Activity() {
                         }
                         withContext(Dispatchers.IO) { Reminders.tickAndSchedule(applicationContext) }
                         showBanner("Restored $n reminders", DONE)
-                    } catch (e: Exception) { showBanner("Restore failed: ${e.message}", MISS) }
+                    } catch (e: org.json.JSONException) {
+                        // the parser's message quotes the whole file (a wrong pick: a PDF, a photo's text) — never shown raw
+                        showBanner("Restore failed: that file isn't an Atlas backup.", MISS)
+                    } catch (e: Exception) { showBanner("Restore failed: ${(e.message ?: "couldn't read that file.").take(120)}", MISS) }
                     render(keepScroll = true)
                 }
             }
