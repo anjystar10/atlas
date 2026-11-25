@@ -100,4 +100,38 @@ class TradeRulesTest {
         assertEquals("$1,234,567.89", TradeRules.money(1234567.891))
         assertEquals("an unknown amount", TradeRules.money(Double.NaN))   // an equity that couldn't be read (it threw before)
     }
+
+    // ---- scan 3: generated (property-style) cases made by the PC's traderules.js (desktop/test/make-scan3-fixtures.mjs)
+    @Test fun everyGeneratedCaseMatchesThePc() {
+        val cases = fixtures().getJSONArray("generated")
+        assertTrue(cases.length() >= 400)
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i); val name = c.getString("name"); val e = c.getJSONObject("expect")
+            val plan = if (c.isNull("plan")) null else c.getJSONObject("plan")
+            val v = TradeRules.check(c.getJSONObject("order"), c.getJSONObject("inst"), c.getJSONObject("market"), c.getJSONObject("account"), c.getJSONObject("state"), plan)
+            if (!e.getBoolean("ok")) {
+                val codes = e.getJSONArray("codes").let { a -> (0 until a.length()).map { a.getString(it) } }
+                assertEquals(name, codes.toString(), if (v.ok) "ok" else v.reasons.map { it.code }.toString())
+                continue
+            }
+            assertTrue(name, v.ok)
+            val eo = e.getJSONObject("order"); val o = v.order!!
+            for (k in listOf("symbol", "side", "type", "qty", "price", "stop", "stopLoss", "takeProfit")) assertEquals("$name: $k", if (eo.isNull(k)) "null" else eo.getString(k), if (o.isNull(k)) "null" else o.getString(k))
+            assertEquals("$name: closing", eo.getBoolean("closing"), o.getBoolean("closing"))
+            assertEquals("$name: asks", e.getBoolean("needsApproval"), v.needsApproval)
+            assertEquals("$name: plan", e.getBoolean("coveredByPlan"), v.coveredByPlan)
+            assertEquals("$name: limits", e.getBoolean("coveredByLimits"), v.coveredByLimits)
+            assertEquals("$name: est", e.getDouble("estUsd"), v.estUsd, 1e-9 * maxOf(1.0, Math.abs(v.estUsd)))
+            if (e.isNull("worstCaseUsd")) assertEquals(name, null, v.worstCaseUsd) else assertEquals("$name: worst", e.getDouble("worstCaseUsd"), v.worstCaseUsd!!, 1e-9 * maxOf(1.0, e.getDouble("worstCaseUsd")))
+            assertEquals("$name: summary", e.getString("summary"), v.summary)
+        }
+    }
+
+    @Test fun ordersGuardingAPositionLikeThePc() {
+        val cases = fixtures().getJSONArray("protects")
+        for (i in 0 until cases.length()) {
+            val c = cases.getJSONObject(i)
+            assertEquals(c.toString(), c.getBoolean("want"), TradeRules.protectsPosition(c.optJSONObject("order"), c.optJSONArray("positions")))
+        }
+    }
 }

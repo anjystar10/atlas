@@ -131,5 +131,32 @@ class SyncPlanTest {
             assertEquals(c.getString("name"), Sync.canonical(c.getJSONObject("expect")), Sync.canonical(got))
         }
     }
+
+    // ---- scan 3: generated (property-style) cases made by the PC's sync.js (desktop/test/make-scan3-fixtures.mjs)
+    @Test fun everyGeneratedCaseMatchesThePc() {
+        val g = fx.getJSONObject("generated")
+        fun set(a: JSONArray) = (0 until a.length()).map { a.getString(it) }.toSet()
+        for (c in g.arr("stamp")) {
+            val sent = JSONObject(c.getJSONObject("sent").toString()); val dirty = JSONObject(c.getJSONObject("dirty").toString())
+            val local = c.getJSONObject("local").let { o -> o.keys().asSequence().associateWith { k -> o.getJSONObject(k).let { SyncPlan.Local(it.getString("fp"), it.optLong("ownTime")) } } }
+            val gone = c.getJSONObject("gone").let { o -> o.keys().asSequence().associateWith { o.getLong(it) } }
+            SyncPlan.stamp(sent, dirty, local, gone, c.getLong("now"), c.getBoolean("first"), set(c.getJSONArray("skip")), set(c.getJSONArray("extraImplicit")))
+            assertEquals(c.getString("name"), Sync.canonical(c.getJSONObject("expectSent")), Sync.canonical(sent))
+            assertEquals(c.getString("name"), Sync.canonical(c.getJSONObject("expectDirty")), Sync.canonical(dirty))
+        }
+        for (c in g.arr("advance")) {
+            val (cur, rec) = SyncPlan.advance(c.getLong("cursor"), pairs(c.getJSONArray("recent")), c.getLong("now"))
+            assertEquals(c.getString("name"), c.getLong("expectCursor"), cur)
+            assertEquals(c.getString("name"), pairs(c.getJSONArray("expectRecent")), rec)
+        }
+        for (c in g.arr("batches")) {
+            val sizes = c.getJSONArray("sizes").let { a -> (0 until a.length()).map { a.getInt(it) } }
+            val want = c.getJSONArray("expect").let { a -> (0 until a.length()).map { i -> a.getJSONArray(i).let { b -> (0 until b.length()).map { b.getInt(it) } } } }
+            assertEquals(c.getString("name"), want, SyncPlan.batches(sizes))
+        }
+        for (c in g.arr("alreadyTaken")) assertEquals(c.toString(), c.getBoolean("want"), SyncPlan.alreadyTaken(c.getLong("seen"), c.getLong("rev")))
+        for (c in g.arr("presenceDue")) assertEquals(c.toString(), c.getBoolean("want"), SyncPlan.presenceDue(c.getLong("last"), c.getLong("now")))
+        for (c in g.arr("mineWins")) assertEquals(c.toString(), c.getBoolean("wins"), SyncPlan.mineWins(c.getLong("myAt"), c.getString("me"), c.getLong("theirAt"), c.getString("theirDevice")))
+    }
 }
 

@@ -1210,3 +1210,30 @@ test('a local model that timed out is not asked three more times', async () => {
   await assert.rejects(brain.callWithKeys(brain.byId('local'), sess, async () => { n++; throw slow; }, 0, { onStatus: () => {}, cancelled: () => false, wait: async () => {} }), /took too long/);
   assert.equal(n, 1);
 });
+
+// ------------------------------------------------------------------ scan 3: generated (property-style) cases both devices check
+test('trading and sync: every generated case in the shared fixtures still holds (TradeRulesTest.kt / SyncPlanTest.kt check the same)', async () => {
+  const { createRequire } = await import('node:module');
+  const TR = createRequire(import.meta.url)('../traderules.js');
+  const fs = await import('node:fs');
+  const T = JSON.parse(fs.readFileSync(new URL('../../tools/trade-fixtures.json', import.meta.url), 'utf8'));
+  assert.ok(T.generated.length >= 400 && T.protects.length >= 100);
+  for (const c of T.generated) {
+    const r = TR.check(c.order, c.inst, c.market, c.account, c.state, c.plan);
+    if (!c.expect.ok) { assert.deepEqual(r.ok ? 'ok' : r.reasons.map((x) => x.code), c.expect.codes, c.name); continue; }
+    assert.ok(r.ok, c.name);
+    for (const k of ['order', 'needsApproval', 'coveredByPlan', 'coveredByLimits', 'estUsd', 'worstCaseUsd', 'summary']) assert.deepEqual(r[k], c.expect[k], `${c.name}: ${k}`);
+  }
+  for (const c of T.protects) assert.equal(TR.protectsPosition(c.order, c.positions), c.want, JSON.stringify(c));
+  const G = JSON.parse(fs.readFileSync(new URL('../../tools/sync-fixtures.json', import.meta.url), 'utf8')).generated;
+  for (const c of G.stamp) {
+    const sent = structuredClone(c.sent), dirty = structuredClone(c.dirty);
+    sync.stamp(sent, dirty, c.local, c.gone, c.now, c.first, c.skip, c.extraImplicit);
+    assert.deepEqual([sent, dirty], [c.expectSent, c.expectDirty], c.name);
+  }
+  for (const c of G.advance) assert.deepEqual(sync.advance(c.cursor, c.recent, c.now), [c.expectCursor, c.expectRecent], c.name);
+  for (const c of G.batches) assert.deepEqual(sync.batches(c.sizes), c.expect, c.name);
+  for (const c of G.alreadyTaken) assert.equal(sync.alreadyTaken(c.seen, c.rev), c.want);
+  for (const c of G.presenceDue) assert.equal(sync.presenceDue(c.last, c.now), c.want);
+  for (const c of G.mineWins) assert.equal(sync.mineWins(c.myAt, c.me, c.theirAt, c.theirDevice), c.wins);
+});

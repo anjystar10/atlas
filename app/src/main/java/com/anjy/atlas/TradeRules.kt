@@ -160,6 +160,8 @@ object TradeRules {
         val refShown = BigDecimal(ref.toString()).stripTrailingZeros().toPlainString()
         if (sl != null && ((side == "buy" && sl.toDouble() >= ref) || (side == "sell" && sl.toDouble() <= ref))) no("stop_side", "The stop loss ($sl) is on the wrong side of the price ($refShown).")
         if (tp != null && ((side == "buy" && tp.toDouble() <= ref) || (side == "sell" && tp.toDouble() >= ref))) no("tp_side", "The take profit ($tp) is on the wrong side of the price ($refShown).")
+        // Bybit spot takes a stop loss / take profit only with a limit order (its docs): on a market order it would not protect anything
+        if (inst.optBoolean("tpslLimitOnly") && type != "limit" && (sl != null || tp != null)) no("tpsl_needs_limit", "On $sym a stop loss or take profit only goes with a limit order. Use a limit order, or leave them out.")
 
         // worst case. With a stop: the distance to it. Spot bought with no stop: to zero (shown; the size limit bounds it). Futures, no stop: no cap.
         var worst: Double? = null
@@ -270,6 +272,24 @@ object TradeRules {
     fun addStop(stops: JSONArray?, id: String): JSONArray {
         val list = (0 until (stops?.length() ?: 0)).mapNotNull { stops!!.opt(it) as? String }.filter { it != id } + id
         return JSONArray(list.takeLast(STOPS_KEPT))
+    }
+
+    // ---------------------------------------------------------------- orders that guard an open position
+
+    /**
+     * Whether an open order guards an open futures position: in the same contract, on the other side of it (its stop loss or
+     * its target). Cancelling it would leave the position without its protection, so the stop switch keeps it and a LIVE
+     * cancel refuses it. [positions]: {symbol, size, type: 1 long | 2 short} (spot holdings have no type). Same as the PC.
+     */
+    fun protectsPosition(order: JSONObject?, positions: JSONArray?): Boolean {
+        val sym = order?.optString("symbol").orEmpty().trim().uppercase(); val side = order?.optString("side").orEmpty().lowercase()
+        if (sym.isEmpty() || positions == null) return false
+        return (0 until positions.length()).any { i ->
+            val p = positions.optJSONObject(i) ?: return@any false
+            val type = p.opt("type"); val t = if (type is Number) type.toDouble() else type?.toString()?.toDoubleOrNull() ?: Double.NaN
+            val size = p.opt("size").let { if (it is Number) it.toDouble() else it?.toString()?.toDoubleOrNull() ?: Double.NaN }
+            p.optString("symbol").trim().uppercase() == sym && abs(size) > 0 && ((t == 1.0 && side == "sell") || (t == 2.0 && side == "buy"))
+        }
     }
 
     // ---------------------------------------------------------------- Bybit request signing (bybit-exchange.github.io/docs/v5/guide)

@@ -41,7 +41,8 @@ object Trading {
     val names = setOf("trade_accounts", "trade_account", "trade_quote", "trade_history", "trade_order", "trade_close", "trade_cancel", "trade_plan", "trade_stop_all")
     private val asking = setOf("trade_order", "trade_close", "trade_plan")
 
-    class TradeError(msg: String) : Exception(msg)
+    /** [unsure]: no (readable) answer came back, so a request that was sent may still have been carried out. */
+    class TradeError(msg: String, val unsure: Boolean = false) : Exception(msg)
     /** A tool's answer: [out], or [need] (the summary the user must approve) with its [ticket]. */
     class Res(val out: String? = null, val need: String? = null, val ticket: String? = null, val title: String = "Allow This?", val button: String = "Allow")
 
@@ -113,7 +114,10 @@ object Trading {
             a.put("base", base)
             acc.optString("remoteId").takeIf { it.isNotBlank() }?.toLongOrNull()?.let { a.put("remoteId", it) }
         }
-        (acc.optJSONObject("limits") ?: was?.optJSONObject("limits"))?.let { a.put("limits", it) }
+        // becoming LIVE starts from the LIVE defaults: limits set for practice (the sheet saves every field it shows, PAPER's
+        // practice-sized defaults included) don't carry over to real money
+        val becomesLive = a.optString("mode") == "live" && was?.optString("mode") != "live"
+        if (!becomesLive) (acc.optJSONObject("limits") ?: was?.optJSONObject("limits"))?.let { a.put("limits", it) }
         if (secret != null) { val all = JSONObject(secrets(ctx).toString()); all.put(id, secret); saveSecrets(ctx, all) }
         else if (was == null) throw TradeError("The keys are needed.")
         val i = list.indexOfFirst { it.optString("id") == id }; if (i >= 0) list[i] = a else list.add(a)
@@ -225,10 +229,10 @@ object Trading {
             val code = con.responseCode
             val text = (if (code < 400) con.inputStream else con.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
             return Http(code, text)
-        } catch (e: java.io.IOException) { throw TradeError("Couldn't reach ${URL(url).host} (${e.javaClass.simpleName}).") }
+        } catch (e: java.io.IOException) { throw TradeError("Couldn't reach ${URL(url).host} (${e.javaClass.simpleName}).", unsure = true) }
         finally { con.disconnect() }
     }
-    private fun json(h: Http, who: String): JSONObject = try { JSONObject(h.body) } catch (_: Exception) { throw TradeError("$who sent back something unreadable (HTTP ${h.code}).") }
+    private fun json(h: Http, who: String): JSONObject = try { JSONObject(h.body) } catch (_: Exception) { throw TradeError("$who sent back something unreadable (HTTP ${h.code}).", unsure = true) }
 
     internal interface Broker {
         fun inst(symbol: String): JSONObject
@@ -274,7 +278,7 @@ object Trading {
                 ?: throw TradeError("Bybit has no spot market called $s. Use the pair name, like BTCUSDT.")
             val lot = i.optJSONObject("lotSizeFilter") ?: JSONObject(); val pf = i.optJSONObject("priceFilter") ?: JSONObject()
             return JSONObject().put("symbol", s).put("tickSize", pf.optString("tickSize")).put("qtyStep", lot.optString("basePrecision")).put("minQty", lot.optString("minOrderQty"))
-                .put("minNotional", lot.optString("minOrderAmt")).put("pointValue", 1).put("futures", false).also { insts[s] = it }
+                .put("minNotional", lot.optString("minOrderAmt")).put("pointValue", 1).put("futures", false).put("tpslLimitOnly", true).also { insts[s] = it }
         }
         override fun quote(symbol: String): JSONObject {
             val t = call("GET", "/v5/market/tickers", mapOf("category" to "spot", "symbol" to symbol.uppercase()), false).optJSONArray("list")?.optJSONObject(0) ?: throw TradeError("No price for $symbol on Bybit.")
@@ -389,6 +393,9 @@ object Trading {
             }
             try { return call("/api/Order/place", withBrackets).optString("orderId") to emptyList<String>() }
             catch (e: PxError) { if (e.pxCode != 2 || (o.isNull("stopLoss") && o.isNull("takeProfit"))) throw TradeError(e.message ?: "error") }
+            // the stop and target can only go as their own orders. That is safe once a market entry has filled; a limit or stop
+            // entry may not fill for a while, and a stop or target resting without its position would open one the other way
+            if (o.optString("type") != "market") throw TradeError("This prop firm account doesn't take a stop loss or target attached to an order (it's in Position Brackets mode), so a limit or stop entry can't carry its protection. Nothing was placed. Use a market order, or turn on Auto OCO Brackets in the platform's Risk Settings.")
             // brackets refused (Position Brackets mode): the entry, then a protective stop as its own order
             val entry = safe("/api/Order/place", body()).optString("orderId"); val notes = mutableListOf<String>()
             val opp = 1 - side; val size = o.optString("qty").toDouble().toInt()
@@ -426,7 +433,10 @@ object Trading {
     suspend fun test(ctx: Context, acc: JSONObject, secret: JSONObject?): String = withContext(Dispatchers.IO) {
         try {
             val s = secret ?: secrets(ctx).optJSONObject(acc.optString("id")) ?: return@withContext "Error: the keys are needed."
-            val b = make(acc, s)
+            // a prop firm's address must be https (as saveAccount): the keys never go to a mistyped or plain-http address
+            if (acc.optString("broker") == "projectx" && !Regex("^https://[a-z0-9.-]+(:\\d+)?$", RegexOption.IGNORE_CASE).matches(acc.optString("base").trim().ifEmpty { "https://api.topstepx.com" }))
+                return@withContext "Error: the prop firm address must look like https://api.topstepx.com"
+            val b = make(JSONObject(acc.toString()).put("base", acc.optString("base").trim()), s)
             if (acc.optString("broker") == "projectx") { val l = b.remoteAccounts(); "OK " + (0 until l.length()).joinToString("|") { val x = l.getJSONObject(it); "${x.optLong("id")}:${x.optString("name")} · ${TradeRules.money(x.optDouble("balance"))}" } }
             else "OK Works. Equity ${TradeRules.money(b.account().optDouble("equity"))}."
         } catch (e: Exception) { "Error: ${e.message}" }
@@ -474,13 +484,27 @@ object Trading {
 
     private fun send(ctx: Context, a: JSONObject, v: TradeRules.Verdict, s: Assessed, closeContract: String?): String {
         // the one place an order leaves Atlas
-        val o = JSONObject(v.order.toString()).put("refPrice", if (v.order!!.optString("type") == "limit") v.order.optString("price").toDouble() else (if (v.order.optString("side") == "buy") s.market.optDouble("ask") else s.market.optDouble("bid")))
+        // the price it fills at: a stop entry fills at its stop, so its brackets are measured from there (as check() measured the risk)
+        val n = v.order!!
+        val quoted = (if (n.optString("side") == "buy") s.market.optDouble("ask") else s.market.optDouble("bid")).takeIf { it > 0 } ?: s.market.optDouble("last")
+        val o = JSONObject(n.toString()).put("refPrice", when (n.optString("type")) { "limit" -> n.optString("price").toDouble(); "stop" -> n.optString("stop").toDouble(); else -> quoted })
         val tag = "atlas-" + java.lang.Long.toString(System.currentTimeMillis(), 36) + "-" + (1000..9999).random()
-        val (id, notes) = if (o.optBoolean("closing") && closeContract != null) { s.b.closeContract(closeContract); "close" to emptyList<String>() } else s.b.place(o, tag)
-        edit(ctx) { d ->
+        fun counted() = edit(ctx) { d ->
             if (!o.optBoolean("closing")) d.optJSONObject("days")?.optJSONObject(a.optString("id"))?.let { it.put("ordersToday", it.optInt("ordersToday") + 1) }
             if (v.coveredByPlan) d.optJSONObject("plans")?.optJSONObject(a.optString("id"))?.let { it.put("used", it.optInt("used") + 1) }
         }
+        val (id, notes) = try {
+            if (o.optBoolean("closing") && closeContract != null) { s.b.closeContract(closeContract); "close" to emptyList<String>() } else s.b.place(o, tag)
+        } catch (e: TradeError) {
+            // no (readable) answer after the order went out: it may be at the broker. Counted against today's limits (fail
+            // closed) and reported as unknown, so it is checked rather than sent a second time
+            if (!e.unsure) throw e
+            counted()
+            audit(ctx, a.optString("name"), a.optString("mode"), if (o.optBoolean("closing")) "close" else "order", o, "unknown", tag, e.message ?: "")
+            if (a.optString("mode") == "live") TradingNotify.unsure(ctx, v.summary)
+            return "Not sure it went through: ${e.message} The order was sent, so it may have been placed. ${v.summary}\nDon't send it again: check trade_account (open orders and positions) first.${if (a.optString("mode") == "live") " This was a LIVE order with real money." else ""}"
+        }
+        counted()
         audit(ctx, a.optString("name"), a.optString("mode"), if (o.optBoolean("closing")) "close" else "order", o, "sent", id, notes.joinToString("; ").ifEmpty { if (v.coveredByPlan) "inside the confirmed plan" else if (v.coveredByLimits) "inside your pre-approved LIVE limits" else "" })
         TradingNotify.sent(ctx, a.optString("mode") == "live", v.summary)
         return "Sent. ${v.summary}\nOrder id: $id${if (notes.isNotEmpty()) "\n" + notes.joinToString("\n") else ""}\n${if (a.optString("mode") == "live") "This was a LIVE order with real money." else "PAPER: no real money."} Check fills with trade_account."
@@ -592,10 +616,16 @@ object Trading {
 
     private fun cancel(ctx: Context, args: JSONObject): Res {
         val a = pick(ctx, args.optString("account")); val b = broker(ctx, a)
-        val orders = b.account().optJSONArray("orders")?.let { o -> (0 until o.length()).map { o.getJSONObject(it) } } ?: emptyList()
+        val acct = b.account()
+        val orders = acct.optJSONArray("orders")?.let { o -> (0 until o.length()).map { o.getJSONObject(it) } } ?: emptyList()
         val which = if (args.optString("order_id").isNotEmpty()) orders.filter { it.optString("id") == args.optString("order_id") } else if (args.optBoolean("all")) orders else emptyList()
         if (which.isEmpty()) return Res(if (args.optString("order_id").isNotEmpty()) "${label(a)}: no open order #${args.optString("order_id")}." else "Say which order (order_id), or all: true.")
-        val done = which.map { o -> try { b.cancel(o.optString("id"), o.optString("symbol")); "#${o.optString("id")}" } catch (e: Exception) { "#${o.optString("id")} (not cancelled: ${e.message})" } }
+        val positions = acct.optJSONArray("positions")
+        val done = which.map { o ->
+            // LIVE: the stop loss or target of an open futures position isn't cancelled here (that would leave it unprotected)
+            if (a.optString("mode") == "live" && TradeRules.protectsPosition(o, positions)) "#${o.optString("id")} (not cancelled: it guards your open ${o.optString("symbol")} position; close the position with trade_close instead)"
+            else try { b.cancel(o.optString("id"), o.optString("symbol")); "#${o.optString("id")}" } catch (e: Exception) { "#${o.optString("id")} (not cancelled: ${e.message})" }
+        }
         audit(ctx, a.optString("name"), a.optString("mode"), "cancel", null, "sent", note = done.joinToString(" "))
         return Res("${label(a)}: cancelled ${done.joinToString(", ")}.")
     }
@@ -609,12 +639,15 @@ object Trading {
         try { Sync.syncSoon(ctx, 500) } catch (_: Exception) {}   // the other device hears it straight away
         val notes = mutableListOf<String>()
         for (a in accounts(ctx)) try {
-            val b = broker(ctx, a); val o = b.account().optJSONArray("orders")
-            for (i in 0 until (o?.length() ?: 0)) { val x = o!!.getJSONObject(i); try { b.cancel(x.optString("id"), x.optString("symbol")); notes.add("${a.optString("name")} #${x.optString("id")} cancelled") } catch (e: Exception) { notes.add("${a.optString("name")} #${x.optString("id")} NOT cancelled (${e.message})") } }
+            val b = broker(ctx, a); val acct = b.account(); val o = acct.optJSONArray("orders"); val positions = acct.optJSONArray("positions")
+            for (i in 0 until (o?.length() ?: 0)) { val x = o!!.getJSONObject(i)
+                // an open position's stop loss and target stay: stopping must never strip a position of its protection
+                if (TradeRules.protectsPosition(x, positions)) { notes.add("${a.optString("name")} #${x.optString("id")} kept (it guards the open ${x.optString("symbol")} position)"); continue }
+                try { b.cancel(x.optString("id"), x.optString("symbol")); notes.add("${a.optString("name")} #${x.optString("id")} cancelled") } catch (e: Exception) { notes.add("${a.optString("name")} #${x.optString("id")} NOT cancelled (${e.message})") } }
         } catch (e: Exception) { notes.add("${a.optString("name")}: couldn't reach it (${e.message})") }
         audit(ctx, "*", "", "stop_all", null, "stopped", note = (listOf(reason) + notes).filter { it.isNotBlank() }.joinToString("; "))
         TradingNotify.stopped(ctx)
-        return Res("Trading is STOPPED on every account. ${if (notes.isNotEmpty()) notes.joinToString("; ") + ". " else ""}Open positions were left as they are (close them with trade_close if the user wants). Only the user can turn trading back on, in Me → Trading.")
+        return Res("Trading is STOPPED on every account. ${if (notes.isNotEmpty()) notes.joinToString("; ") + ". " else ""}Open positions were left as they are, with their stop losses and targets (close them with trade_close if the user wants). Only the user can turn trading back on, in Me → Trading.")
     }
 
     private fun accountsList(ctx: Context): Res {

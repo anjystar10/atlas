@@ -62,6 +62,8 @@ object TradingNotify {
         nm.notify(id, b.build())
     }
     fun sent(ctx: Context, live: Boolean, summary: String) = post(ctx, 7810 + (System.currentTimeMillis() % 50).toInt(), if (live) "LIVE order sent" else "PAPER order sent", summary, true)
+    /** A LIVE order got no answer after it was sent: it may have gone through (check before trying again). */
+    fun unsure(ctx: Context, summary: String) = post(ctx, 7810 + (System.currentTimeMillis() % 50).toInt(), "LIVE order: no answer from the broker", "It may have gone through. Check before trying again. $summary", true)
     fun stopped(ctx: Context) = post(ctx, 7800, "Trading stopped", "No new orders on any account. Turn trading back on in Me → Trading.", false)
 }
 

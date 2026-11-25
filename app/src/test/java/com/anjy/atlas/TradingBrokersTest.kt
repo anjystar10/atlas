@@ -125,4 +125,17 @@ class TradingBrokersTest {
         assertEquals("buy", p.closeOrder("NQ")!!.optString("side"))   // closing a short buys
         try { Trading.ProjectX("jane", "bad", base, 465).inst("NQ"); fail() } catch (e: Trading.TradeError) { assertTrue(e.message!!.contains("turned down")) }
     }
+
+    // ---- scan 3: with brackets refused, a limit or stop entry isn't placed with its stop resting on its own
+    @Test fun projectXRefusesAnUnprotectableEntryAndBybitFlagsLimitOnlyTpSl() {
+        val p = Trading.ProjectX("jane", "pk1", base, 465)
+        bracketsMode = false; orders.clear()
+        val o = JSONObject().put("symbol", "NQZ6").put("side", "buy").put("type", "limit").put("qty", "1").put("price", "20990").put("refPrice", 20990.0).put("stopLoss", "20980").put("takeProfit", JSONObject.NULL)
+        try { p.place(o, "atlas-t4"); fail("must refuse") } catch (e: Trading.TradeError) { assertTrue(e.message!!.contains("Nothing was placed")); assertTrue(!e.unsure) }
+        assertTrue(orders.isEmpty())
+        assertEquals(true, Trading.Bybit("k1", "s1", base).inst("BTCUSDT").optBoolean("tpslLimitOnly"))
+        // no answer at all is "unsure" (the order may have gone out), never a plain refusal
+        try { Trading.Bybit("k1", "s1", "http://127.0.0.1:1").place(JSONObject().put("symbol", "BTCUSDT").put("side", "buy").put("type", "market").put("qty", "0.001").put("stopLoss", JSONObject.NULL).put("takeProfit", JSONObject.NULL), "atlas-t5"); fail() }
+        catch (e: Trading.TradeError) { assertTrue(e.unsure) }
+    }
 }

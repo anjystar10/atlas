@@ -83,7 +83,7 @@ private fun MainActivity.tradeConnect(was: JSONObject?, newBroker: String = "byb
         val a = acc(); val s = secret()
         val becomesLive = mode == "live" && was?.optString("mode") != "live"
         val doSave = { tbg({ Trading.saveAccount(applicationContext, a, s); null }) { showBanner(if (mode == "live") "Saved as LIVE" else "Saved as PAPER", DONE) } }
-        if (becomesLive) sheet(null, "Make It LIVE?", "Orders on “${name.ifBlank { "this account" }}” will use real money. Each LIVE order shows you what it is and its worst case and waits for your tap (or a plan you confirmed). Losses are possible.",
+        if (becomesLive) sheet(null, "Make It LIVE?", "Orders on “${name.ifBlank { "this account" }}” will use real money. Each LIVE order shows you what it is and its worst case and waits for your tap (or a plan you confirmed). Its limits start at the LIVE defaults (${TradeRules.money(TradeRules.DEFAULT.maxOrderUsd)} or ${TradeRules.DEFAULT.maxContracts.toInt()} contract an order, ${TradeRules.money(TradeRules.DEFAULT.maxDailyLossUsd)} loss a day, ${TradeRules.DEFAULT.maxOrdersPerDay} trades a day); change them in its limits. Losses are possible.",
             primaryLabel = "Make It LIVE", primaryColor = MISS, onPrimary = { doSave() }, secondaryLabel = "Keep It Paper")
         else doSave()
     }, secondaryLabel = "Cancel")
