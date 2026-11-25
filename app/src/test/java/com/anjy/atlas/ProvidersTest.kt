@@ -91,4 +91,16 @@ class ProvidersTest {
         assertTrue(Providers.explain("OpenAI", 429, "{}").contains("limit"))
         assertTrue(Providers.explain("Groq", 404, "{\"error\":{\"message\":\"model not found\"}}").contains("model"))
     }
+
+    /** OpenRouter reports a provider's failure inside a 200 answer (its docs); that's a failure to retry, not "an empty answer". */
+    @Test fun anErrorInsideA200IsAFailure() {
+        val top = Providers.bodyError("OpenRouter", org.json.JSONObject("""{"error":{"code":502,"message":"Provider returned error","metadata":{"provider_name":"X"}}}"""))!!
+        assertEquals(502, top.code)
+        assertEquals(KeyRouter.Cause.PASSING, KeyRouter.cause(top.code, top.offline, top.message ?: ""))
+        val inChoice = Providers.bodyError("OpenRouter", org.json.JSONObject("""{"choices":[{"message":{"role":"assistant","content":"Half an ans"},"finish_reason":"error","error":{"code":429,"message":"Rate limited. Please try again in 20s."}}]}"""))!!
+        assertEquals(429, inChoice.code); assertEquals(20_000L, inChoice.retryAfterMs)
+        // a code that isn't an HTTP status: taken as a passing 502
+        assertEquals(502, Providers.bodyError("X", org.json.JSONObject("""{"error":{"code":"server_error","message":"boom"}}"""))!!.code)
+        assertEquals(null, Providers.bodyError("X", org.json.JSONObject("""{"choices":[{"message":{"role":"assistant","content":"fine"}}]}""")))
+    }
 }

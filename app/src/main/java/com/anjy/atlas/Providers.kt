@@ -272,6 +272,19 @@ object Providers {
         } finally { con.disconnect() }
     }
 
+    /**
+     * A failure reported inside a 200 answer: OpenRouter (its docs) sends one when the model's provider fails after the
+     * request was accepted, as a top-level "error" (often with no choices) or on choices[0].error beside partial text.
+     * Read as the HTTP error it stands for (a passing 502 when it doesn't say), so it's retried or moved on from,
+     * rather than shown as "an empty answer".
+     */
+    fun bodyError(service: String, r: JSONObject): Gemini.Failure? {
+        val e = r.optJSONObject("error") ?: r.optJSONArray("choices")?.optJSONObject(0)?.optJSONObject("error") ?: return null
+        val code = e.optInt("code", 0).takeIf { it in 400..599 } ?: 502
+        val body = JSONObject().put("error", e).toString()
+        return Gemini.Failure(explain(service, code, body), code = code, retryAfterMs = KeyRouter.retryHint(body, null))
+    }
+
     fun explain(service: String, code: Int, body: String): String {
         val msg = try {
             val o = JSONObject(body)
@@ -371,6 +384,7 @@ object Providers {
             val headers = mutableMapOf("Authorization" to "Bearer $key")
             if (p.id == "openrouter") { headers["HTTP-Referer"] = "https://github.com/anjystar10/atlas"; headers["X-Title"] = "Atlas" }
             val r = post("$base/chat/completions", headers, body, p.name)
+            bodyError(p.name, r)?.let { throw it }
             val choice = r.optJSONArray("choices")?.optJSONObject(0) ?: throw Gemini.Failure("${p.name} sent back an empty answer.")
             val m = choice.optJSONObject("message") ?: throw Gemini.Failure("${p.name} sent back an empty answer.")
             val text = if (m.isNull("content")) "" else m.optString("content", "")

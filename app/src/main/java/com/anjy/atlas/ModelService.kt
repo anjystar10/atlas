@@ -18,7 +18,9 @@ import com.arm.aichat.isModelLoaded
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -32,6 +34,13 @@ import kotlin.coroutines.resume
 class ModelService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var engine: InferenceEngine? = null
+    /**
+     * The answer being written, and its request id. Stop in the chat cancels it (CANCEL): the runtime then stops between
+     * words and is ready again. Without this the old answer ran on to its end, and the next question was refused with
+     * "The model isn't ready" (and a load in the meantime with "Cannot unload model in Generating").
+     */
+    @Volatile private var gen: Job? = null
+    @Volatile private var genId = 0
 
     private val messenger = Messenger(Handler(Looper.getMainLooper()) { msg -> handle(Message.obtain(msg)); true })
 
@@ -64,8 +73,9 @@ class ModelService : Service() {
         val to = msg.replyTo; val id = msg.arg1
         val data = msg.data
         when (msg.what) {
-            LOAD -> scope.launch {
+            LOAD -> { val prev = gen; scope.launch {
                 try {
+                    prev?.cancelAndJoin()
                     val e = engine()
                     val st = e.state.first { it is InferenceEngine.State.Initialized || it is InferenceEngine.State.Error || it.isModelLoaded }
                     if (st.isModelLoaded || st is InferenceEngine.State.Error) e.cleanUp()
@@ -76,25 +86,27 @@ class ModelService : Service() {
                     try { engine?.cleanUp() } catch (_: Throwable) {}
                     send(to, ERROR, id, t.message ?: t.javaClass.simpleName)
                 }
-            }
-            GENERATE -> scope.launch {
+            } }
+            GENERATE -> { val prev = gen; genId = id; gen = scope.launch {
                 try {
+                    prev?.cancelAndJoin()   // a stopped answer finishes stopping first
                     val e = engine ?: throw IllegalStateException("No model loaded.")
                     if (e.state.value !is InferenceEngine.State.ModelReady) throw IllegalStateException("The model isn't ready.")
                     e.sendUserPrompt(data.getString("text") ?: "", data.getInt("max", 320)).collect { tok -> send(to, TOKEN, id, tok) }
                     send(to, DONE, id)
                 } catch (t: Throwable) { send(to, ERROR, id, t.message ?: t.javaClass.simpleName) }
-            }
-            UNLOAD -> scope.launch {
-                try { engine?.let { if (it.state.value.isModelLoaded || it.state.value is InferenceEngine.State.Error) it.cleanUp() } } catch (_: Throwable) {}
+            } }
+            CANCEL -> if (genId == id) gen?.cancel()
+            UNLOAD -> { val prev = gen; scope.launch {
+                try { prev?.cancelAndJoin(); engine?.let { if (it.state.value.isModelLoaded || it.state.value is InferenceEngine.State.Error) it.cleanUp() } } catch (_: Throwable) {}
                 send(to, DONE, id)
-            }
+            } }
         }
     }
 
     companion object {
         private const val TAG = "AtlasBrainProc"
-        const val LOAD = 1; const val GENERATE = 2; const val UNLOAD = 3
+        const val LOAD = 1; const val GENERATE = 2; const val UNLOAD = 3; const val CANCEL = 4
         const val TOKEN = 10; const val DONE = 11; const val ERROR = 12
     }
 }
@@ -158,7 +170,12 @@ object ModelLink {
         suspendCancellableCoroutine<Unit> { c -> main.post { c.resume(Unit) } }
         val m = Message.obtain(null, what, id, 0).apply { this.data = data; replyTo = replies }
         r.send(m)
-        return done.await()
+        return try { done.await() } catch (e: kotlinx.coroutines.CancellationException) {
+            // stopped: its words no longer reach the chat (they kept filling the reply after Stop), and the model stops too
+            main.post { pending.remove(id) }
+            try { r.send(Message.obtain(null, ModelService.CANCEL, id, 0)) } catch (_: Exception) {}
+            throw e
+        }
     }
 
     fun disconnect(ctx: Context) {

@@ -223,7 +223,12 @@ object Conversation {
     fun stop() {
         job?.cancel(); job = null
         gen++
-        if (busy) { busy = false; status = null; usingPhone = false; changed() }
+        if (busy) {
+            // the reply says so at once: the call it was waiting on can take a while to give up, and until then the
+            // bubble stayed empty with nothing working
+            inFlight?.second?.let { r -> if (r.text.isBlank()) r.text = "Stopped." }
+            busy = false; status = null; usingPhone = false; changed()
+        }
     }
 
     /** The pictures in the user's latest message that has any (for generate_image to work from). */
@@ -512,7 +517,7 @@ ${Tools.logContext(ctx)}
         if (fixed != null) { reply.text = fixed.text; reply.source = "Atlas"; return }
         if (ModelManager.modelName(ctx) == null) {
             reply.source = "Atlas"
-            reply.text = if (online(ctx)) "I can't reach Gemini and there's no offline model on this phone, so I can only do fixed commands right now (say “help”)."
+            reply.text = if (online(ctx)) "I can't reach ${provider(ctx)?.name ?: "the AI service"} and there's no offline model on this phone, so I can only do fixed commands right now (say “help”)."
             else "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
             return
         }
