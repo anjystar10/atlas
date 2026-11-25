@@ -31,3 +31,15 @@ test('short runs and code stay as written', () => {
   const tail = split('Lead\nA: 1\nB: 2\nC: 3\n\nWant me to move anything?');
   assert.equal(tail.length, 3); assert.deepEqual(tail[2], { text: 'Want me to move anything?' });
 });
+
+test('prices, rates and version numbers are not times (the phone\'s UiShapeTest.pricesRatesAndVersionsAreNotTimes)', () => {
+  for (const l of ['- 12.50 for a coffee', '- 1.0845 entry', '- 0.11.4: trading stop on both devices', '12:30:45 server restarted', '3.75 – sandwich', '25:00 nothing', '1.25 million people live there'])
+    assert.equal(row(l), null, l);
+  const prices = 'Prices today:\n- 2.50 for a coffee\n- 3.10 for tea\n- 1.20 for water';
+  assert.deepEqual(split(prices), [{ text: prices }]);
+  // real times still are
+  assert.equal(row('7:45am Breakfast').key, '7:45am');
+  assert.equal(row('3.30pm call').key, '3:30pm');
+  assert.deepEqual(row('23:30: Stretch'), { key: '23:30', value: 'Stretch', tone: 'time' });
+  assert.deepEqual(row('10:30-11:00 Meeting'), { key: '10:30', value: '11:00 Meeting', tone: 'time' });
+});
