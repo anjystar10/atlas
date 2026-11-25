@@ -419,7 +419,7 @@ class AvatarService : Service() {
     private fun startTalk(afterWake: Boolean = false) {
         holdMic(this, true)
         Conversation.hush()
-        talking = true; turns = 0; hearFails = 0
+        talking = true; turns = 0; hearFails = 0; quietMs = 0
         handler.removeCallbacks(pulse); handler.post(pulse)
         Hear.prewarm(this)
         listen(afterWake = afterWake)
@@ -452,10 +452,10 @@ class AvatarService : Service() {
         }
         holdMic(this, true)
         Conversation.hush()
-        talking = true; turns = 0; hearFails = 0
+        talking = true; turns = 0; hearFails = 0; quietMs = 0
         orbFrame?.visibility = View.VISIBLE
         setGrown(true)
-        handler.post(pulse)
+        handler.removeCallbacks(pulse); handler.post(pulse)
         Hear.prewarm(this)
         listen(afterWake = fromWakeWord)
         fromWakeWord = false
@@ -632,7 +632,7 @@ class AvatarService : Service() {
         val w = c.measuredWidth; val h = c.measuredHeight
         val left = p.x + p.width / 2 > sw / 2
         lp.x = (if (left) p.x - w - dp(4) else p.x + p.width + dp(4)).coerceIn(dp(4), sw - w - dp(4))
-        lp.y = (p.y + p.height / 2 - h / 2).coerceAtLeast(dp(24))
+        lp.y = (p.y + p.height / 2 - h / 2).coerceIn(dp(24), (resources.displayMetrics.heightPixels - h - dp(4)).coerceAtLeast(dp(24)))
         try { wm?.updateViewLayout(c, lp) } catch (_: Exception) {}
     }
 
@@ -648,10 +648,16 @@ class AvatarService : Service() {
         override fun run() { Sync.syncSoon(this@AvatarService, 0); handler.postDelayed(this, 10 * 60_000L) }
     }
 
+    /**
+     * How long a talk has had nothing listening, thinking or speaking. Starts at 0 with each talk: it was kept from the
+     * last one (which ended at 6 s), so a talk whose first listen failed at once ended on the next tick, before its one
+     * retry and before its message ("no speech recognition…") could be read.
+     */
+    private var quietMs = 0
+
     /** While Atlas speaks, the orb pulses gently with its voice (and settles when it stops). */
     private val pulse = object : Runnable {
         private var t = 0f
-        private var idle = 0
         override fun run() {
             if (!talking) { orb?.level = 0f; return }
             t += 0.05f
@@ -664,9 +670,9 @@ class AvatarService : Service() {
                 if (Conversation.busy) handler.postDelayed({ listenAlongside() }, 400)
             }
             if (voice == null && !Conversation.busy && !Voice.busy) {
-                idle += 50
-                if (idle >= 6000) { endTalk(); return }
-            } else idle = 0
+                quietMs += 50
+                if (quietMs >= 6000) { endTalk(); return }
+            } else quietMs = 0
             if (panel != null && ++ticks % 10 == 0) panelRefresh()   // twice a second
             if (Voice.speaking) {
                 val beat = (0.5f + 0.5f * sin(t * 9.0f)) * (0.6f + 0.4f * sin(t * 2.3f + 1f))
