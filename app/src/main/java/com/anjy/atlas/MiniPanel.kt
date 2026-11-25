@@ -28,8 +28,9 @@ import kotlin.math.roundToInt
  * outside it or press Back to put it away; the work carries on. "Open Atlas" opens the full app, and only that does.
  *
  * It's one overlay window owned by [AvatarService] (so it needs "Display over other apps"); it doesn't take the
- * keyboard from the app underneath until you tap its text field. While Atlas drives another app on screen it steps
- * aside (the "working" pill shows instead) so it never covers what Atlas is tapping.
+ * keyboard from the app underneath until you tap its text field. It does take the keys from the start (so Back puts
+ * it away), as a window the keyboard can't attach to (FLAG_ALT_FOCUSABLE_IM) until the field is tapped. While Atlas
+ * drives another app on screen it steps aside (the "working" pill shows instead) so it never covers what Atlas is tapping.
  */
 class MiniPanel(
     private val ctx: Context,
@@ -77,8 +78,10 @@ class MiniPanel(
     private val params = WindowManager.LayoutParams(
         WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT,
         WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-        // touches outside go to the app underneath (and tell the panel to go); no keyboard until the field is tapped
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+        // touches outside go to the app underneath (and tell the panel to go); it gets the keys (Back closes it), but no
+        // keyboard until the field is tapped: a focusable window with ALT_FOCUSABLE_IM is never the keyboard's target.
+        // (A not-focusable window gets no keys at all, so Back went to the app underneath until the field was tapped.)
+        WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
         PixelFormat.TRANSLUCENT
     ).apply {
         gravity = Gravity.BOTTOM
@@ -209,8 +212,8 @@ class MiniPanel(
     }
 
     private fun wantKeyboard() {
-        if (params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE == 0) return
-        params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+        if (params.flags and NO_KEYBOARD == 0) return
+        params.flags = params.flags and NO_KEYBOARD.inv()
         try { wm.updateViewLayout(root, params) } catch (_: Exception) {}
         field.requestFocus()
         field.post { try { ctx.getSystemService(InputMethodManager::class.java)?.showSoftInput(field, 0) } catch (_: Exception) {} }
@@ -278,9 +281,16 @@ class MiniPanel(
     fun stepAside(on: Boolean) {
         if (on == aside || !shown) return
         aside = on
-        params.flags = if (on) params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-            else params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+        // aside, it takes neither touches nor keys; back, it takes the keys again (Back) and the keyboard once the field is tapped
+        // (ALT_FOCUSABLE_IM is cleared aside: with NOT_FOCUSABLE it would ask for the keyboard instead)
+        params.flags = if (on) (params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE) and WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM.inv()
+            else (params.flags and (WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE).inv()) or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
         root.visibility = if (on) View.GONE else View.VISIBLE
         try { wm.updateViewLayout(root, params) } catch (_: Exception) {}
+    }
+
+    private companion object {
+        /** Either flag keeps the keyboard away from the panel's field. */
+        const val NO_KEYBOARD = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
     }
 }
