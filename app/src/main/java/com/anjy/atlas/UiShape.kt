@@ -24,7 +24,9 @@ object UiShape {
     }
 
     private val BULLET = Regex("^\\s*(?:[-•*]|\\d{1,2}[.)])\\s+")
-    private val TIME = Regex("^(\\d{1,2}[:.]\\d{2}(?:\\s?[aApP][mM])?)\\s*(?:[-–—·:]\\s*)?(.+)$")
+    // a clock time (0–23 h, 00–59 min) at the start of the line; "8.05" counts only with am/pm or a dash after it, so a
+    // price ("12.50 for a coffee"), a rate ("1.0845 entry"), a version ("0.11.4: …") or "12:30:45" isn't taken for one
+    private val TIME = Regex("^((?:[01]?\\d|2[0-3])(?::[0-5]\\d|\\.[0-5]\\d(?=\\s?[aApP][mM]|\\s*[-–—·:]))(?:\\s?[aApP][mM])?)(?!\\d|[.,:]\\d)\\s*(?:[-–—·:]\\s*)?(.+)$")
     private val LABEL = Regex("^\\**([A-Za-z][A-Za-z0-9 '’/&()-]{0,26}?)\\**\\s*:\\**\\s+(.+)$")
 
     /** A line as a row, or null if it isn't one ("Now: Code Atlas", "23:30 Stretch", "- Blocked: Fix bike"). */

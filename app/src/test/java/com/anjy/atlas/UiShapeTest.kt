@@ -29,6 +29,24 @@ class UiShapeTest {
         assertNull(UiShape.row(""))
     }
 
+    @Test fun pricesRatesAndVersionsAreNotTimes() {
+        // these used to become rows keyed "12:50", "1:08", "0:11", "12:30" (a price list, a trading report, release notes)
+        assertNull(UiShape.row("- 12.50 for a coffee"))
+        assertNull(UiShape.row("- 1.0845 entry"))
+        assertNull(UiShape.row("- 0.11.4: trading stop on both devices"))
+        assertNull(UiShape.row("12:30:45 server restarted"))
+        assertNull(UiShape.row("3.75 – sandwich"))
+        assertNull(UiShape.row("25:00 nothing"))
+        assertNull(UiShape.row("1.25 million people live there"))
+        val prices = "Prices today:\n- 2.50 for a coffee\n- 3.10 for tea\n- 1.20 for water"
+        assertEquals(listOf(UiShape.Seg.Text(prices)), UiShape.split(prices))
+        // real times still are
+        assertEquals("7:45am", UiShape.row("7:45am Breakfast")?.key)
+        assertEquals("3:30pm", UiShape.row("3.30pm call")?.key)
+        assertEquals(UiShape.Row("23:30", "Stretch", UiShape.Tone.TIME), UiShape.row("23:30: Stretch"))
+        assertEquals(UiShape.Row("10:30", "11:00 Meeting", UiShape.Tone.TIME), UiShape.row("10:30-11:00 Meeting"))
+    }
+
     @Test fun aRunOfThreeBecomesRowsWithTheLeadLineKept() {
         val reply = "One thing needs you, the rest is on track.\nNeeds your answer: Read 20 pages\nNow: Code Atlas\n23:23 Gym\n23:30 stretch\nBlocked: Fix bike\nDone today: 1"
         val segs = UiShape.split(reply)
