@@ -8,7 +8,7 @@ mode, rotation, going to the background and coming back, the process being kille
 away, Reduce Motion off, then a crawl that taps every button on every tab, sheet and screen it can reach (depth 3),
 types odd text into every field, and finally the destructive buttons (delete, remove, clear…) to check each one asks.
 
-Usage: crawl.py OUTDIR [--minutes N] [--stub-port PORT] [--only scenarios|crawl]
+Usage: crawl.py OUTDIR [--minutes N (the crawl's budget, after the scenarios)] [--stub-port PORT] [--only scenarios|crawl]
 Expects: adb root, Atlas installed, OUTDIR/logcat.txt being written by `adb logcat -v threadtime` (deep.sh does this),
 the stand-in (stub.py) on this machine at PORT. Writes:
   OUTDIR/shots/NNNN-<what>.png     every new screen and every scenario step
@@ -147,6 +147,9 @@ class Screen:
         ks = sorted({re.sub(r"\d+", "#", n.label) for n in self.nodes if (n.click or n.edit) and n.label})
         return self.pkg + "|" + "|".join(ks)[:4000]
 
+    def labels(self):
+        return {re.sub(r"\d+", "#", n.label) for n in self.nodes if (n.click or n.edit) and n.label}
+
     def content(self):
         return "|".join(re.sub(r"\d+", "#", w) for w in self.words())[:6000]
 
@@ -215,6 +218,8 @@ def swipe_down_to_top():
 def type_text(s):
     """adb's `input text` takes ASCII only; spaces are %s, and the shell's own characters are escaped."""
     s = s.encode("ascii", "ignore").decode()
+    if s.startswith("-"):
+        key(69); s = s[1:]   # a leading "-" would be read as an option of `input`
     for i in range(0, len(s), 80):
         part = s[i:i + 80].replace(" ", "%s")
         part = re.sub(r"([\\'\"`$&|;<>()\[\]{}*?!#~])", r"\\\1", part)
@@ -658,6 +663,21 @@ def settle():
     time.sleep(1.3)
 
 
+def sim(a, b):
+    return len(a & b) / max(1, len(a | b))
+
+
+def opened_something(before, after, act_before, act_after):
+    """Did the tap open a new screen or sheet (go in, then Back), or only change this one (a toggle, a chip)?"""
+    if act_before != act_after:
+        return True
+    a, b = before.labels(), after.labels()
+    added, removed = b - a, a - b
+    if len(added) >= 2 and len(removed) <= len(added):
+        return True    # a sheet over the page (the page underneath is still read) or a section that opened
+    return len(removed) > 3 and sim(a, b) < 0.5
+
+
 def handle_foreign(s, ctx):
     """Atlas isn't in front: a permission question, a crash/ANR dialog, or another app. Note it and come back."""
     txt = " ".join(s.words())[:300]
@@ -711,6 +731,8 @@ def explore(path, depth):
     if not s.ok or s.pkg != PKG:
         return
     sig0 = s.sig()
+    labels0 = s.labels()
+    here = foreground()[1]
     explored.add(sig0)
     root = depth == 0
     pname = "/".join([path[0]] + [l for _, l in path[1:]])
@@ -724,7 +746,7 @@ def explore(path, depth):
             if not fill_inputs(s, path):
                 break
             s = dump()
-            if s.pkg != PKG or s.sig() != sig0 and not root:
+            if s.pkg != PKG:
                 break
         progressed = False
         for lab, n in targets(s, root):
@@ -744,6 +766,7 @@ def explore(path, depth):
             tapped_global[lab] = tapped_global.get(lab, 0) + 1
             seen_labels.add(lab)
             ctx = {"path": [path[0]] + [l for _, l in path[1:]], "label": lab, "round": rounds}
+            pre = s
             tap(n); settle()
             coverage["tapped"] += 1; coverage["screens"][pname]["taps"] += 1
             bad = health(ctx)
@@ -757,25 +780,26 @@ def explore(path, depth):
                 if not handle_foreign(s2, ctx):
                     replay(path) or launch(path[0])
                 s = dump(); progressed = True
-                if s.sig() != sig0:
+                if sim(s.labels(), pre.labels()) < 0.8:
                     if not replay(path):
                         return
                     for _ in range(rounds):
                         swipe_up()
                     s = dump()
                 break
-            if s2.sig() != sig0:
+            if s2.sig() != pre.sig() and opened_something(pre, s2, here, foreground()[1]):
                 name = shot(slug(pname, 30) + "--" + slug(lab, 30))
                 record("tap", result="new-screen", shot=name, words=s2.words()[:40], crashed=bool(bad), **ctx)
                 if depth < 3 and s2.sig() not in explored:
                     explore(path + [(rounds, lab)], depth + 1)
                 back(); settle()
                 s = dump()
-                if s.pkg != PKG or s.sig() != sig0:
+                home_labels = pre.labels()
+                if s.pkg != PKG or sim(s.labels(), home_labels) < 0.8:
                     # Back didn't come back here: one more, then the long way
-                    if s.pkg == PKG and s.sig() not in (sig0,):
+                    if s.pkg == PKG:
                         back(); s = dump()
-                    if s.pkg != PKG or s.sig() != sig0:
+                    if s.pkg != PKG or sim(s.labels(), home_labels) < 0.8:
                         if not replay(path):
                             return
                         for _ in range(rounds):
@@ -784,7 +808,10 @@ def explore(path, depth):
                 progressed = True
                 break   # the screen was rebuilt: read the targets again
             else:
-                record("tap", result="same-screen", crashed=bool(bad), **ctx)
+                record("tap", result="same-screen" if s2.content() == s.content() else "changed", crashed=bool(bad), **ctx)
+                if s2.content() != s.content():
+                    s = s2; progressed = True
+                    break   # positions may have moved: read the targets again
         if progressed:
             continue
         before = s.content()
@@ -857,6 +884,8 @@ def main():
             with open(os.path.join(OUT, "scenarios.json"), "w") as f:
                 json.dump(SCEN, f, ensure_ascii=False, indent=1)
     if ONLY != "scenarios":
+        global DEADLINE
+        DEADLINE = time.time() + MINUTES * 60   # the crawl's own budget, after the scenarios
         prefs(stub_key_prefs()); stub("ok")
         mem["before_crawl"] = (launch("atlas"), meminfo("before-crawl"))[1]
         for tab in ("atlas", "log", "bots", "me"):

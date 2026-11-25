@@ -36,7 +36,7 @@ LOGCAT_PID=$!
 log "install $APK"
 if ! adb install -r -g "$APK" > "$OUT/install.txt" 2>&1; then
   cat "$OUT/install.txt"; log "INSTALL FAILED (see install.txt)"
-  echo "# Deep test: $PART\n\nINSTALL FAILED: $(cat "$OUT/install.txt")" > "$OUT/findings.md"
+  printf '# Deep test: %s\n\nINSTALL FAILED: %s\n' "$PART" "$(cat "$OUT/install.txt")" > "$OUT/findings.md"
   kill $LOGCAT_PID 2>/dev/null; exit 0
 fi
 adb shell appops set $PKG SYSTEM_ALERT_WINDOW allow

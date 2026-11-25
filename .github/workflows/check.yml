@@ -3,7 +3,7 @@ name: Compile check
 # Fast feedback for work branches: compiles the Kotlin and runs the unit tests (no native build, no APK).
 on:
   push:
-    branches-ignore: [main, apk-builds, smoke-results]
+    branches-ignore: [main, apk-builds, smoke-results, deep-results, 'deep/**']
 
 env:
   LLAMA_CPP_REF: 9e2a04a439edc49f08c5acdafefae19dfa25a658
