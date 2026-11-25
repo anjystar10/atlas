@@ -1,0 +1,1669 @@
+{
+ "part": "monkey",
+ "pids": {
+  "4341": "com.anjy.atlas",
+  "4743": "com.anjy.atlas",
+  "5290": "com.anjy.atlas",
+  "6194": "com.anjy.atlas",
+  "6423": "com.anjy.atlas",
+  "6504": "com.anjy.atlas",
+  "6764": "com.anjy.atlas:hotword",
+  "6937": "com.anjy.atlas",
+  "7030": "com.anjy.atlas",
+  "7784": "com.anjy.atlas",
+  "8431": "com.anjy.atlas",
+  "8629": "com.anjy.atlas:hotword",
+  "9075": "com.anjy.atlas",
+  "9284": "com.anjy.atlas",
+  "9667": "com.anjy.atlas",
+  "10625": "com.anjy.atlas",
+  "10681": "com.anjy.atlas",
+  "10846": "com.anjy.atlas",
+  "11628": "com.anjy.atlas",
+  "11706": "com.anjy.atlas",
+  "12215": "com.anjy.atlas",
+  "12422": "com.anjy.atlas:hotword"
+ },
+ "crashes": [
+  {
+   "at": "11-25 21:00:56.176",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 4743",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=219.771, y[0]=56.5459, toolType[0]=UNKNOWN, id[1]=1, x[1]=90.1592, y[1]=403.153, toolType[1]=UNKNOWN, pointerCount=2, eventTime=79353000000, downTime=79351000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-238039370}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:01:33.635",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 5290",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=320, y[0]=297.873, toolType[0]=UNKNOWN, id[1]=1, x[1]=209.82, y[1]=267.634, toolType[1]=UNKNOWN, pointerCount=2, eventTime=116818000000, downTime=116810000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-292729973}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:02:09.790",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 6194",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=236.509, y[0]=416.296, toolType[0]=UNKNOWN, id[1]=1, x[1]=211.256, y[1]=517.384, toolType[1]=UNKNOWN, pointerCount=2, eventTime=152972000000, downTime=152967000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-160819299}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:02:15.080",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 6423",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=200, y[0]=140.451, toolType[0]=UNKNOWN, id[1]=1, x[1]=290.913, y[1]=552, toolType[1]=UNKNOWN, pointerCount=2, eventTime=158251000000, downTime=158248000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-393442786}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:03:17.235",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 6504",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=2.65332, y[0]=165.092, toolType[0]=UNKNOWN, id[1]=1, x[1]=0, y[1]=31.3105, toolType[1]=UNKNOWN, pointerCount=2, eventTime=220420000000, downTime=220418000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-184074314}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:03:29.094",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 6937",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=206.592, y[0]=339.038, toolType[0]=UNKNOWN, id[1]=1, x[1]=49.3643, y[1]=232.77, toolType[1]=UNKNOWN, pointerCount=2, eventTime=232277000000, downTime=232274000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-27531789}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:04:43.862",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 7030",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=136.743, y[0]=148.021, toolType[0]=UNKNOWN, id[1]=1, x[1]=224.533, y[1]=190.477, toolType[1]=UNKNOWN, pointerCount=2, eventTime=307041000000, downTime=307038000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-23128840}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:07:04.339",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 8431",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=161.903, y[0]=350.87, toolType[0]=UNKNOWN, id[1]=1, x[1]=276.182, y[1]=79.9814, toolType[1]=UNKNOWN, pointerCount=2, eventTime=447521000000, downTime=447518000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-418663602}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:07:13.573",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 9075",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=73.9873, y[0]=-22.3633, toolType[0]=UNKNOWN, id[1]=1, x[1]=143.86, y[1]=328.008, toolType[1]=UNKNOWN, pointerCount=2, eventTime=456748000000, downTime=456745000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-696480076}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:08:17.215",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 9284",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=112.689, y[0]=38.6973, toolType[0]=UNKNOWN, id[1]=1, x[1]=150.544, y[1]=142.2, toolType[1]=UNKNOWN, pointerCount=2, eventTime=520398000000, downTime=520393000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-1064240399}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:10:16.113",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 9667",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=183.211, y[0]=-13.2383, toolType[0]=UNKNOWN, id[1]=1, x[1]=308.99, y[1]=115.891, toolType[1]=UNKNOWN, pointerCount=2, eventTime=639292000000, downTime=639290000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-165094260}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:10:21.411",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 10625",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=226.075, y[0]=297.601, toolType[0]=UNKNOWN, id[1]=1, x[1]=163.509, y[1]=25.2188, toolType[1]=UNKNOWN, pointerCount=2, eventTime=644593000000, downTime=644590000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-746667861}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:11:56.745",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 10846",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=50.3652, y[0]=159.793, toolType[0]=UNKNOWN, id[1]=1, x[1]=169.251, y[1]=-88, toolType[1]=UNKNOWN, pointerCount=2, eventTime=739926000000, downTime=739924000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-184220942}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:12:04.109",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 11628",
+    "java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=119.867, y[0]=221.23, toolType[0]=UNKNOWN, id[1]=1, x[1]=211.994, y[1]=547.025, toolType[1]=UNKNOWN, pointerCount=2, eventTime=747287000000, downTime=747284000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-721436574}",
+    "\tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "\tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "\tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "\tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "\tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "\tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "\tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:490)",
+    "\tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:1904)",
+    "\tat android.app.Activity.dispatchTouchEvent(Activity.java:4377)",
+    "\tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:650)",
+    "\tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:448)",
+    "\tat android.view.View.dispatchPointerEvent(View.java:15919)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:7021)",
+    "\tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:6815)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6229)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:6417)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)",
+    "\tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:6474)",
+    "\tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:6233)",
+    "\tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:6286)",
+    "\tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:6252)",
+    "\tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:6260)"
+   ]
+  },
+  {
+   "at": "11-25 21:13:10.366",
+   "stack": [
+    "FATAL EXCEPTION: main",
+    "Process: com.anjy.atlas, PID: 11706",
+    "java.lang.NullPointerException: Attempt to invoke virtual method 'boolean android.os.CancellationSignal.isCanceled()' on a null object reference",
+    "\tat com.android.internal.view.ScrollCaptureViewSupport.onScrollCaptureImageRequest(ScrollCaptureViewSupport.java:240)",
+    "\tat android.view.ScrollCaptureConnection.lambda$requestImage$1(ScrollCaptureConnection.java:149)",
+    "\tat android.view.ScrollCaptureConnection.$r8$lambda$B-K9IOFMSTMXjr1AmzzeRKza8aI(Unknown Source:0)",
+    "\tat android.view.ScrollCaptureConnection$$ExternalSyntheticLambda4.run(Unknown Source:6)",
+    "\tat android.os.Handler.handleCallback(Handler.java:958)",
+    "\tat android.os.Handler.dispatchMessage(Handler.java:99)",
+    "\tat android.os.Looper.loopOnce(Looper.java:205)",
+    "\tat android.os.Looper.loop(Looper.java:294)",
+    "\tat android.app.ActivityThread.main(ActivityThread.java:8177)",
+    "\tat java.lang.reflect.Method.invoke(Native Method)",
+    "\tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:552)",
+    "\tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:971)"
+   ]
+  }
+ ],
+ "anrs": [],
+ "anr_traces": [],
+ "native": [],
+ "known_emulator": 0,
+ "errors": [
+  [
+   "MessageQueue-JNI: \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:#)",
+   98
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:#)",
+   98
+  ],
+  [
+   "ImeBackDispatcher: Ime callback not found. Ignoring unregisterReceivedCallback. callbackId: #",
+   57
+  ],
+  [
+   "FrameTracker: force finish cuj, time out: J<IME_INSETS_ANIMATION::#@#@com.anjy.atlas>",
+   51
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:#)",
+   42
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:#)",
+   28
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:#)",
+   28
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:#)",
+   28
+  ],
+  [
+   "SpeechRecognizer: not connected to the recognition service",
+   28
+  ],
+  [
+   "SurfaceSyncGroup: Failed to receive transaction ready in 1000ms. Marking SurfaceSyncGroup(wmsSync-VRI[MainActivity]##) as ready",
+   19
+  ],
+  [
+   "SurfaceSyncGroup: Failed to receive transaction ready in 1000ms. Marking SurfaceSyncGroup(VRI[MainActivity]##) as ready",
+   19
+  ],
+  [
+   "InputEventReceiver: Exception dispatching input event.",
+   14
+  ],
+  [
+   "MessageQueue-JNI: Exception in MessageQueue callback: handleReceiveCallback",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.MotionEvent.getY(MotionEvent.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.View.dispatchTouchEvent(View.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat com.android.internal.policy.DecorView.superDispatchTouchEvent(DecorView.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat com.android.internal.policy.PhoneWindow.superDispatchTouchEvent(PhoneWindow.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.app.Activity.dispatchTouchEvent(Activity.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat com.anjy.atlas.MainActivity.dispatchTouchEvent(MainActivity.kt:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat com.android.internal.policy.DecorView.dispatchTouchEvent(DecorView.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.View.dispatchPointerEvent(View.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl$ViewPostImeInputStage.processPointerEvent(ViewRootImpl.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl.deliverInputEvent(ViewRootImpl.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl.doProcessInputEvents(ViewRootImpl.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl.enqueueInputEvent(ViewRootImpl.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.ViewRootImpl$WindowInputEventReceiver.onInputEvent(ViewRootImpl.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.view.InputEventReceiver.dispatchInputEvent(InputEventReceiver.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.os.MessageQueue.nativePollOnce(Native Method)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.os.MessageQueue.next(MessageQueue.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.os.Looper.loopOnce(Looper.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.os.Looper.loop(Looper.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat android.app.ActivityThread.main(ActivityThread.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat java.lang.reflect.Method.invoke(Native Method)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:#)",
+   14
+  ],
+  [
+   "MessageQueue-JNI: java.lang.IllegalArgumentException: invalid pointerIndex -# for MotionEvent { action=POINTER_UP(#), id[#]=#, x[#]=#.#, y[#]=#.#, toolType[#]=UNKNOWN, id[#]=#, x[#]=#.#, y[#]=#.#, toolType[#]=UNKNOWN, pointerCount=#, even",
+   8
+  ],
+  [
+   "RippleDrawable: The RippleDrawable.STYLE_PATTERNED animation is not supported for a non-hardware accelerated Canvas. Skipping animation.",
+   6
+  ],
+  [
+   "WindowManager: \tat android.view.ViewRootImpl.<init>(ViewRootImpl.java:#)",
+   6
+  ],
+  [
+   "WindowManager: \tat android.view.ViewGroup.dispatchKeyEvent(ViewGroup.java:#)",
+   6
+  ],
+  [
+   "FrameEvents: updateAcquireFence: Did not find frame.",
+   4
+  ],
+  [
+   "AtlasOrb: orb renderer",
+   3
+  ],
+  [
+   "AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))",
+   3
+  ],
+  [
+   "AtlasOrb: \tat com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:#)",
+   3
+  ],
+  [
+   "AtlasOrb: \tat com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.view.WindowManagerGlobal.addView(WindowManagerGlobal.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.view.WindowManagerImpl.addView(WindowManagerImpl.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.app.Dialog.show(Dialog.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.view.View.performClick(View.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.view.View.performClickInternal(View.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.view.ViewRootImpl$InputStage.deliver(ViewRootImpl.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.view.ViewRootImpl$InputStage.onDeliverToNext(ViewRootImpl.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.view.ViewRootImpl$InputStage.forward(ViewRootImpl.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.os.Looper.loopOnce(Looper.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.os.Looper.loop(Looper.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat android.app.ActivityThread.main(ActivityThread.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat java.lang.reflect.Method.invoke(Native Method)",
+   3
+  ],
+  [
+   "WindowManager: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:#)",
+   3
+  ],
+  [
+   "WindowManager: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:#)",
+   3
+  ],
+  [
+   "MessageQueue-JNI: java.lang.IllegalArgumentException: invalid pointerIndex -# for MotionEvent { action=POINTER_UP(#), id[#]=#, x[#]=#.#, y[#]=-#.#, toolType[#]=UNKNOWN, id[#]=#, x[#]=#.#, y[#]=#.#, toolType[#]=UNKNOWN, pointerCount=#, eve",
+   2
+  ],
+  [
+   "WindowManager: \tat android.view.ViewRootImpl$AsyncInputStage.forward(ViewRootImpl.java:#)",
+   2
+  ],
+  [
+   "WindowManager: \tat android.view.ViewRootImpl$InputStage.apply(ViewRootImpl.java:#)",
+   2
+  ],
+  [
+   "WindowManager: \tat android.app.AlertDialog$Builder.show(AlertDialog.java:#)",
+   2
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.CrewActivity.confirmTemplate(CrewActivity.kt:#)",
+   2
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.CrewActivity.newBot$lambda$#$#$#(CrewActivity.kt:#)",
+   2
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.CrewActivity.$r8$lambda$ms6LPBehrRXV5X1PvKmOhDxauwQ(Unknown Source:#)",
+   2
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.CrewActivity$$ExternalSyntheticLambda1.onClick(D8$$SyntheticClass:#)",
+   2
+  ],
+  [
+   "WindowManager: \tat android.view.View.-$$Nest$mperformClickInternal(Unknown Source:#)",
+   2
+  ],
+  [
+   "WindowManager: \tat android.view.View$PerformClick.run(View.java:#)",
+   2
+  ],
+  [
+   "WindowManager: \tat android.os.Handler.handleCallback(Handler.java:#)",
+   2
+  ],
+  [
+   "WindowManager: \tat android.os.Handler.dispatchMessage(Handler.java:#)",
+   2
+  ],
+  [
+   "SpannableStringBuilder: SPAN_EXCLUSIVE_EXCLUSIVE spans cannot have a zero length",
+   2
+  ],
+  [
+   "MessageQueue-JNI: java.lang.IllegalArgumentException: invalid pointerIndex -# for MotionEvent { action=POINTER_UP(#), id[#]=#, x[#]=#, y[#]=#.#, toolType[#]=UNKNOWN, id[#]=#, x[#]=#.#, y[#]=#.#, toolType[#]=UNKNOWN, pointerCount=#, eventT",
+   1
+  ],
+  [
+   "MessageQueue-JNI: java.lang.IllegalArgumentException: invalid pointerIndex -# for MotionEvent { action=POINTER_UP(#), id[#]=#, x[#]=#, y[#]=#.#, toolType[#]=UNKNOWN, id[#]=#, x[#]=#.#, y[#]=#, toolType[#]=UNKNOWN, pointerCount=#, eventTim",
+   1
+  ],
+  [
+   "MessageQueue-JNI: java.lang.IllegalArgumentException: invalid pointerIndex -# for MotionEvent { action=POINTER_UP(#), id[#]=#, x[#]=#.#, y[#]=#.#, toolType[#]=UNKNOWN, id[#]=#, x[#]=#, y[#]=#.#, toolType[#]=UNKNOWN, pointerCount=#, eventT",
+   1
+  ],
+  [
+   "WindowManager: android.view.WindowLeaked: Activity com.anjy.atlas.BotExtrasActivity has leaked window DecorView@707052c[BotExtrasActivity] that was originally added here",
+   1
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.BotExtrasActivity.form(BotExtrasActivity.kt:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.BotExtrasActivity.form$default(BotExtrasActivity.kt:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.BotExtrasActivity.editSkill(BotExtrasActivity.kt:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.BotExtrasActivity.skills$lambda$#(BotExtrasActivity.kt:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.BotExtrasActivity.$r8$lambda$HZSb5NW8YPVdo6b5WGlyjMyA4UE(Unknown Source:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.BotExtrasActivity$$ExternalSyntheticLambda36.invoke(D8$$SyntheticClass:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.BotExtrasActivity.button$lambda$#$#(BotExtrasActivity.kt:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.BotExtrasActivity.$r8$lambda$uFu-ByNzkaefitiUGLKb44nY4Ws(Unknown Source:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.anjy.atlas.BotExtrasActivity$$ExternalSyntheticLambda5.onClick(D8$$SyntheticClass:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.View.onKeyUp(View.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.widget.TextView.onKeyUp(TextView.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.KeyEvent.dispatch(KeyEvent.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.View.dispatchKeyEvent(View.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.widget.ScrollView.dispatchKeyEvent(ScrollView.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.android.internal.policy.DecorView.superDispatchKeyEvent(DecorView.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.android.internal.policy.PhoneWindow.superDispatchKeyEvent(PhoneWindow.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.app.Activity.dispatchKeyEvent(Activity.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat com.android.internal.policy.DecorView.dispatchKeyEvent(DecorView.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.ViewRootImpl$ViewPostImeInputStage.processKeyEvent(ViewRootImpl.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.ViewRootImpl$ViewPostImeInputStage.onProcess(ViewRootImpl.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.ViewRootImpl$AsyncInputStage.apply(ViewRootImpl.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.ViewRootImpl$ImeInputStage.onFinishedInputEvent(ViewRootImpl.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.inputmethod.InputMethodManager$PendingEvent.run(InputMethodManager.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.inputmethod.InputMethodManager.invokeFinishedInputEventCallback(InputMethodManager.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.inputmethod.InputMethodManager.finishedInputEvent(InputMethodManager.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.inputmethod.InputMethodManager.-$$Nest$mfinishedInputEvent(Unknown Source:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.inputmethod.InputMethodManager$ImeInputEventSender.onInputEventFinished(InputMethodManager.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.view.InputEventSender.dispatchInputEventFinished(InputEventSender.java:#)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.os.MessageQueue.nativePollOnce(Native Method)",
+   1
+  ],
+  [
+   "WindowManager: \tat android.os.MessageQueue.next(MessageQueue.java:#)",
+   1
+  ],
+  [
+   "WindowManager: android.view.WindowLeaked: Activity com.anjy.atlas.CrewActivity has leaked window DecorView@2f60a9f[CrewActivity] that was originally added here",
+   1
+  ],
+  [
+   "MessageQueue-JNI: java.lang.IllegalArgumentException: invalid pointerIndex -# for MotionEvent { action=POINTER_UP(#), id[#]=#, x[#]=#.#, y[#]=#.#, toolType[#]=UNKNOWN, id[#]=#, x[#]=#.#, y[#]=-#, toolType[#]=UNKNOWN, pointerCount=#, event",
+   1
+  ],
+  [
+   "WindowManager: android.view.WindowLeaked: Activity com.anjy.atlas.CrewActivity has leaked window DecorView@5b16f4e[CrewActivity] that was originally added here",
+   1
+  ]
+ ],
+ "caught": [],
+ "strictmode": [],
+ "leaks": [
+  [
+   "android.view.WindowLeaked: Activity com.anjy.atlas.BotExtrasActivity has leaked window DecorView@707052c[BotExtrasActivity] that was originally added here",
+   1
+  ],
+  [
+   "android.view.WindowLeaked: Activity com.anjy.atlas.CrewActivity has leaked window DecorView@2f60a9f[CrewActivity] that was originally added here",
+   1
+  ],
+  [
+   "android.view.WindowLeaked: Activity com.anjy.atlas.CrewActivity has leaked window DecorView@5b16f4e[CrewActivity] that was originally added here",
+   1
+  ]
+ ],
+ "skipped_frames": {
+  "count": 28,
+  "max": 153,
+  "over_30": 28
+ },
+ "monkey": [
+  {
+   "file": "monkey-101.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=219.771, y[0]=56.5459, toolType[0]=UNKNOWN, id[1]=1, x[1]=90.1592, y[1]=403.153, toolType[1]=UNKNOWN, pointerCount=2, eventTime=79353000000, downTime=79351000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-238039370}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=219.771, y[0]=56.5459, toolType[0]=UNKNOWN, id[1]=1, x[1]=90.1592, y[1]=403.153, toolType[1]=UNKNOWN, pointerCount=2, eventTime=79353000000, downTime=79351000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-238039370}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-101.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=320, y[0]=297.873, toolType[0]=UNKNOWN, id[1]=1, x[1]=209.82, y[1]=267.634, toolType[1]=UNKNOWN, pointerCount=2, eventTime=116818000000, downTime=116810000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-292729973}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=320, y[0]=297.873, toolType[0]=UNKNOWN, id[1]=1, x[1]=209.82, y[1]=267.634, toolType[1]=UNKNOWN, pointerCount=2, eventTime=116818000000, downTime=116810000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-292729973}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-101.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=236.509, y[0]=416.296, toolType[0]=UNKNOWN, id[1]=1, x[1]=211.256, y[1]=517.384, toolType[1]=UNKNOWN, pointerCount=2, eventTime=152972000000, downTime=152967000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-160819299}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=236.509, y[0]=416.296, toolType[0]=UNKNOWN, id[1]=1, x[1]=211.256, y[1]=517.384, toolType[1]=UNKNOWN, pointerCount=2, eventTime=152972000000, downTime=152967000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-160819299}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-101.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=200, y[0]=140.451, toolType[0]=UNKNOWN, id[1]=1, x[1]=290.913, y[1]=552, toolType[1]=UNKNOWN, pointerCount=2, eventTime=158251000000, downTime=158248000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-393442786}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=200, y[0]=140.451, toolType[0]=UNKNOWN, id[1]=1, x[1]=290.913, y[1]=552, toolType[1]=UNKNOWN, pointerCount=2, eventTime=158251000000, downTime=158248000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-393442786}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-101.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=2.65332, y[0]=165.092, toolType[0]=UNKNOWN, id[1]=1, x[1]=0, y[1]=31.3105, toolType[1]=UNKNOWN, pointerCount=2, eventTime=220420000000, downTime=220418000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-184074314}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=2.65332, y[0]=165.092, toolType[0]=UNKNOWN, id[1]=1, x[1]=0, y[1]=31.3105, toolType[1]=UNKNOWN, pointerCount=2, eventTime=220420000000, downTime=220418000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-184074314}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-101.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=206.592, y[0]=339.038, toolType[0]=UNKNOWN, id[1]=1, x[1]=49.3643, y[1]=232.77, toolType[1]=UNKNOWN, pointerCount=2, eventTime=232277000000, downTime=232274000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-27531789}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=206.592, y[0]=339.038, toolType[0]=UNKNOWN, id[1]=1, x[1]=49.3643, y[1]=232.77, toolType[1]=UNKNOWN, pointerCount=2, eventTime=232277000000, downTime=232274000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-27531789}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-101.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=136.743, y[0]=148.021, toolType[0]=UNKNOWN, id[1]=1, x[1]=224.533, y[1]=190.477, toolType[1]=UNKNOWN, pointerCount=2, eventTime=307041000000, downTime=307038000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-23128840}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=136.743, y[0]=148.021, toolType[0]=UNKNOWN, id[1]=1, x[1]=224.533, y[1]=190.477, toolType[1]=UNKNOWN, pointerCount=2, eventTime=307041000000, downTime=307038000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-23128840}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-101.txt",
+   "kind": "summary",
+   "events": "20000",
+   "aborted": false,
+   "tail": [
+    "## Network stats: elapsed time=308654ms (0ms mobile, 0ms wifi, 308654ms not connected)",
+    "// Monkey finished",
+    "exit 0"
+   ]
+  },
+  {
+   "file": "monkey-202.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=161.903, y[0]=350.87, toolType[0]=UNKNOWN, id[1]=1, x[1]=276.182, y[1]=79.9814, toolType[1]=UNKNOWN, pointerCount=2, eventTime=447521000000, downTime=447518000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-418663602}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=161.903, y[0]=350.87, toolType[0]=UNKNOWN, id[1]=1, x[1]=276.182, y[1]=79.9814, toolType[1]=UNKNOWN, pointerCount=2, eventTime=447521000000, downTime=447518000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-418663602}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-202.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=73.9873, y[0]=-22.3633, toolType[0]=UNKNOWN, id[1]=1, x[1]=143.86, y[1]=328.008, toolType[1]=UNKNOWN, pointerCount=2, eventTime=456748000000, downTime=456745000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-696480076}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=73.9873, y[0]=-22.3633, toolType[0]=UNKNOWN, id[1]=1, x[1]=143.86, y[1]=328.008, toolType[1]=UNKNOWN, pointerCount=2, eventTime=456748000000, downTime=456745000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-696480076}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-202.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=112.689, y[0]=38.6973, toolType[0]=UNKNOWN, id[1]=1, x[1]=150.544, y[1]=142.2, toolType[1]=UNKNOWN, pointerCount=2, eventTime=520398000000, downTime=520393000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-1064240399}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=112.689, y[0]=38.6973, toolType[0]=UNKNOWN, id[1]=1, x[1]=150.544, y[1]=142.2, toolType[1]=UNKNOWN, pointerCount=2, eventTime=520398000000, downTime=520393000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-1064240399}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-202.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=183.211, y[0]=-13.2383, toolType[0]=UNKNOWN, id[1]=1, x[1]=308.99, y[1]=115.891, toolType[1]=UNKNOWN, pointerCount=2, eventTime=639292000000, downTime=639290000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-165094260}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=183.211, y[0]=-13.2383, toolType[0]=UNKNOWN, id[1]=1, x[1]=308.99, y[1]=115.891, toolType[1]=UNKNOWN, pointerCount=2, eventTime=639292000000, downTime=639290000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-165094260}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-202.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=226.075, y[0]=297.601, toolType[0]=UNKNOWN, id[1]=1, x[1]=163.509, y[1]=25.2188, toolType[1]=UNKNOWN, pointerCount=2, eventTime=644593000000, downTime=644590000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-746667861}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=226.075, y[0]=297.601, toolType[0]=UNKNOWN, id[1]=1, x[1]=163.509, y[1]=25.2188, toolType[1]=UNKNOWN, pointerCount=2, eventTime=644593000000, downTime=644590000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-746667861}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-202.txt",
+   "kind": "summary",
+   "events": "20000",
+   "aborted": false,
+   "tail": [
+    "## Network stats: elapsed time=279635ms (0ms mobile, 0ms wifi, 279635ms not connected)",
+    "// Monkey finished",
+    "exit 0"
+   ]
+  },
+  {
+   "file": "monkey-303.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=50.3652, y[0]=159.793, toolType[0]=UNKNOWN, id[1]=1, x[1]=169.251, y[1]=-88, toolType[1]=UNKNOWN, pointerCount=2, eventTime=739926000000, downTime=739924000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-184220942}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=50.3652, y[0]=159.793, toolType[0]=UNKNOWN, id[1]=1, x[1]=169.251, y[1]=-88, toolType[1]=UNKNOWN, pointerCount=2, eventTime=739926000000, downTime=739924000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-184220942}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-303.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.IllegalArgumentException",
+    "// Long Msg: java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=119.867, y[0]=221.23, toolType[0]=UNKNOWN, id[1]=1, x[1]=211.994, y[1]=547.025, toolType[1]=UNKNOWN, pointerCount=2, eventTime=747287000000, downTime=747284000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-721436574}",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.IllegalArgumentException: invalid pointerIndex -1 for MotionEvent { action=POINTER_UP(1), id[0]=0, x[0]=119.867, y[0]=221.23, toolType[0]=UNKNOWN, id[1]=1, x[1]=211.994, y[1]=547.025, toolType[1]=UNKNOWN, pointerCount=2, eventTime=747287000000, downTime=747284000000, deviceId=-1, source=TOUCHSCREEN, displayId=0, eventId=-721436574}",
+    "// \tat android.view.MotionEvent.nativeGetAxisValue(Native Method)",
+    "// \tat android.view.MotionEvent.getY(MotionEvent.java:2667)",
+    "// \tat android.widget.ScrollView.onTouchEvent(ScrollView.java:913)",
+    "// \tat android.view.View.dispatchTouchEvent(View.java:15655)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3114)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2787)",
+    "// \tat com.anjy.atlas.SwipeScrollView.dispatchTouchEvent(stoa_Views.kt:253)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)",
+    "// \tat android.view.ViewGroup.dispatchTouchEvent(ViewGroup.java:2801)",
+    "// \tat android.view.ViewGroup.dispatchTransformedTouchEvent(ViewGroup.java:3120)"
+   ]
+  },
+  {
+   "file": "monkey-303.txt",
+   "kind": "CRASH",
+   "proc": "com.anjy.atlas",
+   "head": [
+    "// Short Msg: java.lang.NullPointerException",
+    "// Long Msg: java.lang.NullPointerException: Attempt to invoke virtual method 'boolean android.os.CancellationSignal.isCanceled()' on a null object reference",
+    "// Build Label: google/sdk_gphone64_x86_64/emu64xa:14/UE1A.230829.050/12077443:userdebug/dev-keys",
+    "// Build Changelist: 12077443",
+    "// Build Time: 1720722121000",
+    "// java.lang.NullPointerException: Attempt to invoke virtual method 'boolean android.os.CancellationSignal.isCanceled()' on a null object reference",
+    "// \tat com.android.internal.view.ScrollCaptureViewSupport.onScrollCaptureImageRequest(ScrollCaptureViewSupport.java:240)",
+    "// \tat android.view.ScrollCaptureConnection.lambda$requestImage$1(ScrollCaptureConnection.java:149)",
+    "// \tat android.view.ScrollCaptureConnection.$r8$lambda$B-K9IOFMSTMXjr1AmzzeRKza8aI(Unknown Source:0)",
+    "// \tat android.view.ScrollCaptureConnection$$ExternalSyntheticLambda4.run(Unknown Source:6)",
+    "// \tat android.os.Handler.handleCallback(Handler.java:958)",
+    "// \tat android.os.Handler.dispatchMessage(Handler.java:99)",
+    "// \tat android.os.Looper.loopOnce(Looper.java:205)",
+    "// \tat android.os.Looper.loop(Looper.java:294)",
+    "// \tat android.app.ActivityThread.main(ActivityThread.java:8177)",
+    "// \tat java.lang.reflect.Method.invoke(Native Method)",
+    "// \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:552)",
+    "// \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:971)",
+    "// "
+   ]
+  },
+  {
+   "file": "monkey-303.txt",
+   "kind": "summary",
+   "events": "20000",
+   "aborted": false,
+   "tail": [
+    "## Network stats: elapsed time=275984ms (0ms mobile, 0ms wifi, 275984ms not connected)",
+    "// Monkey finished",
+    "exit 0"
+   ]
+  }
+ ],
+ "crawler_events": [],
+ "dropbox": {
+  "data_app_crash": 1
+ },
+ "coverage": {
+  "tapped": null,
+  "inputs": null,
+  "replay_failed": null,
+  "must_reach": null,
+  "memory_pss_kb": null,
+  "minutes": null
+ }
+}

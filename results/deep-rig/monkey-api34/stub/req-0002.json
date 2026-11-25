@@ -1,0 +1,795 @@
+{
+ "n": 2,
+ "method": "POST",
+ "host": "127.0.0.1:8765",
+ "path": "/v1beta/models/gemini-3.8-flash:generateContent",
+ "style": "gemini",
+ "mode": "500",
+ "headers": {
+  "Content-Type": "application/json; charset=utf-8",
+  "x-goog-api-key": "AIzaDe…",
+  "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 14; sdk_gphone64_x86_64 Build/UE1A.230829.050)",
+  "Host": "127.0.0.1:8765",
+  "Connection": "Keep-Alive",
+  "Accept-Encoding": "gzip",
+  "Content-Length": "15543"
+ },
+ "status": 500,
+ "request": {
+  "systemInstruction": {
+   "parts": [
+    {
+     "text": "You are Atlas, a friendly assistant. Reply briefly."
+    }
+   ]
+  },
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "Are you there? Answer in three words."
+     }
+    ]
+   }
+  ],
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "set_reminder",
+      "description": "Log a reminder. At its time Atlas either rings an alarm (important things) or sends a notification with a sound (lighter things), and asks if they'll do it.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "title": {
+         "type": "string",
+         "description": "Short title, e.g. 'Pick up my sister'"
+        },
+        "alert": {
+         "type": "string",
+         "description": "alarm: important or time-critical (picking someone up, appointments, medicine, leaving for something, waking up). notification: lighter things (drink water, stretch, read, small chores). If the user says which, do that.",
+         "enum": [
+          "alarm",
+          "notification"
+         ]
+        },
+        "when": {
+         "type": "string",
+         "description": "When, as the user said it (\"tomorrow at 6pm\", \"in 90 minutes\", \"monday 9am\") or local 'YYYY-MM-DD HH:MM'. Leave out only if the user gave no time at all."
+        },
+        "duration_min": {
+         "type": "integer",
+         "description": "How long it takes, in minutes (default 30)"
+        },
+        "repeat": {
+         "type": "string",
+         "description": "How it repeats",
+         "enum": [
+          "none",
+          "daily",
+          "weekdays",
+          "weekly"
+         ]
+        },
+        "notes": {
+         "type": "string",
+         "description": "Optional details"
+        }
+       },
+       "required": [
+        "title"
+       ]
+      }
+     },
+     {
+      "name": "update_reminder",
+      "description": "Change a logged reminder: mark it done, cancel it, delete it, rename it, move it, or make it ring as an alarm or a notification.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "description": "The reminder's id from the list in your instructions"
+        },
+        "action": {
+         "type": "string",
+         "description": "What to do",
+         "enum": [
+          "done",
+          "cancel",
+          "delete",
+          "move",
+          "rename",
+          "make_alarm",
+          "make_notification"
+         ]
+        },
+        "when": {
+         "type": "string",
+         "description": "For move: the new time, as said (\"tomorrow 9am\") or local 'YYYY-MM-DD HH:MM'"
+        },
+        "title": {
+         "type": "string",
+         "description": "For rename: the new title"
+        }
+       },
+       "required": [
+        "id",
+        "action"
+       ]
+      }
+     },
+     {
+      "name": "remember",
+      "description": "Save a lasting fact or preference the user wants Atlas to keep (shown in the Log).",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "text": {
+         "type": "string",
+         "description": "The fact, in a short sentence"
+        }
+       },
+       "required": [
+        "text"
+       ]
+      }
+     },
+     {
+      "name": "read_log",
+      "description": "Look things up in the user's Log: reminders (upcoming, done, snoozed, skipped, missed), things they asked you to remember, and what happened when. Newest first.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "query": {
+         "type": "string",
+         "description": "Words to search for; leave out to get the latest entries"
+        },
+        "limit": {
+         "type": "integer",
+         "description": "How many entries at most (default 30)"
+        }
+       }
+      }
+     },
+     {
+      "name": "forget",
+      "description": "Delete a saved memory.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "description": "The memory's id from your instructions"
+        }
+       },
+       "required": [
+        "id"
+       ]
+      }
+     },
+     {
+      "name": "open_app",
+      "description": "Open an installed app by name. Returns the screen once it has opened. To get something DONE, prefer the background ways first (connections, messages_recent/reply_message, send_sms, phone_alarm, a bot's browser on the app's website); a bot that opens an app is pointed at those first.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string",
+         "description": "The app's name as it appears on the phone, e.g. 'ChatGPT', 'Instagram', 'Settings'"
+        },
+        "use_screen": {
+         "type": "boolean",
+         "description": "Bots only: true when there's no background way and the screen must be used (the user gets a heads-up first)"
+        }
+       },
+       "required": [
+        "name"
+       ]
+      }
+     },
+     {
+      "name": "open_link",
+      "description": "Open a web link or app link (https://, tel:, mailto:, geo:).",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "url": {
+         "type": "string",
+         "description": "The link"
+        }
+       },
+       "required": [
+        "url"
+       ]
+      }
+     },
+     {
+      "name": "read_screen",
+      "description": "Read what's on the phone's screen now: the app, and numbered elements (buttons, text, fields)."
+     },
+     {
+      "name": "tap",
+      "description": "Tap a numbered element from the most recent screen. Returns the new screen.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "element": {
+         "type": "integer",
+         "description": "Element number from the latest read_screen"
+        }
+       },
+       "required": [
+        "element"
+       ]
+      }
+     },
+     {
+      "name": "long_press",
+      "description": "Press and hold a numbered element. Returns the new screen.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "element": {
+         "type": "integer",
+         "description": "Element number from the latest screen"
+        }
+       },
+       "required": [
+        "element"
+       ]
+      }
+     },
+     {
+      "name": "type_text",
+      "description": "Type text into a text field (replacing what's in it). Returns the new screen.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "element": {
+         "type": "integer",
+         "description": "The field's element number; leave out to use the field that has focus"
+        },
+        "text": {
+         "type": "string",
+         "description": "What to type"
+        },
+        "press_enter": {
+         "type": "boolean",
+         "description": "Press the keyboard's enter/send key afterwards"
+        }
+       },
+       "required": [
+        "text"
+       ]
+      }
+     },
+     {
+      "name": "scroll",
+      "description": "Scroll the screen or a list. Returns the new screen.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "direction": {
+         "type": "string",
+         "description": "Which way the content should move into view",
+         "enum": [
+          "down",
+          "up",
+          "left",
+          "right"
+         ]
+        },
+        "element": {
+         "type": "integer",
+         "description": "A scrollable element's number; leave out for the main list"
+        }
+       },
+       "required": [
+        "direction"
+       ]
+      }
+     },
+     {
+      "name": "press_key",
+      "description": "Press a phone key. Returns the new screen.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "key": {
+         "type": "string",
+         "description": "The key",
+         "enum": [
+          "back",
+          "home",
+          "recents",
+          "notifications",
+          "enter"
+         ]
+        }
+       },
+       "required": [
+        "key"
+       ]
+      }
+     },
+     {
+      "name": "web_search",
+      "description": "Search the internet directly (no need to open a browser on the phone). Use it for anything current or that you're unsure of: news, prices, opening hours, facts, how-tos. Returns results with sources.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "query": {
+         "type": "string",
+         "description": "What to search for"
+        }
+       },
+       "required": [
+        "query"
+       ]
+      }
+     },
+     {
+      "name": "read_page",
+      "description": "Read a web page directly and get its text (from a search result or a link the user gave).",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "url": {
+         "type": "string",
+         "description": "The page's address"
+        }
+       },
+       "required": [
+        "url"
+       ]
+      }
+     },
+     {
+      "name": "change_setting",
+      "description": "Change one of Atlas's own settings when the user asks (voice, speaking replies, theme, being on screen, Hey Atlas, motion, alarm sound, their name, not switching AI services). The current values are in your instructions.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "setting": {
+         "type": "string",
+         "description": "Which setting",
+         "enum": [
+          "speak_replies",
+          "natural_voice",
+          "voice",
+          "theme",
+          "on_screen",
+          "hey_atlas",
+          "reduce_motion",
+          "alarm_sound",
+          "your_name",
+          "speaking_speed",
+          "hearing",
+          "keep_listening",
+          "listen_language",
+          "dont_switch"
+         ]
+        },
+        "value": {
+         "type": "string",
+         "description": "The new value: on/off, a voice name, dark/light, or the name"
+        }
+       },
+       "required": [
+        "setting",
+        "value"
+       ]
+      }
+     },
+     {
+      "name": "start_focus",
+      "description": "Start a focus session when the user says they're doing something right now (\"I'm doing it now\", \"starting my homework\"). Opens a distraction-free screen with a timer.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "title": {
+         "type": "string",
+         "description": "What they're doing"
+        },
+        "minutes": {
+         "type": "integer",
+         "description": "Planned length in minutes, if they said or it's known (default: none, the timer counts up)"
+        },
+        "id": {
+         "type": "string",
+         "description": "The reminder's id, if it's one from the Log"
+        }
+       },
+       "required": [
+        "title"
+       ]
+      }
+     },
+     {
+      "name": "on_laptop",
+      "description": "Do something on the user's LAPTOP (they're on the phone): open or use a PC app, find or send a file from the laptop, run something there, look at its screen. Atlas on the laptop does it as a bot job with the PC's tools and reports back into this chat. Give the full task in plain words.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "task": {
+         "type": "string",
+         "description": "What to do on the laptop, with all the details"
+        }
+       },
+       "required": [
+        "task"
+       ]
+      }
+     },
+     {
+      "name": "deploy_bot",
+      "description": "Send Atlas Bot to get a bigger job DONE in the background: anything that takes many steps, such as doing things on websites (filling in and sending forms, booking, ordering, signing up, posting, downloading), working through email, building a project, trading within the user's limits, making documents or spreadsheets, a long chain of phone actions, or deep research with sources when the user wants information. The bot plans as many steps as the job needs, carries it through to the end (asking the user only for risky steps), and its report lands in this chat; the chat stays free meanwhile. Don't use it for quick things you can do in a step or two.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "goal": {
+         "type": "string",
+         "description": "The job in one clear sentence, as an outcome to achieve, e.g. 'Book the cheapest Lagos–Abuja flight on Friday morning' or 'Find the best budget phone under $300 for photos, with sources'"
+        },
+        "details": {
+         "type": "string",
+         "description": "Everything the bot should know: what the user wants, preferences, limits, what to include in the report"
+        },
+        "voice_memo": {
+         "type": "boolean",
+         "description": "Also send the report as a spoken voice memo (when they ask for one, or are talking to you by voice)"
+        },
+        "specialist": {
+         "type": "string",
+         "description": "Optional: one of the user's specialist bots to send (by name), when the job fits its speciality"
+        }
+       },
+       "required": [
+        "goal"
+       ]
+      }
+     },
+     {
+      "name": "save_skill",
+      "description": "Save a skill: a reusable way of doing a kind of job that the user teaches you (\"when I ask for X, do it like this…\"). Bots load it when they do that kind of job. Saving with an existing name updates it.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string",
+         "description": "A short name, e.g. \"Weekly money check\""
+        },
+        "when": {
+         "type": "string",
+         "description": "When to use it"
+        },
+        "steps": {
+         "type": "string",
+         "description": "The steps, one per line"
+        },
+        "inputs": {
+         "type": "string",
+         "description": "What is needed first (optional)"
+        },
+        "checks": {
+         "type": "string",
+         "description": "What to check before finishing (optional)"
+        },
+        "output": {
+         "type": "string",
+         "description": "What the result should look like (optional)"
+        },
+        "permissions": {
+         "type": "string",
+         "description": "Actions in it that need the user's OK (optional)"
+        }
+       },
+       "required": [
+        "name",
+        "when",
+        "steps"
+       ]
+      }
+     },
+     {
+      "name": "set_routine",
+      "description": "Set up a routine: a bot sent on a schedule, like \"every weekday at 8am, summarise the news on AI\". Runs every 5 minutes at most.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "goal": {
+         "type": "string",
+         "description": "What the bot should do each time"
+        },
+        "schedule": {
+         "type": "string",
+         "description": "When, in plain words: \"every weekday at 8am\", \"every 2 hours\", \"every Sunday evening\", \"every month on the 1st at 9am\""
+        },
+        "name": {
+         "type": "string",
+         "description": "A short name (optional)"
+        },
+        "specialist": {
+         "type": "string",
+         "description": "A specialist bot to send (optional)"
+        }
+       },
+       "required": [
+        "goal",
+        "schedule"
+       ]
+      }
+     },
+     {
+      "name": "wait",
+      "description": "Wait for something to load (an answer being written, a page loading). Returns the new screen.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "seconds": {
+         "type": "integer",
+         "description": "1 to 15"
+        }
+       },
+       "required": [
+        "seconds"
+       ]
+      }
+     },
+     {
+      "name": "calendar_events",
+      "description": "Read events from the phone's calendar (Google Calendar etc.) between two times. Includes each event's id for calendar_change.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "from": {
+         "type": "string",
+         "description": "Start, local 'YYYY-MM-DD HH:MM' (default: now)"
+        },
+        "to": {
+         "type": "string",
+         "description": "End, local 'YYYY-MM-DD HH:MM' (default: 7 days after from)"
+        },
+        "query": {
+         "type": "string",
+         "description": "Only events whose title, place or notes contain these words"
+        }
+       }
+      }
+     },
+     {
+      "name": "calendar_add",
+      "description": "Add an event to the phone's calendar. For things Atlas should remind them about, use set_reminder instead, unless they ask for their calendar.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "title": {
+         "type": "string",
+         "description": "Event title"
+        },
+        "start": {
+         "type": "string",
+         "description": "Local 'YYYY-MM-DD HH:MM'; for an all-day event 'YYYY-MM-DD'"
+        },
+        "end": {
+         "type": "string",
+         "description": "Local 'YYYY-MM-DD HH:MM' (default: start + duration_min)"
+        },
+        "duration_min": {
+         "type": "integer",
+         "description": "Length in minutes if no end (default 60)"
+        },
+        "all_day": {
+         "type": "boolean",
+         "description": "An all-day event"
+        },
+        "location": {
+         "type": "string",
+         "description": "Where"
+        },
+        "notes": {
+         "type": "string",
+         "description": "Details"
+        }
+       },
+       "required": [
+        "title",
+        "start"
+       ]
+      }
+     },
+     {
+      "name": "calendar_change",
+      "description": "Change or delete one event in the phone's calendar by its id from calendar_events. Repeating events can't be changed here.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "event_id": {
+         "type": "string",
+         "description": "The event's id"
+        },
+        "action": {
+         "type": "string",
+         "description": "What to do",
+         "enum": [
+          "update",
+          "delete"
+         ]
+        },
+        "title": {
+         "type": "string",
+         "description": "New title"
+        },
+        "start": {
+         "type": "string",
+         "description": "New start 'YYYY-MM-DD HH:MM'"
+        },
+        "end": {
+         "type": "string",
+         "description": "New end 'YYYY-MM-DD HH:MM'"
+        },
+        "location": {
+         "type": "string",
+         "description": "New place"
+        },
+        "notes": {
+         "type": "string",
+         "description": "New details"
+        }
+       },
+       "required": [
+        "event_id",
+        "action"
+       ]
+      }
+     },
+     {
+      "name": "find_contact",
+      "description": "Look up someone in the phone's contacts by name: their numbers and email addresses.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string",
+         "description": "The name, or part of it"
+        }
+       },
+       "required": [
+        "name"
+       ]
+      }
+     },
+     {
+      "name": "get_location",
+      "description": "Where the phone is now: coordinates, accuracy and the nearest address.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "precise": {
+         "type": "boolean",
+         "description": "Ask for a precise fix (GPS) instead of an approximate one. Only when it matters, e.g. directions."
+        }
+       }
+      }
+     },
+     {
+      "name": "phone_alarm",
+      "description": "Set an alarm in the phone's own Clock app (only when they ask for the phone's alarm; Atlas's set_reminder is the usual way). It can't list or cancel alarms.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "time": {
+         "type": "string",
+         "description": "Local time 'HH:MM' (24h)"
+        },
+        "label": {
+         "type": "string",
+         "description": "What it's for"
+        },
+        "days": {
+         "type": "string",
+         "description": "Repeat on these days, e.g. 'mon,tue,wed,thu,fri' (leave out for once)"
+        }
+       },
+       "required": [
+        "time"
+       ]
+      }
+     },
+     {
+      "name": "phone_timer",
+      "description": "Start a countdown timer in the phone's Clock app.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "seconds": {
+         "type": "integer",
+         "description": "Length in seconds"
+        },
+        "label": {
+         "type": "string",
+         "description": "What it's for"
+        }
+       },
+       "required": [
+        "seconds"
+       ]
+      }
+     },
+     {
+      "name": "generate_image",
+      "description": "Make a picture from a description (and optionally from the pictures the user just sent, e.g. to edit or restyle them). The picture appears in the chat with Save and Share; don't describe how you made it.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "prompt": {
+         "type": "string",
+         "description": "A full description of the picture: subject, setting, style, light, mood, any text to show in it"
+        },
+        "aspect": {
+         "type": "string",
+         "description": "Shape of the picture (default 1:1)",
+         "enum": [
+          "1:1",
+          "3:2",
+          "2:3",
+          "3:4",
+          "4:3",
+          "4:5",
+          "5:4",
+          "9:16",
+          "16:9",
+          "21:9"
+         ]
+        },
+        "use_my_pictures": {
+         "type": "boolean",
+         "description": "Base it on the pictures in the user's latest message (to edit, combine or restyle them)"
+        }
+       },
+       "required": [
+        "prompt"
+       ]
+      }
+     },
+     {
+      "name": "vault_list",
+      "description": "List the sign-ins the user saved in Atlas's vault (names and sites only; you never see usernames or passwords)."
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "thinkingConfig": {
+    "thinkingLevel": "low"
+   }
+  },
+  "safetySettings": [
+   {
+    "category": "HARM_CATEGORY_HARASSMENT",
+    "threshold": "BLOCK_NONE"
+   },
+   {
+    "category": "HARM_CATEGORY_HATE_SPEECH",
+    "threshold": "BLOCK_NONE"
+   },
+   {
+    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+    "threshold": "BLOCK_NONE"
+   },
+   {
+    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+    "threshold": "BLOCK_NONE"
+   }
+  ]
+ },
+ "response": {
+  "error": {
+   "code": 500,
+   "message": "An internal error has occurred. Please retry or report in https://developers.generativeai.google/guide/troubleshooting",
+   "status": "INTERNAL"
+  }
+ }
+}

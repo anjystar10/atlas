@@ -1,0 +1,6 @@
+{"t":1795636108871,"kind":"net","detail":"GET github.com/anjystar10/atlas/releases/download/desktop/latest.json"}
+{"t":1795636147797,"kind":"open-dialog","detail":"{\"properties\":[\"openFile\",\"multiSelections\"],\"filters\":[{\"name\":\"All files\",\"extensions\":[\"*\"]}]}"}
+{"t":1795636205963,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636206629,"kind":"open-external","detail":"https://aistudio.google.com/apikey"}
+{"t":1795636207299,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636226759,"kind":"open-external","detail":"https://aistudio.google.com/apikey"}

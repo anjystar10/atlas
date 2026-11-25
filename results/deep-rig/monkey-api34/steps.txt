@@ -1,0 +1,5 @@
+== 20:00:15 install apk/Atlas-deep.apk
+== 20:00:33 monkey seed 101 (20000 events)
+== 20:05:50 monkey seed 202 (20000 events)
+== 20:10:37 monkey seed 303 (20000 events)
+== 20:15:20 gather

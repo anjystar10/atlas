@@ -1,0 +1,328 @@
+{
+ "screens": {
+  "atlas": {
+   "sig": "com.anjy.atlas|Add: take a photo, photos and videos, or files (hold to take a photo now)|Ask Atlas anything|Atlas, current page|Bots|Chats|Log|Me|New chat|Talk to Atlas|Talk to Atlas. Hold to switch b",
+   "taps": 4
+  },
+  "atlas/Talk to Atlas. Hold to switch between light and dark.": {
+   "sig": "com.anjy.atlas|Add: take a photo, photos and videos, or files (hold to take a photo now)|Ask Atlas anything|Atlas, current page|Bots|Cancel|Chats|Close|Done|Log|Me|New chat|Talk to Atlas|Talk to Atlas",
+   "taps": 6
+  },
+  "atlas/Talk to Atlas. Hold to switch between light and dark./Chats": {
+   "sig": "com.anjy.atlas|Add: take a photo, photos and videos, or files (hold to take a photo now)|Ask Atlas anything|Atlas, current page|Bots|Chats|Chats / Close|Close|Log|Me|New Chat|New chat|Search chats|Tal",
+   "taps": 8
+  },
+  "atlas/New chat": {
+   "sig": "com.anjy.atlas|Add: take a photo, photos and videos, or files (hold to take a photo now)|Ask Atlas anything|Atlas, current page|Bots|Chats|Log|Me|New chat|Next: Gym at #:#|Remind me to call mum tomorr",
+   "taps": 3
+  },
+  "atlas/New chat/Talk to Atlas": {
+   "sig": "com.anjy.atlas|Add: take a photo, photos and videos, or files (hold to take a photo now)|Ask Atlas anything|Atlas, current page|Bots|Cancel|Chats|Close|Done|Log|Me|New chat|Next: Gym at #:#|Remind me ",
+   "taps": 4
+  },
+  "atlas/New chat/Talk to Atlas/Next: Gym at 17:00": {
+   "sig": "com.anjy.atlas|Atlas|Bots|Gym / ⏰ Today #:# · Daily · Logged Today #:#|Log, current page|Long one / ⏰ Today #:# · Weekdays · Logged Today #:#|Me|New reminder|Save to memory|Something for Atlas to reme",
+   "taps": 18
+  },
+  "atlas/Add: take a photo, photos and videos, or files (hold to take a photo now)": {
+   "sig": "com.anjy.atlas|Add to Your Message / Close|Add: take a photo, photos and videos, or files (hold to take a photo now)|Ask Atlas anything|Atlas, current page|Bots|Cancel|Chats|Close|Files (any kind)|Log",
+   "taps": 2
+  },
+  "log": {
+   "sig": "com.anjy.atlas|Atlas|Bots|Gym / ⏰ Today #:# · Daily · Logged Today #:#|Log, current page|Long one / ⏰ Today #:# · Weekdays · Logged Today #:#|Me|New reminder|Save to memory|Something for Atlas to reme",
+   "taps": 0
+  },
+  "bots": {
+   "sig": "com.anjy.atlas|Atlas|Atlas  ★. Your chief of staff · Idle. No messages yet. Say what you need.|Bots, current page|Developer Bot. Programming, debugging and technical work · Idle. No messages yet|Log|M",
+   "taps": 21
+  },
+  "bots/New Group": {
+   "sig": "com.anjy.atlas|Back|Developer Bot|Finance Bot|Planner Bot|Research Bot|Start|What it's about (e.g. Launch week)",
+   "taps": 10
+  },
+  "bots/New Bot": {
+   "sig": "com.anjy.atlas|Back|🎬 / Reel Poster|📈 / Trader|📥 / Inbox|🔎 / Researcher|🗂️ / Chief of Staff|🛠️ / Builder",
+   "taps": 12
+  },
+  "bots/New Bot/📈 / Trader": {
+   "sig": "com.anjy.atlas|Cancel|Make It",
+   "taps": 2
+  },
+  "bots/New Bot/📈 / Trader/Make It": {
+   "sig": "com.anjy.atlas|Back|Details|Message Reel Poster|Send",
+   "taps": 2
+  },
+  "bots/New Bot/Create Bot": {
+   "sig": "com.anjy.atlas|Back|Details|Message a  b|Send",
+   "taps": 3
+  },
+  "bots/New Bot/Create Bot/Add a Trigger": {
+   "sig": "com.anjy.atlas|Back|On a schedule, selected|Only when you start it|When a phone notification comes|When a price moves|When an email arrives|When you open an app",
+   "taps": 2
+  },
+  "bots/New Bot/Create Bot/Create Bot": {
+   "sig": "com.anjy.atlas|Back|Details|Message @everyone /approve|Send",
+   "taps": 3
+  },
+  "bots/Atlas  ★. Your chief of staff · Idle. No messages yet. Say what you need.": {
+   "sig": "com.anjy.atlas|Back|Details|Message Atlas|Send",
+   "taps": 0
+  },
+  "bots/Research Bot. Finds things out and backs them with sources · Idle. No messages y": {
+   "sig": "com.anjy.atlas|Back|Details|Message Research Bot|Send",
+   "taps": 0
+  },
+  "bots/Planner Bot. Turns goals into schedules and step-by-step plans · Idle. No messag": {
+   "sig": "com.anjy.atlas|Back|Details|Message Planner Bot|Send",
+   "taps": 0
+  },
+  "bots/Finance Bot. Numbers, budgets, prices and comparisons · Idle. No messages yet. S": {
+   "sig": "com.anjy.atlas|Back|Details|Message Finance Bot|Send",
+   "taps": 0
+  },
+  "bots/Developer Bot. Programming, debugging and technical work · Idle. No messages yet": {
+   "sig": "com.anjy.atlas|Back|Details|Message Developer Bot|Send",
+   "taps": 0
+  },
+  "bots/Library: documents, spreadsheets, pages and downloads your bots made": {
+   "sig": "com.anjy.atlas|Back",
+   "taps": 0
+  },
+  "bots/Routines": {
+   "sig": "com.anjy.atlas|Add a Routine|Back",
+   "taps": 1
+  },
+  "bots/Routines/Add a Routine": {
+   "sig": "com.anjy.atlas|Cancel|Save|Send: Atlas Bot (no specialist)  ›",
+   "taps": 1
+  },
+  "bots/Routines/Add a Routine/Send: Atlas Bot (no specialist)  ›": {
+   "sig": "com.anjy.atlas|",
+   "taps": 0
+  },
+  "bots/Skills": {
+   "sig": "com.anjy.atlas|Back|Teach a Skill",
+   "taps": 1
+  },
+  "bots/Skills/Teach a Skill": {
+   "sig": "com.anjy.atlas|Cancel|Save",
+   "taps": 0
+  },
+  "me": {
+   "sig": "com.anjy.atlas|Add Key|Atlas|Bots|Gemini|Get a Key|Log|Me, current page|Model / gemini-#.#-flash|More Services…|Paste an API key (AIza…)|Talk to Atlas",
+   "taps": 2
+  },
+  "me/More Services…": {
+   "sig": "com.anjy.atlas|Add Key|Atlas|Bots|Cerebras — Very fast; $# trial credit for # days, then paid|Claude — Paid|Close|Cohere — Free trial key: #,# calls a month|Gemini|Get a Key|Groq — Very fast; free tie",
+   "taps": 6
+  },
+  "me/More Services…/More Services…": {
+   "sig": "com.anjy.atlas|AIza••••# / In use|Add Key|Atlas|Bots|Cerebras — Very fast; $# trial credit for # days, then paid|Claude — Paid|Close|Cohere — Free trial key: #,# calls a month|Don't Switch Services, o",
+   "taps": 6
+  },
+  "me/More Services…/More Services…/Add Key": {
+   "sig": "com.anjy.atlas|Add Key|Atlas|Bots|Don't Switch Services, off|Gemini|Get a Key|Log|Me, current page|Model / gpt-#-sol|More Services…|OpenAI|Talk to Atlas",
+   "taps": 86
+  },
+  "me/More Services…/More Services…/Model / glm-5.3": {
+   "sig": "com.anjy.atlas|Add Key|Atlas|Bots|Cancel|Close|Don't Switch Services, off|Gemini|Get a Key|Log|Me, current page|Model / glm-#.#|More Services…|Paste an API key (your key)|Save|Talk to Atlas|Z.AI (GLM)",
+   "taps": 16
+  },
+  "me/More Services…/More Services…/Test Each Voice": {
+   "sig": "com.anjy.atlas|OK",
+   "taps": 1
+  }
+ },
+ "tapped": 220,
+ "danger": [],
+ "inputs": 63,
+ "left_app": [
+  {
+   "pkg": "com.android.chrome",
+   "after": {
+    "path": [
+     "me",
+     "More Services…"
+    ],
+    "label": "Get a Key",
+    "round": 0
+   },
+   "shot": "0199-left-com-android-chrome-Get-a-Key.png"
+  },
+  {
+   "pkg": "com.android.chrome",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Add Key"
+    ],
+    "label": "Get a Key",
+    "round": 0
+   },
+   "shot": "0202-left-com-android-chrome-Get-a-Key.png"
+  },
+  {
+   "pkg": "com.google.android.documentsui",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Add Key"
+    ],
+    "label": "Choose Model File",
+    "round": 1
+   },
+   "shot": "0204-left-com-google-android-documentsui-Choose-Model.png"
+  },
+  {
+   "pkg": "com.google.android.documentsui",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Add Key"
+    ],
+    "label": "Choose Model File",
+    "round": 2
+   },
+   "shot": "0205-left-com-google-android-documentsui-Choose-Model.png"
+  },
+  {
+   "pkg": "com.android.settings",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Add Key"
+    ],
+    "label": "Turn On in Settings",
+    "round": 3
+   },
+   "shot": "0206-left-com-android-settings-Turn-On-in-Settings.png"
+  },
+  {
+   "pkg": "com.android.settings",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Add Key"
+    ],
+    "label": "Turn On in Settings",
+    "round": 4
+   },
+   "shot": "0207-left-com-android-settings-Turn-On-in-Settings.png"
+  },
+  {
+   "pkg": "com.android.settings",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Add Key"
+    ],
+    "label": "App Info",
+    "round": 4
+   },
+   "shot": "0208-left-com-android-settings-App-Info.png"
+  },
+  {
+   "pkg": "com.android.settings",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Add Key"
+    ],
+    "label": "Turn On in Settings",
+    "round": 5
+   },
+   "shot": "0210-left-com-android-settings-Turn-On-in-Settings.png"
+  },
+  {
+   "pkg": "com.android.settings",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Add Key"
+    ],
+    "label": "App Info",
+    "round": 5
+   },
+   "shot": "0211-left-com-android-settings-App-Info.png"
+  },
+  {
+   "pkg": "com.android.settings",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Add Key"
+    ],
+    "label": "App Info",
+    "round": 6
+   },
+   "shot": "0212-left-com-android-settings-App-Info.png"
+  },
+  {
+   "pkg": "com.android.chrome",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Add Key"
+    ],
+    "label": "Get a Key",
+    "round": 11
+   },
+   "shot": "0224-left-com-android-chrome-Get-a-Key.png"
+  },
+  {
+   "pkg": "com.google.android.documentsui",
+   "after": {
+    "path": [
+     "me",
+     "More Services…",
+     "More Services…",
+     "Model / glm-5.3"
+    ],
+    "label": "Choose Model File",
+    "round": 1
+   },
+   "shot": "0231-left-com-google-android-documentsui-Choose-Model.png"
+  }
+ ],
+ "replay_failed": 1,
+ "must_reach": {
+  "Chats": true,
+  "New chat": true,
+  "Add: take a photo": true,
+  "New Bot": true,
+  "New Group": true,
+  "Library": true,
+  "Routines": true,
+  "Skills": true,
+  "Details": true,
+  "New Reminder": true,
+  "Save to memory": true,
+  "Talk to Atlas": true
+ },
+ "memory_pss_kb": {
+  "start": 76836,
+  "before_crawl": 87516,
+  "end": 74001
+ },
+ "minutes": 66.1
+}

@@ -1,0 +1,27 @@
+/data/data/com.anjy.atlas/files:
+total 100
+drwxrwx--x 4 u0_a192 u0_a192  4096 2026-11-25 21:15 .
+drwx------ 6 u0_a192 u0_a192  4096 2026-11-25 21:00 ..
+-rw------- 1 u0_a192 u0_a192 21381 2026-11-25 21:15 atlas-state.json
+drwx------ 2 u0_a192 u0_a192  4096 2026-11-25 21:00 attachments
+-rw------- 1 u0_a192 u0_a192     2 2026-11-25 21:13 bots.json
+-rw------- 1 u0_a192 u0_a192  2327 2026-11-25 21:14 botx.json
+-rw------- 1 u0_a192 u0_a192     2 2026-11-25 21:15 chat.json
+drwx------ 2 u0_a192 u0_a192  4096 2026-11-25 21:15 chats
+-rw------- 1 u0_a192 u0_a192    24 2026-11-25 21:13 profileInstalled
+-rw------- 1 u0_a192 u0_a192  1250 2026-11-25 21:13 threads.json
+
+/data/data/com.anjy.atlas/shared_prefs:
+total 48
+drwxrwx--x 2 u0_a192 u0_a192 4096 2026-11-25 21:14 .
+drwx------ 6 u0_a192 u0_a192 4096 2026-11-25 21:00 ..
+-rw-rw---- 1 u0_a192 u0_a192  115 2026-11-25 21:00 atlas_channels.xml
+-rw-rw---- 1 u0_a192 u0_a192 1603 2026-11-25 21:00 atlas_self.xml
+-rw-rw---- 1 u0_a192 u0_a192 1394 2026-11-25 21:14 atlas_ui.xml
+-rw-rw---- 1 u0_a192 u0_a192  135 2026-11-25 21:14 avatar.xml
+total 48
+drwx------ 2 u0_a192 u0_a192  4096 2026-11-25 21:15 .
+drwxrwx--x 4 u0_a192 u0_a192  4096 2026-11-25 21:15 ..
+-rw------- 1 u0_a192 u0_a192   326 2026-11-25 21:13 6226839e-7d45-4145-9a72-086f7b1187d6.json
+-rw------- 1 u0_a192 u0_a192 11291 2026-11-25 21:15 a01d0692-7b39-495c-a110-f594d5be0478.json
+-rw------- 1 u0_a192 u0_a192   232 2026-11-25 21:15 index.json

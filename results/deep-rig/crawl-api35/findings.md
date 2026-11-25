@@ -1,0 +1,731 @@
+# Deep test — crawl
+
+abi: x86_64,arm64-v8a
+sdk: 35
+release: 15
+tz: America/New_York
+translation: libndk_translation.so
+Physical size: 320x640
+Physical density: 160
+    versionCode=25 minSdk=33 targetSdk=35
+    versionName=0.11.4
+
+Atlas processes seen: ['com.anjy.atlas', 'com.anjy.atlas:hotword']
+
+## Crashes (0)
+
+## ANRs (0, traces 0)
+
+## Native crashes (0; known emulator SIGILL in the wake word engine: 0)
+
+## Monkey
+
+## Crawler events (682)
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: StrictMode policy violation: android.os.strictmode.CustomViolation: gcore.dynamite", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onCustomSlowCall(StrictMode.java:1650)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.os.StrictMode.noteSlowCall(StrictMode.java:2785)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat anlp.a(:com.google.android.gms@242335041@24.23.35 (190800-646585959):3)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.gms.chimera.container.GmsModuleChimeraProvider.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):135)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat ajjb.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):3)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.content.ContentProvider.query(ContentProvider.java:1620)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat pgr.superQuery(:com.google.android.gms@242335041@24.23.35 (190800-646585959):2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.chimera.ContentProvider.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat ajjb.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):13)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.content.ContentProvider.query(ContentProvider.java:1716)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat pgr.superQuery(:com.google.android.gms@242335041@24.23.35 (190800-646585959):1)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.chimera.ContentProvider.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):1)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat pgr.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.content.ContentProvider$Transport.query(ContentProvider.java:295)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.content.ContentProviderNative.onTransact(ContentProviderNative.java:107)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.os.Binder.execTransactInternal(Binder.java:1500)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.os.Binder.execTransact(Binder.java:1444)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: # via Binder call with stack:", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.os.StrictMode.readAndHandleBinderCallViolations(StrictMode.java:2588)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.os.Parcel.readExceptionCode(Parcel.java:3187)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:152)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.content.ContentProviderProxy.query(ContentProviderNative.java:495)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.content.ContentResolver.query(ContentResolver.java:1229)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.content.ContentResolver.query(ContentResolver.java:1161)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat android.content.ContentResolver.query(ContentResolver.java:1117)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.e(PG:69)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.b(PG:87)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.gms.dynamite.e.b(PG:1)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.gms.dynamite.h.a(PG:23)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.d(PG:58)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.gms.common.q.b(PG:24)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.gms.common.aa.g(PG:28)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.gms.common.aa.a(PG:22)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.gms.common.aa.d(PG:1)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.frameworks.client.data.android.b.c.a(PG:3)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat io.grpc.b.a.k.a(PG:62)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat io.grpc.es.a(PG:5)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat io.grpc.f.le.a(PG:30)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat io.grpc.f.bc.run(PG:7)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat io.grpc.f.kq.run(PG:17)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.libraries.k.x.run(PG:3)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.common.n.c.c.run(PG:50)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.libraries.k.e.run(PG:8)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:53.518  1539  1951 D StrictMode: \tat com.google.android.libraries.k.d.b.run(PG:74)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: StrictMode policy violation; ~duration=62 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat libcore.io.BlockGuardOs.access(BlockGuardOs.java:74)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat libcore.io.ForwardingOs.access(ForwardingOs.java:128)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ActivityThread$AndroidOs.access(ActivityThread.java:8582)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat java.io.UnixFileSystem.checkAccess(UnixFileSystem.java:332)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat java.io.File.exists(File.java:829)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ContextImpl.ensurePrivateDirExists(ContextImpl.java:819)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ContextImpl.ensurePrivateDirExists(ContextImpl.java:810)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ContextImpl.getPreferencesDir(ContextImpl.java:766)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ContextImpl.getSharedPreferencesPath(ContextImpl.java:991)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ContextImpl.getSharedPreferences(ContextImpl.java:606)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.content.ContextWrapper.getSharedPreferences(ContextWrapper.java:223)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.content.ContextWrapper.getSharedPreferences(ContextWrapper.java:223)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat com.android.providers.contacts.ContactsUpgradeReceiver.onReceive(ContactsUpgradeReceiver.java:55)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ActivityThread.handleReceiver(ActivityThread.java:4772)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ActivityThread.-$$Nest$mhandleReceiver(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2436)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:107)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:232)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.os.Looper.loop(Looper.java:317)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ActivityThread.main(ActivityThread.java:8705)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat java.lang.reflect.Method.invoke(Native Method)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: StrictMode policy violation; ~duration=62 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.awaitLoadedLocked(SharedPreferencesImpl.java:283)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.getInt(SharedPreferencesImpl.java:328)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat com.android.providers.contacts.ContactsUpgradeReceiver.onReceive(ContactsUpgradeReceiver.java:56)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ActivityThread.handleReceiver(ActivityThread.java:4772)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ActivityThread.-$$Nest$mhandleReceiver(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2436)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:107)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:232)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.os.Looper.loop(Looper.java:317)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat android.app.ActivityThread.main(ActivityThread.java:8705)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat java.lang.reflect.Method.invoke(Native Method)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.945  1664  1664 D StrictMode: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: StrictMode policy violation; ~duration=60 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat libcore.io.BlockGuardOs.access(BlockGuardOs.java:74)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat libcore.io.ForwardingOs.access(ForwardingOs.java:128)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.ActivityThread$AndroidOs.access(ActivityThread.java:8582)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat java.io.UnixFileSystem.checkAccess(UnixFileSystem.java:332)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat java.io.File.exists(File.java:829)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.writeToFile(SharedPreferencesImpl.java:746)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$mwriteToFile(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$1.run(SharedPreferencesImpl.java:680)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.enqueueDiskWrite(SharedPreferencesImpl.java:699)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$menqueueDiskWrite(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$EditorImpl.commit(SharedPreferencesImpl.java:612)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat com.android.providers.contacts.ContactsUpgradeReceiver.onReceive(ContactsUpgradeReceiver.java:76)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.ActivityThread.handleReceiver(ActivityThread.java:4772)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.ActivityThread.-$$Nest$mhandleReceiver(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2436)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:107)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:232)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.os.Looper.loop(Looper.java:317)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.ActivityThread.main(ActivityThread.java:8705)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat java.lang.reflect.Method.invoke(Native Method)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: StrictMode policy violation; ~duration=60 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat libcore.io.BlockGuardOs.open(BlockGuardOs.java:269)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat libcore.io.ForwardingOs.open(ForwardingOs.java:563)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.ActivityThread$AndroidOs.open(ActivityThread.java:8591)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat libcore.io.IoBridge.open(IoBridge.java:560)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat java.io.FileOutputStream.<init>(FileOutputStream.java:259)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat java.io.FileOutputStream.<init>(FileOutputStream.java:208)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.createFileOutputStream(SharedPreferencesImpl.java:710)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.writeToFile(SharedPreferencesImpl.java:801)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$mwriteToFile(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$1.run(SharedPreferencesImpl.java:680)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.enqueueDiskWrite(SharedPreferencesImpl.java:699)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$menqueueDiskWrite(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$EditorImpl.commit(SharedPreferencesImpl.java:612)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat com.android.providers.contacts.ContactsUpgradeReceiver.onReceive(ContactsUpgradeReceiver.java:76)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.ActivityThread.handleReceiver(ActivityThread.java:4772)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.ActivityThread.-$$Nest$mhandleReceiver(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2436)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:107)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:232)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.os.Looper.loop(Looper.java:317)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat android.app.ActivityThread.main(ActivityThread.java:8705)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat java.lang.reflect.Method.invoke(Native Method)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.947  1664  1664 D StrictMode: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: StrictMode policy violation; ~duration=60 ms: android.os.strictmode.DiskWriteViolation", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onWriteToDisk(StrictMode.java:1639)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat libcore.io.BlockGuardOs.open(BlockGuardOs.java:272)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat libcore.io.ForwardingOs.open(ForwardingOs.java:563)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.ActivityThread$AndroidOs.open(ActivityThread.java:8591)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat libcore.io.IoBridge.open(IoBridge.java:560)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat java.io.FileOutputStream.<init>(FileOutputStream.java:259)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat java.io.FileOutputStream.<init>(FileOutputStream.java:208)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.createFileOutputStream(SharedPreferencesImpl.java:710)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.writeToFile(SharedPreferencesImpl.java:801)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$mwriteToFile(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$1.run(SharedPreferencesImpl.java:680)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.enqueueDiskWrite(SharedPreferencesImpl.java:699)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$menqueueDiskWrite(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$EditorImpl.commit(SharedPreferencesImpl.java:612)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat com.android.providers.contacts.ContactsUpgradeReceiver.onReceive(ContactsUpgradeReceiver.java:76)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.ActivityThread.handleReceiver(ActivityThread.java:4772)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.ActivityThread.-$$Nest$mhandleReceiver(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2436)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:107)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:232)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.os.Looper.loop(Looper.java:317)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.ActivityThread.main(ActivityThread.java:8705)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat java.lang.reflect.Method.invoke(Native Method)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: StrictMode policy violation; ~duration=60 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat libcore.io.BlockGuardOs.fstat(BlockGuardOs.java:194)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat libcore.io.ForwardingOs.fstat(ForwardingOs.java:261)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat libcore.io.IoBridge.open(IoBridge.java:563)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat java.io.FileOutputStream.<init>(FileOutputStream.java:259)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat java.io.FileOutputStream.<init>(FileOutputStream.java:208)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.createFileOutputStream(SharedPreferencesImpl.java:710)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.writeToFile(SharedPreferencesImpl.java:801)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$mwriteToFile(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$1.run(SharedPreferencesImpl.java:680)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.enqueueDiskWrite(SharedPreferencesImpl.java:699)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$menqueueDiskWrite(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$EditorImpl.commit(SharedPreferencesImpl.java:612)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat com.android.providers.contacts.ContactsUpgradeReceiver.onReceive(ContactsUpgradeReceiver.java:76)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.ActivityThread.handleReceiver(ActivityThread.java:4772)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.ActivityThread.-$$Nest$mhandleReceiver(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2436)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:107)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:232)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.os.Looper.loop(Looper.java:317)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat android.app.ActivityThread.main(ActivityThread.java:8705)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat java.lang.reflect.Method.invoke(Native Method)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.949  1664  1664 D StrictMode: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: StrictMode policy violation; ~duration=60 ms: android.os.strictmode.DiskWriteViolation", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onWriteToDisk(StrictMode.java:1639)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat libcore.io.BlockGuardOs.write(BlockGuardOs.java:447)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat libcore.io.ForwardingOs.write(ForwardingOs.java:943)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat libcore.io.IoBridge.write(IoBridge.java:646)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat java.io.FileOutputStream.write(FileOutputStream.java:432)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.util.FastXmlSerializer.flushBytes(FastXmlSerializer.java:253)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.util.FastXmlSerializer.flush(FastXmlSerializer.java:274)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.util.FastXmlSerializer.endDocument(FastXmlSerializer.java:219)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.util.XmlSerializerWrapper.endDocument(XmlSerializerWrapper.java:69)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.util.XmlUtils.writeMapXml(XmlUtils.java:410)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.writeToFile(SharedPreferencesImpl.java:811)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$mwriteToFile(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$1.run(SharedPreferencesImpl.java:680)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.enqueueDiskWrite(SharedPreferencesImpl.java:699)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$menqueueDiskWrite(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$EditorImpl.commit(SharedPreferencesImpl.java:612)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.providers.contacts.ContactsUpgradeReceiver.onReceive(ContactsUpgradeReceiver.java:76)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.handleReceiver(ActivityThread.java:4772)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.-$$Nest$mhandleReceiver(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2436)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:107)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:232)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Looper.loop(Looper.java:317)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.main(ActivityThread.java:8705)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat java.lang.reflect.Method.invoke(Native Method)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: StrictMode policy violation; ~duration=43 ms: android.os.strictmode.DiskWriteViolation", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onWriteToDisk(StrictMode.java:1639)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat libcore.io.BlockGuardOs.chmod(BlockGuardOs.java:81)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat libcore.io.ForwardingOs.chmod(ForwardingOs.java:165)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.system.Os.chmod(Os.java:119)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.FileUtils.setPermissions(FileUtils.java:187)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ContextImpl.setFilePermissionsFromMode(ContextImpl.java:3671)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.writeToFile(SharedPreferencesImpl.java:820)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$mwriteToFile(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$1.run(SharedPreferencesImpl.java:680)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.enqueueDiskWrite(SharedPreferencesImpl.java:699)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$menqueueDiskWrite(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$EditorImpl.commit(SharedPreferencesImpl.java:612)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.providers.contacts.ContactsUpgradeReceiver.onReceive(ContactsUpgradeReceiver.java:76)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.handleReceiver(ActivityThread.java:4772)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.-$$Nest$mhandleReceiver(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2436)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:107)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:232)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Looper.loop(Looper.java:317)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.main(ActivityThread.java:8705)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat java.lang.reflect.Method.invoke(Native Method)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: StrictMode policy violation; ~duration=43 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat libcore.io.BlockGuardOs.stat(BlockGuardOs.java:419)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat libcore.io.ForwardingOs.stat(ForwardingOs.java:846)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread$AndroidOs.stat(ActivityThread.java:8605)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.system.Os.stat(Os.java:904)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.writeToFile(SharedPreferencesImpl.java:827)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$mwriteToFile(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$1.run(SharedPreferencesImpl.java:680)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.enqueueDiskWrite(SharedPreferencesImpl.java:699)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$menqueueDiskWrite(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$EditorImpl.commit(SharedPreferencesImpl.java:612)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.providers.contacts.ContactsUpgradeReceiver.onReceive(ContactsUpgradeReceiver.java:76)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.handleReceiver(ActivityThread.java:4772)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.-$$Nest$mhandleReceiver(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2436)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:107)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:232)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Looper.loop(Looper.java:317)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.main(ActivityThread.java:8705)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat java.lang.reflect.Method.invoke(Native Method)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: StrictMode policy violation; ~duration=43 ms: android.os.strictmode.DiskWriteViolation", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onWriteToDisk(StrictMode.java:1639)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat libcore.io.BlockGuardOs.remove(BlockGuardOs.java:365)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat libcore.io.ForwardingOs.remove(ForwardingOs.java:673)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread$AndroidOs.remove(ActivityThread.java:8623)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat java.io.UnixFileSystem.delete(UnixFileSystem.java:382)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat java.io.File.delete(File.java:1051)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.writeToFile(SharedPreferencesImpl.java:841)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$mwriteToFile(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$1.run(SharedPreferencesImpl.java:680)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.enqueueDiskWrite(SharedPreferencesImpl.java:699)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl.-$$Nest$menqueueDiskWrite(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.SharedPreferencesImpl$EditorImpl.commit(SharedPreferencesImpl.java:612)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.providers.contacts.ContactsUpgradeReceiver.onReceive(ContactsUpgradeReceiver.java:76)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.handleReceiver(ActivityThread.java:4772)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.-$$Nest$mhandleReceiver(Unknown Source:0)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread$H.handleMessage(ActivityThread.java:2436)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:107)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:232)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.os.Looper.loop(Looper.java:317)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat android.app.ActivityThread.main(ActivityThread.java:8705)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat java.lang.reflect.Method.invoke(Native Method)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:580)", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 14:59:59.952  1664  1664 D StrictMode: \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:886)", "after": {"scenario": "start"}, "t": 0.2}
+- leak: {"line": "11-25 15:00:22.373  3664  3664 E ActivityThread: Service com.google.android.ims.service.JibeService has leaked IntentReceiver ckli@5392773 that was originally registered here. Are you missing a call to unregisterReceiver()?", "after": {"scenario": "start"}, "t": 0.2}
+- leak: {"line": "11-25 15:00:22.373  3664  3664 E ActivityThread: android.app.IntentReceiverLeaked: Service com.google.android.ims.service.JibeService has leaked IntentReceiver ckli@5392773 that was originally registered here. Are you missing a call to unregisterReceiver()?", "after": {"scenario": "start"}, "t": 0.2}
+- leak: {"line": "11-25 15:00:22.373  3664  3664 E ActivityThread: Service com.google.android.ims.service.JibeService has leaked IntentReceiver com.google.android.ims.receiver.sip.DebugOptionsReceiver@f55c7e2 that was originally registered here. Are you missing a call to unregisterReceiver()?", "after": {"scenario": "start"}, "t": 0.2}
+- leak: {"line": "11-25 15:00:22.373  3664  3664 E ActivityThread: android.app.IntentReceiverLeaked: Service com.google.android.ims.service.JibeService has leaked IntentReceiver com.google.android.ims.receiver.sip.DebugOptionsReceiver@f55c7e2 that was originally registered here. Are you missing a call to unregisterReceiver()?", "after": {"scenario": "start"}, "t": 0.2}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat android.app.SharedPreferencesImpl.awaitLoadedLocked(SharedPreferencesImpl.java:283)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat android.app.SharedPreferencesImpl.getBoolean(SharedPreferencesImpl.java:352)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.apps.gsa.shared.util.q.a.j(PG:7)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.apps.gsa.shared.util.q.a.i(PG:19)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.apps.gsa.nga.shared.q.a.ag.b(PG:13)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.apps.gsa.nga.engine.g.a.bg.d(PG:10)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.apps.gsa.nga.engine.g.a.bg.a(PG:38)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.apps.gsa.nga.engine.g.a.bb.apply(PG:17)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat j$.util.concurrent.atomic.DesugarAtomicReference.getAndUpdate(Unknown Source:4)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.apps.gsa.nga.engine.g.a.o.accept(PG:22)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat j$.util.Optional.ifPresent(Unknown Source:4)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.apps.gsa.nga.engine.g.a.ag.a(PG:10)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.libraries.gsa.h.a.m.apply(PG:9)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.common.util.concurrent.h.e(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.common.util.concurrent.j.run(PG:42)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.libraries.k.x.run(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.common.n.c.c.run(PG:50)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.libraries.k.e.run(PG:8)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.150  1464  1850 D StrictMode: \tat com.google.android.libraries.k.d.b.run(PG:74)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat libcore.io.BlockGuardOs.open(BlockGuardOs.java:269)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat libcore.io.ForwardingOs.open(ForwardingOs.java:563)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat android.app.ActivityThread$AndroidOs.open(ActivityThread.java:8591)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat libcore.io.IoBridge.open(IoBridge.java:560)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat java.io.FileInputStream.<init>(FileInputStream.java:179)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat java.io.FileInputStream.<init>(FileInputStream.java:133)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.speech.e.b.a.b(PG:17)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.languagepack.as.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.arq.g(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.arq.b(PG:48)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat e.c.d.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.bh.b(PG:506)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.staticplugins.actions.b.b.a(PG:208)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.tu.a(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.tu.b(PG:52)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.search.core.service.f.a.d.a(PG:15)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.libraries.gsa.h.a.f.a(PG:9)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.common.util.concurrent.ds.a(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.common.util.concurrent.cu.run(PG:21)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.common.util.concurrent.du.run(PG:5)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.libraries.k.x.run(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.common.n.c.c.run(PG:50)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.libraries.k.e.run(PG:8)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.libraries.k.d.b.run(PG:74)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat libcore.io.BlockGuardOs.fstat(BlockGuardOs.java:194)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat libcore.io.ForwardingOs.fstat(ForwardingOs.java:261)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat libcore.io.IoBridge.open(IoBridge.java:563)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat java.io.FileInputStream.<init>(FileInputStream.java:179)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat java.io.FileInputStream.<init>(FileInputStream.java:133)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.speech.e.b.a.b(PG:17)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.languagepack.as.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.arq.g(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.8}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.arq.b(PG:48)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat e.c.d.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.bh.b(PG:506)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.staticplugins.actions.b.b.a(PG:208)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.tu.a(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.tu.b(PG:52)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.search.core.service.f.a.d.a(PG:15)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.libraries.gsa.h.a.f.a(PG:9)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.common.util.concurrent.ds.a(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.common.util.concurrent.cu.run(PG:21)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.common.util.concurrent.du.run(PG:5)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.libraries.k.x.run(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.common.n.c.c.run(PG:50)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.libraries.k.e.run(PG:8)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.277  1539  1951 D StrictMode: \tat com.google.android.libraries.k.d.b.run(PG:74)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat libcore.io.BlockGuardOs.read(BlockGuardOs.java:324)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat libcore.io.ForwardingOs.read(ForwardingOs.java:613)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat libcore.io.IoBridge.read(IoBridge.java:604)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat java.io.FileInputStream.read(FileInputStream.java:353)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat sun.nio.cs.StreamDecoder.readBytes(StreamDecoder.java:291)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat sun.nio.cs.StreamDecoder.implRead(StreamDecoder.java:355)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat sun.nio.cs.StreamDecoder.read(StreamDecoder.java:181)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat java.io.InputStreamReader.read(InputStreamReader.java:177)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat java.io.BufferedReader.fill(BufferedReader.java:172)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat java.io.BufferedReader.readLine(BufferedReader.java:337)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat java.io.BufferedReader.readLine(BufferedReader.java:403)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.speech.e.b.a.b(PG:26)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.languagepack.as.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.arq.g(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.arq.b(PG:48)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat e.c.d.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.bh.b(PG:506)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.staticplugins.actions.b.b.a(PG:208)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.tu.a(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.binaries.velvet.app.tu.b(PG:52)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.apps.gsa.search.core.service.f.a.d.a(PG:15)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.libraries.gsa.h.a.f.a(PG:9)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.common.util.concurrent.ds.a(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.common.util.concurrent.cu.run(PG:21)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.common.util.concurrent.du.run(PG:5)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.libraries.k.x.run(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.common.n.c.c.run(PG:50)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.libraries.k.e.run(PG:8)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:28.297  1539  1951 D StrictMode: \tat com.google.android.libraries.k.d.b.run(PG:74)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: StrictMode policy violation: android.os.strictmode.CustomViolation: gcore.dynamite", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onCustomSlowCall(StrictMode.java:1650)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.os.StrictMode.noteSlowCall(StrictMode.java:2785)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat anlp.a(:com.google.android.gms@242335041@24.23.35 (190800-646585959):3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat com.google.android.gms.chimera.container.GmsModuleChimeraProvider.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):135)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat ajjb.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.content.ContentProvider.query(ContentProvider.java:1620)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat pgr.superQuery(:com.google.android.gms@242335041@24.23.35 (190800-646585959):2)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat com.google.android.chimera.ContentProvider.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):2)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat ajjb.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):13)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.content.ContentProvider.query(ContentProvider.java:1716)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat pgr.superQuery(:com.google.android.gms@242335041@24.23.35 (190800-646585959):1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat com.google.android.chimera.ContentProvider.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat pgr.query(:com.google.android.gms@242335041@24.23.35 (190800-646585959):2)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.content.ContentProvider$Transport.query(ContentProvider.java:295)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.content.ContentProviderNative.onTransact(ContentProviderNative.java:107)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.os.Binder.execTransactInternal(Binder.java:1500)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.os.Binder.execTransact(Binder.java:1444)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: # via Binder call with stack:", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.os.StrictMode.readAndHandleBinderCallViolations(StrictMode.java:2588)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.os.Parcel.readExceptionCode(Parcel.java:3187)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:152)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.content.ContentProviderProxy.query(ContentProviderNative.java:495)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.content.ContentResolver.query(ContentResolver.java:1229)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.content.ContentResolver.query(ContentResolver.java:1161)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat android.content.ContentResolver.query(ContentResolver.java:1117)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.e(PG:69)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.b(PG:85)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat cfya.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat cfyb.a(PG:7)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.d(PG:58)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat cgxj.b(PG:45)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.tryToInstallCronetProvider(PG:6)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.isEnabled(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.getEnabledCronetProviders(PG:25)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.createBuilderDelegate(PG:16)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat org.chromium.net.ExperimentalCronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat afjt.d(PG:446)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat afjt.b(PG:1997)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat aflc.m(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat aflc.b(PG:2105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat aeuj.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat aeui.get(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat dmju.get(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat aeuj.a(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat aflf.e(PG:1780)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat aflf.b(PG:44)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat clnr.a(PG:376)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat dqoh.d(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat dqoj.run(PG:42)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat crzm.run(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat dnmw.run(PG:50)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat cscj.run(PG:18)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat cryt.run(PG:8)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.608  3356  3531 D StrictMode: \tat csaw.run(PG:64)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat java.io.UnixFileSystem.getBooleanAttributes(UnixFileSystem.java:301)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat java.io.File.isDirectory(File.java:859)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.DexPathList.makeDexElements(DexPathList.java:376)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.DexPathList.<init>(DexPathList.java:166)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.BaseDexClassLoader.<init>(BaseDexClassLoader.java:160)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.BaseDexClassLoader.<init>(BaseDexClassLoader.java:105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.PathClassLoader.<init>(PathClassLoader.java:71)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.DelegateLastClassLoader.<init>(DelegateLastClassLoader.java:106)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.DelegateLastClassLoader.<init>(DelegateLastClassLoader.java:56)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.b(PG:117)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat cfya.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat cfyb.a(PG:7)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.d(PG:58)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat cgxj.b(PG:45)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.tryToInstallCronetProvider(PG:6)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.isEnabled(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.getEnabledCronetProviders(PG:25)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.createBuilderDelegate(PG:16)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat org.chromium.net.ExperimentalCronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat afjt.d(PG:446)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat afjt.b(PG:1997)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aflc.m(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aflc.b(PG:2105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aeuj.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aeui.get(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dmju.get(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aeuj.a(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aflf.e(PG:1780)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aflf.b(PG:44)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat clnr.a(PG:376)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dqoh.d(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dqoj.run(PG:42)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat crzm.run(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dnmw.run(PG:50)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat cscj.run(PG:18)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat cryt.run(PG:8)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat csaw.run(PG:64)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat java.io.UnixFileSystem.getBooleanAttributes(UnixFileSystem.java:301)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat java.io.File.isFile(File.java:892)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.DexPathList.makeDexElements(DexPathList.java:380)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.DexPathList.<init>(DexPathList.java:166)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.BaseDexClassLoader.<init>(BaseDexClassLoader.java:160)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.BaseDexClassLoader.<init>(BaseDexClassLoader.java:105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.PathClassLoader.<init>(PathClassLoader.java:71)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.DelegateLastClassLoader.<init>(DelegateLastClassLoader.java:106)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dalvik.system.DelegateLastClassLoader.<init>(DelegateLastClassLoader.java:56)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.b(PG:117)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat cfya.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat cfyb.a(PG:7)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.d(PG:58)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat cgxj.b(PG:45)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.tryToInstallCronetProvider(PG:6)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.isEnabled(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.getEnabledCronetProviders(PG:25)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.createBuilderDelegate(PG:16)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat org.chromium.net.ExperimentalCronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat afjt.d(PG:446)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat afjt.b(PG:1997)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aflc.m(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aflc.b(PG:2105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aeuj.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aeui.get(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dmju.get(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aeuj.a(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aflf.e(PG:1780)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat aflf.b(PG:44)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat clnr.a(PG:376)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dqoh.d(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dqoj.run(PG:42)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat crzm.run(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat dnmw.run(PG:50)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat cscj.run(PG:18)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat cryt.run(PG:8)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.621  3356  3531 D StrictMode: \tat csaw.run(PG:64)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat java.io.UnixFileSystem.getBooleanAttributes(UnixFileSystem.java:301)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat java.io.File.isDirectory(File.java:859)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DexPathList$Element.<init>(DexPathList.java:681)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DexPathList.makeDexElements(DexPathList.java:412)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DexPathList.<init>(DexPathList.java:166)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.BaseDexClassLoader.<init>(BaseDexClassLoader.java:160)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.BaseDexClassLoader.<init>(BaseDexClassLoader.java:105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.PathClassLoader.<init>(PathClassLoader.java:71)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DelegateLastClassLoader.<init>(DelegateLastClassLoader.java:106)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DelegateLastClassLoader.<init>(DelegateLastClassLoader.java:56)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.b(PG:117)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cfya.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cfyb.a(PG:7)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.d(PG:58)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cgxj.b(PG:45)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.tryToInstallCronetProvider(PG:6)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.isEnabled(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.getEnabledCronetProviders(PG:25)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.createBuilderDelegate(PG:16)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.ExperimentalCronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat afjt.d(PG:446)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat afjt.b(PG:1997)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflc.m(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflc.b(PG:2105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aeuj.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aeui.get(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dmju.get(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aeuj.a(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflf.e(PG:1780)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflf.b(PG:44)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat clnr.a(PG:376)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dqoh.d(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dqoj.run(PG:42)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat crzm.run(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dnmw.run(PG:50)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cscj.run(PG:18)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cryt.run(PG:8)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat csaw.run(PG:64)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat libcore.io.BlockGuardOs.stat(BlockGuardOs.java:419)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat libcore.io.ForwardingOs.stat(ForwardingOs.java:846)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat android.app.ActivityThread$AndroidOs.stat(ActivityThread.java:8605)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DexPathList.splitPaths(DexPathList.java:319)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DexPathList.<init>(DexPathList.java:181)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.BaseDexClassLoader.<init>(BaseDexClassLoader.java:160)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.BaseDexClassLoader.<init>(BaseDexClassLoader.java:105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.PathClassLoader.<init>(PathClassLoader.java:71)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DelegateLastClassLoader.<init>(DelegateLastClassLoader.java:106)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DelegateLastClassLoader.<init>(DelegateLastClassLoader.java:56)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.b(PG:117)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cfya.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cfyb.a(PG:7)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.d(PG:58)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cgxj.b(PG:45)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.tryToInstallCronetProvider(PG:6)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.isEnabled(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.getEnabledCronetProviders(PG:25)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.createBuilderDelegate(PG:16)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.ExperimentalCronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat afjt.d(PG:446)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat afjt.b(PG:1997)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflc.m(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflc.b(PG:2105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aeuj.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aeui.get(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dmju.get(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aeuj.a(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflf.e(PG:1780)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflf.b(PG:44)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat clnr.a(PG:376)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dqoh.d(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dqoj.run(PG:42)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat crzm.run(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dnmw.run(PG:50)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cscj.run(PG:18)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cryt.run(PG:8)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat csaw.run(PG:64)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1683)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat java.io.UnixFileSystem.getBooleanAttributes(UnixFileSystem.java:301)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat java.io.File.isDirectory(File.java:859)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DexPathList.makePathElements(DexPathList.java:507)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DexPathList.<init>(DexPathList.java:182)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.BaseDexClassLoader.<init>(BaseDexClassLoader.java:160)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.BaseDexClassLoader.<init>(BaseDexClassLoader.java:105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.PathClassLoader.<init>(PathClassLoader.java:71)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DelegateLastClassLoader.<init>(DelegateLastClassLoader.java:106)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dalvik.system.DelegateLastClassLoader.<init>(DelegateLastClassLoader.java:56)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.b(PG:117)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cfya.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cfyb.a(PG:7)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.dynamite.DynamiteModule.d(PG:58)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cgxj.b(PG:45)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.tryToInstallCronetProvider(PG:6)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat com.google.android.gms.net.PlayServicesCronetProvider.isEnabled(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.getEnabledCronetProviders(PG:25)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.createBuilderDelegate(PG:16)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.CronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat org.chromium.net.ExperimentalCronetEngine$Builder.<init>(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat afjt.d(PG:446)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat afjt.b(PG:1997)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflc.m(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflc.b(PG:2105)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aeuj.b(PG:1)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aeui.get(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dmju.get(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aeuj.a(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflf.e(PG:1780)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat aflf.b(PG:44)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat eaaq.b(PG:14)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat clnr.a(PG:376)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dqoh.d(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dqoj.run(PG:42)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat crzm.run(PG:3)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat dnmw.run(PG:50)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cscj.run(PG:18)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat cryt.run(PG:8)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- strictmode: {"line": "11-25 15:00:29.622  3356  3531 D StrictMode: \tat csaw.run(PG:64)", "after": {"scenario": "tab", "label": "atlas"}, "t": 19.9}
+- died: {"line": "11-25 15:13:07.963   564  1690 I ActivityManager: Process com.anjy.atlas (pid 7712) has died: fg +50 FGS ", "after": {"scenario": "process-death", "label": "me"}, "t": 775.5}
+- died: {"line": "11-25 15:13:38.367   564   649 I ActivityManager: Process com.anjy.atlas (pid 8294) has died: fg +50 FGS ", "after": {"scenario": "process-death", "label": "bots"}, "t": 806.3}
+- replay-failed: {"path": ["bots", "New Bot", "Create Bot", "Add a Trigger"], "missing": "Add a Trigger", "t": 2146.7}
+
+## Atlas's error lines (188, 8 kinds)
+- ×64 11-25 15:00:16.759 [com.anjy.atlas] SurfaceSyncGroup: Failed to receive transaction ready in 1000ms. Marking SurfaceSyncGroup(wmsSync-VRI[MainActivity]#0) as ready
+- ×64 11-25 15:00:16.759 [com.anjy.atlas] SurfaceSyncGroup: Failed to receive transaction ready in 1000ms. Marking SurfaceSyncGroup(VRI[MainActivity]#1) as ready
+- ×11 11-25 15:06:10.925 [com.anjy.atlas] FrameTracker: force finish cuj, time out: J<IME_INSETS_HIDE_ANIMATION::1@0@com.anjy.atlas>
+- ×10 11-25 15:00:16.381 [com.anjy.atlas] AtlasOrb: orb renderer
+- ×10 11-25 15:00:16.381 [com.anjy.atlas] AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+- ×10 11-25 15:00:16.381 [com.anjy.atlas] AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+- ×10 11-25 15:00:16.381 [com.anjy.atlas] AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+- ×9 11-25 15:01:39.460 [com.anjy.atlas] FrameTracker: force finish cuj, time out: J<IME_INSETS_SHOW_ANIMATION::0@0@com.anjy.atlas>
+
+## Exceptions printed to the log (0, 0 kinds)
+
+## StrictMode (0)
+
+## Leaks (0)
+
+## Frames: {'count': 2, 'max': 139, 'over_30': 2}
+
+## Dropbox: {'data_app_crash': 1}
+
+## Crawl coverage
+- taps 220, odd inputs 63, screens 33, replays failed 1, minutes 66.1
+- must reach: {'Chats': True, 'New chat': True, 'Add: take a photo': True, 'New Bot': True, 'New Group': True, 'Library': True, 'Routines': True, 'Skills': True, 'Details': True, 'New Reminder': True, 'Save to memory': True, 'Talk to Atlas': True}
+- memory (PSS kB): {'start': 76836, 'before_crawl': 87516, 'end': 74001}
+- left the app 12 times; destructive buttons found 0

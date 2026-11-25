@@ -1,0 +1,72 @@
+      idle-options=Bundle[{android.pendingIntent.backgroundActivityAllowed=2, android:broadcast.temporaryAppAllowlistReasonCode=302, android:broadcast.temporaryAppAllowlistDuration=10000, android:broadcast.temporaryAppAllowlistReason=, android:broadcast.temporaryAppAllowlistType=0, android:broadcast.flags=8}]
+    RTC_WAKEUP #13: Alarm{1fcad47 type 0 origWhen 1795644023000 whenElapsed 7271731 com.anjy.atlas}
+      tag=*walarm*:com.anjy.atlas.TICK
+      type=RTC_WAKEUP origWhen=2026-11-25 17:00:23.000 window=0 exactAllowReason=policy_permission repeatInterval=0 count=0 flags=0x3
+      policyWhenElapsed: requester=+53m50s729ms app_standby=-6s861ms device_idle=-- battery_saver=--
+      whenElapsed=+53m50s729ms maxWhenElapsed=+53m50s729ms
+      Alarm clock:
+        triggerTime=2026-11-25 17:00:23.000
+        showIntent=PendingIntent{14b9974: PendingIntentRecord{9a9de9d com.anjy.atlas startActivity}}
+      operation=PendingIntent{995cf12: PendingIntentRecord{3ccd6e3 com.anjy.atlas broadcastIntent}}
+      idle-options=Bundle[{android.pendingIntent.backgroundActivityAllowed=2, android:broadcast.temporaryAppAllowlistReasonCode=301, android:broadcast.temporaryAppAllowlistDuration=10000, android:broadcast.temporaryAppAllowlistReason=, android:broadcast.temporaryAppAllowlistType=0, android:broadcast.flags=8}]
+    ELAPSED #14: Alarm{e42d8e0 type 3 origWhen 9239176 whenElapsed 9239176 com.google.android.gms}
+      tag=*alarm*:NetworkLocationSCollector
+      type=ELAPSED origWhen=+1h26m38s174ms window=0 exactAllowReason=listener repeatInterval=0 count=0 flags=0x1
+--
+  
+  Next wake from idle: Alarm{1fcad47 type 0 origWhen 1795644023000 whenElapsed 7271731 com.anjy.atlas}
+    tag=*walarm*:com.anjy.atlas.TICK
+    type=RTC_WAKEUP origWhen=2026-11-25 17:00:23.000 window=0 exactAllowReason=policy_permission repeatInterval=0 count=0 flags=0x3
+    policyWhenElapsed: requester=+53m50s729ms app_standby=-6s861ms device_idle=-- battery_saver=--
+    whenElapsed=+53m50s729ms maxWhenElapsed=+53m50s729ms
+    Alarm clock:
+      triggerTime=2026-11-25 17:00:23.000
+      showIntent=PendingIntent{14b9974: PendingIntentRecord{9a9de9d com.anjy.atlas startActivity}}
+    operation=PendingIntent{995cf12: PendingIntentRecord{3ccd6e3 com.anjy.atlas broadcastIntent}}
+    idle-options=Bundle[{android.pendingIntent.backgroundActivityAllowed=2, android:broadcast.temporaryAppAllowlistReasonCode=301, android:broadcast.temporaryAppAllowlistDuration=10000, android:broadcast.temporaryAppAllowlistReason=, android:broadcast.temporaryAppAllowlistType=0, android:broadcast.flags=8}]
+  
+  Past-due non-wakeup alarms: (none)
+    Number of delayed alarms: 0, total delay time: 0
+--
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+53m50s729ms app_standby=-27s487ms device_idle=-- battery_saver=--
+      #2: Reason=pi_cancelled elapsed=-58s370ms rtc=2026-11-25 16:05:33.901
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+53m50s729ms app_standby=-1m5s410ms device_idle=-- battery_saver=--
+      #3: Reason=pi_cancelled elapsed=-1m36s272ms rtc=2026-11-25 16:04:55.999
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+53m50s729ms app_standby=-2m5s307ms device_idle=-- battery_saver=--
+      #4: Reason=pi_cancelled elapsed=-3m6s109ms rtc=2026-11-25 16:03:26.162
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+53m50s729ms app_standby=-3m35s335ms device_idle=-- battery_saver=--
+      #5: Reason=pi_cancelled elapsed=-4m36s204ms rtc=2026-11-25 16:01:56.067
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+53m50s729ms app_standby=-5m6s200ms device_idle=-- battery_saver=--
+      #6: Reason=pi_cancelled elapsed=-6m40s165ms rtc=2026-11-25 15:59:52.105
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+53m50s730ms app_standby=-6m49s340ms device_idle=-- battery_saver=--
+      #7: Reason=pi_cancelled elapsed=-8m50s248ms rtc=2026-11-25 15:57:42.023
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+53m50s729ms app_standby=-9m5s513ms device_idle=-- battery_saver=--
+      #8: Reason=pi_cancelled elapsed=-13m54s417ms rtc=2026-11-25 15:52:37.854
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+53m50s729ms app_standby=-14m7s433ms device_idle=-- battery_saver=--
+      #9: Reason=pi_cancelled elapsed=-15m8s299ms rtc=2026-11-25 15:51:23.972
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+53m50s729ms app_standby=-15m24s526ms device_idle=-- battery_saver=--
+      #10: Reason=pi_cancelled elapsed=-16m35s9ms rtc=2026-11-25 15:49:57.262
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+53m50s729ms app_standby=-16m57s942ms device_idle=-- battery_saver=--
+  
+  Top Alarms:
+    +1s208ms running, 0 wakeups, 3 alarms: 1000:android

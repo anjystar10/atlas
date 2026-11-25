@@ -1,0 +1,178 @@
+{
+ "gemini:ok": {
+  "text": "Stub reply: all good. Привет 👋\n\nGemini\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0085-gemini-reply-ok.png"
+ },
+ "gemini:md": {
+  "text": "Bold, italic, code and a link.\n\nDay\tPlan\nMon\tGym 🏋️\nTue\tRead 📚\nÜnïcødé: Ἀθηνᾶ, 漢字, العربية (right to left), עברית, हिन्दी, 👍🏽👨‍👩‍👧‍👦\nA long unbroken word: SupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilistic\nkotlin\nCopy\nfun main() = println(\"<script>alert(1)</script>\")\n\n<script>window.xss=(window.xss||0)+1</script><img src=x onerror=\"window.xss=(window.xss||0)+1\">\n\nGemini\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0086-gemini-reply-md.png"
+ },
+ "gemini:long": {
+  "text": "This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This",
+  "busy": false,
+  "shot": "0087-gemini-reply-long.png"
+ },
+ "gemini:429": {
+  "text": "Gemini asked me to wait 37 s (1 of 3)\nGemini",
+  "busy": true,
+  "shot": "0088-gemini-reply-429.png"
+ },
+ "gemini:500": {
+  "text": "Gemini is busy, trying again (3 of 3)\nGemini",
+  "busy": true,
+  "shot": "0089-gemini-reply-500.png"
+ },
+ "gemini:503": {
+  "text": "Gemini is busy, trying again (3 of 3)\nGemini",
+  "busy": true,
+  "shot": "0090-gemini-reply-503.png"
+ },
+ "gemini:400key": {
+  "text": "That Gemini key isn't valid. (No other key is ready: add more in Me → Brain.)\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0091-gemini-reply-400key.png"
+ },
+ "gemini:403": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0092-gemini-reply-403.png"
+ },
+ "gemini:html502": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0093-gemini-reply-html502.png"
+ },
+ "gemini:malformed": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0094-gemini-reply-malformed.png"
+ },
+ "gemini:empty": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0095-gemini-reply-empty.png"
+ },
+ "gemini:maxtokens": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0096-gemini-reply-maxtokens.png"
+ },
+ "gemini:slow": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0097-gemini-reply-slow.png"
+ },
+ "gemini:esc-stop": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "shot": "0098-gemini-esc-stop.png"
+ },
+ "openai:ok": {
+  "text": "Stub reply: all good. Привет 👋\n\nOpenAI\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0137-openai-reply-ok.png"
+ },
+ "openai:md": {
+  "text": "Bold, italic, code and a link.\n\nDay\tPlan\nMon\tGym 🏋️\nTue\tRead 📚\nÜnïcødé: Ἀθηνᾶ, 漢字, العربية (right to left), עברית, हिन्दी, 👍🏽👨‍👩‍👧‍👦\nA long unbroken word: SupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilisticSupercalifragilistic\nkotlin\nCopy\nfun main() = println(\"<script>alert(1)</script>\")\n\n<script>window.xss=(window.xss||0)+1</script><img src=x onerror=\"window.xss=(window.xss||0)+1\">\n\nOpenAI\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0138-openai-reply-md.png"
+ },
+ "openai:429": {
+  "text": "Waiting for OpenAI's limit, 15 s (2 of 3)\nOpenAI",
+  "busy": true,
+  "shot": "0139-openai-reply-429.png"
+ },
+ "openai:500": {
+  "text": "OpenAI is busy, trying again (3 of 3)\nOpenAI",
+  "busy": true,
+  "shot": "0140-openai-reply-500.png"
+ },
+ "openai:400key": {
+  "text": "OpenAI turned the key down: Incorrect API key provided: sk-deep****. You can find your API key at https://platform.openai.com/account/api-keys. (No other key is ready: add more in Me → Brain.)\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0141-openai-reply-400key.png"
+ },
+ "openai:html502": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0142-openai-reply-html502.png"
+ },
+ "openai:malformed": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0143-openai-reply-malformed.png"
+ },
+ "openai:empty": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0144-openai-reply-empty.png"
+ },
+ "openai:maxtokens": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0145-openai-reply-maxtokens.png"
+ },
+ "openai:esc-stop": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "shot": "0146-openai-esc-stop.png"
+ },
+ "claude:ok": {
+  "text": "Stub reply: all good. Привет 👋\n\nClaude\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0149-claude-reply-ok.png"
+ },
+ "claude:429": {
+  "text": "Waiting for Claude's limit, 15 s (2 of 3)\nClaude",
+  "busy": true,
+  "shot": "0150-claude-reply-429.png"
+ },
+ "claude:503": {
+  "text": "Claude is having trouble right now (529).\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0151-claude-reply-503.png"
+ },
+ "claude:400key": {
+  "text": "Claude turned the key down: invalid x-api-key (No other key is ready: add more in Me → Brain.)\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0152-claude-reply-400key.png"
+ },
+ "claude:malformed": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0153-claude-reply-malformed.png"
+ },
+ "claude:empty": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0154-claude-reply-empty.png"
+ },
+ "claude:maxtokens": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0155-claude-reply-maxtokens.png"
+ },
+ "claude:esc-stop": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "shot": "0156-claude-esc-stop.png"
+ },
+ "twokeys:429": {
+  "text": "Gemini asked me to wait 37 s (1 of 3)\nGemini",
+  "busy": true,
+  "shot": "0159-twokeys-reply-429.png"
+ },
+ "twokeys:ok": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "busy": false,
+  "shot": "0162-twokeys-reply-ok.png"
+ },
+ "twokeys:400key": {
+  "text": "That Gemini key isn't valid. (No other key is ready: add more in Me → Brain.)\n\nCopy\nRemember\nAsk Again",
+  "busy": true,
+  "shot": "0161-twokeys-reply-400key.png"
+ },
+ "twokeys:esc-stop": {
+  "text": "Add an AI key in Me → Brain (Gemini's is free), or start a local model, so I can think.\n\nCopy\nRemember\nAsk Again",
+  "shot": "0163-twokeys-esc-stop.png"
+ }
+}

@@ -1,0 +1,28 @@
+/data/data/com.anjy.atlas/files:
+total 128
+drwxrwx--x 5 u0_a209 u0_a209  4096 2026-11-25 16:06 .
+drwx------ 6 u0_a209 u0_a209  4096 2026-11-25 15:00 ..
+-rw------- 1 u0_a209 u0_a209 20001 2026-11-25 16:06 atlas-state.json
+drwx------ 2 u0_a209 u0_a209  4096 2026-11-25 15:01 attachments
+-rw------- 1 u0_a209 u0_a209     2 2026-11-25 16:06 bots.json
+-rw------- 1 u0_a209 u0_a209  8321 2026-11-25 16:06 botx.json
+-rw------- 1 u0_a209 u0_a209     2 2026-11-25 15:22 chat.json
+drwx------ 2 u0_a209 u0_a209  4096 2026-11-25 15:22 chats
+-rw------- 1 u0_a209 u0_a209     6 2026-11-25 15:53 hotword-sensitivity.txt
+-rw------- 1 u0_a209 u0_a209    24 2026-11-25 15:57 profileInstalled
+-rw------- 1 u0_a209 u0_a209  1658 2026-11-25 16:06 threads.json
+-rw------- 1 u0_a209 u0_a209    39 2026-11-25 16:06 triggers-state.json
+drwx------ 6 u0_a209 u0_a209  4096 2026-11-25 15:49 vosk-small-en-us-0.15
+
+/data/data/com.anjy.atlas/shared_prefs:
+total 40
+drwxrwx--x 2 u0_a209 u0_a209 4096 2026-11-25 16:04 .
+drwx------ 6 u0_a209 u0_a209 4096 2026-11-25 15:00 ..
+-rw-rw---- 1 u0_a209 u0_a209  115 2026-11-25 15:00 atlas_channels.xml
+-rw-rw---- 1 u0_a209 u0_a209 1603 2026-11-25 15:00 atlas_self.xml
+-rw-rw---- 1 u0_a209 u0_a209 1884 2026-11-25 16:04 atlas_ui.xml
+total 64
+drwx------ 2 u0_a209 u0_a209  4096 2026-11-25 15:22 .
+drwxrwx--x 5 u0_a209 u0_a209  4096 2026-11-25 16:06 ..
+-rw------- 1 u0_a209 u0_a209 35053 2026-11-25 15:22 45acdbd9-bb2f-467e-bbb7-3a398104bb6d.json
+-rw------- 1 u0_a209 u0_a209   110 2026-11-25 15:22 index.json

@@ -1,0 +1,23 @@
+  TopAppTimer{<0>com.anjy.atlas} NOT active
+  TopAppTimer{<0>com.android.settings} NOT active
+  TopAppTimer{<0>com.google.android.apps.nexuslauncher} started at 942409 (1732ms ago)
+    com.google.android.apps.nexuslauncher.NexusLauncherActivity
+  TopAppTimer{<0>com.google.android.googlesdksetup} NOT active
+  
+  Cached execution stats:
+--
+    <0>com.anjy.atlas: ShrinkableDebits { debit tally: 0, bucket: 0 }
+    <0>com.google.android.inputmethod.latin: ShrinkableDebits { debit tally: 0, bucket: 0 }
+  
+  In quota alarms:
+    NOT WAITING
+
+ComponentController:
+--
+  10192: {com.anjy.atlas}
+
+Current stats at 2026-11-25-21-00-01 (-15m19s173ms) over +15m19s173ms:
+  Max concurrency: 12 total, 0 foreground
+  
+  1000 / android:
+    1x pending 1x active 

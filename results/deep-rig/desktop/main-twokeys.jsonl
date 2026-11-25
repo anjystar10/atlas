@@ -1,0 +1,5 @@
+{"t":1795636701700,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636716161,"kind":"net","detail":"GET github.com/anjystar10/atlas/releases/download/desktop/latest.json"}
+{"t":1795636717932,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636725156,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636725530,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}

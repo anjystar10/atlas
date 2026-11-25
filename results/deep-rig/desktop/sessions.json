@@ -1,0 +1,103 @@
+{
+ "results": [
+  {
+   "name": "nokey",
+   "dangers": [
+    {
+     "tab": "bots",
+     "round": 0,
+     "key": "button.btn|Remove From List",
+     "text": "Remove From List",
+     "found": false
+    },
+    {
+     "tab": "me",
+     "round": 0,
+     "key": "div.item.keyrow|#••••# In use Try Again Remove",
+     "text": "9999••••9999 In use Try Again Remove",
+     "asked": false,
+     "shot": "0066-nokey-danger-9999-9999-In-use-Try-Again-Remove.png",
+     "changed": false,
+     "sheet": ""
+    },
+    {
+     "tab": "me",
+     "round": 0,
+     "key": "button.btn.danger|Remove",
+     "text": "Remove",
+     "asked": true,
+     "shot": "0067-nokey-danger-Remove.png",
+     "changed": false,
+     "sheet": "Remove This Key?\n\n9999••••9999\n\nCancel\nRemove"
+    }
+   ]
+  },
+  {
+   "name": "gemini",
+   "dangers": [
+    {
+     "tab": "atlas",
+     "round": 0,
+     "key": "button.x|Remove",
+     "text": "Remove",
+     "found": false
+    },
+    {
+     "tab": "bots",
+     "round": 0,
+     "key": "button.btn|Remove From List",
+     "text": "Remove From List",
+     "found": false
+    },
+    {
+     "tab": "me",
+     "round": 0,
+     "key": "div.item.keyrow|AIza••••# In use Try Again Remove",
+     "text": "AIza••••0000 In use Try Again Remove",
+     "found": false
+    }
+   ]
+  },
+  {
+   "name": "openai"
+  },
+  {
+   "name": "claude"
+  },
+  {
+   "name": "twokeys"
+  }
+ ],
+ "coverage": {
+  "nokey": {
+   "clicked": 56,
+   "typed": 27,
+   "screens": 68,
+   "overlays": 15
+  },
+  "gemini": {
+   "clicked": 55,
+   "typed": 23,
+   "screens": 67,
+   "overlays": 16
+  },
+  "openai": {
+   "clicked": 0,
+   "typed": 0,
+   "screens": 12,
+   "overlays": 0
+  },
+  "claude": {
+   "clicked": 0,
+   "typed": 0,
+   "screens": 10,
+   "overlays": 0
+  },
+  "twokeys": {
+   "clicked": 0,
+   "typed": 0,
+   "screens": 7,
+   "overlays": 0
+  }
+ }
+}

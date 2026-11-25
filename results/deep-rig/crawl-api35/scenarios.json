@@ -1,0 +1,1218 @@
+{
+ "tabs": {
+  "atlas": {
+   "shot": "0001-tab-atlas.png",
+   "words": [
+    "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+    "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+    "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+    "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+    "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+    "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+    "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+    "Talk to Atlas. Hold to switch between light and dark.",
+    "Atlas / No brain set up yet · add an API key in Me",
+    "Atlas",
+    "No brain set up yet · add an API key in Me",
+    "Chats",
+    "New chat",
+    "Gemini / 漢字のリマインダー",
+    "Gemini / 漢字のリマインダー",
+    "Gemini / 漢字のリマインダー",
+    "Gemini / 漢字のリマインダー",
+    "Gemini",
+    "Gemini",
+    "漢字のリマインダー",
+    "漢字のリマインダー",
+    "Line one\nLine two\nbullet\n漢字 / Gemini",
+    "Line one\nLine two\nbullet\n漢字",
+    "Gemini",
+    "עברית בדיקה",
+    "עברית בדיקה",
+    "[a link](javascript:alert(1)) and another / Gemini",
+    "[a link](javascript:alert(1)) and another",
+    "Gemini",
+    "Add: take a photo, photos and videos, or files (hold to take a photo now) / Ask ",
+    "Add: take a photo, photos and videos, or files (hold to take a photo now) / Ask ",
+    "Add: take a photo, photos and videos, or files (hold to take a photo now)",
+    "Ask Atlas anything",
+    "Atlas, current page / Atlas",
+    "Atlas, current page / Atlas",
+    "Atlas, current page / Atlas",
+    "Atlas, current page",
+    "Atlas",
+    "Log",
+    "Bots",
+    "Me",
+    "Talk to Atlas"
+   ]
+  },
+  "log": {
+   "shot": "0002-tab-log.png",
+   "words": [
+    "Log / New reminder",
+    "Log / New reminder",
+    "Log / New reminder",
+    "Log / New reminder",
+    "Log / New reminder",
+    "Log / New reminder",
+    "Log / New reminder",
+    "Log / New reminder",
+    "Log / New reminder",
+    "Log",
+    "New reminder",
+    "What Atlas is keeping for you. Reminders ring like an alarm at their time.",
+    "Remember something… / Save to memory",
+    "Something for Atlas to remember",
+    "Save to memory",
+    "Coming Up",
+    "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+    "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+    "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+    "Gym",
+    "⏰ Today 17:00 · Daily · Logged Today 13:00",
+    "Upcoming",
+    "Long one / ⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+    "Long one / ⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+    "Long one",
+    "⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+    "Upcoming",
+    "हिन्दी परीक्षण / ⏰ Today 19:19 · Logged Today 13:00",
+    "हिन्दी परीक्षण / ⏰ Today 19:19 · Logged Today 13:00",
+    "हिन्दी परीक्षण",
+    "⏰ Today 19:19 · Logged Today 13:00",
+    "Upcoming",
+    "Latest",
+    "Atlas / Log, current page",
+    "Atlas / Log, current page",
+    "Atlas / Log, current page",
+    "Atlas",
+    "Log, current page",
+    "Log",
+    "Bots",
+    "Me",
+    "Talk to Atlas"
+   ]
+  },
+  "bots": {
+   "shot": "0003-tab-bots.png",
+   "words": [
+    "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+    "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+    "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+    "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+    "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+    "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+    "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+    "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+    "Bots",
+    "Bots",
+    "Your team. Each bot has its own conversation: tell it what you need, and it work",
+    "New Group / New Bot",
+    "New Group",
+    "New Bot",
+    "Atlas  ★. Your chief of staff · Idle. No messages yet. Say what you need. / Atla",
+    "Atlas  ★. Your chief of staff · Idle. No messages yet. Say what you need.",
+    "Atlas  ★ / Your chief of staff · Idle",
+    "Atlas  ★",
+    "Atlas  ★",
+    "Your chief of staff · Idle",
+    "No messages yet. Say what you need.",
+    "Research Bot. Finds things out and backs them with sources · Idle. No messages y",
+    "R",
+    "R",
+    "Research Bot / Finds things out and backs them with sources · Idle",
+    "Research Bot",
+    "Research Bot",
+    "Finds things out and backs them with sources · Idle",
+    "No messages yet. Say what you need.",
+    "Planner Bot. Turns goals into schedules and step-by-step plans · Idle. No messag",
+    "P",
+    "P",
+    "Planner Bot / Turns goals into schedules and step-by-step plans · Idle",
+    "Planner Bot",
+    "Planner Bot",
+    "Turns goals into schedules and step-by-step plans · Idle",
+    "No messages yet. Say what you need.",
+    "Developer Bot. Programming, debugging and technical work · Idle. No messages yet",
+    "D",
+    "D",
+    "Developer Bot / Programming, debugging and technical work · Idle",
+    "Developer Bot",
+    "Developer Bot",
+    "Programming, debugging and technical work · Idle",
+    "No messages yet. Say what you need.",
+    "Finance Bot. Numbers, budgets, prices and comparisons · Idle. No messages yet. S",
+    "Atlas / Log",
+    "Atlas / Log",
+    "Atlas / Log",
+    "Atlas",
+    "Log",
+    "Bots, current page",
+    "Bots",
+    "Me",
+    "Talk to Atlas"
+   ]
+  },
+  "me": {
+   "shot": "0004-tab-me.png",
+   "words": [
+    "Me / Brain",
+    "Me / Brain",
+    "Me / Brain",
+    "Me / Brain",
+    "Me / Brain",
+    "Me / Brain",
+    "Me / Brain",
+    "Me / Brain",
+    "Me",
+    "Me",
+    "Brain",
+    "Not set up / Paste a key from any AI service below. Atlas needs one to think pro",
+    "Not set up",
+    "Paste a key from any AI service below. Atlas needs one to think properly and to ",
+    "Paste an API key (AIza…)",
+    "Service",
+    "Gemini / More Services…",
+    "Gemini",
+    "More Services…",
+    "Google. Free tier with limits; the best all-rounder for Atlas",
+    "Add Key / Get a Key",
+    "Add Key",
+    "Get a Key",
+    "Model / gemini-3.8-flash",
+    "Model",
+    "gemini-3.8-flash",
+    "Don't Switch Services, off",
+    "Don't Switch Services",
+    "Atlas / Log",
+    "Atlas / Log",
+    "Atlas / Log",
+    "Atlas",
+    "Log",
+    "Bots",
+    "Me, current page",
+    "Me",
+    "Talk to Atlas"
+   ]
+  }
+ },
+ "stub_modes": {
+  "ok": {
+   "asked": "deep test ok reply please",
+   "shot": "0005-reply-stub-ok.png",
+   "bottom": [
+    "Gemini",
+    "deep test ok reply please",
+    "Stub reply: all good. Привет 👋",
+    "Gemini"
+   ]
+  },
+  "md": {
+   "asked": "deep test md reply please",
+   "shot": "0006-reply-stub-md.png",
+   "bottom": [
+    "Copy",
+    "fun main() = println(\"<script>alert(1)</script>\")",
+    "<script>window.xss=(window.xss||0)+1</script><img src=x onerror=\"window.xss=(window.xss||0)+1\">",
+    "Gemini"
+   ]
+  },
+  "long": {
+   "asked": "deep test long reply please",
+   "shot": "0007-reply-stub-long.png",
+   "bottom": [
+    "Atlas",
+    "Gemini · phone control off",
+    "This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and ",
+    "Gemini"
+   ]
+  },
+  "429": {
+   "asked": "deep test 429 reply please",
+   "shot": "0008-reply-stub-429.png",
+   "bottom": [
+    "Gemini",
+    "deep test 429 reply please",
+    "Gemini asked me to wait 37 s (1 of 3)…",
+    "Gemini"
+   ]
+  },
+  "500": {
+   "asked": "deep test 500 reply please",
+   "shot": "0009-reply-stub-500.png",
+   "bottom": [
+    "Gemini",
+    "deep test 429 reply please",
+    "Gemini is busy, trying again (2 of 3)…",
+    "Gemini"
+   ]
+  },
+  "503": {
+   "asked": "deep test 503 reply please",
+   "shot": "0010-reply-stub-503.png",
+   "bottom": [
+    "This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and memory. This is a very long answer to check scrolling, wrapping and ",
+    "Gemini",
+    "deep test 429 reply please",
+    "Gemini is having trouble right now (503). Try again shortly. I tried 3 times."
+   ]
+  },
+  "400key": {
+   "asked": "deep test 400key reply please",
+   "shot": "0011-reply-stub-400key.png",
+   "bottom": [
+    "deep test 429 reply please",
+    "Gemini is having trouble right now (503). Try again shortly. I tried 3 times.",
+    "deep test 500 reply pleasedeep test 503 reply pleasedeep test 400key reply please",
+    "That Gemini key isn't valid. Check it in Me. (No other key is ready: add more in Me → Brain.)"
+   ]
+  },
+  "403": {
+   "asked": "deep test 403 reply please",
+   "shot": "0012-reply-stub-403.png",
+   "bottom": [
+    "deep test 500 reply pleasedeep test 503 reply pleasedeep test 400key reply please",
+    "That Gemini key isn't valid. Check it in Me. (No other key is ready: add more in Me → Brain.)",
+    "deep test 403 reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ]
+  },
+  "html502": {
+   "asked": "deep test html502 reply please",
+   "shot": "0013-reply-stub-html502.png",
+   "bottom": [
+    "deep test 403 reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test html502 reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ]
+  },
+  "malformed": {
+   "asked": "deep test malformed reply please",
+   "shot": "0014-reply-stub-malformed.png",
+   "bottom": [
+    "deep test html502 reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test malformed reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ]
+  },
+  "empty": {
+   "asked": "deep test empty reply please",
+   "shot": "0015-reply-stub-empty.png",
+   "bottom": [
+    "deep test malformed reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test empty reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ]
+  },
+  "maxtokens": {
+   "asked": "deep test maxtokens reply please",
+   "shot": "0016-reply-stub-maxtokens.png",
+   "bottom": [
+    "deep test empty reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test maxtokens reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ]
+  },
+  "slow": {
+   "asked": "deep test slow reply please",
+   "shot": "0017-reply-stub-slow.png",
+   "bottom": [
+    "deep test maxtokens reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test slow reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ]
+  },
+  "slow-leave": {
+   "asked": "deep test slow then leave",
+   "shot": "0018-reply-stub-slow-leave-start.png",
+   "bottom": [
+    "deep test slow reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test slow then leave",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "after_return": [
+    "deep test slow reply please",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test slow then leave",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "after_shot": "0019-stub-slow-after-return.png"
+  },
+  "double": {
+   "bottom": [
+    "deep test first of two",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test second of two",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "shot": "0022-stub-double-after.png"
+  },
+  "tool-calendar_events": {
+   "asked": "deep test tool calendar_events",
+   "shot": "0023-reply-tool-calendar-events.png",
+   "bottom": [
+    "deep test second of two",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test tool calendar_events",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "asked_user": "0024-tool-asks-calendar-events.png"
+  },
+  "tool-find_contact": {
+   "asked": "deep test tool find_contact",
+   "shot": "0025-reply-tool-find-contact.png",
+   "bottom": [
+    "deep test tool calendar_events",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test tool find_contact",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "asked_user": "0026-tool-asks-find-contact.png"
+  },
+  "tool-get_location": {
+   "asked": "deep test tool get_location",
+   "shot": "0027-reply-tool-get-location.png",
+   "bottom": [
+    "deep test tool find_contact",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test tool get_location",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "asked_user": "0028-tool-asks-get-location.png"
+  },
+  "tool-read_log": {
+   "asked": "deep test tool read_log",
+   "shot": "0029-reply-tool-read-log.png",
+   "bottom": [
+    "deep test tool get_location",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test tool read_log",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "asked_user": "0030-tool-asks-read-log.png"
+  },
+  "tool-set_reminder": {
+   "asked": "deep test tool set_reminder",
+   "shot": "0031-reply-tool-set-reminder.png",
+   "bottom": [
+    "deep test tool read_log",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test tool set_reminder",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "asked_user": "0032-tool-asks-set-reminder.png"
+  },
+  "tool-web_search": {
+   "asked": "deep test tool web_search",
+   "shot": "0033-reply-tool-web-search.png",
+   "bottom": [
+    "deep test tool set_reminder",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test tool web_search",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "asked_user": "0034-tool-asks-web-search.png"
+  },
+  "tool-open_link": {
+   "asked": "deep test tool open_link",
+   "shot": "0035-reply-tool-open-link.png",
+   "bottom": [
+    "deep test tool web_search",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test tool open_link",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "asked_user": "0036-tool-asks-open-link.png"
+  },
+  "tool-send_sms": {
+   "asked": "deep test tool send_sms",
+   "shot": "0037-reply-tool-send-sms.png",
+   "bottom": [
+    "deep test tool open_link",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test tool send_sms",
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”)."
+   ],
+   "asked_user": "0038-tool-asks-send-sms.png"
+  }
+ },
+ "offline": {
+  "offline": {
+   "asked": "deep test while offline",
+   "shot": "0039-reply-offline.png",
+   "bottom": [
+    "Add your Gemini key in Me so I can think properly. Until then I can only do fixed commands (say “help”).",
+    "deep test while offline",
+    "I can't reach Gemini and there's no offline model on this phone, so I can only do fixed commands right now (say “help”).",
+    "No internet connection. Answering offline."
+   ]
+  },
+  "offline_me": "0040-offline-me.png",
+  "offline_bots": "0041-offline-bots.png",
+  "online_bad_key": {
+   "asked": "deep test back online with a key that is not real",
+   "shot": "0042-reply-online-bad-key.png",
+   "bottom": [
+    "I can't reach Gemini and there's no offline model on this phone, so I can only do fixed commands right now (say “help”).",
+    "No internet connection. Answering offline.",
+    "deep test back online with a key that is not real",
+    "That Gemini key isn't valid. Check it in Me. (No other key is ready: add more in Me → Brain.)"
+   ]
+  }
+ },
+ "lifecycle": {
+  "rotate-atlas": {
+   "shot": "0043-landscape-atlas.png",
+   "words": 43
+  },
+  "rotate-log": {
+   "shot": "0044-landscape-log.png",
+   "words": 32
+  },
+  "rotate-bots": {
+   "shot": "0045-landscape-bots.png",
+   "words": 36
+  },
+  "rotate-me": {
+   "shot": "0046-landscape-me.png",
+   "words": 27
+  },
+  "chats-rotated": "0048-chats-sheet-landscape.png",
+  "chats-after-rotate-back": "0049-chats-sheet-portrait-again.png",
+  "background-return": {
+   "shot": "0050-background-return.png",
+   "draft_kept": true
+  },
+  "death-me": {
+   "how": "kill -9 (am kill left it: a foreground service keeps Atlas alive)",
+   "pid_before": "7712",
+   "pid_after_kill": "7712",
+   "fg_before": [
+    "com.anjy.atlas",
+    "com.anjy.atlas.MainActivity"
+   ],
+   "fg_after": [
+    "com.anjy.atlas",
+    "com.anjy.atlas.MainActivity"
+   ],
+   "before": "0051-before-death-me.png",
+   "after": "0052-after-death-me.png",
+   "same_screen": false,
+   "draft_kept": null
+  },
+  "death-bots": {
+   "how": "kill -9 (am kill left it: a foreground service keeps Atlas alive)",
+   "pid_before": "8294",
+   "pid_after_kill": "8294",
+   "fg_before": [
+    "com.anjy.atlas",
+    "com.anjy.atlas.CrewActivity"
+   ],
+   "fg_after": [
+    "com.anjy.atlas",
+    "com.anjy.atlas.MainActivity"
+   ],
+   "before": "0053-before-death-bots.png",
+   "after": "0054-after-death-bots.png",
+   "same_screen": false,
+   "draft_kept": false
+  },
+  "dka-bot-chat": {
+   "open": "0055-dka-bot-chat-open.png",
+   "after": "0056-dka-bot-chat-after-return.png",
+   "fg": [
+    "com.anjy.atlas",
+    "com.anjy.atlas.MainActivity"
+   ],
+   "rotated": "0057-dka-bot-chat-rotated.png"
+  },
+  "dka-library": {
+   "open": "0058-dka-library-open.png",
+   "after": "0059-dka-library-after-return.png",
+   "fg": [
+    "com.anjy.atlas",
+    "com.anjy.atlas.MainActivity"
+   ],
+   "rotated": "0060-dka-library-rotated.png"
+  }
+ },
+ "looks": {
+  "held-orb": {
+   "atlas": "0061-held-orb-atlas.png",
+   "log": "0062-held-orb-log.png",
+   "bots": "0063-held-orb-bots.png",
+   "me": "0064-held-orb-me.png"
+  },
+  "held-orb-again": "0065-held-orb-back.png",
+  "night-yes": "0066-system-night-yes.png",
+  "night-no": "0067-system-night-no.png",
+  "font-1.3": {
+   "atlas": {
+    "shot": "0068-font130-atlas.png",
+    "words": [
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark.",
+     "Atlas / Gemini · phone control off",
+     "Atlas",
+     "Gemini · phone control off",
+     "Chats",
+     "New chat",
+     "I can't reach Gemini and there's no offline model on this phone, so I can only d",
+     "I can't reach Gemini and there's no offline model on this phone, so I can only d",
+     "I can't reach Gemini and there's no offline model on this phone, so I can only d",
+     "I can't reach Gemini and there's no offline model on this phone, so I can only d",
+     "I can't reach Gemini and there's no offline model on this phone, so I can only d",
+     "I can't reach Gemini and there's no offline model on this phone, so I can only d",
+     "Done: No internet connection. Answering offline. / No internet connection. Answe",
+     "Done: No internet connection. Answering offline.",
+     "No internet connection. Answering offline.",
+     "deep test back online with a key that is not real",
+     "deep test back online with a key that is not real",
+     "That Gemini key isn't valid. Check it in Me. (No other key is ready: add more in",
+     "That Gemini key isn't valid. Check it in Me. (No other key is ready: add more in",
+     "Add: take a photo, photos and videos, or files (hold to take a photo now) / Ask ",
+     "Add: take a photo, photos and videos, or files (hold to take a photo now) / Ask ",
+     "Add: take a photo, photos and videos, or files (hold to take a photo now)",
+     "Ask Atlas anything",
+     "Atlas, current page / Atlas",
+     "Atlas, current page / Atlas",
+     "Atlas, current page / Atlas",
+     "Atlas, current page",
+     "Atlas",
+     "Log",
+     "Bots",
+     "Me",
+     "Talk to Atlas"
+    ]
+   },
+   "log": {
+    "shot": "0069-font130-log.png",
+    "words": [
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log",
+     "New reminder",
+     "What Atlas is keeping for you. Reminders ring like an alarm at their time.",
+     "Remember something… / Save to memory",
+     "Something for Atlas to remember",
+     "Save to memory",
+     "Coming Up",
+     "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Gym",
+     "⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Upcoming",
+     "Long one / ⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+     "Long one / ⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+     "Long one",
+     "⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+     "Upcoming",
+     "हिन्दी परीक्षण",
+     "हिन्दी परीक्षण",
+     "हिन्दी परीक्षण",
+     "Atlas / Log, current page",
+     "Atlas / Log, current page",
+     "Atlas / Log, current page",
+     "Atlas",
+     "Log, current page",
+     "Log",
+     "Bots",
+     "Me",
+     "Talk to Atlas"
+    ]
+   },
+   "bots": {
+    "shot": "0070-font130-bots.png",
+    "words": [
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots",
+     "Bots",
+     "Your team. Each bot has its own conversation: tell it what you need, and it work",
+     "New Group / New Bot",
+     "New Group",
+     "New Bot",
+     "Atlas  ★. Your chief of staff · Idle. No messages yet. Say what you need. / Atla",
+     "Atlas  ★. Your chief of staff · Idle. No messages yet. Say what you need.",
+     "Atlas  ★ / Your chief of staff · Idle",
+     "Atlas  ★",
+     "Atlas  ★",
+     "Your chief of staff · Idle",
+     "No messages yet. Say what you need.",
+     "Research Bot. Finds things out and backs them with sources · Idle. No messages y",
+     "R",
+     "R",
+     "Research Bot / Finds things out and backs them with sources · Idle",
+     "Research Bot",
+     "Research Bot",
+     "Finds things out and backs them with sources · Idle",
+     "No messages yet. Say what you need.",
+     "Planner Bot. Turns goals into schedules and step-by-step plans · Idle. No messag",
+     "P",
+     "P",
+     "Planner Bot / Turns goals into schedules and step-by-step plans · Idle",
+     "Planner Bot",
+     "Planner Bot",
+     "Turns goals into schedules and step-by-step plans · Idle",
+     "Atlas / Log",
+     "Atlas / Log",
+     "Atlas / Log",
+     "Atlas",
+     "Log",
+     "Bots, current page",
+     "Bots",
+     "Me",
+     "Talk to Atlas"
+    ]
+   },
+   "me": {
+    "shot": "0071-font130-me.png",
+    "words": [
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me",
+     "Me",
+     "Brain",
+     "Gemini · gemini-3.8-flash / Atlas thinks with Gemini. Add as many keys as you li",
+     "Gemini · gemini-3.8-flash",
+     "Atlas thinks with Gemini. Add as many keys as you like: when one runs out, Atlas",
+     "Paste an API key (AIza…)",
+     "Service",
+     "Gemini / More Services…",
+     "Gemini",
+     "More Services…",
+     "Atlas / Log",
+     "Atlas / Log",
+     "Atlas / Log",
+     "Atlas",
+     "Log",
+     "Bots",
+     "Me, current page",
+     "Me",
+     "Talk to Atlas"
+    ]
+   }
+  },
+  "density-125": {
+   "atlas": {
+    "shot": "0072-density125-atlas.png",
+    "words": [
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark.",
+     "Atlas / Gemini · phone control off",
+     "Atlas",
+     "Gemini · phone control off",
+     "Chats",
+     "New chat",
+     "deep test back online with a key that is not real / That Gemini key isn't valid.",
+     "deep test back online with a key that is not real / That Gemini key isn't valid.",
+     "deep test back online with a key that is not real / That Gemini key isn't valid.",
+     "deep test back online with a key that is not real / That Gemini key isn't valid.",
+     "deep test back online with a key that is not real",
+     "deep test back online with a key that is not real",
+     "That Gemini key isn't valid. Check it in Me. (No other key is ready: add more in",
+     "That Gemini key isn't valid. Check it in Me. (No other key is ready: add more in",
+     "Add: take a photo, photos and videos, or files (hold to take a photo now) / Ask ",
+     "Add: take a photo, photos and videos, or files (hold to take a photo now) / Ask ",
+     "Add: take a photo, photos and videos, or files (hold to take a photo now)",
+     "Ask Atlas anything",
+     "Atlas, current page / Log",
+     "Atlas, current page / Log",
+     "Atlas, current page / Log",
+     "Atlas, current page",
+     "Log",
+     "Bots",
+     "Me",
+     "Talk to Atlas"
+    ]
+   },
+   "log": {
+    "shot": "0073-density125-log.png",
+    "words": [
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log",
+     "New reminder",
+     "What Atlas is keeping for you. Reminders ring like an alarm at their time.",
+     "Remember something… / Save to memory",
+     "Something for Atlas to remember",
+     "Save to memory",
+     "Coming Up",
+     "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Gym",
+     "⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Upcoming",
+     "Long one / ⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+     "Long one / ⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+     "Long one",
+     "⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+     "Upcoming",
+     "Atlas / Log, current page",
+     "Atlas / Log, current page",
+     "Atlas / Log, current page",
+     "Atlas",
+     "Log, current page",
+     "Bots",
+     "Me",
+     "Talk to Atlas"
+    ]
+   },
+   "bots": {
+    "shot": "0074-density125-bots.png",
+    "words": [
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots",
+     "Bots",
+     "Your team. Each bot has its own conversation: tell it what you need, and it work",
+     "New Group / New Bot",
+     "New Group",
+     "New Bot",
+     "Atlas  ★. Your chief of staff · Idle. No messages yet. Say what you need. / Atla",
+     "Atlas  ★. Your chief of staff · Idle. No messages yet. Say what you need.",
+     "Atlas  ★ / Your chief of staff · Idle",
+     "Atlas  ★",
+     "Atlas  ★",
+     "Your chief of staff · Idle",
+     "No messages yet. Say what you need.",
+     "Research Bot. Finds things out and backs them with sources · Idle. No messages y",
+     "R",
+     "R",
+     "Research Bot / Finds things out and backs them with sources · Idle",
+     "Research Bot",
+     "Research Bot",
+     "Finds things out and backs them with sources · Idle",
+     "No messages yet. Say what you need.",
+     "Planner Bot. Turns goals into schedules and step-by-step plans · Idle. No messag",
+     "P",
+     "P",
+     "Planner Bot",
+     "Planner Bot",
+     "Planner Bot",
+     "Atlas / Log",
+     "Atlas / Log",
+     "Atlas / Log",
+     "Atlas",
+     "Log",
+     "Bots, current page",
+     "Me",
+     "Talk to Atlas"
+    ]
+   },
+   "me": {
+    "shot": "0075-density125-me.png",
+    "words": [
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me",
+     "Me",
+     "Brain",
+     "Gemini · gemini-3.8-flash / Atlas thinks with Gemini. Add as many keys as you li",
+     "Gemini · gemini-3.8-flash",
+     "Atlas thinks with Gemini. Add as many keys as you like: when one runs out, Atlas",
+     "Paste an API key (AIza…)",
+     "Service",
+     "Gemini",
+     "Gemini",
+     "Atlas / Log",
+     "Atlas / Log",
+     "Atlas / Log",
+     "Atlas",
+     "Log",
+     "Bots",
+     "Me, current page",
+     "Talk to Atlas"
+    ]
+   }
+  },
+  "small-screen": {
+   "atlas": {
+    "shot": "0076-small720x1280-atlas.png",
+    "words": [
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark. / Atlas",
+     "Talk to Atlas. Hold to switch between light and dark.",
+     "Atlas / Gemini · phone control off",
+     "Atlas",
+     "Gemini · phone control off",
+     "Chats",
+     "New chat",
+     "deep test tool get_location / Add your Gemini key in Me so I can think properly.",
+     "deep test tool get_location / Add your Gemini key in Me so I can think properly.",
+     "deep test tool get_location / Add your Gemini key in Me so I can think properly.",
+     "deep test tool get_location / Add your Gemini key in Me so I can think properly.",
+     "deep test tool get_location",
+     "deep test tool get_location",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "deep test tool read_log",
+     "deep test tool read_log",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "deep test tool set_reminder",
+     "deep test tool set_reminder",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "deep test tool web_search",
+     "deep test tool web_search",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "deep test tool open_link",
+     "deep test tool open_link",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "deep test tool send_sms",
+     "deep test tool send_sms",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "Add your Gemini key in Me so I can think properly. Until then I can only do fixe",
+     "deep test while offline",
+     "deep test while offline",
+     "I can't reach Gemini and there's no offline model on this phone, so I can only d",
+     "I can't reach Gemini and there's no offline model on this phone, so I can only d",
+     "Done: No internet connection. Answering offline. / No internet connection. Answe",
+     "Done: No internet connection. Answering offline.",
+     "No internet connection. Answering offline.",
+     "deep test back online with a key that is not real",
+     "deep test back online with a key that is not real",
+     "That Gemini key isn't valid. Check it in Me. (No other key is ready: add more in",
+     "That Gemini key isn't valid. Check it in Me. (No other key is ready: add more in",
+     "Add: take a photo, photos and videos, or files (hold to take a photo now) / Ask ",
+     "Add: take a photo, photos and videos, or files (hold to take a photo now) / Ask ",
+     "Add: take a photo, photos and videos, or files (hold to take a photo now)",
+     "Ask Atlas anything",
+     "Atlas, current page / Atlas",
+     "Atlas, current page / Atlas",
+     "Atlas, current page / Atlas",
+     "Atlas, current page"
+    ]
+   },
+   "log": {
+    "shot": "0077-small720x1280-log.png",
+    "words": [
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log / New reminder",
+     "Log",
+     "New reminder",
+     "What Atlas is keeping for you. Reminders ring like an alarm at their time.",
+     "Remember something… / Save to memory",
+     "Something for Atlas to remember",
+     "Save to memory",
+     "Coming Up",
+     "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Gym / ⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Gym",
+     "⏰ Today 17:00 · Daily · Logged Today 13:00",
+     "Upcoming",
+     "Long one / ⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+     "Long one / ⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+     "Long one",
+     "⏰ Today 18:00 · Weekdays · Logged Today 13:00",
+     "Upcoming",
+     "हिन्दी परीक्षण / ⏰ Today 19:19 · Logged Today 13:00",
+     "हिन्दी परीक्षण / ⏰ Today 19:19 · Logged Today 13:00",
+     "हिन्दी परीक्षण",
+     "⏰ Today 19:19 · Logged Today 13:00",
+     "Upcoming",
+     "Latest",
+     "Read 20 pages / ⏰ Today 14:10 · Logged Today 13:00",
+     "Read 20 pages / ⏰ Today 14:10 · Logged Today 13:00",
+     "Read 20 pages / ⏰ Today 14:10 · Logged Today 13:00",
+     "Read 20 pages",
+     "⏰ Today 14:10 · Logged Today 13:00",
+     "Note",
+     "Code Atlas / ⏰ Today 14:50 · Logged Today 13:00",
+     "Code Atlas / ⏰ Today 14:50 · Logged Today 13:00",
+     "Code Atlas",
+     "⏰ Today 14:50 · Logged Today 13:00",
+     "Note",
+     "Call mum / ⏰ Tomorrow 17:00 · Img src=x onerror=alert(1) and **markdown** · Logg",
+     "Call mum / ⏰ Tomorrow 17:00 · Img src=x onerror=alert(1) and **markdown** · Logg",
+     "Call mum",
+     "⏰ Tomorrow 17:00 · Img src=x onerror=alert(1) and **markdown** · Logged Today 13",
+     "Upcoming",
+     "Plan the week / Logged Today 13:00",
+     "Plan the week / Logged Today 13:00",
+     "Plan the week",
+     "Logged Today 13:00",
+     "Note",
+     "Full History (33)",
+     "Atlas / Log, current page",
+     "Atlas / Log, current page",
+     "Atlas / Log, current page",
+     "Atlas",
+     "Log, current page"
+    ]
+   },
+   "bots": {
+    "shot": "0078-small720x1280-bots.png",
+    "words": [
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots / Your team. Each bot has its own conversation: tell it what you need, and ",
+     "Bots",
+     "Bots",
+     "Your team. Each bot has its own conversation: tell it what you need, and it work",
+     "New Group / New Bot",
+     "New Group",
+     "New Bot",
+     "Atlas  ★. Your chief of staff · Idle. No messages yet. Say what you need. / Atla",
+     "Atlas  ★. Your chief of staff · Idle. No messages yet. Say what you need.",
+     "Atlas  ★ / Your chief of staff · Idle",
+     "Atlas  ★",
+     "Atlas  ★",
+     "Your chief of staff · Idle",
+     "No messages yet. Say what you need.",
+     "Research Bot. Finds things out and backs them with sources · Idle. No messages y",
+     "R",
+     "R",
+     "Research Bot / Finds things out and backs them with sources · Idle",
+     "Research Bot",
+     "Research Bot",
+     "Finds things out and backs them with sources · Idle",
+     "No messages yet. Say what you need.",
+     "Planner Bot. Turns goals into schedules and step-by-step plans · Idle. No messag",
+     "P",
+     "P",
+     "Planner Bot / Turns goals into schedules and step-by-step plans · Idle",
+     "Planner Bot",
+     "Planner Bot",
+     "Turns goals into schedules and step-by-step plans · Idle",
+     "No messages yet. Say what you need.",
+     "Developer Bot. Programming, debugging and technical work · Idle. No messages yet",
+     "D",
+     "D",
+     "Developer Bot / Programming, debugging and technical work · Idle",
+     "Developer Bot",
+     "Developer Bot",
+     "Programming, debugging and technical work · Idle",
+     "No messages yet. Say what you need.",
+     "Finance Bot. Numbers, budgets, prices and comparisons · Idle. No messages yet. S",
+     "F",
+     "F",
+     "Finance Bot / Numbers, budgets, prices and comparisons · Idle",
+     "Finance Bot",
+     "Finance Bot",
+     "Numbers, budgets, prices and comparisons · Idle",
+     "No messages yet. Say what you need.",
+     "Group Chats",
+     "You and several bots in one conversation: @mention one to give it the job, and t",
+     "You and several bots in one conversation: @mention one to give it the job, and t",
+     "Library: documents, spreadsheets, pages and downloads your bots made",
+     "Library  ›",
+     "Documents, spreadsheets, pages and downloads your bots made",
+     "Routines / Skills"
+    ]
+   },
+   "me": {
+    "shot": "0079-small720x1280-me.png",
+    "words": [
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me / Brain",
+     "Me",
+     "Me",
+     "Brain",
+     "Gemini · gemini-3.8-flash / Atlas thinks with Gemini. Add as many keys as you li",
+     "Gemini · gemini-3.8-flash",
+     "Atlas thinks with Gemini. Add as many keys as you like: when one runs out, Atlas",
+     "Paste an API key (AIza…)",
+     "Service",
+     "Gemini / More Services…",
+     "Gemini",
+     "More Services…",
+     "Google. Free tier with limits; the best all-rounder for Atlas",
+     "Add Key / Get a Key",
+     "Add Key",
+     "Get a Key",
+     "Model / gemini-3.8-flash",
+     "Model",
+     "gemini-3.8-flash",
+     "Gemini Keys (1)",
+     "AIza••••0000 / In use",
+     "AIza••••0000 / In use",
+     "AIza••••0000 / In use",
+     "AIza••••0000",
+     "In use",
+     "Test",
+     "Test",
+     "Don't Switch Services, off",
+     "Don't Switch Services",
+     "Off: when a service keeps failing (Atlas tries it 3 times first) or all its keys",
+     "Keys stay on this phone (not in backups; they go to your PC only if you turn on ",
+     "Offline Brain",
+     "No Offline Model / Used only when there's no internet. It runs separately, so it",
+     "No Offline Model",
+     "Used only when there's no internet. It runs separately, so it can't close Atlas.",
+     "Choose Model File",
+     "This Device",
+     "Google sdk_gphone64_x86_64 / Memory: 2.6 GB free of 3.8 GB\nChip: AOSP ranchu · 2",
+     "Google sdk_gphone64_x86_64",
+     "Memory: 2.6 GB free of 3.8 GB\nChip: AOSP ranchu · 2 cores\nHeat: cool\nBattery: 10",
+     "Atlas / Log",
+     "Atlas / Log",
+     "Atlas / Log",
+     "Atlas",
+     "Log",
+     "Bots",
+     "Me, current page",
+     "Me",
+     "Talk to Atlas"
+    ]
+   }
+  },
+  "motion": {
+   "atlas": "0080-motion-atlas.png",
+   "log": "0081-motion-log.png",
+   "bots": "0082-motion-bots.png",
+   "me": "0083-motion-me.png",
+   "gfxinfo": "Applications Graphics Acceleration Info:\nUptime: 1113466 Realtime: 1113466\n\n** Graphics info for pid 10121 [com.anjy.atlas] **\n\nStats since: 1106331274217ns\nTotal frames rendered: 43\nJanky frames: 5 (11.63%)\nJanky frames (legacy): 42 (97.67%)\n50th percentile: 30ms\n90th percentile: 32ms\n95th percentile: 81ms\n99th percentile: 2200ms\nNumber Missed Vsync: 1\nNumber High input latency: 76\nNumber Slow UI thread: 2\nNumber Slow bitmap uploads: 0\nNumber Slow issue draw commands: 5\nNumber Frame deadline missed: 5\nNumber Frame deadline missed (legacy): 5\nHISTOGRAM: 5ms=0 6ms=0 7ms=0 8ms=0 9ms=0 10ms=0 11ms=0 12ms=0 13ms=1 14ms=0 15ms=0 16ms=0 17ms=0 18ms=0 19ms=1 20ms=2 21ms=0 22ms=0 23ms=1 24ms=0 25ms=0 26ms=0 27ms=1 28ms=0 29ms=11 30ms=7 31ms=8 32ms=8 34ms=0 36ms=0 38ms=0 40ms=0 42ms=0 44ms=0 46ms=0 48ms=0 53ms=0 57ms=0 61ms=0 65ms=0 69ms=0 73ms=0 77ms=0 81ms=1 85ms=1 89ms=0 93ms=0 97ms=0 101ms=0 105ms=0 109ms=0 113ms=0 117ms=0 121ms=0 125ms=0 129ms=0 133ms=0 150ms=0 200ms=0 250ms=0 300ms=0 350ms=0 400ms=0 450ms=0 500ms=0 550ms=0 600ms=0 650ms=0 700ms=0 750ms=0 800ms=0 850ms=0 900ms=0 950ms=0 1000ms=0 1050ms=0 1100ms=0 1150ms=0 1200ms=0 1250ms=0 1300ms=0 1350ms=0 1400ms=0 1450ms=0 1500ms=0 1550ms=0 1600ms=0 1650ms=0 1700ms=0 1750ms=0 1800ms=0 1850ms=0 1900ms=0 1950ms=0 2000ms=0 2050ms=0 2100ms=0 2150ms=0 2200ms=1 2250ms=0 2300ms=0 2350ms=0 2400ms=0 2450ms=0 2500ms=0 2550ms=0 2600ms=0 2650ms=0 2700ms=0 2750ms=0 2800ms=0 2850ms=0 2900ms=0 2950ms=0 3000ms=0 3050ms=0 3100ms=0 3150ms=0 3200ms=0 3250ms=0 3300ms=0 3350ms=0 3400ms=0 3450ms=0 3500ms=0 3550ms=0 3600ms=0 3650ms=0 3700ms=0 3750ms=0 3800ms=0 3850ms=0 3900ms=0 3950ms=0 4000ms=0 4050ms=0 4100ms=0 4150ms=0 4200ms=0 4250ms=0 4300ms=0 4350ms=0 4400ms=0 4450ms=0 4500ms=0 4550ms=0 4600ms=0 4650ms=0 4700ms=0 4750ms=0 4800ms=0 4850ms=0 4900ms=0 4950ms=0\n50th gpu percentile: 25ms\n90th gpu percentile: 4950ms\n95th gpu percentile: 4950ms\n99th gpu percentile: 4950ms\nGPU HISTOGRAM: 1ms=0 2ms=0 3ms=0 4ms=0 5ms=0 6ms=0 7ms=0 8ms=1 9ms=1 10ms=1 11ms=1 12ms=0 13ms=0 14ms=1 15ms=0 16ms=0 17ms=0 18ms=0 19ms=0 20ms=1 21ms=0 22ms=1 23ms=1 24ms=6 25ms=8 4950ms=21\n\nPipeline=Skia (OpenGL)\nMemory policy:\n  Max surface area: 2073600\n  Max resource usage: 99.53MB (x48)\n  Background retention: 50% (altUiHidden = true)\n  GPU Context timeout: 10\nContexts: 2 (stopped = 1)\nCPU Caches:\n  Glyph Cache: 59.10 KB (1 entry)\n  Glyph Count: 32 \nTotal CPU memory usage:\n  60514 bytes, 59.10 KB (0.00 bytes is purgeable)\nGPU Caches:\n"
+  }
+ },
+ "denied": {
+  "after-revoke": {
+   "pid": "10281",
+   "fg": [
+    "com.google.android.apps.nexuslauncher",
+    "com.google.android.apps.nexuslauncher.NexusLauncherActivity"
+   ]
+  },
+  "relaunched": "0084-denied-relaunched.png",
+  "tool-calendar_events": {
+   "asked": "deep test denied calendar_events",
+   "shot": "0085-reply-denied-calendar-events.png",
+   "bottom": [
+    "Allow Atlas to access your calendar?",
+    "Allow",
+    "Don’t allow"
+   ],
+   "system_dialog": {
+    "pkg": "com.google.android.permissioncontroller",
+    "shot": "0086-denied-dialog-calendar-events.png"
+   }
+  },
+  "tool-find_contact": {
+   "asked": "deep test denied find_contact",
+   "shot": "0087-reply-denied-find-contact.png",
+   "bottom": [
+    "Allow Atlas to access your contacts?",
+    "Allow",
+    "Don’t allow"
+   ],
+   "system_dialog": {
+    "pkg": "com.google.android.permissioncontroller",
+    "shot": "0088-denied-dialog-find-contact.png"
+   }
+  },
+  "tool-get_location": {
+   "asked": "deep test denied get_location",
+   "shot": "0089-reply-denied-get-location.png",
+   "bottom": [
+    "Allow Atlas to access this device’s approximate location?",
+    "While using the app",
+    "Only this time"
+   ],
+   "system_dialog": {
+    "pkg": "com.google.android.permissioncontroller",
+    "shot": "0090-denied-dialog-get-location.png"
+   }
+  },
+  "tool-calendar_add": {
+   "asked": "deep test denied calendar_add",
+   "shot": "0091-reply-denied-calendar-add.png",
+   "bottom": [
+    "Allow Atlas to access your calendar?",
+    "Allow",
+    "Don’t allow"
+   ],
+   "system_dialog": {
+    "pkg": "com.google.android.permissioncontroller",
+    "shot": "0092-denied-dialog-calendar-add.png"
+   }
+  },
+  "me-permissions": "0093-denied-me.png"
+ },
+ "danger": []
+}

@@ -1,0 +1,22 @@
+ACTIVITY MANAGER SERVICES (dumpsys activity services)
+  User 0 active services:
+  * ServiceRecord{47550f u0 com.anjy.atlas/.AvatarService}
+    intent={cmp=com.anjy.atlas/.AvatarService}
+    packageName=com.anjy.atlas
+    processName=com.anjy.atlas
+    baseDir=/data/app/~~1KsWB6x5l4zd-utyqyPTLQ==/com.anjy.atlas-2cUYMdbgk-Z__VnJe76LVQ==/base.apk
+    dataDir=/data/user/0/com.anjy.atlas
+    app=ProcessRecord{edaff29 12215:com.anjy.atlas/u0a192}
+    mAllowWhileInUsePermissionInFgsReason=PROC_STATE_TOP
+    allowUiJobScheduling=true
+    recentCallingPackage=com.anjy.atlas
+    recentCallingUid=10192
+    allowStartForeground=PROC_STATE_TOP
+    startForegroundCount=1
+    infoAllowStartForeground=[callingPackage: com.anjy.atlas; callingUid: 10192; uidState: TOP ; uidBFSL: [BFSL]; intent: Intent { cmp=com.anjy.atlas/.AvatarService }; code:PROC_STATE_TOP; tempAllowListReason:<null>; targetSdkVersion:35; callerTargetSdkVersion:35; startForegroundCount:0; bindFromPackage:null: isBindService:false]
+    isForeground=true foregroundId=7 types=40000000 foregroundNoti=Notification(channel=atlas_avatar shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x62 color=0x00000000 vis=PRIVATE)
+    createTime=-4m42s926ms startingBgTimeout=--
+    lastActivity=-1s417ms restartTime=-2m8s637ms createdFromFg=false
+    startRequested=true delayedStop=false stopIfKilled=false callStart=true lastStartId=249
+ startCommandResult=1
+    restartCount=1 restartDelay=+44m16s57ms nextRestartTime=+57m49s636ms crashCount=3

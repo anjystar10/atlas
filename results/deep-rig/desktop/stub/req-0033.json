@@ -1,0 +1,23 @@
+{
+ "n": 33,
+ "method": "GET",
+ "host": "github.com",
+ "path": "/anjystar10/atlas/releases/download/desktop/latest.json",
+ "style": null,
+ "mode": "ok",
+ "headers": {
+  "host": "127.0.0.1:19312",
+  "connection": "keep-alive",
+  "X-Deep-Host": "github.com",
+  "accept": "*/*",
+  "accept-language": "*",
+  "sec-fetch-mode": "cors",
+  "user-agent": "node",
+  "accept-encoding": "gzip, deflate"
+ },
+ "status": 404,
+ "request": {},
+ "response": {
+  "error": "not found (deep test stand-in)"
+ }
+}

@@ -1,0 +1,19 @@
+{"t":1795636275302,"kind":"net","detail":"GET github.com/anjystar10/atlas/releases/download/desktop/latest.json"}
+{"t":1795636288037,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636290618,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636293183,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636295734,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636307601,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636314835,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636322072,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636329415,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636345680,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636347753,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636352820,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636361945,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636364019,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636369090,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636378179,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}
+{"t":1795636453565,"kind":"open-dialog","detail":"{\"properties\":[\"openFile\",\"multiSelections\"],\"filters\":[{\"name\":\"All files\",\"extensions\":[\"*\"]}]}"}
+{"t":1795636511911,"kind":"open-external","detail":"https://aistudio.google.com/apikey"}
+{"t":1795636513240,"kind":"net","detail":"POST generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent"}

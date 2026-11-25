@@ -1,0 +1,644 @@
+{
+ "n": 20,
+ "method": "POST",
+ "host": "generativelanguage.googleapis.com",
+ "path": "/v1beta/models/gemini-3.8-flash:generateContent",
+ "style": "gemini",
+ "mode": "ok",
+ "headers": {
+  "host": "127.0.0.1:19312",
+  "connection": "keep-alive",
+  "Content-Type": "application/json",
+  "x-goog-api-key": "AIzaDe…",
+  "X-Deep-Host": "generativelanguage.googleapis.com",
+  "accept": "*/*",
+  "accept-language": "*",
+  "sec-fetch-mode": "cors",
+  "user-agent": "node",
+  "accept-encoding": "gzip, deflate",
+  "content-length": "10709"
+ },
+ "status": 200,
+ "request": {
+  "systemInstruction": {
+   "parts": [
+    {
+     "text": "You are Atlas, a friendly assistant. Reply briefly."
+    }
+   ]
+  },
+  "contents": [
+   {
+    "role": "user",
+    "parts": [
+     {
+      "text": "Are you there? Answer in three words."
+     }
+    ]
+   }
+  ],
+  "tools": [
+   {
+    "functionDeclarations": [
+     {
+      "name": "set_reminder",
+      "description": "Log a reminder. At its time Atlas rings an alarm (important things) or sends a notification (lighter things), on this PC and on the phone.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "title": {
+         "type": "string",
+         "description": "Short title, e.g. 'Pick up my sister'"
+        },
+        "when": {
+         "type": "string",
+         "description": "When, as the user said it (\"tomorrow at 6pm\", \"in 90 minutes\", \"monday 9am\") or local 'YYYY-MM-DD HH:MM'. Leave out only if no time was given."
+        },
+        "alert": {
+         "type": "string",
+         "description": "alarm: important or time-critical. notification: lighter things. If the user says which, do that.",
+         "enum": [
+          "alarm",
+          "notification"
+         ]
+        },
+        "duration_min": {
+         "type": "integer",
+         "description": "How long it takes, minutes (default 30)"
+        },
+        "repeat": {
+         "type": "string",
+         "description": "How it repeats",
+         "enum": [
+          "none",
+          "daily",
+          "weekdays",
+          "weekly"
+         ]
+        },
+        "notes": {
+         "type": "string",
+         "description": "Optional details"
+        }
+       },
+       "required": [
+        "title"
+       ]
+      }
+     },
+     {
+      "name": "update_reminder",
+      "description": "Change a logged reminder: done, cancel, delete, move, rename, or make it an alarm / a notification.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "description": "The reminder's id from your instructions"
+        },
+        "action": {
+         "type": "string",
+         "description": "What to do",
+         "enum": [
+          "done",
+          "cancel",
+          "delete",
+          "move",
+          "rename",
+          "make_alarm",
+          "make_notification"
+         ]
+        },
+        "when": {
+         "type": "string",
+         "description": "For move: the new time, as said (\"tomorrow 9am\") or 'YYYY-MM-DD HH:MM'"
+        },
+        "title": {
+         "type": "string",
+         "description": "For rename"
+        }
+       },
+       "required": [
+        "id",
+        "action"
+       ]
+      }
+     },
+     {
+      "name": "remember",
+      "description": "Save a lasting fact or preference the user wants kept (shown in the Log, on both devices).",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "text": {
+         "type": "string",
+         "description": "The fact, in a short sentence"
+        }
+       },
+       "required": [
+        "text"
+       ]
+      }
+     },
+     {
+      "name": "forget",
+      "description": "Delete a saved memory.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "id": {
+         "type": "string",
+         "description": "The memory's id from your instructions"
+        }
+       },
+       "required": [
+        "id"
+       ]
+      }
+     },
+     {
+      "name": "read_log",
+      "description": "Look things up in the user's Log: reminders and what happened to them, memories, history. Newest first.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "query": {
+         "type": "string",
+         "description": "Words to search for; leave out for the latest"
+        },
+        "limit": {
+         "type": "integer",
+         "description": "How many at most (default 30)"
+        }
+       }
+      }
+     },
+     {
+      "name": "web_search",
+      "description": "Search the internet. Use it for anything current or that you're unsure of. Returns results with sources.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "query": {
+         "type": "string",
+         "description": "What to search for"
+        }
+       },
+       "required": [
+        "query"
+       ]
+      }
+     },
+     {
+      "name": "read_page",
+      "description": "Read a web page and get its text.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "url": {
+         "type": "string",
+         "description": "The page's address"
+        }
+       },
+       "required": [
+        "url"
+       ]
+      }
+     },
+     {
+      "name": "change_setting",
+      "description": "Change one of Atlas's own settings when the user asks. Current values are in your instructions.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "setting": {
+         "type": "string",
+         "description": "Which",
+         "enum": [
+          "speak_replies",
+          "voice",
+          "theme",
+          "on_screen",
+          "your_name",
+          "alarm_sound",
+          "start_with_windows",
+          "dont_switch",
+          "speaking_speed",
+          "keep_listening",
+          "listen_language"
+         ]
+        },
+        "value": {
+         "type": "string",
+         "description": "on/off, a voice name, dark/light, or the name"
+        }
+       },
+       "required": [
+        "setting",
+        "value"
+       ]
+      }
+     },
+     {
+      "name": "start_focus",
+      "description": "Start a focus session when the user says they're doing something right now. Full screen, a timer, no distractions.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "title": {
+         "type": "string",
+         "description": "What they're doing"
+        },
+        "minutes": {
+         "type": "integer",
+         "description": "Planned length, if known"
+        },
+        "id": {
+         "type": "string",
+         "description": "The reminder's id, if from the Log"
+        }
+       },
+       "required": [
+        "title"
+       ]
+      }
+     },
+     {
+      "name": "open_app",
+      "description": "Open an app on this PC by name (Start menu name, e.g. \"Spotify\", \"Visual Studio Code\", \"Notepad\").",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string",
+         "description": "The app's name"
+        }
+       },
+       "required": [
+        "name"
+       ]
+      }
+     },
+     {
+      "name": "list_apps",
+      "description": "List the apps installed on this PC."
+     },
+     {
+      "name": "open_link",
+      "description": "Open a web link in the default browser.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "url": {
+         "type": "string",
+         "description": "The link"
+        }
+       },
+       "required": [
+        "url"
+       ]
+      }
+     },
+     {
+      "name": "open_path",
+      "description": "Open a file or folder on this PC with its usual app. Paths may use ~ (home), Desktop, Documents, Downloads.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "path": {
+         "type": "string",
+         "description": "The path"
+        }
+       },
+       "required": [
+        "path"
+       ]
+      }
+     },
+     {
+      "name": "list_files",
+      "description": "List what is in a folder on this PC.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "path": {
+         "type": "string",
+         "description": "The folder (e.g. ~/Documents, Downloads)"
+        }
+       },
+       "required": [
+        "path"
+       ]
+      }
+     },
+     {
+      "name": "read_file",
+      "description": "Read a text or Word file on this PC.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "path": {
+         "type": "string",
+         "description": "The file"
+        }
+       },
+       "required": [
+        "path"
+       ]
+      }
+     },
+     {
+      "name": "write_file",
+      "description": "Create or overwrite a text file on this PC. The user is asked first.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "path": {
+         "type": "string",
+         "description": "The file"
+        },
+        "text": {
+         "type": "string",
+         "description": "Its full contents"
+        }
+       },
+       "required": [
+        "path",
+        "text"
+       ]
+      }
+     },
+     {
+      "name": "run_command",
+      "description": "Run a PowerShell command on this PC and get its output. The user is asked first. Prefer the other tools when one fits.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "command": {
+         "type": "string",
+         "description": "The PowerShell command"
+        },
+        "timeout_s": {
+         "type": "integer",
+         "description": "Seconds to allow (default 60)"
+        }
+       },
+       "required": [
+        "command"
+       ]
+      }
+     },
+     {
+      "name": "look_at_screen",
+      "description": "See the PC's screen (a screenshot). Use before clicking; coordinates for click come from it."
+     },
+     {
+      "name": "on_phone",
+      "description": "Do something on the user's PHONE (they're at this PC): open or use a phone app, send something from the phone, check something only the phone has. The phone's Atlas does it as a bot job with phone control and reports back into this chat. Give the full task in plain words.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "task": {
+         "type": "string",
+         "description": "What to do on the phone, with all the details"
+        }
+       },
+       "required": [
+        "task"
+       ]
+      }
+     },
+     {
+      "name": "click",
+      "description": "Click at a point on the screen, in the coordinates of the latest look_at_screen.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "x": {
+         "type": "integer",
+         "description": "x"
+        },
+        "y": {
+         "type": "integer",
+         "description": "y"
+        },
+        "button": {
+         "type": "string",
+         "description": "Which button",
+         "enum": [
+          "left",
+          "right"
+         ]
+        },
+        "double": {
+         "type": "boolean",
+         "description": "Double-click"
+        }
+       },
+       "required": [
+        "x",
+        "y"
+       ]
+      }
+     },
+     {
+      "name": "type_text",
+      "description": "Type text into whatever has focus on the PC.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "text": {
+         "type": "string",
+         "description": "What to type"
+        }
+       },
+       "required": [
+        "text"
+       ]
+      }
+     },
+     {
+      "name": "press_keys",
+      "description": "Press keys or a shortcut, e.g. 'enter', 'ctrl+s', 'alt+tab', 'ctrl+shift+t'.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "keys": {
+         "type": "string",
+         "description": "The keys"
+        }
+       },
+       "required": [
+        "keys"
+       ]
+      }
+     },
+     {
+      "name": "scroll",
+      "description": "Scroll whatever is under the mouse.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "direction": {
+         "type": "string",
+         "description": "Which way",
+         "enum": [
+          "up",
+          "down"
+         ]
+        },
+        "amount": {
+         "type": "integer",
+         "description": "How far, 1-20 (default 5)"
+        }
+       },
+       "required": [
+        "direction"
+       ]
+      }
+     },
+     {
+      "name": "deploy_bot",
+      "description": "Send Atlas Bot to get a bigger job DONE in the background: anything that takes many steps, such as doing things on websites (filling in and sending forms, booking, ordering, signing up, posting, downloading), working through email, building a project, trading within the user's limits, making documents or spreadsheets, a long chain of PC actions, or deep research with sources when the user wants information. The bot plans as many steps as the job needs, carries it through to the end (asking the user only for risky steps), and its report lands in this chat; the chat stays free meanwhile. Don't use it for quick things you can do in a step or two.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "goal": {
+         "type": "string",
+         "description": "The job in one clear sentence, as an outcome to achieve, e.g. 'Set up a GitHub repo for my notes app and push the code' or 'Find the best budget laptop under $800 for coding, with sources'"
+        },
+        "details": {
+         "type": "string",
+         "description": "Everything the bot should know: what the user wants, preferences, limits, what to include in the report"
+        },
+        "specialist": {
+         "type": "string",
+         "description": "Optional: one of the user's specialist bots to send (by name), when the job fits its speciality"
+        }
+       },
+       "required": [
+        "goal"
+       ]
+      }
+     },
+     {
+      "name": "save_skill",
+      "description": "Save a skill: a reusable way of doing a kind of job that the user teaches you (\"when I ask for X, do it like this…\"). Bots load it when they do that kind of job. Saving with an existing name updates it.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string",
+         "description": "A short name, e.g. \"Weekly money check\""
+        },
+        "when": {
+         "type": "string",
+         "description": "When to use it"
+        },
+        "steps": {
+         "type": "string",
+         "description": "The steps, one per line"
+        },
+        "inputs": {
+         "type": "string",
+         "description": "What is needed first (optional)"
+        },
+        "checks": {
+         "type": "string",
+         "description": "What to check before finishing (optional)"
+        },
+        "output": {
+         "type": "string",
+         "description": "What the result should look like (optional)"
+        },
+        "permissions": {
+         "type": "string",
+         "description": "Actions in it that need the user's OK (optional)"
+        }
+       },
+       "required": [
+        "name",
+        "when",
+        "steps"
+       ]
+      }
+     },
+     {
+      "name": "set_routine",
+      "description": "Set up a routine: a bot sent on a schedule, like \"every weekday at 8am, summarise the news on AI\". Runs every 5 minutes at most.",
+      "parameters": {
+       "type": "object",
+       "properties": {
+        "goal": {
+         "type": "string",
+         "description": "What the bot should do each time"
+        },
+        "schedule": {
+         "type": "string",
+         "description": "When, in plain words: \"every weekday at 8am\", \"every 2 hours\", \"every Sunday evening\", \"every month on the 1st at 9am\""
+        },
+        "name": {
+         "type": "string",
+         "description": "A short name (optional)"
+        },
+        "specialist": {
+         "type": "string",
+         "description": "A specialist bot to send (optional)"
+        }
+       },
+       "required": [
+        "goal",
+        "schedule"
+       ]
+      }
+     }
+    ]
+   }
+  ],
+  "generationConfig": {
+   "thinkingConfig": {
+    "thinkingLevel": "low"
+   }
+  },
+  "safetySettings": [
+   {
+    "category": "HARM_CATEGORY_HARASSMENT",
+    "threshold": "BLOCK_NONE"
+   },
+   {
+    "category": "HARM_CATEGORY_HATE_SPEECH",
+    "threshold": "BLOCK_NONE"
+   },
+   {
+    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+    "threshold": "BLOCK_NONE"
+   },
+   {
+    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+    "threshold": "BLOCK_NONE"
+   }
+  ]
+ },
+ "response": {
+  "candidates": [
+   {
+    "content": {
+     "role": "model",
+     "parts": [
+      {
+       "text": "Stub reply: all good. Привет 👋"
+      }
+     ]
+    },
+    "finishReason": "STOP",
+    "index": 0
+   }
+  ],
+  "usageMetadata": {
+   "promptTokenCount": 10,
+   "candidatesTokenCount": 10,
+   "totalTokenCount": 20
+  },
+  "modelVersion": "stub"
+ }
+}

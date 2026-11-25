@@ -1,0 +1,372 @@
+# Deep test — crawl
+
+abi: x86_64,arm64-v8a
+sdk: 34
+release: 14
+tz: Africa/Lagos
+translation: libndk_translation.so
+Physical size: 320x640
+Physical density: 160
+    versionCode=25 minSdk=33 targetSdk=35
+    versionName=0.11.4
+
+Atlas processes seen: ['com.anjy.atlas', 'com.anjy.atlas:hotword']
+
+## Crashes (0)
+
+## ANRs (0, traces 0)
+
+## Native crashes (0; known emulator SIGILL in the wake word engine: 2)
+
+## Monkey
+
+## Crawler events (322)
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: StrictMode policy violation; ~duration=2746 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1666)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat libcore.io.BlockGuardOs.access(BlockGuardOs.java:74)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat libcore.io.ForwardingOs.access(ForwardingOs.java:128)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.app.ActivityThread$AndroidOs.access(ActivityThread.java:8054)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat java.io.UnixFileSystem.checkAccess(UnixFileSystem.java:313)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat java.io.File.exists(File.java:813)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat anyp.a(:com.google.android.gms@231818047@23.18.18 (190800-535401451):1)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat anzs.e(:com.google.android.gms@231818047@23.18.18 (190800-535401451):19)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat anzs.b(:com.google.android.gms@231818047@23.18.18 (190800-535401451):6)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat anzv.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):11)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat zde.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):3)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.content.ContentProvider.query(ContentProvider.java:1596)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat hfr.superQuery(:com.google.android.gms@231818047@23.18.18 (190800-535401451):2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat com.google.android.chimera.ContentProvider.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat zde.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):9)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.content.ContentProvider.query(ContentProvider.java:1692)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat hfr.superQuery(:com.google.android.gms@231818047@23.18.18 (190800-535401451):1)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat com.google.android.chimera.ContentProvider.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):1)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat hfr.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.content.ContentProvider$Transport.query(ContentProvider.java:292)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.content.ContentProviderNative.onTransact(ContentProviderNative.java:107)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.os.Binder.execTransactInternal(Binder.java:1339)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.os.Binder.execTransact(Binder.java:1275)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: # via Binder call with stack:", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.os.StrictMode.readAndHandleBinderCallViolations(StrictMode.java:2538)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.os.Parcel.readExceptionCode(Parcel.java:3002)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:139)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.content.ContentProviderProxy.query(ContentProviderNative.java:495)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.content.ContentProviderClient.query(ContentProviderClient.java:196)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.content.ContentProviderClient.query(ContentProviderClient.java:178)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat bbo.a(PG:273)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat bkb.a(PG:14)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat bho.run(PG:235)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.os.Handler.handleCallback(Handler.java:958)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:99)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:205)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat android.os.Looper.loop(Looper.java:294)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat qgi.run(PG:13)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat qgg.run(PG:604)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.380  1796  2079 D StrictMode: \tat qig.run(PG:64)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: StrictMode policy violation; ~duration=2746 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1666)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat libcore.io.BlockGuardOs.statvfs(BlockGuardOs.java:426)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat libcore.io.ForwardingOs.statvfs(ForwardingOs.java:852)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.system.Os.statvfs(Os.java:909)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.StatFs.doStat(StatFs.java:51)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.StatFs.<init>(StatFs.java:43)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat anyp.l(:com.google.android.gms@231818047@23.18.18 (190800-535401451):2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat anzs.e(:com.google.android.gms@231818047@23.18.18 (190800-535401451):21)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat anzs.b(:com.google.android.gms@231818047@23.18.18 (190800-535401451):6)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat anzv.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):11)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat zde.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):3)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.content.ContentProvider.query(ContentProvider.java:1596)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat hfr.superQuery(:com.google.android.gms@231818047@23.18.18 (190800-535401451):2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat com.google.android.chimera.ContentProvider.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat zde.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):9)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.content.ContentProvider.query(ContentProvider.java:1692)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat hfr.superQuery(:com.google.android.gms@231818047@23.18.18 (190800-535401451):1)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat com.google.android.chimera.ContentProvider.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):1)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat hfr.query(:com.google.android.gms@231818047@23.18.18 (190800-535401451):2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.content.ContentProvider$Transport.query(ContentProvider.java:292)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.content.ContentProviderNative.onTransact(ContentProviderNative.java:107)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.Binder.execTransactInternal(Binder.java:1339)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.Binder.execTransact(Binder.java:1275)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: # via Binder call with stack:", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.StrictMode.readAndHandleBinderCallViolations(StrictMode.java:2538)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.Parcel.readExceptionCode(Parcel.java:3002)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:139)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.content.ContentProviderProxy.query(ContentProviderNative.java:495)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.content.ContentProviderClient.query(ContentProviderClient.java:196)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.content.ContentProviderClient.query(ContentProviderClient.java:178)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat bbo.a(PG:273)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat bkb.a(PG:14)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat bho.run(PG:235)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.Handler.handleCallback(Handler.java:958)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:99)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:205)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat android.os.Looper.loop(Looper.java:294)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat qgi.run(PG:13)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat qgg.run(PG:604)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.381  1796  2079 D StrictMode: \tat qig.run(PG:64)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: StrictMode policy violation; ~duration=41 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1666)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat sun.nio.ch.FileDispatcherImpl.size(FileDispatcherImpl.java:106)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:359)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.graphics.fonts.Font$Builder.<init>(Font.java:167)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.graphics.fonts.Font$Builder.<init>(Font.java:153)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bag.a(PG:25)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bac.a(PG:3)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat azw.b(PG:2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bkb.a(PG:166)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bho.run(PG:235)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Handler.handleCallback(Handler.java:958)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:99)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:205)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Looper.loop(Looper.java:294)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qgi.run(PG:13)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qgg.run(PG:604)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qig.run(PG:64)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: StrictMode policy violation; ~duration=41 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1666)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat sun.nio.ch.FileDispatcherImpl.size(FileDispatcherImpl.java:106)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat sun.nio.ch.FileChannelImpl.map(FileChannelImpl.java:945)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.graphics.fonts.Font$Builder.<init>(Font.java:168)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.graphics.fonts.Font$Builder.<init>(Font.java:153)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bag.a(PG:25)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bac.a(PG:3)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat azw.b(PG:2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bkb.a(PG:166)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bho.run(PG:235)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Handler.handleCallback(Handler.java:958)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:99)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:205)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Looper.loop(Looper.java:294)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qgi.run(PG:13)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qgg.run(PG:604)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qig.run(PG:64)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: StrictMode policy violation; ~duration=41 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1666)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat sun.nio.ch.FileChannelImpl.map(FileChannelImpl.java:982)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.graphics.fonts.Font$Builder.<init>(Font.java:168)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.graphics.fonts.Font$Builder.<init>(Font.java:153)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bag.a(PG:25)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bac.a(PG:3)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat azw.b(PG:2)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bkb.a(PG:166)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bho.run(PG:235)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Handler.handleCallback(Handler.java:958)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:99)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:205)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Looper.loop(Looper.java:294)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qgi.run(PG:13)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qgg.run(PG:604)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qig.run(PG:64)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: StrictMode policy violation; ~duration=28 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1666)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat sun.nio.ch.FileDispatcherImpl.size(FileDispatcherImpl.java:106)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat sun.nio.ch.FileChannelImpl.size(FileChannelImpl.java:359)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat ayy.c(PG:28)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bkb.a(PG:174)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bho.run(PG:235)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Handler.handleCallback(Handler.java:958)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:99)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:205)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Looper.loop(Looper.java:294)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qgi.run(PG:13)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qgg.run(PG:604)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qig.run(PG:64)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: StrictMode policy violation; ~duration=28 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1666)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat sun.nio.ch.FileDispatcherImpl.size(FileDispatcherImpl.java:106)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat sun.nio.ch.FileChannelImpl.map(FileChannelImpl.java:945)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat ayy.c(PG:36)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bkb.a(PG:174)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat bho.run(PG:235)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Handler.handleCallback(Handler.java:958)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:99)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:205)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat android.os.Looper.loop(Looper.java:294)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qgi.run(PG:13)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qgg.run(PG:604)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.383  1796  2079 D StrictMode: \tat qig.run(PG:64)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: StrictMode policy violation; ~duration=28 ms: android.os.strictmode.DiskReadViolation", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1666)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat sun.nio.ch.FileChannelImpl.map(FileChannelImpl.java:982)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat ayy.c(PG:36)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat bkb.a(PG:174)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat bho.run(PG:235)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat android.os.Handler.handleCallback(Handler.java:958)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat android.os.Handler.dispatchMessage(Handler.java:99)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat android.os.Looper.loopOnce(Looper.java:205)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat android.os.Looper.loop(Looper.java:294)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat qgi.run(PG:13)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat qgg.run(PG:604)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:00:16.384  1796  2079 D StrictMode: \tat qig.run(PG:64)", "after": {"scenario": "start"}, "t": 0.1}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: StrictMode policy violation: android.os.strictmode.SqliteObjectLeakedViolation: Finalizing a Cursor that has not been deactivated or closed. database = /data/user/0/com.android.providers.contacts/databases/contacts2.db, table = raw_contacts, query = SELECT contacts_view._id AS _id, contacts_view.display_name AS display_name, contacts_view.photo_thumb_ur", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.os.StrictMode.onSqliteObjectLeaked(StrictMode.java:2222)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteCursor.finalize(SQLiteCursor.java:282)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.doFinalize(Daemons.java:339)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.processReference(Daemons.java:324)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.runInternal(Daemons.java:300)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat java.lang.Daemons$Daemon.run(Daemons.java:145)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: StrictMode policy violation: android.os.strictmode.LeakedClosableViolation: A resource was acquired at attached stack trace but never released. See java.io.Closeable for information on avoiding resource leaks.", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.os.StrictMode$AndroidCloseGuardReporter.report(StrictMode.java:1994)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat dalvik.system.CloseGuard.warnIfOpen(CloseGuard.java:336)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.database.AbstractCursor.finalize(AbstractCursor.java:531)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteCursor.finalize(SQLiteCursor.java:291)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.doFinalize(Daemons.java:339)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.processReference(Daemons.java:324)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.runInternal(Daemons.java:300)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat java.lang.Daemons$Daemon.run(Daemons.java:145)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: Caused by: java.lang.Throwable: Explicit termination method 'AbstractCursor.close' not called", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat dalvik.system.CloseGuard.openWithCallSite(CloseGuard.java:288)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat dalvik.system.CloseGuard.open(CloseGuard.java:257)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.database.AbstractCursor.<init>(AbstractCursor.java:227)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.database.AbstractWindowedCursor.<init>(AbstractWindowedCursor.java:39)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteCursor.<init>(SQLiteCursor.java:98)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteDirectCursorDriver.query(SQLiteDirectCursorDriver.java:52)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:1714)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteQueryBuilder.query(SQLiteQueryBuilder.java:592)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.doQuery(ContactsProvider2.java:7543)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryLocal(ContactsProvider2.java:7249)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryCorpLookupIfNecessary(ContactsProvider2.java:7728)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryLookupEnterprise(ContactsProvider2.java:7867)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryPhoneLookupEnterprise(ContactsProvider2.java:7838)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryLocal(ContactsProvider2.java:7172)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryDirectoryIfNecessary(ContactsProvider2.java:5883)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryInternal(ContactsProvider2.java:5728)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.query(ContactsProvider2.java:5673)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.content.ContentProvider.query(ContentProvider.java:1692)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.content.ContentProvider$Transport.query(ContentProvider.java:292)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.content.ContentProviderNative.onTransact(ContentProviderNative.java:107)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.os.Binder.execTransactInternal(Binder.java:1339)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:10:51.554  1927  1938 D StrictMode: \tat android.os.Binder.execTransact(Binder.java:1275)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.3}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1666)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat libcore.io.BlockGuardOs.access(BlockGuardOs.java:74)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat libcore.io.ForwardingOs.access(ForwardingOs.java:128)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.app.ActivityThread$AndroidOs.access(ActivityThread.java:8054)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat java.io.UnixFileSystem.checkAccess(UnixFileSystem.java:313)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat java.io.File.exists(File.java:813)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.app.ContextImpl.ensurePrivateDirExists(ContextImpl.java:790)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.app.ContextImpl.ensurePrivateDirExists(ContextImpl.java:781)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.app.ContextImpl.getPreferencesDir(ContextImpl.java:737)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.app.ContextImpl.getSharedPreferencesPath(ContextImpl.java:962)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.app.ContextImpl.getSharedPreferences(ContextImpl.java:583)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.content.ContextWrapper.getSharedPreferences(ContextWrapper.java:221)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat zrs.d(PG:93)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat zrs.b(PG:264)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat daqh.b(PG:1)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat cfbk.f(PG:1)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat cfbk.e(PG:24)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat cfbk.a(PG:1)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat bzrh.apply(PG:18)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat ctbh.d(PG:2)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat ctbi.run(PG:9)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat bxfd.run(PG:1)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat bxho.run(PG:3)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat bxei.run(PG:2)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat bxfj.run(PG:5)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: StrictMode policy violation: android.os.strictmode.DiskReadViolation", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.os.StrictMode$AndroidBlockGuardPolicy.onReadFromDisk(StrictMode.java:1666)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.app.SharedPreferencesImpl.awaitLoadedLocked(SharedPreferencesImpl.java:275)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat android.app.SharedPreferencesImpl.getString(SharedPreferencesImpl.java:301)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat cfbk.f(PG:1)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat cfbk.e(PG:24)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat cfbk.a(PG:1)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat bzrh.apply(PG:18)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat ctbh.d(PG:2)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat ctbi.run(PG:9)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat bxfd.run(PG:1)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat bxho.run(PG:3)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat bxei.run(PG:2)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- strictmode: {"line": "11-25 21:11:00.080  9080  9123 D StrictMode: \tat bxfj.run(PG:5)", "after": {"scenario": "ask", "label": "deep test back online with a key that is not real"}, "t": 672.4}
+- died: {"line": "11-25 21:13:14.082   522   566 I ActivityManager: Process com.anjy.atlas (pid 9968) has died: fg +50 FGS ", "after": {"scenario": "process-death", "label": "me"}, "t": 780.4}
+- died: {"line": "11-25 21:13:44.808   522  1207 I ActivityManager: Process com.anjy.atlas (pid 10565) has died: fg +50 FGS ", "after": {"scenario": "process-death", "label": "bots"}, "t": 811.3}
+- strictmode: {"line": "11-25 21:17:17.309  1927  1938 D StrictMode: StrictMode policy violation: android.os.strictmode.SqliteObjectLeakedViolation: Finalizing a Cursor that has not been deactivated or closed. database = /data/user/0/com.android.providers.contacts/databases/contacts2.db, table = raw_contacts, query = SELECT contacts_view._id AS _id, contacts_view.display_name AS display_name, contacts_view.photo_thumb_ur", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.309  1927  1938 D StrictMode: \tat android.os.StrictMode.onSqliteObjectLeaked(StrictMode.java:2222)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.309  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteCursor.finalize(SQLiteCursor.java:282)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.309  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.doFinalize(Daemons.java:339)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.309  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.processReference(Daemons.java:324)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.309  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.runInternal(Daemons.java:300)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.309  1927  1938 D StrictMode: \tat java.lang.Daemons$Daemon.run(Daemons.java:145)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.309  1927  1938 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: StrictMode policy violation: android.os.strictmode.LeakedClosableViolation: A resource was acquired at attached stack trace but never released. See java.io.Closeable for information on avoiding resource leaks.", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.os.StrictMode$AndroidCloseGuardReporter.report(StrictMode.java:1994)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat dalvik.system.CloseGuard.warnIfOpen(CloseGuard.java:336)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.database.AbstractCursor.finalize(AbstractCursor.java:531)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteCursor.finalize(SQLiteCursor.java:291)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.doFinalize(Daemons.java:339)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.processReference(Daemons.java:324)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat java.lang.Daemons$FinalizerDaemon.runInternal(Daemons.java:300)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat java.lang.Daemons$Daemon.run(Daemons.java:145)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat java.lang.Thread.run(Thread.java:1012)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: Caused by: java.lang.Throwable: Explicit termination method 'AbstractCursor.close' not called", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat dalvik.system.CloseGuard.openWithCallSite(CloseGuard.java:288)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat dalvik.system.CloseGuard.open(CloseGuard.java:257)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.database.AbstractCursor.<init>(AbstractCursor.java:227)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.database.AbstractWindowedCursor.<init>(AbstractWindowedCursor.java:39)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteCursor.<init>(SQLiteCursor.java:98)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteDirectCursorDriver.query(SQLiteDirectCursorDriver.java:52)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteDatabase.rawQueryWithFactory(SQLiteDatabase.java:1714)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.database.sqlite.SQLiteQueryBuilder.query(SQLiteQueryBuilder.java:592)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.doQuery(ContactsProvider2.java:7543)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryLocal(ContactsProvider2.java:7249)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryCorpLookupIfNecessary(ContactsProvider2.java:7728)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryLookupEnterprise(ContactsProvider2.java:7867)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryPhoneLookupEnterprise(ContactsProvider2.java:7838)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryLocal(ContactsProvider2.java:7172)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryDirectoryIfNecessary(ContactsProvider2.java:5883)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.queryInternal(ContactsProvider2.java:5728)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat com.android.providers.contacts.ContactsProvider2.query(ContactsProvider2.java:5673)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.content.ContentProvider.query(ContentProvider.java:1692)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.content.ContentProvider$Transport.query(ContentProvider.java:292)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.content.ContentProviderNative.onTransact(ContentProviderNative.java:107)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.os.Binder.execTransactInternal(Binder.java:1339)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- strictmode: {"line": "11-25 21:17:17.310  1927  1938 D StrictMode: \tat android.os.Binder.execTransact(Binder.java:1275)", "after": {"scenario": "motion", "label": "atlas"}, "t": 1019.2}
+- replay-failed: {"path": ["log", "⏰ Today 23:00 · Daily · Logged Today 19:00", "Long one / ⏰ Tomorrow 00:00 · Weekdays · Logged Today 19:00", "हिन्दी परीक्षण / ⏰ Tomorrow 01:19 · Logged Today 19:00"], "missing": "हिन्दी परीक्षण / ⏰ Tomorrow 01:19 · Logged Today 19:00", "t": 1833.1}
+- replay-failed: {"path": ["log", "⏰ Today 23:00 · Daily · Logged Today 19:00", "Long one / ⏰ Tomorrow 00:00 · Weekdays · Logged Today 19:00", "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"], "missing": "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "t": 1944.8}
+- replay-failed: {"path": ["bots", "New Bot", "Create Bot", "Add a Trigger"], "missing": "Add a Trigger", "t": 2717.5}
+- died: {"line": "11-25 21:59:17.748   522  3443 I ActivityManager: Process com.anjy.atlas:hotword (pid 1408) has died: prcp FGS ", "after": {"path": ["me", "More Services…", "More Services…", "Add Key"], "label": "“Hey Atlas” (beta), on", "round": 5}, "t": 3537.0}
+- died: {"line": "11-25 21:59:19.181   522   935 I ActivityManager: Process com.anjy.atlas:hotword (pid 1487) has died: prcp FGS ", "after": {"path": ["me", "More Services…", "More Services…", "Add Key"], "label": "“Hey Atlas” (beta), on", "round": 5}, "t": 3537.0}
+- replay-failed: {"path": ["log", "⏰ Today 23:00 · Daily · Logged Today 19:00", "Long one / ⏰ Tomorrow 00:00 · Weekdays · Logged Today 19:00", "हिन्दी परीक्षण / ⏰ Tomorrow 01:19 · Logged Today 19:00"], "missing": "हिन्दी परीक्षण / ⏰ Tomorrow 01:19 · Logged Today 19:00", "t": 3955.1}
+
+## Atlas's error lines (220, 11 kinds)
+- ×76 11-25 21:00:18.210 [com.anjy.atlas] SurfaceSyncGroup: Failed to receive transaction ready in 1000ms. Marking SurfaceSyncGroup(wmsSync-VRI[MainActivity]#0) as ready
+- ×76 11-25 21:00:18.210 [com.anjy.atlas] SurfaceSyncGroup: Failed to receive transaction ready in 1000ms. Marking SurfaceSyncGroup(VRI[MainActivity]#1) as ready
+- ×19 11-25 21:01:31.558 [com.anjy.atlas] FrameTracker: force finish cuj, time out: J<IME_INSETS_ANIMATION::0@0@com.anjy.atlas>
+- ×10 11-25 21:00:17.606 [com.anjy.atlas] AtlasOrb: orb renderer
+- ×10 11-25 21:00:17.606 [com.anjy.atlas] AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+- ×10 11-25 21:00:17.606 [com.anjy.atlas] AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+- ×10 11-25 21:00:17.606 [com.anjy.atlas] AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+- ×3 11-25 21:23:21.734 [com.anjy.atlas] ImeBackDispatcher: Ime callback not found. Ignoring unregisterReceivedCallback. callbackId: 133151768
+- ×2 11-25 21:59:17.511 [com.anjy.atlas:hotword] ndk_translation: Undefined instruction 0xd50320bf at 0x00007a9c9a65bc94
+- ×2 11-25 22:00:22.397 [com.anjy.atlas:hotword] AtlasHotwordProc: speech engine crashed twice; staying off: native crash: crash
+- ×2 11-25 22:00:30.430 [com.anjy.atlas] AtlasPresence: Hey Atlas switched itself off: native crash: crash
+
+## Exceptions printed to the log (0, 0 kinds)
+
+## StrictMode (0)
+
+## Leaks (0)
+
+## Frames: {'count': 96, 'max': 139, 'over_30': 96}
+
+## Dropbox: {'data_app_crash': 1}
+
+## Crawl coverage
+- taps 177, odd inputs 50, screens 35, replays failed 4, minutes 66.3
+- must reach: {'Chats': True, 'New chat': True, 'Add: take a photo': True, 'New Bot': True, 'New Group': True, 'Library': True, 'Routines': True, 'Skills': True, 'Details': True, 'New Reminder': True, 'Save to memory': True, 'Talk to Atlas': True}
+- memory (PSS kB): {'start': 73097, 'before_crawl': 82731, 'end': 63262}
+- left the app 9 times; destructive buttons found 2

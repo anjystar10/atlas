@@ -1,0 +1,6 @@
+        Snapshot:
+          type=RTC_WAKEUP tag=*walarm*:com.anjy.atlas.TICK 
+          policyWhenElapsed: requester=+5d23h45m11s105ms app_standby=-3m12s972ms device_idle=-- battery_saver=-- tare=-3m12s972ms
+  
+  Top Alarms:
+    +516ms running, 6 wakeups, 6 alarms: 1000:android

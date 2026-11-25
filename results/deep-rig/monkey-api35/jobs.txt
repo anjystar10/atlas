@@ -1,0 +1,31 @@
+    10209:com.anjy.atlas=false
+    10203:com.google.android.devicelockcontroller=false
+    10202:com.google.android.permissioncontroller=false
+    10200:com.google.android.rkpdapp=false
+    10197:com.google.android.providers.media.module=false
+    10184:com.google.android.ext.services=false
+    10165:com.google.android.tts=false
+--
+    TopAppTimer{<0>com.anjy.atlas} NOT active
+    TopAppTimer{<0>com.android.settings} NOT active
+    TopAppTimer{<0>com.google.android.apps.nexuslauncher} started at 967507 (1828ms ago)
+      com.google.android.apps.nexuslauncher.NexusLauncherActivity
+    TopAppTimer{<0>com.google.android.googlesdksetup} NOT active
+    
+    Cached execution stats:
+--
+      <0>com.anjy.atlas: ShrinkableDebits { debit tally: 0, bucket: 0 }
+      <0>com.google.android.inputmethod.latin: ShrinkableDebits { debit tally: 0, bucket: 0 }
+    
+    In quota alarms:
+      NOT WAITING
+
+ComponentController:
+--
+  10209: {com.anjy.atlas}
+
+Current stats at 2026-11-25-19-59-51 (-15m38s266ms) over +15m38s266ms:
+  Max concurrency: 12 total, 0 foreground
+  
+  1000 / android:
+    1x pending 1x active 

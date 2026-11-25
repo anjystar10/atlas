@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<map>
+    <boolean name="reduceMotion" value="true" />
+    <string name="gemini_key">AIzaDeepTestKey-not-real-0000000000000</string>
+    <string name="gemini_endpoint">http://127.0.0.1:8765/v1beta/models/</string>
+
+</map>

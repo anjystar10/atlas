@@ -1,0 +1,1024 @@
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtras.kt:510: Warning: Setting Exact alarms with setExactAndAllowWhileIdle requires the SCHEDULE_EXACT_ALARM permission or power exemption from user; it is intended for applications where the user knowingly schedules actions to happen at a precise time such as alarms, clocks, calendars, etc. Check out the javadoc on this permission to make sure your use case is valid. [MissingPermission]
+            if (am.canScheduleExactAlarms()) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Reminders.kt:107: Warning: Setting Exact alarms with setAlarmClock requires the SCHEDULE_EXACT_ALARM permission or power exemption from user; it is intended for applications where the user knowingly schedules actions to happen at a precise time such as alarms, clocks, calendars, etc. Check out the javadoc on this permission to make sure your use case is valid. [MissingPermission]
+            am.setAlarmClock(AlarmManager.AlarmClockInfo(at, show), pi)
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "MissingPermission":
+   This check scans through your code and libraries and looks at the APIs
+   being used, and checks this against the set of permissions required to
+   access those APIs. If the code using those APIs is called at runtime, then
+   the program will crash.
+
+   Furthermore, for permissions that are revocable (with targetSdkVersion 23),
+   client code must also be prepared to handle the calls throwing an exception
+   if the user rejects the request for permission at runtime.
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AvatarService.kt:64: Warning: Field requires API level 34 (current min is 33): android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_SPECIAL_USE [InlinedApi]
+            startForeground(ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AvatarService.kt:114: Warning: Field requires API level 34 (current min is 33): android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_SPECIAL_USE [InlinedApi]
+                    startForeground(ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AvatarService.kt:123: Warning: Field requires API level 34 (current min is 33): android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_SPECIAL_USE [InlinedApi]
+                try { startForeground(ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) } catch (_: Exception) {}
+                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotService.kt:75: Warning: Field requires API level 34 (current min is 33): android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_SPECIAL_USE [InlinedApi]
+        try { startForeground(NOTIF_ID, build(this), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) }
+                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/LinkService.kt:46: Warning: Field requires API level 34 (current min is 33): android.content.pm.ServiceInfo#FOREGROUND_SERVICE_TYPE_SPECIAL_USE [InlinedApi]
+        try { startForeground(ID, b.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) }
+                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "InlinedApi":
+   This check scans through all the Android API field references in the
+   application and flags certain constants, such as static final integers and
+   Strings, which were introduced in later versions. These will actually be
+   copied into the class files rather than being referenced, which means that
+   the value is available even when running on older devices. In some cases
+   that's fine, and in other cases it can result in a runtime crash or
+   incorrect behavior. It depends on the context, so consider the code
+   carefully and decide whether it's safe and can be suppressed or whether the
+   code needs to be guarded.
+
+   If you really want to use this API and don't need to support older devices
+   just set the minSdkVersion in your build.gradle or AndroidManifest.xml
+   files.
+
+   If your code is deliberately accessing newer APIs, and you have ensured
+   (e.g. with conditional execution) that this code will only ever be called
+   on a supported platform, then you can annotate your class or method with
+   the @TargetApi annotation specifying the local minimum SDK to apply, such
+   as @TargetApi(11), such that this check considers 11 rather than your
+   manifest file's minimum SDK as the required API level.
+
+/home/runner/work/atlas/atlas/app/build.gradle.kts:13: Warning: Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the android.os.Build.VERSION_CODES javadoc for details. [OldTargetApi]
+        targetSdk = 35
+        ~~~~~~~~~~~~~~
+
+   Explanation for issues of type "OldTargetApi":
+   When your application or sdk runs on a version of Android that is more
+   recent than your targetSdkVersion specifies that it has been tested with,
+   various compatibility modes kick in. This ensures that your application
+   continues to work, but it may look out of place. For example, if the
+   targetSdkVersion is less than 14, your app may get an option button in the
+   UI.
+
+   To fix this issue, set the targetSdkVersion to the highest available value.
+   Then test your app to make sure everything works correctly. You may want to
+   consult the compatibility notes to see what changes apply to each version
+   you are adding support for:
+   https://developer.android.com/reference/android/os/Build.VERSION_CODES.html
+   as well as follow this guide:
+   https://developer.android.com/distribute/best-practices/develop/target-sdk.
+   html
+
+   https://developer.android.com/distribute/best-practices/develop/target-sdk.html
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/DocPdf.kt:108: Error: Must be one of: LineBreaker.BREAK_STRATEGY_SIMPLE, LineBreaker.BREAK_STRATEGY_HIGH_QUALITY, LineBreaker.BREAK_STRATEGY_BALANCED [WrongConstant]
+            .setBreakStrategy(Layout.BREAK_STRATEGY_HIGH_QUALITY).setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_NORMAL).build()
+                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "WrongConstant":
+   Ensures that when parameter in a method only allows a specific set of
+   constants, calls obey those rules.
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:2889: Warning: Use of REQUEST_IGNORE_BATTERY_OPTIMIZATIONS violates the Play Store Content Policy regarding acceptable use cases, as described in https://developer.android.com/training/monitoring-device-state/doze-standby.html [BatteryLife]
+            try { startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))) }
+                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:70: Warning: Use of REQUEST_IGNORE_BATTERY_OPTIMIZATIONS violates the Play Store Content Policy regarding acceptable use cases, as described in https://developer.android.com/training/monitoring-device-state/doze-standby.html [BatteryLife]
+            "battery" -> Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, pkg)
+                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "BatteryLife":
+   This issue flags code that either
+   * negatively affects battery life, or
+   * uses APIs that have recently changed behavior to prevent background tasks
+   from consuming memory and battery excessively.
+
+   Generally, you should be using WorkManager instead.
+
+   For more details on how to update your code, please see
+   https://developer.android.com/topic/performance/background-optimization
+
+
+/home/runner/work/atlas/atlas/gradle/wrapper/gradle-wrapper.properties:4: Warning: A newer version of Gradle than 8.14.3 is available: 8.14.8 [AndroidGradlePluginVersion]
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.14.3-bin.zip
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/gradle/libs.versions.toml:5: Warning: A newer version of com.android.application than 8.13.2 is available: 9.5.3 [AndroidGradlePluginVersion]
+agp = "8.13.2"
+      ~~~~~~~~
+/home/runner/work/atlas/atlas/gradle/libs.versions.toml:5: Warning: A newer version of com.android.library than 8.13.2 is available: 9.5.3 [AndroidGradlePluginVersion]
+agp = "8.13.2"
+      ~~~~~~~~
+
+   Explanation for issues of type "AndroidGradlePluginVersion":
+   This detector looks for usage of the Android Gradle Plugin where the
+   version you are using is not the current stable release. Using older
+   versions is fine, and there are cases where you deliberately want to stick
+   with an older version. However, you may simply not be aware that a more
+   recent version is available, and that is what this lint check helps find.
+
+/home/runner/work/atlas/atlas/gradle/libs.versions.toml:9: Warning: A newer version of androidx.activity:activity than 1.12.2 is available: 1.13.0 [GradleDependency]
+activity = "1.12.2"
+           ~~~~~~~~
+/home/runner/work/atlas/atlas/gradle/libs.versions.toml:10: Warning: A newer version of androidx.appcompat:appcompat than 1.7.1 is available: 1.8.0 [GradleDependency]
+appcompat = "1.7.1"
+            ~~~~~~~
+/home/runner/work/atlas/atlas/gradle/libs.versions.toml:11: Warning: A newer version of androidx.core:core-ktx than 1.17.0 is available: 1.19.1 [GradleDependency]
+core-ktx = "1.17.0"
+           ~~~~~~~~
+/home/runner/work/atlas/atlas/gradle/libs.versions.toml:12: Warning: A newer version of androidx.constraintlayout:constraintlayout than 2.2.1 is available: 2.2.2 [GradleDependency]
+constraint-layout = "2.2.1"
+                    ~~~~~~~
+/home/runner/work/atlas/atlas/gradle/libs.versions.toml:13: Warning: A newer version of androidx.datastore:datastore-preferences than 1.2.0 is available: 1.3.0 [GradleDependency]
+datastore-preferences = "1.2.0"
+                        ~~~~~~~
+/home/runner/work/atlas/atlas/gradle/libs.versions.toml:16: Warning: A newer version of com.google.android.material:material than 1.13.0 is available: 1.14.0 [GradleDependency]
+material = "1.13.0"
+           ~~~~~~~~
+
+   Explanation for issues of type "GradleDependency":
+   This detector looks for usages of libraries where the version you are using
+   is not the current stable release. Using older versions is fine, and there
+   are cases where you deliberately want to stick with an older version.
+   However, you may simply not be aware that a more recent version is
+   available, and that is what this lint check helps find.
+
+/home/runner/work/atlas/atlas/app/build.gradle.kts:70: Warning: A newer version of net.java.dev.jna:jna than 5.18.1 is available: 5.19.1 [NewerVersionAvailable]
+    implementation("net.java.dev.jna:jna:5.18.1@aar")
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/build.gradle.kts:72: Warning: A newer version of com.sun.mail:android-mail than 1.6.7 is available: 1.6.8 [NewerVersionAvailable]
+    implementation("com.sun.mail:android-mail:1.6.7")
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/build.gradle.kts:73: Warning: A newer version of com.sun.mail:android-activation than 1.6.7 is available: 1.6.8 [NewerVersionAvailable]
+    implementation("com.sun.mail:android-activation:1.6.7")
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/build.gradle.kts:76: Warning: A newer version of org.json:json than 20240303 is available: 20260814 [NewerVersionAvailable]
+    testImplementation("org.json:json:20240303")
+                       ~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/gradle/libs.versions.toml:2: Warning: A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.10.2 is available: 1.11.0 [NewerVersionAvailable]
+coroutines = "1.10.2"
+             ~~~~~~~~
+/home/runner/work/atlas/atlas/gradle/libs.versions.toml:6: Warning: A newer version of org.jetbrains.kotlin.android than 2.3.0 is available: 2.4.21 [NewerVersionAvailable]
+kotlin = "2.3.0"
+         ~~~~~~~
+
+   Explanation for issues of type "NewerVersionAvailable":
+   This detector checks with a central repository to see if there are newer
+   versions available for the dependencies used by this project. This is
+   similar to the GradleDependency check, which checks for newer versions
+   available in the Android SDK tools and libraries, but this works with any
+   MavenCentral dependency, and connects to the library every time, which
+   makes it more flexible but also much slower.
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Orb.kt:232: Warning: Don't use a constant here; expected one of: SpeechRecognizer.ERROR_AUDIO, SpeechRecognizer.ERROR_CANNOT_CHECK_SUPPORT, SpeechRecognizer.ERROR_CANNOT_LISTEN_TO_DOWNLOAD_EVENTS, SpeechRecognizer.ERROR_CLIENT, SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS, SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE, SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT, SpeechRecognizer.ERROR_NO_MATCH, SpeechRecognizer.ERROR_RECOGNIZER_BUSY, SpeechRecognizer.ERROR_SERVER, SpeechRecognizer.ERROR_SERVER_DISCONNECTED, SpeechRecognizer.ERROR_SPEECH_TIMEOUT, SpeechRecognizer.ERROR_TOO_MANY_REQUESTS [SwitchIntDef]
+                    SpeechRecognizer.ERROR_CLIENT, 11 /* server disconnected */ -> again("Speech recognition stopped. Try again.")
+                                                   ~~
+
+   Explanation for issues of type "SwitchIntDef":
+   This check warns if a switch statement does not explicitly include all the
+   values declared by the typedef @IntDef declaration.
+
+/home/runner/work/atlas/atlas/app/src/main/AndroidManifest.xml:229: Warning: Fixed screen orientations will be ignored in most cases, starting from Android 16. Android is moving toward a model where apps are expected to adapt to various orientations, display sizes, and aspect ratios. [DiscouragedApi]
+            android:screenOrientation="unspecified"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "DiscouragedApi":
+   Discouraged APIs are allowed and are not deprecated, but they may be unfit
+   for common use (e.g. due to slow performance or subtle behavior).
+
+/home/runner/work/atlas/atlas/app/build.gradle.kts:17: Warning: Missing x86_64 ABI support for ChromeOS [ChromeOsAbiSupport]
+            abiFilters += listOf("arm64-v8a")
+                          ~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ChromeOsAbiSupport":
+   To properly support ChromeOS, your Android application should have an x86
+   and/or x86_64 binary as part of the build configuration. To fix the issue,
+   ensure your files are properly optimized for ARM; the binary translator
+   will then ensure compatibility with x86. Alternatively, add an abiSplit for
+   x86 within your build.gradle file and create the required x86
+   dependencies.
+
+   https://developer.android.com/ndk/guides/abis
+
+/home/runner/work/atlas/atlas/app/src/main/AndroidManifest.xml:31: Error: Permission exists without corresponding hardware <uses-feature android:name="android.hardware.telephony" required="false"> tag [PermissionImpliesUnsupportedChromeOsHardware]
+    <uses-permission android:name="android.permission.SEND_SMS" />
+     ~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "PermissionImpliesUnsupportedChromeOsHardware":
+   The <uses-permission> element should not require a permission that implies
+   an unsupported large screen hardware feature. Google Play assumes that
+   certain hardware related permissions indicate that the underlying hardware
+   features are required by default. To fix the issue, consider declaring the
+   corresponding <uses-feature> element with required="false" attribute.
+
+   https://developer.android.com/topic/arc/manifest.html#implied-features
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Reminders.kt:196: Warning: This broadcast receiver declares an intent-filter for a protected broadcast action string, which can only be sent by the system, not third-party applications. However, the receiver's onReceive method does not appear to call getAction to ensure that the received Intent's action string matches the expected value, potentially making it possible for another actor to send a spoofed intent with no action string or a different action string and cause undesired behavior. [UnsafeProtectedBroadcastReceiver]
+    override fun onReceive(context: Context, intent: Intent) {
+                 ~~~~~~~~~
+
+   Explanation for issues of type "UnsafeProtectedBroadcastReceiver":
+   `BroadcastReceiver`s that declare an intent-filter for a
+   protected-broadcast action string must check that the received intent's
+   action string matches the expected value, otherwise it is possible for
+   malicious actors to spoof intents.
+
+   https://goo.gle/UnsafeProtectedBroadcastReceiver
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Orb.kt:63: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            val pic = placeholder ?: android.graphics.BitmapFactory.decodeResource(resources, R.drawable.orb_still).also { placeholder = it }
+                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Orb.kt:65: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            canvas.drawBitmap(pic, null, android.graphics.RectF((w - side) / 2, (h - side) / 2, (w + side) / 2, (h + side) / 2), filter)
+                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Depth.kt:401: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                embers.add(Ember(w * (0.08f + Random.nextFloat() * 0.38f), h * (0.75f + Random.nextFloat() * 0.25f),
+                           ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_FlameView.kt:669: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = RadialGradient(cx, cy, hr, intArrayOf(
+                   ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_FlameView.kt:669: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = RadialGradient(cx, cy, hr, intArrayOf(
+                   ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:81: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, r.top, 0f, r.bottom, mix(0xFFD6D6DA.toInt(), 0xFF2A2A2E.toInt(), t), mix(0xFFA8A8AE.toInt(), 0xFF141416.toInt(), t), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:81: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, r.top, 0f, r.bottom, mix(0xFFD6D6DA.toInt(), 0xFF2A2A2E.toInt(), t), mix(0xFFA8A8AE.toInt(), 0xFF141416.toInt(), t), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:83: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        s.strokeWidth = u; s.shader = LinearGradient(0f, r.top, 0f, r.bottom, Color.argb((60 * (1 - t) + 14 * t).toInt(), 255, 255, 255), Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
+                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:83: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        s.strokeWidth = u; s.shader = LinearGradient(0f, r.top, 0f, r.bottom, Color.argb((60 * (1 - t) + 14 * t).toInt(), 255, 255, 255), Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
+                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:97: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            p.shader = RadialGradient(kx, cy + 6 * u, kw * 0.9f, Color.argb((150 * (1 - t)).toInt(), 255, 255, 255), Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:97: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            p.shader = RadialGradient(kx, cy + 6 * u, kw * 0.9f, Color.argb((150 * (1 - t)).toInt(), 255, 255, 255), Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:107: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = RadialGradient(kx - kw * 0.15f, cy - kh * 0.2f, kw * 0.8f, Color.argb(40, 255, 255, 255), Color.argb(6, 255, 255, 255), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:107: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = RadialGradient(kx - kw * 0.15f, cy - kh * 0.2f, kw * 0.8f, Color.argb(40, 255, 255, 255), Color.argb(6, 255, 255, 255), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:110: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        s.shader = LinearGradient(0f, r.top, 0f, r.bottom, intArrayOf(Color.argb(150, 255, 255, 255), Color.argb(40, 255, 255, 255), Color.argb(110, 255, 255, 255)), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:110: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        s.shader = LinearGradient(0f, r.top, 0f, r.bottom, intArrayOf(Color.argb(150, 255, 255, 255), Color.argb(40, 255, 255, 255), Color.argb(110, 255, 255, 255)), floatArrayOf(0f, 0.55f, 1f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:454: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        path.arcTo(RectF(R - 2 * b, cy - b, R, cy + b), -90f, 180f)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:456: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        path.arcTo(RectF(L, cy - a, L + 2 * a, cy + a), 90f, 180f)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:465: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, cy - h / 2, 0f, cy + h / 2, tint(color, Color.WHITE, 0.28f), tint(color, Color.BLACK, 0.06f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:465: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, cy - h / 2, 0f, cy + h / 2, tint(color, Color.WHITE, 0.28f), tint(color, Color.BLACK, 0.06f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:467: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, cy - h / 2, 0f, cy, Color.argb(70, 255, 255, 255), Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:467: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, cy - h / 2, 0f, cy, Color.argb(70, 255, 255, 255), Color.argb(0, 255, 255, 255), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Mascot.kt:141: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, cy - coinR + press, 0f, cy + coinR + press, mix(Color.WHITE, face, 0.22f), face, Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Mascot.kt:141: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, cy - coinR + press, 0f, cy + coinR + press, mix(Color.WHITE, face, 0.22f), face, Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_SlideSwitch.kt:71: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, r.top, 0f, r.bottom, mix(base, Color.WHITE, if (dark) 0.10f else 0.14f), base, Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_SlideSwitch.kt:71: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, r.top, 0f, r.bottom, mix(base, Color.WHITE, if (dark) 0.10f else 0.14f), base, Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_SlideSwitch.kt:76: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        s.shader = LinearGradient(0f, r.top, 0f, r.bottom, Color.argb(if (dark) 70 else 120, 255, 255, 255), Color.argb(if (dark) 10 else 30, 0, 0, 0), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_SlideSwitch.kt:76: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        s.shader = LinearGradient(0f, r.top, 0f, r.bottom, Color.argb(if (dark) 70 else 120, 255, 255, 255), Color.argb(if (dark) 10 else 30, 0, 0, 0), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_SlideSwitch.kt:87: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, cy - kr, 0f, cy + kr, mix(knob, Color.WHITE, 0.18f), knob, Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_SlideSwitch.kt:87: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, cy - kr, 0f, cy + kr, mix(knob, Color.WHITE, 0.18f), knob, Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:211: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        val marble = LinearGradient(0f, 0f, cw, 0f, intArrayOf(shadow, ink, shadow), floatArrayOf(0f, 0.38f, 1f), Shader.TileMode.MIRROR)
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:236: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                    line.pathEffect = if (d == Day.OPEN) DashPathEffect(floatArrayOf(cw * 0.16f, cw * 0.16f), 0f) else null
+                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:236: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                    line.pathEffect = if (d == Day.OPEN) DashPathEffect(floatArrayOf(cw * 0.16f, cw * 0.16f), 0f) else null
+                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:248: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                    val path = Path().apply {
+                               ~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:352: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        val marble = LinearGradient(0f, 0f, cw, 0f, intArrayOf(shadow, ink, shadow), floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.MIRROR)
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:354: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, 0f, w, 0f, intArrayOf(Color.argb(40, Color.red(ink), Color.green(ink), Color.blue(ink)), ink), floatArrayOf(0f, 0.5f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:354: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, 0f, w, 0f, intArrayOf(Color.argb(40, Color.red(ink), Color.green(ink), Color.blue(ink)), ink), floatArrayOf(0f, 0.5f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:366: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        val ember = LinearGradient(0f, 0f, cw, 0f, intArrayOf(emberA, emberB, emberC), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.MIRROR)
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:373: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            p.shader = LinearGradient(newX, 0f, newX + cw, 0f, intArrayOf(emberA, emberB, emberC), null, Shader.TileMode.CLAMP)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:373: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            p.shader = LinearGradient(newX, 0f, newX + cw, 0f, intArrayOf(emberA, emberB, emberC), null, Shader.TileMode.CLAMP)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:378: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = RadialGradient(newX + cw / 2, floor, cw * 2.2f, Color.argb((120 * k.coerceAtMost(1f)).toInt(), 255, 122, 46), Color.argb(0, 255, 122, 46), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:378: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = RadialGradient(newX + cw / 2, floor, cw * 2.2f, Color.argb((120 * k.coerceAtMost(1f)).toInt(), 255, 122, 46), Color.argb(0, 255, 122, 46), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:416: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        c.drawPath(Path().apply { moveTo(fx - h * 0.12f, 0f); lineTo(fx + h * 0.12f, 0f); lineTo(fx, h * 0.15f); close() }, p)
+                   ~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:431: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = RadialGradient(sx, sy, sr, sun, floatArrayOf(0f, 0.3f, 0.58f, 1f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:431: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = RadialGradient(sx, sy, sr, sun, floatArrayOf(0f, 0.3f, 0.58f, 1f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:436: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        val fade = LinearGradient(0f, 0f, w, 0f, intArrayOf(0xFFFFFFFF.toInt(), 0x40FFFFFF), floatArrayOf(0.5f, 1f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:439: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, 0f, w, 0f, intArrayOf(shade, ink, shade), floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:439: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = LinearGradient(0f, 0f, w, 0f, intArrayOf(shade, ink, shade), floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:442: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            c.drawPath(Path().apply { moveTo(0f, a); lineTo(w, edge(a)); lineTo(w, edge(b)); lineTo(0f, b); close() }, p)
+                       ~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:450: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            p.shader = LinearGradient(x, 0f, x + cw, 0f, intArrayOf(shade, ink, shade), floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:450: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            p.shader = LinearGradient(x, 0f, x + cw, 0f, intArrayOf(shade, ink, shade), floatArrayOf(0f, 0.4f, 1f), Shader.TileMode.CLAMP)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:458: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = fade; p.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:458: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        p.shader = fade; p.xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:282: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                val f = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = this@LineIcon.color; pathEffect = android.graphics.CornerPathEffect(2.2f) }
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:282: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                val f = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = this@LineIcon.color; pathEffect = android.graphics.CornerPathEffect(2.2f) }
+                                                                                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:282: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                val f = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = this@LineIcon.color; pathEffect = android.graphics.CornerPathEffect(2.2f) }
+                                                                                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:286: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                val f = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = this@LineIcon.color }
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:291: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+                val f = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = this@LineIcon.color }
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Views.kt:45: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+        val r = RectF(stroke, stroke, size - stroke, size - stroke)
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Views.kt:58: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = muted }
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Views.kt:312: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            dash.pathEffect = android.graphics.DashPathEffect(floatArrayOf(4 * d, 4 * d), 0f)
+                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Views.kt:312: Warning: Avoid object allocations during draw/layout operations (preallocate and reuse instead) [DrawAllocation]
+            dash.pathEffect = android.graphics.DashPathEffect(floatArrayOf(4 * d, 4 * d), 0f)
+                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "DrawAllocation":
+   You should avoid allocating objects during a drawing or layout operation.
+   These are called frequently, so a smooth UI can be interrupted by garbage
+   collection pauses caused by the object allocations.
+
+   The way this is generally handled is to allocate the needed objects up
+   front and to reuse them for each drawing operation.
+
+   Some methods allocate memory on your behalf (such as Bitmap.create), and
+   these should be handled in the same way.
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/DeviceProfile.kt:55: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+        val maker = if (Build.VERSION.SDK_INT >= 31) Build.SOC_MANUFACTURER else ""
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/DeviceProfile.kt:56: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+        val soc = if (Build.VERSION.SDK_INT >= 31) Build.SOC_MODEL else ""
+                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:273: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+        if (!dark) { elevation = dp(5).toFloat(); outlineProvider = android.view.ViewOutlineProvider.BACKGROUND; if (Build.VERSION.SDK_INT >= 28) { outlineAmbientShadowColor = Color.argb(50, 0, 0, 0); outlineSpotShadowColor = Color.argb(80, Color.red(kind.orb), Color.green(kind.orb), Color.blue(kind.orb)) } }
+                                                                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:435: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+        if (Build.VERSION.SDK_INT >= 30) v.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:749: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+        if (Build.VERSION.SDK_INT >= 30) {
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:845: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+        if (Build.VERSION.SDK_INT >= 33) onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT) { handleBack() }
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:913: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+        if (Build.VERSION.SDK_INT >= 29) { root.isForceDarkAllowed = false; window.decorView.isForceDarkAllowed = false }
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Remote.kt:49: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+    fun canCapture() = Build.VERSION.SDK_INT >= 30 && AtlasAccess.instance != null
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Remote.kt:126: Warning: Unnecessary; SDK_INT is never < 33 [ObsoleteSdkInt]
+        if (Build.VERSION.SDK_INT < 30) return null
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Remote.kt:184: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+                "enter" -> focused(svc)?.let { n -> if (Build.VERSION.SDK_INT >= 30 && n.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)) null else "Enter didn't work in this box." } ?: "Tap a text box first."
+                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/res/mipmap-anydpi-v26: Warning: This folder configuration (v26) is unnecessary; minSdkVersion is 33. Merge all the resources in this folder into mipmap-anydpi. [ObsoleteSdkInt]
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Finish.kt:112: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+    if (android.os.Build.VERSION.SDK_INT >= 28) {
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:277: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+            if (android.os.Build.VERSION.SDK_INT >= 28) { outlineSpotShadowColor = Color.argb(255, 0, 0, 0); outlineAmbientShadowColor = Color.argb(255, 0, 0, 0) }
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:461: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+        if (android.os.Build.VERSION.SDK_INT >= 28) g.setShadowLayer(9 * d, 0f, 0f, Color.argb(200, Color.red(color), Color.green(color), Color.blue(color)))
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:212: Warning: Unnecessary; SDK_INT is always >= 33 [ObsoleteSdkInt]
+            performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) android.view.HapticFeedbackConstants.CONFIRM else android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "ObsoleteSdkInt":
+   This check flags version checks that are not necessary, because the
+   minSdkVersion (or surrounding known API level) is already at least as high
+   as the version checked for.
+
+   Similarly, it also looks for resources in -vNN folders, such as values-v14
+   where the version qualifier is less than or equal to the minSdkVersion,
+   where the contents should be merged into the best folder.
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AvatarService.kt:661: Warning: Do not place Android context classes in static fields (static reference to AvatarService which has field orbFrame pointing to FrameLayout); this is a memory leak [StaticFieldLeak]
+        @Volatile private var instance: AvatarService? = null
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotBrowser.kt:34: Warning: Do not place Android context classes in static fields (static reference to BotBrowser which has field web pointing to WebView); this is a memory leak [StaticFieldLeak]
+/**
+^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotBrowser.kt:60: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private var web: WebView? = null
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotBrowser.kt:61: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private var ctxWrap: MutableContextWrapper? = null
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotBrowser.kt:62: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private lateinit var app: Context
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtras.kt:19: Warning: Do not place Android context classes in static fields (static reference to BotExtras which has field app pointing to Context); this is a memory leak [StaticFieldLeak]
+/**
+^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtras.kt:296: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private lateinit var app: Context
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Bots.kt:28: Warning: Do not place Android context classes in static fields (static reference to Bots which has field app pointing to Context); this is a memory leak [StaticFieldLeak]
+/**
+^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Bots.kt:52: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private lateinit var app: Context
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Brain.kt:19: Warning: Do not place Android context classes in static fields (static reference to ModelManager which has field appCtx pointing to Context); this is a memory leak [StaticFieldLeak]
+/** The local model slot. Any GGUF chat model runs here through llama.cpp, fully on the phone. */
+^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Brain.kt:39: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    @Volatile private var appCtx: Context? = null
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Link.kt:17: Warning: Do not place Android context classes in static fields (static reference to Link which has field app pointing to Context); this is a memory leak [StaticFieldLeak]
+/**
+^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Link.kt:40: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    lateinit var app: Context; private set
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/ScreenGate.kt:26: Warning: Do not place Android context classes in static fields (static reference to ScreenGate which has field banner pointing to View); this is a memory leak [StaticFieldLeak]
+/**
+^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/ScreenGate.kt:54: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private var banner: View? = null
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/ScreenGate.kt:124: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    @Volatile private var appRef: Context? = null
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Threads.kt:12: Warning: Do not place Android context classes in static fields (static reference to Threads which has field app pointing to Context); this is a memory leak [StaticFieldLeak]
+/**
+^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Threads.kt:31: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private lateinit var app: Context
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/TrigRun.kt:14: Warning: Do not place Android context classes in static fields (static reference to TrigRun which has field app pointing to Context); this is a memory leak [StaticFieldLeak]
+/**
+^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/TrigRun.kt:33: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private lateinit var app: Context
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Voice.kt:306: Warning: Do not place Android context classes in static fields; this is a memory leak [StaticFieldLeak]
+    private var focusCtx: Context? = null
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "StaticFieldLeak":
+   A static field will leak contexts.
+
+   Non-static inner classes have an implicit reference to their outer class.
+   If that outer class is for example a Fragment or Activity, then this
+   reference means that the long-running handler/loader/task will hold a
+   reference to the activity which prevents it from getting garbage
+   collected.
+
+   Similarly, direct field references to activities and fragments from these
+   longer running instances can cause leaks.
+
+   ViewModel classes should never point to Views or non-application Contexts.
+
+/home/runner/work/atlas/atlas/app/src/main/res/drawable/ic_bell.xml:3: Warning: The resource R.drawable.ic_bell appears to be unused [UnusedResources]
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+^
+/home/runner/work/atlas/atlas/app/src/main/res/drawable/ic_chat.xml:3: Warning: The resource R.drawable.ic_chat appears to be unused [UnusedResources]
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+^
+/home/runner/work/atlas/atlas/app/src/main/res/values/ic_launcher.xml:3: Warning: The resource R.color.ic_launcher_bg appears to be unused [UnusedResources]
+    <color name="ic_launcher_bg">#2A1E6E</color>
+           ~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/res/drawable/ic_moon.xml:3: Warning: The resource R.drawable.ic_moon appears to be unused [UnusedResources]
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+^
+/home/runner/work/atlas/atlas/app/src/main/res/drawable/ic_plus.xml:3: Warning: The resource R.drawable.ic_plus appears to be unused [UnusedResources]
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+^
+/home/runner/work/atlas/atlas/app/src/main/res/drawable/nav_home_off.xml:3: Warning: The resource R.drawable.nav_home_off appears to be unused [UnusedResources]
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+^
+/home/runner/work/atlas/atlas/app/src/main/res/drawable/nav_home_on.xml:3: Warning: The resource R.drawable.nav_home_on appears to be unused [UnusedResources]
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+^
+
+   Explanation for issues of type "UnusedResources":
+   Unused resources make applications larger and slow down builds.
+
+
+   The unused resource check can ignore tests. If you want to include
+   resources that are only referenced from tests, consider packaging them in a
+   test source set instead.
+
+   You can include test sources in the unused resource check by setting the
+   system property lint.unused-resources.include-tests =true, and to exclude
+   them (usually for performance reasons), use
+   lint.unused-resources.exclude-tests =true.
+   ,
+
+   Available options:
+
+   **skip-libraries** (default is true):
+   Whether the unused resource check should skip reporting unused resources in libraries.
+
+   Many libraries will declare resources that are part of the library surface; other modules depending on the library will also reference the resources. To avoid reporting all these resources as unused (in the context of a library), the unused resource check normally skips reporting unused resources in libraries. Instead, run the unused resource check on the consuming app module (along with `checkDependencies=true`).
+
+   However, there are cases where you want to check that all the resources declared in a library are used; in that case, you can disable the skip option.
+
+   To configure this option, use a `lint.xml` file with an <option> like this:
+
+   ```xml
+   <lint>
+       <issue id="UnusedResources">
+           <option name="skip-libraries" value="true" />
+       </issue>
+   </lint>
+   ```
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Attach.kt:97: Warning: Consider also using StorageManager#getAllocatableBytes and allocateBytes which will consider clearable cached data [UsableSpace]
+        if (total > 0 && total + RESERVE > up.usableSpace)
+                                              ~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Attach.kt:98: Warning: Consider also using StorageManager#getAllocatableBytes and allocateBytes which will consider clearable cached data [UsableSpace]
+            throw TooBig("Not enough room on the phone for “$name” (${AttachRules.size(total)}): ${AttachRules.size((up.usableSpace - RESERVE).coerceAtLeast(0))} is free to use.")
+                                                                                                                        ~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Attach.kt:103: Warning: Consider also using StorageManager#getAllocatableBytes and allocateBytes which will consider clearable cached data [UsableSpace]
+            ins.use { i -> out.outputStream().use { o -> copyStream(i, o, total, progress) { cx.ensureActive(); if (up.usableSpace < RESERVE) throw TooBig("The phone ran out of room copying “$name”.") } } }
+                                                                                                                       ~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Brain.kt:58: Warning: Consider also using StorageManager#getAllocatableBytes and allocateBytes which will consider clearable cached data [UsableSpace]
+        if (size > 0 && dest.parentFile!!.usableSpace < size + 200_000_000L) {
+                                          ~~~~~~~~~~~
+
+   Explanation for issues of type "UsableSpace":
+   When you need to allocate disk space for large files, consider using the
+   new allocateBytes(FileDescriptor, long) API, which will automatically clear
+   cached files belonging to other apps (as needed) to meet your request.
+
+   When deciding if the device has enough disk space to hold your new data,
+   call getAllocatableBytes(UUID) instead of using getUsableSpace(), since the
+   former will consider any cached data that the system is willing to clear on
+   your behalf.
+
+   Note that these methods require API level 26. If your app is running on
+   older devices, you will probably need to use both APIs, conditionally
+   switching on Build.VERSION.SDK_INT. Lint only looks in the same compilation
+   unit to see if you are already using both APIs, so if it warns even though
+   you are already using the new API, consider moving the calls to the same
+   file or suppressing the warning.
+
+/home/runner/work/atlas/atlas/app/src/main/res/mipmap-hdpi/ic_launcher_bg.png: Warning: Launcher icons should not fill every pixel of their square region; see the design guide for details [IconLauncherShape]
+/home/runner/work/atlas/atlas/app/src/main/res/mipmap-mdpi/ic_launcher_bg.png: Warning: Launcher icons should not fill every pixel of their square region; see the design guide for details [IconLauncherShape]
+/home/runner/work/atlas/atlas/app/src/main/res/mipmap-xhdpi/ic_launcher_bg.png: Warning: Launcher icons should not fill every pixel of their square region; see the design guide for details [IconLauncherShape]
+/home/runner/work/atlas/atlas/app/src/main/res/mipmap-xxhdpi/ic_launcher_bg.png: Warning: Launcher icons should not fill every pixel of their square region; see the design guide for details [IconLauncherShape]
+/home/runner/work/atlas/atlas/app/src/main/res/mipmap-xxxhdpi/ic_launcher_bg.png: Warning: Launcher icons should not fill every pixel of their square region; see the design guide for details [IconLauncherShape]
+
+   Explanation for issues of type "IconLauncherShape":
+   According to the Android Design Guide
+   (https://d.android.com/r/studio-ui/designer/material/iconography) your
+   launcher icons should "use a distinct silhouette", a "three-dimensional,
+   front view, with a slight perspective as if viewed from above, so that
+   users perceive some depth."
+
+   The unique silhouette implies that your launcher icon should not be a
+   filled square.
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/OrbGl.kt:115: Warning: Custom view GlOrbView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : TextureView(context), TextureView.SurfaceTextureListener {
+      ~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Depth.kt:70: Warning: Custom view AuroraView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class AuroraView(context: Context, private val bg: Int, private val dark: Boolean,
+      ~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Depth.kt:349: Warning: Custom view StageLayout is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class StageLayout(context: Context, private val fill: Int, private val dark: Boolean, private val blue: Int, private val warm: Int) : TiltLayout(context) {
+      ~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Depth.kt:453: Warning: Custom view MorphView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class MorphView(context: Context, private val bg: Int) : View(context) {
+      ~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:51: Warning: Custom view ThemeSwitch is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class ThemeSwitch(context: Context, startDark: Boolean, private val label: Typeface) : View(context) {
+      ~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:188: Warning: Custom view RevealView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class RevealView(context: Context, private val bmp: Bitmap, private val cx: Float, private val cy: Float) : View(context) {
+      ~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Mascot.kt:72: Warning: Custom view TodayNodeView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class TodayNodeView(context: Context, private val face: Int, private val track: Int, private val label: String) : View(context) {
+      ~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_NavIcon.kt:13: Warning: Custom view NavIcon is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class NavIcon(context: Context, kind: Int) : View(context) {
+      ~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_SlideSwitch.kt:27: Warning: Custom view SlideSwitch is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class SlideSwitch(context: Context, on: Boolean, private val dark: Boolean) : View(context) {
+      ~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:37: Warning: Custom view Backdrop is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class Backdrop(context: Context, private val bg: Int, private val dark: Boolean, private val warm: Int, private val cool: Int = Color.parseColor("#2F7BFF")) : View(context) {
+      ~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:197: Warning: Custom view ColonnadeView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class ColonnadeView(context: Context, private val ink: Int, private val shadow: Int, private val ember: Int, private val dark: Boolean) : View(context) {
+      ~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:263: Warning: Custom view SlideToConfirm is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class SlideToConfirm(context: Context, private val track: Int, private val knob: Int, private val ink: Int, private val labelColor: Int,
+      ~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:327: Warning: Custom view RisingColumnView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class RisingColumnView(context: Context, private val ink: Int, private val shadow: Int, private val bg: Int) : View(context) {
+      ~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:401: Warning: Custom view TickRuler is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class TickRuler(context: Context, private val on: Int, private val off: Int) : View(context) {
+      ~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:421: Warning: Custom view PerspectiveColonnade is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class PerspectiveColonnade(context: Context, private val dark: Boolean) : View(context) {
+      ~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:53: Warning: Custom view SlideFrame is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class SlideFrame(context: android.content.Context, private val trail: Int) : FrameLayout(context) {
+      ~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:268: Warning: Custom view LineIcon is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class LineIcon(context: android.content.Context, private val kind: String) : View(context) {
+      ~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Views.kt:18: Warning: Custom view RingView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class RingView(context: Context, private val track: Int, private val done: Int, private val fg: Int, private val muted: Int) : View(context) {
+      ~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Views.kt:76: Warning: Custom view BarView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class BarView(context: Context, private val track: Int) : View(context) {
+      ~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Views.kt:136: Warning: Custom view FlowLayout is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class FlowLayout(context: Context, private val hGap: Int, private val vGap: Int) : android.view.ViewGroup(context) {
+      ~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Views.kt:178: Warning: Custom view SwipeScrollView is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class SwipeScrollView(context: Context, private val listener: Listener) : QuickScroll(context) {
+      ~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Views.kt:262: Warning: Custom view MiniChart is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class MiniChart(context: Context, private val track: Int, private val barColor: Int, private val bestColor: Int, private val lineColor: Int) : View(context) {
+      ~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Views.kt:320: Warning: Custom view MaxScroll is missing constructor used by tools: (Context) or (Context,AttributeSet) or (Context,AttributeSet,int) [ViewConstructor]
+class MaxScroll(context: Context, private val maxFraction: Float = 0.55f) : QuickScroll(context) {
+      ~~~~~~~~~
+
+   Explanation for issues of type "ViewConstructor":
+   Some layout tools (such as the Android layout editor) need to find a
+   constructor with one of the following signatures:
+   * View(Context context)
+   * View(Context context, AttributeSet attrs)
+   * View(Context context, AttributeSet attrs, int defStyle)
+
+   If your custom view needs to perform initialization which does not apply
+   when used in a layout editor, you can surround the given code with a check
+   to see if View#isInEditMode() is false, since that method will return false
+   at runtime but true within a user interface editor.
+
+/home/runner/work/atlas/atlas/app/build.gradle.kts:69: Warning: Use version catalog instead [UseTomlInstead]
+    implementation("com.alphacephei:vosk-android:0.3.75")
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/build.gradle.kts:70: Warning: Use version catalog instead [UseTomlInstead]
+    implementation("net.java.dev.jna:jna:5.18.1@aar")
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/build.gradle.kts:72: Warning: Use version catalog instead [UseTomlInstead]
+    implementation("com.sun.mail:android-mail:1.6.7")
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/build.gradle.kts:73: Warning: Use version catalog instead [UseTomlInstead]
+    implementation("com.sun.mail:android-activation:1.6.7")
+                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/build.gradle.kts:76: Warning: Use version catalog instead [UseTomlInstead]
+    testImplementation("org.json:json:20240303")
+                       ~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Explanation for issues of type "UseTomlInstead":
+   If your project is using a libs.versions.toml file, you should place all
+   Gradle dependencies in the TOML file. This lint check looks for version
+   declarations outside of the TOML file and suggests moving them (and in the
+   IDE, provides a quickfix to performing the operation automatically).
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AssistActivity.kt:80: Warning: Custom view `FrameLayout` has setOnTouchListener called on it but does not override performClick [ClickableViewAccessibility]
+        sheet.setOnTouchListener { v, ev ->
+        ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AssistActivity.kt:80: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+        sheet.setOnTouchListener { v, ev ->
+                                 ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AvatarService.kt:178: Warning: Custom view `FrameLayout` has setOnTouchListener called on it but does not override performClick [ClickableViewAccessibility]
+        frame.setOnTouchListener { _, ev ->
+        ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AvatarService.kt:178: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+        frame.setOnTouchListener { _, ev ->
+                                 ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotBrowserActivity.kt:83: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+        shield = View(this).apply { isClickable = true; setOnTouchListener { _, e -> if (e.actionMasked == MotionEvent.ACTION_UP) status.text = "Watching. Tap Take Over to use the page yourself."; true } }
+                                                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/LaptopActivity.kt:149: Warning: Custom view `ImageView` has setOnTouchListener called on it but does not override performClick [ClickableViewAccessibility]
+        img.setOnTouchListener { _, e ->
+        ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/LaptopActivity.kt:149: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+        img.setOnTouchListener { _, e ->
+                               ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:871: Warning: Custom view `ScrollView` has setOnTouchListener called on it but does not override performClick [ClickableViewAccessibility]
+        scroll.setOnTouchListener { _, e -> if (e.actionMasked == android.view.MotionEvent.ACTION_DOWN) followUntil = 0L; false }
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:871: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+        scroll.setOnTouchListener { _, e -> if (e.actionMasked == android.view.MotionEvent.ACTION_DOWN) followUntil = 0L; false }
+                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MiniPanel.kt:152: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+            setOnTouchListener { _, ev -> if (ev.action == MotionEvent.ACTION_UP) wantKeyboard(); false }
+                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MiniPanel.kt:166: Warning: Custom view anonymous class has setOnTouchListener called on it but does not override performClick [ClickableViewAccessibility]
+        root.setOnTouchListener { _, ev -> if (ev.action == MotionEvent.ACTION_OUTSIDE && !aside) { onDismiss(); true } else false }
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MiniPanel.kt:166: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+        root.setOnTouchListener { _, ev -> if (ev.action == MotionEvent.ACTION_OUTSIDE && !aside) { onDismiss(); true } else false }
+                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MiniPanel.kt:188: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+        v.setOnTouchListener { _, ev ->
+                             ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Finish.kt:98: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+    setOnTouchListener { v, e ->
+                       ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:294: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+                setOnTouchListener { v, e ->
+                                   ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Glass.kt:324: Warning: onTouch lambda should call View#performClick when a click is detected [ClickableViewAccessibility]
+            setOnTouchListener { v, e ->
+                               ^
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_Stoa.kt:297: Warning: SlideToConfirm#onTouchEvent should call SlideToConfirm#performClick when a click is detected [ClickableViewAccessibility]
+    override fun onTouchEvent(e: MotionEvent): Boolean {
+                 ~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:187: Warning: SlideFrame#performClick should call super#performClick [ClickableViewAccessibility]
+    override fun performClick(): Boolean { if (!busy) go(); return true }
+                 ~~~~~~~~~~~~
+
+   Explanation for issues of type "ClickableViewAccessibility":
+   If a View that overrides onTouchEvent or uses an OnTouchListener does not
+   also implement performClick and call it when clicks are detected, the View
+   may not handle accessibility actions properly. Logic handling the click
+   actions should ideally be placed in View#performClick as some accessibility
+   services invoke performClick when a click action should occur.
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotFiles.kt:132: Error: Found byte-order-mark in the middle of a file [ByteOrderMark]
+                val cf = File(dir, xf.name.removeSuffix(".xlsx") + ".csv"); cf.writeText("﻿" + BotFileRules.toCsv(book.first().second))
+                                                                                          ~
+
+   Explanation for issues of type "ByteOrderMark":
+   Lint will flag any byte-order-mark (BOM) characters it finds in the middle
+   of a file. Since we expect files to be encoded with UTF-8 (see the
+   EnforceUTF8 issue), the BOM characters are not necessary, and they are not
+   handled correctly by all tools. For example, if you have a BOM as part of a
+   resource name in one particular translation, that name will not be
+   considered identical to the base resource's name and the translation will
+   not be used.
+
+   https://en.wikipedia.org/wiki/Byte_order_mark
+
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AlarmActivity.kt:76: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        pane.addView(TextView(this).apply { text = "Will you do it?"; setTextColor(Palette.NIGHT.muted); textSize = Type.READ; typeface = display; gravity = Gravity.CENTER },
+                                                    ~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AssistActivity.kt:122: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            text = "Open Atlas"; setTextColor(Palette.NIGHT.accentInk); textSize = 13f; typeface = med; setPadding(dp(12), dp(8), dp(12), dp(8))
+                    ~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AssistActivity.kt:199: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        greet.text = "Listening…"
+                      ~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AssistActivity.kt:207: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+                if (t.isNullOrBlank()) { greet.text = "I didn't catch that."; said.visibility = View.GONE; orb.energy = 0f; return@open }
+                                                       ~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/AssistActivity.kt:217: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        else greet.text = "Atlas needs the microphone to hear you."
+                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotBrowserActivity.kt:67: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        titles.addView(TextView(this).apply { text = "Bot's Browser"; textSize = 19f; setTextColor(P.fg); typeface = Type.serifMedium(this@BotBrowserActivity) })
+                                                      ~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotBrowserActivity.kt:83: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        shield = View(this).apply { isClickable = true; setOnTouchListener { _, e -> if (e.actionMasked == MotionEvent.ACTION_UP) status.text = "Watching. Tap Take Over to use the page yourself."; true } }
+                                                                                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotBrowserActivity.kt:97: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+                text = "The bot's browser isn't open right now. It opens when a bot works on a website."
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtrasActivity.kt:185: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        val label = TextView(this).apply { textSize = 15f; setPadding(0, dp(14), 0, dp(4)); text = "Send: ${names[pick]}  ›" }
+                                                                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtrasActivity.kt:185: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        val label = TextView(this).apply { textSize = 15f; setPadding(0, dp(14), 0, dp(4)); text = "Send: ${names[pick]}  ›" }
+                                                                                                    ~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtrasActivity.kt:186: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        label.setOnClickListener { AlertDialog.Builder(this).setItems(names.toTypedArray()) { _, i -> pick = i; label.text = "Send: ${names[i]}  ›" }.show() }
+                                                                                                                             ~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtrasActivity.kt:186: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        label.setOnClickListener { AlertDialog.Builder(this).setItems(names.toTypedArray()) { _, i -> pick = i; label.text = "Send: ${names[i]}  ›" }.show() }
+                                                                                                                              ~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtrasActivity.kt:239: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        boxes.addView(TextView(this).apply { text = "What it may use (none ticked: everything)"; textSize = 13f })
+                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtrasActivity.kt:242: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        if (notes.isNotEmpty()) boxes.addView(TextView(this).apply { text = "Its notes:\n" + notes.joinToString("\n") { "· $it" }; textSize = 13f; setPadding(0, dp(10), 0, 0) })
+                                                                            ~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtrasActivity.kt:242: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        if (notes.isNotEmpty()) boxes.addView(TextView(this).apply { text = "Its notes:\n" + notes.joinToString("\n") { "· $it" }; textSize = 13f; setPadding(0, dp(10), 0, 0) })
+                                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/BotExtrasActivity.kt:242: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        if (notes.isNotEmpty()) boxes.addView(TextView(this).apply { text = "Its notes:\n" + notes.joinToString("\n") { "· $it" }; textSize = 13f; setPadding(0, dp(10), 0, 0) })
+                                                                             ~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/CrewActivity.kt:289: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+            (inIt + ThreadRules.ATLAS).forEach { b -> chips.addView(chip("@" + Threads.nameOf(b), false) { val e = input ?: return@chip; val cur = e.text.toString().trimEnd(); e.setText((if (cur.isEmpty()) "" else "$cur ") + "@" + Threads.nameOf(b) + " "); e.setSelection(e.text.length); e.requestFocus() },
+                                                                                                                                                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/CrewActivity.kt:289: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+            (inIt + ThreadRules.ATLAS).forEach { b -> chips.addView(chip("@" + Threads.nameOf(b), false) { val e = input ?: return@chip; val cur = e.text.toString().trimEnd(); e.setText((if (cur.isEmpty()) "" else "$cur ") + "@" + Threads.nameOf(b) + " "); e.setSelection(e.text.length); e.requestFocus() },
+                                                                                                                                                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/CrewActivity.kt:289: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+            (inIt + ThreadRules.ATLAS).forEach { b -> chips.addView(chip("@" + Threads.nameOf(b), false) { val e = input ?: return@chip; val cur = e.text.toString().trimEnd(); e.setText((if (cur.isEmpty()) "" else "$cur ") + "@" + Threads.nameOf(b) + " "); e.setSelection(e.text.length); e.requestFocus() },
+                                                                                                                                                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Focus.kt:172: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        col.addView(TextView(this).apply { text = "DOING IT NOW"; setTextColor(Palette.NIGHT.faint); textSize = 12f; typeface = semi; letterSpacing = 0.18f; gravity = Gravity.CENTER })
+                                                   ~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Focus.kt:175: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        col.addView(TextView(this).apply { text = "No distractions. Just this."; setTextColor(Palette.NIGHT.muted); textSize = Type.READ; typeface = serif; gravity = Gravity.CENTER },
+                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Focus.kt:199: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            text = "End"; textSize = 22f; typeface = semi; gravity = Gravity.CENTER; setTextColor(Palette.NIGHT.onPrimary)
+                    ~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/Focus.kt:227: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+    private fun hint() { sub.text = "Press End when you're finished."; h.postDelayed({ update() }, 2500) }
+                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/LaptopActivity.kt:59: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        top.addView(TextView(this).apply { text = "Your Laptop"; textSize = 22f; typeface = serif; setTextColor(FG) })
+                                                   ~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/LaptopActivity.kt:60: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        status = TextView(this).apply { text = "  Connecting…"; textSize = 13f; typeface = med; setTextColor(MUTED) }
+                                                ~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/LaptopActivity.kt:99: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+    private fun say(t: String) = runOnUiThread { status.text = "  $t" }
+                                                               ~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:1071: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+                text = "Latest  ↓"; textSize = 14f; typeface = SEMI; setTextColor(ON)
+                        ~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:1384: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+            else chip?.let { it.text = "Atlas Bot  ·  $line  ›"; it.contentDescription = "Atlas Bot: $line" }
+                                       ~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:1384: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            else chip?.let { it.text = "Atlas Bot  ·  $line  ›"; it.contentDescription = "Atlas Bot: $line" }
+                                        ~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:1543: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            if (ms != null) len.text = "%d:%02d".format(ms / 60000, ms / 1000 % 60)
+                                        ~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:1993: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            primaryLabel = "Done", onPrimary = { keepSheet = true; heard.text = "One moment…"; vi.finish() },
+                                                                                 ~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:2564: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+                progress.text = "Loading…"; scope.launch { ModelManager.load(applicationContext); render(keepScroll = true) }
+                                 ~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:3011: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+                        modelProgressView?.text = "Copied $name. Loading…"
+                                                  ~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:3011: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+                        modelProgressView?.text = "Copied $name. Loading…"
+                                                   ~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MainActivity.kt:3011: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+                        modelProgressView?.text = "Copied $name. Loading…"
+                                                               ~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/MiniPanel.kt:116: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            text = "Open Atlas"; setTextColor(pal.accentInk); textSize = 13f; typeface = semi
+                    ~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:146: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+        box.addView(TextView(this).apply { text = "Atlas needs this ${pm.why}. What it was doing waits until you decide."; textSize = 16f; setTextColor(P.muted)
+                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:146: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        box.addView(TextView(this).apply { text = "Atlas needs this ${pm.why}. What it was doing waits until you decide."; textSize = 16f; setTextColor(P.muted)
+                                                   ~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:146: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        box.addView(TextView(this).apply { text = "Atlas needs this ${pm.why}. What it was doing waits until you decide."; textSize = 16f; setTextColor(P.muted)
+                                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:149: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        row.addView(TextView(this).apply { text = "Not now"; textSize = 15f; setTextColor(P.muted); setPadding(dp(14), dp(10), dp(14), dp(10))
+                                                   ~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:151: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        row.addView(TextView(this).apply { text = "Allow"; textSize = 15f; setTextColor(P.accentInk); setPadding(dp(14), dp(10), dp(14), dp(10))
+                                                   ~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:180: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        list.addView(TextView(this).apply { text = "Permissions"; textSize = 30f; setTextColor(P.fg); typeface = Type.serif(this@PermissionsActivity) })
+                                                    ~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:183: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        list.addView(TextView(this).apply { text = "Phone Access"; textSize = 22f; setTextColor(P.fg); typeface = Type.serif(this@PermissionsActivity); setPadding(0, dp(18), 0, 0) })
+                                                    ~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:185: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        list.addView(TextView(this).apply { text = "What lets Atlas work in the background while you use your phone. Atlas asks when a job needs one; you can turn them on here too."
+                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:192: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+            card.addView(TextView(this).apply { text = "Used ${p.why}."; textSize = 14f; setTextColor(P.muted); setPadding(0, dp(4), 0, dp(8)) })
+                                                       ~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:192: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            card.addView(TextView(this).apply { text = "Used ${p.why}."; textSize = 14f; setTextColor(P.muted); setPadding(0, dp(4), 0, dp(8)) })
+                                                        ~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:214: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        list.addView(TextView(a).apply { text = "How Freely Atlas Acts"; textSize = 22f; setTextColor(P.fg); typeface = Type.serif(a); setPadding(0, dp(14), 0, 0) })
+                                                 ~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:215: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+        list.addView(TextView(a).apply { text = "Money, deleting, messaging someone new and security changes always ask, whatever you pick."
+                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:221: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+            c.addView(TextView(a).apply { text = (if (on) "● " else "○ ") + lv.replaceFirstChar { it.uppercase() } + if (lv == AutonomyRules.DEFAULT_LEVEL) " (recommended)" else ""
+                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:221: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+            c.addView(TextView(a).apply { text = (if (on) "● " else "○ ") + lv.replaceFirstChar { it.uppercase() } + if (lv == AutonomyRules.DEFAULT_LEVEL) " (recommended)" else ""
+                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:230: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            list.addView(TextView(a).apply { text = "Allowed Without Asking"; textSize = 17f; setTextColor(P.fg); typeface = Type.serifMedium(a); setPadding(0, dp(10), 0, dp(6)) })
+                                                     ~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:234: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+                c.addView(TextView(a).apply { text = "Ask Again ›"; textSize = 14f; setTextColor(P.accentInk); setPadding(0, dp(8), 0, 0); minHeight = dp(44); gravity = android.view.Gravity.CENTER_VERTICAL
+                                                      ~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:241: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            list.addView(TextView(a).apply { text = "Done Without Asking"; textSize = 17f; setTextColor(P.fg); typeface = Type.serifMedium(a); setPadding(0, dp(10), 0, dp(6)) })
+                                                     ~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/PermissionCenter.kt:244: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+            recent.forEach { r -> c.addView(TextView(a).apply { text = "${fmt.format(java.util.Date(r.optLong("at")))} · ${r.optString("what")}"; textSize = 14f; setTextColor(P.muted); setPadding(0, dp(3), 0, dp(3)) }) }
+                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/ScreenGate.kt:187: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+                text = "Atlas is using your screen  ·  Stop"; textSize = 13f; setTextColor(Palette.NIGHT.fg)
+                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:250: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            setOnClickListener { it.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK); step(d); num.text = "%02d".format(java.util.Locale.US, get()) }
+                                                                                                                    ~~~~
+/home/runner/work/atlas/atlas/app/src/main/java/com/anjy/atlas/stoa_StoaUi.kt:251: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
+            setOnLongClickListener { repeat(3) { step(d) }; num.text = "%02d".format(java.util.Locale.US, get()); true }
+                                                                        ~~~~
+
+   Explanation for issues of type "SetTextI18n":
+   When calling TextView#setText
+   * Never call Number#toString() to format numbers; it will not handle
+   fraction separators and locale-specific digits properly. Consider using
+   String#format with proper format specifications (%d or %f) instead.
+   * Do not pass a string literal (e.g. "Hello") to display text. Hardcoded
+   text can not be properly translated to other languages. Consider using
+   Android resource strings instead.
+   * Do not build messages by concatenating text chunks. Such messages can not
+   be properly translated.
+
+   https://developer.android.com/guide/topics/resources/localization.html
+
+3 errors, 245 warnings
