@@ -181,7 +181,7 @@ export function session(p, key, history, user, media, tools = TOOLS) {
   const model = modelOf(p), base = baseOf(p);
   if (p.style === 'gemini') {
     const contents = history.map(([u, t]) => ({ role: u ? 'user' : 'model', parts: [{ text: t }] }));
-    contents.push({ role: 'user', parts: [...media.map((m) => (m.fileUri ? { file_data: { mime_type: m.mime, file_uri: m.fileUri } } : { inline_data: { mime_type: m.mime, data: m.base64 } })), { text: user }] });
+    contents.push(asked({ role: 'user', parts: [...media.map((m) => (m.fileUri ? { file_data: { mime_type: m.mime, file_uri: m.fileUri } } : { inline_data: { mime_type: m.mime, data: m.base64 } })), { text: user }] }));
     return {
       key, contents,
       async call(system) {
@@ -208,7 +208,7 @@ export function session(p, key, history, user, media, tools = TOOLS) {
   }
   if (p.style === 'anthropic') {
     const messages = history.map(([u, t]) => ({ role: u ? 'user' : 'assistant', content: t }));
-    messages.push({ role: 'user', content: media.length ? [...media.map((m) => ({ type: m.mime === 'application/pdf' ? 'document' : 'image', source: { type: 'base64', media_type: m.mime, data: m.base64 } })), { type: 'text', text: user }] : user });
+    messages.push(asked({ role: 'user', content: media.length ? [...media.map((m) => ({ type: m.mime === 'application/pdf' ? 'document' : 'image', source: { type: 'base64', media_type: m.mime, data: m.base64 } })), { type: 'text', text: user }] : user }));
     while (messages.length && messages[0].role !== 'user') messages.shift();
     return {
       key, messages,
@@ -229,9 +229,9 @@ export function session(p, key, history, user, media, tools = TOOLS) {
   }
   // OpenAI-style: OpenAI, OpenRouter, Groq, DeepSeek, xAI, a local model, any compatible service
   const messages = history.map(([u, t]) => ({ role: u ? 'user' : 'assistant', content: t }));
-  messages.push({ role: 'user', content: media.length ? [{ type: 'text', text: user }, ...media.map((m) => (m.mime === 'application/pdf'
+  messages.push(asked({ role: 'user', content: media.length ? [{ type: 'text', text: user }, ...media.map((m) => (m.mime === 'application/pdf'
     ? { type: 'file', file: { filename: m.name || 'document.pdf', file_data: `data:application/pdf;base64,${m.base64}` } }
-    : { type: 'image_url', image_url: { url: `data:${m.mime};base64,${m.base64}` } }))] : user });
+    : { type: 'image_url', image_url: { url: `data:${m.mime};base64,${m.base64}` } }))] : user }));
   return {
     key, messages,
     async call(system) {
@@ -265,11 +265,14 @@ export function session(p, key, history, user, media, tools = TOOLS) {
   };
 }
 
+/** The message of this request itself, with the files the user attached: never trimmed, however many screenshots follow. */
+const ASKED = new WeakSet();
+const asked = (m) => { ASKED.add(m); return m; };
 /** Old screenshots and screen readings in a long task are dropped (only the latest two stay), so tasks stay within limits. */
 function trimScreens(list) {
   const isImg = (part) => part && (part.inline_data || part.type === 'image_url' || part.type === 'image');
   const idx = []; list.forEach((m, i) => { const c = m.parts || (Array.isArray(m.content) ? m.content : []); if (c.some((x) => isImg(x) || (x.type === 'tool_result' && Array.isArray(x.content) && x.content.some(isImg)))) idx.push(i); });
-  const old = new Set(idx.slice(0, -2).filter((i) => i !== 0 && i !== list.length - 1));
+  const old = new Set(idx.slice(0, -2).filter((i) => i !== 0 && i !== list.length - 1 && !ASKED.has(list[i])));
   if (!old.size) return list;
   return list.map((m, i) => {
     if (!old.has(i)) return m;
@@ -614,6 +617,8 @@ export async function send(text, { spoken = false, attachments = [] } = {}) {
       if (turn.text) { reply.text = plainReply(turn.text); changed('chat'); }
       const results = [];
       for (const c of turn.calls) {
+        // Stop pressed while an earlier call of this turn ran: the rest (a click, a message, a reminder) doesn't happen
+        if (mine !== convo.stopFlag) throw new Failure('Stopped.');
         convo.status = conn.label(c.name, c.args || {}) || projectLabel(c) || mail.label(c.name, c.args || {}) || (LABEL[c.name] || AWARE_LABEL[c.name] || (() => 'Working'))(c.args || {}); changed('chat');
         const r = await runTool(c);
         if (r.step) reply.steps.push(r.step);
@@ -638,7 +643,7 @@ export function stop() { convo.stopFlag++; convo.busy = false; convo.status = nu
 export class Switch extends Error { constructor(to, msg) { super(msg); this.to = to; } }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // The key pool's rules (the same as the phone's KeyRouter):
-// - Persistent first: a failure that can pass (429 limit, busy server 500/502/503/504, timeout or dropped connection)
+// - Persistent first: a failure that can pass (429 limit, busy server 500/502/503/504 or Claude's 529, timeout or dropped connection)
 //   is retried on the SAME key up to RETRIES times before anything switches. A limit waits as long as the service
 //   asked (Gemini's retryDelay, "try again in 20s", a Retry-After header) when that's a minute or less; with no hint,
 //   5, 15 and 40 s, which covers a per-minute window. Busy servers and the network: 2, 5, 10 s.
@@ -681,7 +686,8 @@ export const WAIT_OUT = [30000, 60000];
 export const dontSwitch = () => !!pref('dont_switch', false);
 export function cause(f) {
   if ([401, 403, 402].includes(f.code) || (f.code === 400 && keyProblem(f.message))) return 'key';
-  if ([429, 500, 502, 503, 504].includes(f.code) || f.offline) return 'passing';
+  // 529: Claude's "overloaded" (Anthropic's own code for a busy service), like a 503
+  if ([429, 500, 502, 503, 504, 529].includes(f.code) || f.offline) return 'passing';
   return 'other';
 }
 

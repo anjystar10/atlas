@@ -143,6 +143,7 @@ export function takeDue(now = Date.now()) {
   }
   // a repeating one comes round again even if this one is never answered (before, only Done or Skip made the next)
   for (const t of rang) spawnNext(t, now);
-  if (due.length) saveState();
+  // missed ones too: kept as rung (so they aren't logged as missed again after a restart) and the Log shows it
+  if (rang.length) saveState();
   return due;
 }
