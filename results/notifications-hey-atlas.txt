@@ -1,0 +1,86 @@
+    NotificationRecord(0x0186bff9: pkg=com.anjy.atlas user=UserHandle{0} id=7 tag=null importance=1 key=0|com.anjy.atlas|7|null|10192: Notification(channel=atlas_avatar shortcut=null contentView=null vibrate=null sound=null defaults=0x0 flags=0x62 color=0x00000000 actions=1 vis=PRIVATE))
+      uid=10192 userId=0
+      opPkg=com.anjy.atlas
+      icon=Icon(typ=RESOURCE pkg=com.anjy.atlas id=0x7f04000e)
+      flags=0x62
+      originalFlags=0x42
+      pri=0
+      key=0|com.anjy.atlas|7|null|10192
+      seen=false
+      groupKey=0|com.anjy.atlas|7|null|10192
+      notification=
+            fullscreenIntent=null
+            contentIntent=PendingIntent{873cb3e: PendingIntentRecord{8289188 com.anjy.atlas startActivity (allowlist: 6cb845d:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+            deleteIntent=null
+            number=0
+            groupAlertBehavior=0
+            when=1795564818957
+            tickerText=null
+            vis=0
+            contentView=null
+            bigContentView=null
+            headsUpContentView=null
+            color=0x00000000
+            timeout=unknown
+            actions={
+                [0] "Start listening" -> PendingIntent{12e9d9f: PendingIntentRecord{817eed1 com.anjy.atlas startForegroundService (allowlist: 6cb845d:+30s0ms/0/NOTIFICATION_SERVICE/NotificationManagerService)}}
+              }
+            extras={
+                android.title=String (Atlas is with you)
+                android.reduced.images=Boolean (true)
+                android.text=String (Say “Hey Atlas”, or tap Atlas on screen.)
+                android.appInfo=ApplicationInfo (ApplicationInfo{cd9beec com.anjy.atlas})
+            }
+      publicNotification=
+            None
+      stats=SingleNotificationStats{posttimeElapsedMs=335668, posttimeToFirstClickMs=-1, posttimeToDismissMs=-1, airtimeCount=0, airtimeMs=0, currentAirtimeStartElapsedMs=-1, airtimeExpandedMs=0, posttimeToFirstVisibleExpansionMs=-1, currentAirtimeExpandedStartElapsedMs=-1, requestedImportance=3, naturalImportance=1, isNoisy=true}
+      mContactAffinity=0.0
+      mRecentlyIntrusive=false
+      mPackagePriority=0
+      mPackageVisibility=-1000
+      mSystemImportance=UNSPECIFIED
+      mAsstImportance=UNSPECIFIED
+      mImportance=MIN
+      mImportanceExplanation=app
+--
+        NotificationChannel{mId='com.android.server.wm.AlertWindowNotification - com.anjy.atlas', mName=Atlas displaying over other apps, mDescription=, mImportance=1, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=false, mShowBadge=true, mDeleted=true, mDeletedTimeMs=1795564790367, mGroup='com.android.server.wm.AlertWindowNotification - ', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=true, mAllowBubbles=-1, mImportanceLockedDefaultApp=true, mOriginalImp=1, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+        NotificationChannel{mId='SECURITY', mName=Security, mDescription=, mImportance=2, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=true, mOriginalImp=2, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+        NotificationChannel{mId='NETWORK_AVAILABLE', mName=Network available, mDescription=, mImportance=2, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=true, mAllowBubbles=-1, mImportanceLockedDefaultApp=true, mOriginalImp=2, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+        NotificationChannel{mId='DEVELOPER_IMPORTANT', mName=Important developer messages, mDescription=, mImportance=4, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=true, mOriginalImp=4, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+        NotificationChannel{mId='ALERTS', mName=Alerts, mDescription=, mImportance=3, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=true, mOriginalImp=3, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+        NotificationChannelGroup{mId='safety_center_channels', mName=Security & privacy, mDescription=, mBlocked=false, mChannels=[], mUserLockedFields=0}
+        NotificationChannelGroup{mId='com.android.server.wm.AlertWindowNotification - ', mName=Display over other apps, mDescription=, mBlocked=false, mChannels=[], mUserLockedFields=0}
+      AppSettings: com.google.android.overlay.googleconfig (10055)
+      AppSettings: com.android.internal.emulation.pixel_8 (10039)
+      AppSettings: com.google.android.inputmethod.latin (10144)
+        NotificationChannel{mId='com.google.android.apps.inputmethod.libs.dataservice.superpacks', mName=Downloads, mDescription=, mImportance=2, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=true, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=false, mOriginalImp=2, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+        NotificationChannel{mId='com.google.android.inputmethod.latin', mName=Downloads, mDescription=, mImportance=2, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=false, mOriginalImp=2, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+      AppSettings: com.android.internal.systemui.navbar.threebutton (10068)
+--
+      AppSettings: com.anjy.atlas (10192) importance=DEFAULT userSet=false
+        NotificationChannel{mId='atlas_avatar', mName=Atlas on screen, mDescription=hasDescription , mImportance=1, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=true, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=false, mOriginalImp=1, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+        NotificationChannel{mId='atlas_screen', mName=Atlas using the screen, mDescription=, mImportance=4, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=false, mOriginalImp=4, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+        NotificationChannel{mId='atlas_ping', mName=Reminders, mDescription=hasDescription , mImportance=4, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=true, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION_EVENT content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=false, mOriginalImp=4, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+        NotificationChannel{mId='atlas_alarm', mName=Alarms, mDescription=hasDescription , mImportance=4, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/alarm_alert, mLights=false, mLightColor=0, mVibration=[0, 600, 400, 600], mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=true, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_ALARM content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=false, mOriginalImp=4, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+        NotificationChannel{mId='atlas_focus', mName=Focus sessions, mDescription=hasDescription , mImportance=2, mBypassDnd=false, mLockscreenVisibility=-1000, mSound=content://settings/system/notification_sound, mLights=false, mLightColor=0, mVibration=null, mUserLockedFields=0, mUserVisibleTaskShown=false, mVibrationEnabled=false, mShowBadge=true, mDeleted=false, mDeletedTimeMs=-1, mGroup='null', mAudioAttributes=AudioAttributes: usage=USAGE_NOTIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null, mBlockableSystem=false, mAllowBubbles=-1, mImportanceLockedDefaultApp=false, mOriginalImp=2, mParent=null, mConversationId=null, mDemoted=false, mImportantConvo=false}
+      AppSettings: com.google.android.devicelockcontroller (10183) importance=DEFAULT userSet=false
+      AppSettings: com.android.systemui.emulation.pixel_8_pro (10001)
+      AppSettings: com.google.android.as.oss (10121)
+      AppSettings: com.android.providers.media (10085) fixedImportance=true
+      AppSettings: com.android.stk (1001) importance=DEFAULT userSet=false fixedImportance=true
+      AppSettings: com.google.android.apps.maps (10155) importance=NONE userSet=false
+      AppSettings: com.android.location.fused (1000) fixedImportance=true
+--
+      key='com.anjy.atlas',
+      numEnqueuedByApp=81,
+      numPostedByApp=23,
+      numUpdatedByApp=61,
+      numRemovedByApp=18,
+      numPeopleCacheHit=106,
+      numWithStaredPeople=0,
+      numWithValidPeople=0,
+      numPeopleCacheMiss=0,
+      numBlocked=0,
+      numSuspendedByAdmin=0,
+      numWithActions=4,
+      numPrivate=84,

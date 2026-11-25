@@ -1,0 +1,67 @@
+--------- beginning of main
+11-24 23:55:15.095  3844  4015 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:55:15.096  3844  4016 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:55:15.096  3844  4016 E AtlasOrb: orb renderer
+11-24 23:55:15.096  3844  4016 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:55:15.096  3844  4016 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:55:15.096  3844  4016 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:55:15.097  3844  4015 E AtlasOrb: orb renderer
+11-24 23:55:15.097  3844  4015 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:55:15.097  3844  4015 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:55:15.097  3844  4015 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:55:17.946  3844  3844 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead
+11-24 23:55:17.949  3844  3844 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead
+11-24 23:55:26.255  4495  4563 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:55:26.256  4495  4563 E AtlasOrb: orb renderer
+11-24 23:55:26.256  4495  4563 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:55:26.256  4495  4563 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:55:26.256  4495  4563 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:55:26.403  4495  4564 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:55:26.404  4495  4564 E AtlasOrb: orb renderer
+11-24 23:55:26.404  4495  4564 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:55:26.404  4495  4564 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:55:26.404  4495  4564 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:55:28.915  4495  4495 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead
+11-24 23:55:28.924  4495  4495 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead
+11-24 23:56:12.083  5989  6032 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:56:12.085  5989  6031 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:56:12.086  5989  6031 E AtlasOrb: orb renderer
+11-24 23:56:12.086  5989  6031 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:56:12.086  5989  6031 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:56:12.086  5989  6031 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:56:12.087  5989  6032 E AtlasOrb: orb renderer
+11-24 23:56:12.087  5989  6032 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:56:12.087  5989  6032 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:56:12.087  5989  6032 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:56:14.473  5989  5989 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead
+11-24 23:56:14.475  5989  5989 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead
+11-24 23:56:55.893  6626  6662 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:56:55.894  6626  6662 E AtlasOrb: orb renderer
+11-24 23:56:55.894  6626  6662 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:56:55.894  6626  6662 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:56:55.894  6626  6662 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:56:55.900  6626  6663 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:56:55.900  6626  6663 E AtlasOrb: orb renderer
+11-24 23:56:55.900  6626  6663 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:56:55.900  6626  6663 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:56:55.900  6626  6663 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:56:57.875  6626  6626 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead
+11-24 23:56:57.877  6626  6626 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead
+11-24 23:57:58.699  7210  7245 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:57:58.700  7210  7245 E AtlasOrb: orb renderer
+11-24 23:57:58.700  7210  7245 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:57:58.700  7210  7245 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:57:58.700  7210  7245 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:58:00.347  7210  7210 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead
+11-24 23:58:13.210  7210  7364 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:58:13.211  7210  7364 E AtlasOrb: orb renderer
+11-24 23:58:13.211  7210  7364 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:58:13.211  7210  7364 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:58:13.211  7210  7364 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:58:13.239  7210  7210 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead
+11-24 23:59:01.543  7664  7702 I AtlasOrb: graphics chip: Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.)
+11-24 23:59:01.545  7664  7702 E AtlasOrb: orb renderer
+11-24 23:59:01.545  7664  7702 E AtlasOrb: java.lang.IllegalStateException: software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))
+11-24 23:59:01.545  7664  7702 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.setup(OrbGl.kt:231)
+11-24 23:59:01.545  7664  7702 E AtlasOrb: 	at com.anjy.atlas.GlOrbView$Renderer.run(OrbGl.kt:182)
+11-24 23:59:02.388  7664  7664 W AtlasOrb: graphics chip can't draw the orb (software graphics (Android Emulator OpenGL ES Translator (Google SwiftShader) Google (Google Inc.))); painting it on the processor instead

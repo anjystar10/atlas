@@ -1,0 +1,15 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "role": "model",
+    "parts": [
+     {
+      "text": "Logged it: Logged reminder [030efc41-8bed-4354-a704-52278b319a08] 'Pick up my sister' for in 1514 days, Thu 16 Jan 2031, 16:00 (Etc/UTC); at its time: a notification with a sound. Tell the user this stored time exactly."
+     }
+    ]
+   },
+   "finishReason": "STOP"
+  }
+ ]
+}

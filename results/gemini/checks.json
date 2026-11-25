@@ -1,0 +1,14 @@
+[
+ {
+  "after": "open_app",
+  "signature_returned": [
+   "SIG-open"
+  ]
+ },
+ {
+  "after": "set_reminder",
+  "signature_returned": [
+   "SIG-rem"
+  ]
+ }
+]

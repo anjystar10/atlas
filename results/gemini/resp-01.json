@@ -1,0 +1,21 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "role": "model",
+    "parts": [
+     {
+      "functionCall": {
+       "name": "open_app",
+       "args": {
+        "name": "Settings"
+       }
+      },
+      "thoughtSignature": "SIG-open"
+     }
+    ]
+   },
+   "finishReason": "STOP"
+  }
+ ]
+}

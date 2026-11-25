@@ -1,0 +1,21 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "role": "model",
+    "parts": [
+     {
+      "functionCall": {
+       "name": "tap",
+       "args": {
+        "element": 13
+       }
+      },
+      "thoughtSignature": "SIG-tap"
+     }
+    ]
+   },
+   "finishReason": "STOP"
+  }
+ ]
+}

@@ -1,0 +1,49 @@
+/data/data/com.anjy.atlas/files/vosk-small-en-us-0.15:
+total 64
+drwx------ 6 u0_a192 u0_a192 4096 2026-11-25 00:00 .
+drwxrwx--x 5 u0_a192 u0_a192 4096 2026-11-25 00:00 ..
+-rw------- 1 u0_a192 u0_a192   16 2026-11-25 00:00 .complete
+-rw------- 1 u0_a192 u0_a192  199 2026-11-25 00:00 README
+drwx------ 2 u0_a192 u0_a192 4096 2026-11-25 00:00 am
+drwx------ 2 u0_a192 u0_a192 4096 2026-11-25 00:00 conf
+drwx------ 3 u0_a192 u0_a192 4096 2026-11-25 00:00 graph
+drwx------ 2 u0_a192 u0_a192 4096 2026-11-25 00:00 ivector
+
+/data/data/com.anjy.atlas/files/vosk-small-en-us-0.15/am:
+total 15612
+drwx------ 2 u0_a192 u0_a192     4096 2026-11-25 00:00 .
+drwx------ 6 u0_a192 u0_a192     4096 2026-11-25 00:00 ..
+-rw------- 1 u0_a192 u0_a192 15962575 2026-11-25 00:00 final.mdl
+
+/data/data/com.anjy.atlas/files/vosk-small-en-us-0.15/conf:
+total 32
+drwx------ 2 u0_a192 u0_a192 4096 2026-11-25 00:00 .
+drwx------ 6 u0_a192 u0_a192 4096 2026-11-25 00:00 ..
+-rw------- 1 u0_a192 u0_a192  131 2026-11-25 00:00 mfcc.conf
+-rw------- 1 u0_a192 u0_a192  290 2026-11-25 00:00 model.conf
+
+/data/data/com.anjy.atlas/files/vosk-small-en-us-0.15/graph:
+total 45384
+drwx------ 3 u0_a192 u0_a192     4096 2026-11-25 00:00 .
+drwx------ 6 u0_a192 u0_a192     4096 2026-11-25 00:00 ..
+-rw------- 1 u0_a192 u0_a192 24013795 2026-11-25 00:00 Gr.fst
+-rw------- 1 u0_a192 u0_a192 22416994 2026-11-25 00:00 HCLr.fst
+-rw------- 1 u0_a192 u0_a192      102 2026-11-25 00:00 disambig_tid.int
+drwx------ 2 u0_a192 u0_a192     4096 2026-11-25 00:00 phones
+
+/data/data/com.anjy.atlas/files/vosk-small-en-us-0.15/graph/phones:
+total 24
+drwx------ 2 u0_a192 u0_a192 4096 2026-11-25 00:00 .
+drwx------ 3 u0_a192 u0_a192 4096 2026-11-25 00:00 ..
+-rw------- 1 u0_a192 u0_a192 1761 2026-11-25 00:00 word_boundary.int
+
+/data/data/com.anjy.atlas/files/vosk-small-en-us-0.15/ivector:
+total 8360
+drwx------ 2 u0_a192 u0_a192    4096 2026-11-25 00:00 .
+drwx------ 6 u0_a192 u0_a192    4096 2026-11-25 00:00 ..
+-rw------- 1 u0_a192 u0_a192  168048 2026-11-25 00:00 final.dubm
+-rw------- 1 u0_a192 u0_a192 8288887 2026-11-25 00:00 final.ie
+-rw------- 1 u0_a192 u0_a192   44975 2026-11-25 00:00 final.mat
+-rw------- 1 u0_a192 u0_a192    1080 2026-11-25 00:00 global_cmvn.stats
+-rw------- 1 u0_a192 u0_a192      95 2026-11-25 00:00 online_cmvn.conf
+-rw------- 1 u0_a192 u0_a192      35 2026-11-25 00:00 splice.conf
