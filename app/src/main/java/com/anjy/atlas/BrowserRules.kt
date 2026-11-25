@@ -116,12 +116,14 @@ object BrowserRules {
     fun approval(tool: String, args: JSONObject, label: String?, inForm: Boolean, site: String, signals: Signals = Signals()): String? {
         val where = if (site.isNotBlank()) " on $site" else ""
         // money first: on a payment page, or where the element or its form says buy/pay/order, every action asks
+        // (a page Atlas couldn't check is said as it is, not called a payment page)
+        val pay = if (signals.unread && !signals.payFields && !payPath.containsMatchIn("/" + signals.url.substringAfter("://").substringAfter('/', ""))) "a page Atlas couldn't check for payments" else "a payment page"
         if (moneyRisk(tool, signals)) return when (tool) {
-            "browser_click" -> "Click “${(label ?: args.optString("target")).take(60)}” on a payment page$where"
-            "browser_type" -> "Type into a payment page$where" + (if (args.optBoolean("submit", false)) " and submit it" else "")
-            "browser_select" -> "Choose “${args.optString("option").take(40)}” on a payment page$where"
-            "browser_press" -> "Press ${args.optString("key").take(20)} on a payment page$where"
-            else -> "Sign in on a payment page$where with your saved sign-in “${args.optString("entry").take(40)}”"
+            "browser_click" -> "Click “${(label ?: args.optString("target")).take(60)}” on $pay$where"
+            "browser_type" -> "Type into $pay$where" + (if (args.optBoolean("submit", false)) " and submit it" else "")
+            "browser_select" -> "Choose “${args.optString("option").take(40)}” on $pay$where"
+            "browser_press" -> "Press ${args.optString("key").take(20)} on $pay$where"
+            else -> "Sign in on $pay$where with your saved sign-in “${args.optString("entry").take(40)}”"
         }
         return when (tool) {
             "browser_click" -> if (risky(label)) "Click “${label!!.take(60)}”$where" else null
@@ -141,7 +143,9 @@ object BrowserRules {
      * the words of the target element beyond its visible text (aria-label, title, name, id, value), and its form
      * (the form's address and its submit buttons). A page can make its button *say* anything, so these count too.
      */
-    class Signals(val url: String = "", val payFields: Boolean = false, val elementText: String = "", val formText: String = "")
+    class Signals(val url: String = "", val payFields: Boolean = false, val elementText: String = "", val formText: String = "",
+        /** The page couldn't be checked (its script failed or didn't answer): money can't be ruled out, so it counts as a payment page. */
+        val unread: Boolean = false)
 
     /** The browser actions the money rule covers. */
     val moneyTools = setOf("browser_click", "browser_type", "browser_press", "browser_select", "browser_fill_login")
@@ -149,7 +153,7 @@ object BrowserRules {
     private val moneyWords = Regex("\\b(buy|purchase|pay|payment|checkout|check ?out|place ?order|order now|complete order|confirm order|subscribe|donate|book now|card number|cvv|cvc|iban)\\b", RegexOption.IGNORE_CASE)
 
     /** A page where money changes hands: payment fields on it, or an address that reads like checkout/payment. */
-    fun paymentPage(s: Signals): Boolean = s.payFields || payPath.containsMatchIn("/" + s.url.substringAfter("://").substringAfter('/', ""))
+    fun paymentPage(s: Signals): Boolean = s.payFields || s.unread || payPath.containsMatchIn("/" + s.url.substringAfter("://").substringAfter('/', ""))
 
     /** True when [tool] on this page must always wait for a tap: no standing rule and no "allow on this site" skips it. */
     fun moneyRisk(tool: String, s: Signals): Boolean =

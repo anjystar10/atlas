@@ -106,7 +106,17 @@ class BrowserRulesTest {
         assertTrue(BrowserRules.paymentPage(BrowserRules.Signals(url = "https://news.example/a", payFields = true)))
         assertFalse(BrowserRules.paymentPage(BrowserRules.Signals(url = "https://news.example/paying-for-college")))
         assertFalse(BrowserRules.paymentPage(BrowserRules.Signals(url = "https://payments.example/")))   // only the path counts, not the host
-        assertFalse(BrowserRules.paymentPage(S("https://shop.example/search?q=shoes", false, "", "")))
+        assertFalse(BrowserRules.paymentPage(S("https://shop.example/search?q=shoes", false, "", "", false)))
+    }
+
+    @Test fun aPageThatCantBeCheckedCountsAsMoney() {
+        // the page script failed (an input id with a backslash broke a selector) or didn't answer: money can't be ruled out
+        val unread = BrowserRules.Signals(url = "https://shop.example/basket", unread = true)
+        assertTrue(BrowserRules.paymentPage(unread))
+        assertTrue(BrowserRules.moneyRisk("browser_click", unread))
+        val what = BrowserRules.approval("browser_click", JSONObject().put("target", "3"), "Continue", false, "shop.example", unread)
+        assertNotNull(what); assertTrue(what!!, what.contains("couldn't check")); assertFalse("not called a payment page", what.contains("a payment page"))
+        assertEquals("purchase", BotExtras.Rules.guessCategory(BrowserRules.riskText("Continue", unread) + " " + what))
     }
 
     @Test fun moneyAlwaysAsksEvenWhenTheButtonSaysSomethingElse() {

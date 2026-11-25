@@ -69,6 +69,10 @@ object BotBrowser {
     @Volatile var onScreen = false; private set
     /** Downloads the page started by itself (a click on a download link), waiting to be reported to the bot. */
     private val started = mutableListOf<String>()
+    private const val MAX_PAGE_DOWNLOADS_AT_ONCE = 3
+    private const val MAX_PAGE_DOWNLOADS = 20
+    /** Downloads pages started by themselves since the browser opened. */
+    private var pageDownloads = 0
     private var callbacks: ComponentCallbacks2? = null
     private val listeners = mutableListOf<() -> Unit>()
     fun listen(l: () -> Unit) { if (l !in listeners) listeners.add(l) }
@@ -120,7 +124,16 @@ object BotBrowser {
         }
         v.setDownloadListener { url, _, cd, mime, _ ->
             val j = owner ?: return@setDownloadListener
-            synchronized(started) { started.add(url) }
+            // a page can start downloads by itself, again and again: a few at a time and a limit per page session, or it could fill the phone
+            val skip = synchronized(started) {
+                val going = started.count { !it.startsWith("done:") }
+                when {
+                    going >= MAX_PAGE_DOWNLOADS_AT_ONCE -> "Skipped a download the page started by itself: $going are still downloading."
+                    pageDownloads >= MAX_PAGE_DOWNLOADS -> "Skipped a download the page started by itself: it has started $pageDownloads already."
+                    else -> { pageDownloads++; started.add(url); null }
+                }
+            }
+            if (skip != null) { synchronized(started) { if ("done:$skip" !in started) started.add("done:$skip") }; return@setDownloadListener }
             Bots.scopeLaunch { val r = saveDownload(j, url, BrowserRules.nameFromDisposition(cd), mime); synchronized(started) { started.remove(url); started.add("done:$r") } }
         }
         layOut(v)
@@ -169,7 +182,7 @@ object BotBrowser {
     fun close(why: String) {
         val v = web ?: return
         Log.i(TAG, "closing: $why")
-        web = null; owner = null; loading = false
+        web = null; owner = null; loading = false; synchronized(started) { pageDownloads = 0 }
         try { (v.parent as? android.view.ViewGroup)?.removeView(v); v.stopLoading(); v.loadUrl("about:blank"); v.removeAllViews(); v.destroy() } catch (e: Exception) { Log.w(TAG, "close", e) }
         ctxWrap = null
         main.removeCallbacks(idleCheck)
@@ -200,6 +213,8 @@ object BotBrowser {
         }
         lastUse = SystemClock.elapsedRealtime()
         changed()
+        // the job was stopped (or finished) while the user watched: release() had to leave it, so it goes now, not 10 minutes later
+        owner.let { o -> if (o == null || Bots.job(o)?.final != false) close("job ended") }
     }
 
     // ---------------------------------------------------------------- the page script
@@ -412,12 +427,14 @@ object BotBrowser {
             "browser_click", "browser_type", "browser_select" -> eval(v, findJs(args.optString("target")))?.takeIf { it.optBoolean("found") }?.optString("id")
             else -> null
         }
-        val o = eval(v, signalsJs(id, focused = name == "browser_press")) ?: return BrowserRules.Signals(url = v.url ?: "")
-        return BrowserRules.Signals(o.optString("url", v.url ?: ""), o.optBoolean("pay"), o.optString("el"), o.optString("form"))
+        // no answer (the script failed or timed out): it can't be shown there's no money involved, so it counts as if there were
+        val o = eval(v, signalsJs(id, focused = name == "browser_press")) ?: return BrowserRules.Signals(url = v.url ?: "", unread = true)
+        return BrowserRules.Signals(o.optString("url", v.url ?: ""), o.optBoolean("pay"), o.optString("el"), o.optString("form"), unread = o.optBoolean("unread"))
     }
 
     private fun signalsJs(id: String?, focused: Boolean) = """
 (function(id,focused){
+ try {
   function attr(x,n){ return (x&&x.getAttribute&&x.getAttribute(n))||''; }
   function words(x){ if(!x) return ''; var t=[attr(x,'aria-label'),attr(x,'title'),attr(x,'name'),x.id||'',attr(x,'data-testid'),attr(x,'formaction')];
     var ty=(x.type||'').toLowerCase(); if(x.tagName=='BUTTON'||ty=='submit'||ty=='button'||ty=='image') t.push(x.value||'', x.innerText||'');
@@ -432,10 +449,11 @@ object BotBrowser {
   var ins=document.querySelectorAll('input,select');
   for(var j=0;j<ins.length&&!pay;j++){ var x=ins[j], ac=(attr(x,'autocomplete')||'').toLowerCase();
     if(ac.indexOf('cc-')==0) pay=true;
-    else { var lab=''; if(x.id){ var l=document.querySelector('label[for="'+x.id.replace(/"/g,'')+'"]'); if(l) lab=l.innerText||''; }
+    else { var lab=''; if(x.id){ var l=null; try{ l=document.querySelector('label[for="'+CSS.escape(x.id)+'"]'); }catch(_){} if(l) lab=l.innerText||''; }
       if(rx.test(attr(x,'name')+' '+(x.id||'')+' '+attr(x,'placeholder')+' '+attr(x,'aria-label')+' '+lab)) pay=true; } }
   if(!pay){ var fr=document.querySelectorAll('iframe'); for(var k=0;k<fr.length;k++){ if(/stripe|braintree|adyen|paypal|klarna|checkout|payment|card/i.test((fr[k].src||'')+' '+attr(fr[k],'name')+' '+attr(fr[k],'title'))){ pay=true; break; } } }
   return JSON.stringify({url:location.href,pay:pay,el:words(e),form:ft.replace(/\s+/g,' ').slice(0,600)});
+ } catch(err){ return JSON.stringify({url:location.href,unread:true}); }
 })(${if (id == null) "null" else JSONObject.quote(id)},$focused)
 """.trimIndent()
 
