@@ -86,14 +86,30 @@ object KeyRouter {
     /** Whether retrying might help (PASSING), the key itself can't go on (KEY), or neither (OTHER: give up). */
     fun cause(code: Int, offline: Boolean, message: String): Cause = when {
         code == 401 || code == 403 || code == 402 || (code == 400 && keyProblem(message)) -> Cause.KEY
-        code == 429 || code == 500 || code == 502 || code == 503 || code == 504 || offline -> Cause.PASSING
+        // 408: OpenRouter's "the request timed out"; 529: Claude's "overloaded" (both their docs say retry)
+        code == 408 || code == 429 || code == 500 || code == 502 || code == 503 || code == 504 || code == 529 || offline -> Cause.PASSING
         else -> Cause.OTHER
     }
+
+    /**
+     * Gemini's free tier also has a limit per DAY (its 429 names a quota id like "GenerateRequestsPerDayPerProjectPerModel-
+     * FreeTier"). That one resets at midnight Pacific time, whatever "retryDelay" the same answer gives (often "1s"),
+     * so waiting a few seconds, or resting the key for two minutes, only fails again. Returns the ms until that reset,
+     * or 0 when it isn't the daily limit.
+     */
+    fun dailyResetMs(body: String?, now: Long): Long {
+        if (body == null || !DAILY.containsMatchIn(body)) return 0
+        val pt = java.time.ZoneId.of("America/Los_Angeles")
+        val next = java.time.Instant.ofEpochMilli(now).atZone(pt).toLocalDate().plusDays(1).atStartOfDay(pt).toInstant().toEpochMilli()
+        return (next - now).coerceAtLeast(60_000)
+    }
+    private val DAILY = Regex("\"quotaId\"\\s*:\\s*\"[A-Za-z]*PerDay")
 
     /** What the router needs from the key pool (the real one is [Providers]; tests use a fake). */
     interface Pool {
         fun readyKey(id: String, except: String): String?
-        fun rest(id: String, key: String, code: Int, problem: String)
+        /** [waitMs]: how long the service said the key must wait (0 if it didn't say). */
+        fun rest(id: String, key: String, code: Int, problem: String, waitMs: Long)
         fun worked(id: String, key: String)
         fun fallback(except: String): Providers.Provider?
         val dontSwitch: Boolean
@@ -101,7 +117,7 @@ object KeyRouter {
 
     private class RealPool(val ctx: Context) : Pool {
         override fun readyKey(id: String, except: String) = Providers.readyKey(ctx, id, except = except)
-        override fun rest(id: String, key: String, code: Int, problem: String) = Providers.rest(ctx, id, key, code, problem)
+        override fun rest(id: String, key: String, code: Int, problem: String, waitMs: Long) = Providers.rest(ctx, id, key, code, problem, waitMs)
         override fun worked(id: String, key: String) = Providers.worked(ctx, id, key)
         override fun fallback(except: String) = Providers.fallbacks(ctx, except).firstOrNull()
         override val dontSwitch get() = KeyRouter.dontSwitch(ctx)
@@ -146,7 +162,7 @@ object KeyRouter {
                 // this key can't go on: rest it (limit, credit) or set it aside (turned down), and try the next key
                 if (c == Cause.KEY || f.code == 429) {
                     val k = key()
-                    if (rested.add(k)) withContext(Dispatchers.IO) { pool.rest(p.id, k, f.code, msg) }
+                    if (rested.add(k)) withContext(Dispatchers.IO) { pool.rest(p.id, k, f.code, msg, f.retryAfterMs) }
                     val next = withContext(Dispatchers.IO) { pool.readyKey(p.id, except = k) }
                     if (next != null && next !in rested) {
                         setKey(next); retries = 0
@@ -161,20 +177,23 @@ object KeyRouter {
                     c == Cause.KEY || f.code == 429 -> "All your ${p.name} keys are used up for now."
                     else -> "${p.name} kept failing (tried $RETRIES times)."
                 })
-                if (f.code == 429 && waitedOut < WAIT_OUT.size) {
+                // (not when the service said the wait is longer than a minute, such as Gemini's daily limit: sitting out
+                // 30 s and 60 s would only fail again)
+                if (f.code == 429 && waitedOut < WAIT_OUT.size && !tooLong) {
                     onStatus("Waiting for ${p.name}'s limit to reset")
                     sleep(WAIT_OUT[waitedOut++])
                     onStatus(null)
                     continue
                 }
-                throw Gemini.Failure(giveUp(p, f, c, stay && other != null), code = f.code)
+                throw Gemini.Failure(giveUp(p, f, c, stay && other != null, tooLong), code = f.code)
             }
         }
     }
 
-    private fun giveUp(p: Providers.Provider, f: Gemini.Failure, c: Cause, stayed: Boolean): String {
+    private fun giveUp(p: Providers.Provider, f: Gemini.Failure, c: Cause, stayed: Boolean, longWait: Boolean = false): String {
         val base = f.message ?: "${p.name} failed."
         return when {
+            stayed && f.code == 429 && longWait -> "$base Don't Switch Services is on, so I stayed on ${p.name}. Add another ${p.name} key in Me → Brain to carry on sooner."
             stayed && f.code == 429 -> "${p.name}'s limit is used up for now. Don't Switch Services is on, so I stayed on ${p.name}: try again in a few minutes, or add another ${p.name} key in Me → Brain."
             stayed && c == Cause.KEY -> "$base Don't Switch Services is on, so I didn't move to another service. Add another ${p.name} key in Me → Brain."
             stayed -> "$base I tried $RETRIES times. Don't Switch Services is on, so I didn't move to another service."

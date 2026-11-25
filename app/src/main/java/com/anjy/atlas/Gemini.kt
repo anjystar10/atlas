@@ -112,8 +112,10 @@ object Gemini {
     }
 
     /** Turns an error body into one plain sentence. */
-    fun explain(code: Int, body: String): String {
+    fun explain(code: Int, body: String, now: Long = System.currentTimeMillis()): String {
         val msg = try { JSONObject(body).optJSONObject("error")?.optString("message").orEmpty() } catch (_: Exception) { "" }
+        val daily = if (code == 429) KeyRouter.dailyResetMs(body, now) else 0L
+        if (daily > 0) return "Today's free Gemini limit is used up for this key. It resets at ${com.anjy.atlas.core.When.fmtLong(now + daily, com.anjy.atlas.core.Engine.zone).substringAfter(", ")} your time (midnight Pacific time)."
         return when (code) {
             400 -> if (msg.contains("API key", true)) "That Gemini key isn't valid. Check it in Me." else "Gemini didn't accept the request: ${msg.ifBlank { "bad request" }.take(180)}"
             401, 403 -> "Gemini turned the key down: ${msg.ifBlank { "permission denied" }.take(160)}"
@@ -144,8 +146,14 @@ object Gemini {
             val code = con.responseCode
             val stream = if (code in 200..299) con.inputStream else con.errorStream
             val body = stream?.use { String(it.readBytes(), Charsets.UTF_8) } ?: ""
-            if (code !in 200..299) throw Failure(explain(code, body), code = code, retryAfterMs = KeyRouter.retryHint(body, con.getHeaderField("retry-after")))
-            return parse(JSONObject(body))
+            if (code !in 200..299) {
+                // the daily limit's own wait (until it resets), not the misleading "retryDelay" that comes with it
+                val wait = KeyRouter.dailyResetMs(body, System.currentTimeMillis()).takeIf { code == 429 && it > 0 } ?: KeyRouter.retryHint(body, con.getHeaderField("retry-after"))
+                throw Failure(explain(code, body), code = code, retryAfterMs = wait)
+            }
+            // a page that isn't JSON (a network's sign-in page, a proxy) is said plainly, not shown as a parser error
+            val json = try { JSONObject(body) } catch (_: Exception) { throw Failure("Gemini sent back something unreadable.") }
+            return parse(json)
         } catch (e: Failure) { throw e
         } catch (e: UnknownHostException) { throw Failure("No internet connection.", offline = true)
         } catch (e: SocketTimeoutException) { throw Failure("Gemini took too long to answer.", offline = true)

@@ -168,31 +168,35 @@ object Providers {
 
     /** Adds a key to the service's pool (or wakes it, if it's already there). */
     fun setKey(ctx: Context, id: String, key: String) = addKey(ctx, id, key)
-    fun addKey(ctx: Context, id: String, key: String) {
+    @Synchronized fun addKey(ctx: Context, id: String, key: String) {
         val k = key.trim(); if (k.isEmpty()) return
         val list = keys(ctx, id)
         val have = list.firstOrNull { it.key == k }
         if (have != null) { have.bad = false; have.restUntil = 0; have.fails = 0; have.problem = "" } else list.add(KeyEntry(k))
         saveKeys(ctx, id, list)
     }
-    fun removeKey(ctx: Context, id: String, key: String) { saveKeys(ctx, id, keys(ctx, id).filter { it.key != key }) }
-    fun wakeKey(ctx: Context, id: String, key: String) { val l = keys(ctx, id); l.firstOrNull { it.key == key }?.apply { bad = false; restUntil = 0; fails = 0; problem = "" }; saveKeys(ctx, id, l) }
+    @Synchronized fun removeKey(ctx: Context, id: String, key: String) { saveKeys(ctx, id, keys(ctx, id).filter { it.key != key }) }
+    @Synchronized fun wakeKey(ctx: Context, id: String, key: String) { val l = keys(ctx, id); l.firstOrNull { it.key == key }?.apply { bad = false; restUntil = 0; fails = 0; problem = "" }; saveKeys(ctx, id, l) }
 
-    /** A key failed with [code]: rest it (ran out of quota or credit) or set it aside (turned down). */
-    fun rest(ctx: Context, id: String, key: String, code: Int, problem: String) {
+    /**
+     * A key failed with [code]: rest it (ran out of quota or credit) or set it aside (turned down). [waitMs]: how long
+     * the service said to wait ("try again in 7m12s", Gemini's daily limit until midnight Pacific); the rest is at least
+     * that long, so Atlas doesn't come back to a key that is sure to fail again.
+     */
+    @Synchronized fun rest(ctx: Context, id: String, key: String, code: Int, problem: String, waitMs: Long = 0) {
         val list = keys(ctx, id)
         val e = list.firstOrNull { it.key == key } ?: return
         val now = System.currentTimeMillis()
         when (code) {
             401, 403, 400 -> { e.bad = true }
             402 -> { e.restUntil = now + 6 * 3_600_000L }
-            else -> { e.fails++; e.restUntil = now + minOf(24 * 3_600_000L, 120_000L shl minOf(e.fails - 1, 10)) }
+            else -> { e.fails++; e.restUntil = now + maxOf(minOf(24 * 3_600_000L, 120_000L shl minOf(e.fails - 1, 10)), waitMs.coerceIn(0, 24 * 3_600_000L)) }
         }
         e.problem = problem.take(160)
         saveKeys(ctx, id, list)
     }
     /** A call with this key worked: its run of failures is over. */
-    fun worked(ctx: Context, id: String, key: String) {
+    @Synchronized fun worked(ctx: Context, id: String, key: String) {
         val list = keys(ctx, id); val e = list.firstOrNull { it.key == key } ?: return
         if (e.fails != 0 || e.problem.isNotEmpty()) { e.fails = 0; e.problem = ""; saveKeys(ctx, id, list) }
     }

@@ -12,8 +12,9 @@ class KeyRouterTest {
 
     private class FakePool(var keys: MutableList<String>, val other: Providers.Provider?, override val dontSwitch: Boolean = false) : KeyRouter.Pool {
         val rested = mutableListOf<Pair<String, Int>>()
+        val restWaits = mutableListOf<Long>()
         override fun readyKey(id: String, except: String) = keys.firstOrNull { it != except && rested.none { r -> r.first == it } }
-        override fun rest(id: String, key: String, code: Int, problem: String) { rested.add(key to code) }
+        override fun rest(id: String, key: String, code: Int, problem: String, waitMs: Long) { rested.add(key to code); restWaits.add(waitMs) }
         override fun worked(id: String, key: String) {}
         override fun fallback(except: String) = other
     }
@@ -137,5 +138,53 @@ class KeyRouterTest {
         assertEquals("ok", go(FakePool(mutableListOf("k1", "k2"), groq), listOf(Gemini.Failure("limit", code = 429, retryAfterMs = 3_600_000)), waits2, used2))
         assertEquals(listOf("k1", "k2"), used2)
         assertTrue(waits2.none { it >= 2_000 })
+    }
+
+    // ---- scan 3: Claude's 529 and OpenRouter's 408 are passing; Gemini's DAILY limit is not a one-second wait
+
+    @Test fun overloadedAndTimedOutAreRetried() {
+        assertEquals(KeyRouter.Cause.PASSING, KeyRouter.cause(529, false, "Claude is having trouble right now (529). Try again shortly."))
+        assertEquals(KeyRouter.Cause.PASSING, KeyRouter.cause(408, false, ""))
+        val used = mutableListOf<String>(); val waits = mutableListOf<Long>()
+        assertEquals("ok", go(FakePool(mutableListOf("k1"), groq), List(2) { Gemini.Failure("Claude is having trouble right now (529).", code = 529) }, waits, used))
+        assertEquals(listOf("k1", "k1", "k1"), used)
+        assertEquals(listOf(2_000L, 5_000L), waits)
+    }
+
+    private val dailyBody = """{"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details.","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-3.8-flash"},"quotaValue":"250"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"1s"}]}}"""
+    private val minuteBody = """{"error":{"code":429,"status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaId":"GenerateRequestsPerMinutePerProjectPerModel-FreeTier"}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"37s"}]}}"""
+
+    @Test fun geminisDailyLimitWaitsUntilMidnightPacific() {
+        // 25 Nov 2026 10:00 UTC = 02:00 in California (PST): the next reset is 26 Nov 08:00 UTC, 09:00 in Lagos
+        val now = java.time.Instant.parse("2026-11-25T10:00:00Z").toEpochMilli()
+        assertEquals(22 * 3_600_000L, KeyRouter.dailyResetMs(dailyBody, now))
+        assertEquals(0L, KeyRouter.dailyResetMs(minuteBody, now))
+        assertEquals(0L, KeyRouter.dailyResetMs(null, now))
+        // in summer (PDT, UTC-7) midnight is 07:00 UTC
+        val july = java.time.Instant.parse("2026-07-01T06:00:00Z").toEpochMilli()
+        assertEquals(3_600_000L, KeyRouter.dailyResetMs(dailyBody, july))
+        val was = com.anjy.atlas.core.Engine.zone
+        try {
+            com.anjy.atlas.core.Engine.zone = java.time.ZoneId.of("Africa/Lagos")
+            val said = Gemini.explain(429, dailyBody, now)
+            assertTrue(said, said.startsWith("Today's free Gemini limit") && said.contains("resets at 09:00 your time"))
+            assertTrue(Gemini.explain(429, minuteBody, now).contains("Wait a minute"))
+        } finally { com.anjy.atlas.core.Engine.zone = was }
+    }
+
+    @Test fun aLongWaitMovesOnAtOnceAndRestsTheKeyThatLong() {
+        val used = mutableListOf<String>(); val waits = mutableListOf<Long>()
+        val pool = FakePool(mutableListOf("k1", "k2"), groq)
+        val daily = Gemini.Failure("Today's free Gemini limit is used up for this key.", code = 429, retryAfterMs = 22 * 3_600_000L)
+        assertEquals("ok", go(pool, listOf(daily), waits, used))
+        assertEquals(listOf("k1", "k2"), used)
+        assertTrue(waits.none { it >= 1_000 })
+        assertEquals(listOf(22 * 3_600_000L), pool.restWaits)
+        // Don't Switch on and no other key: no 30 s and 60 s waits for a limit that resets tomorrow
+        val waits2 = mutableListOf<Long>()
+        try { go(FakePool(mutableListOf("k1"), groq, dontSwitch = true), List(5) { daily }, waits2); fail("should give up") } catch (f: Gemini.Failure) {
+            assertEquals(429, f.code); assertTrue(f.message!!, f.message!!.contains("Today's free Gemini limit") && !f.message!!.contains("few minutes"))
+        }
+        assertTrue(waits2.toString(), waits2.none { it >= 1_000 })
     }
 }
