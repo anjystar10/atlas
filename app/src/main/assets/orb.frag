@@ -99,9 +99,11 @@ void main() {
 
         // streams live near the glass; the heart of the drop stays deep and dark
         float rimBand = smoothstep(0.40, 0.88, d);
-        float hollow = smoothstep(0.62, 0.0, d);
+        float hollow = 1.0 - smoothstep(0.0, 0.62, d);         // (smoothstep with its edges reversed is undefined in GLSL)
         // a band of light that always hugs the inside of the shell
-        float hug = exp(-pow((d - 0.88) / 0.065, 2.0)) * smoothstep(-0.05, 0.25, fbm3(vec2(cos(th), sin(th)) * 1.8 + vec2(t * 0.05, -t * 0.04) + w * 1.5));
+        // (squared by hand: pow() of a negative number is undefined in GLSL, and some chips return NaN for it)
+        float hb = (d - 0.88) / 0.065;
+        float hug = exp(-hb * hb) * smoothstep(-0.05, 0.25, fbm3(vec2(cos(th), sin(th)) * 1.8 + vec2(t * 0.05, -t * 0.04) + w * 1.5));
 
         // particle texture: light made of fine glitter, like the reference
         float grain = hash1(frag + floor(t * 8.0) * vec2(37.0, 11.0));
