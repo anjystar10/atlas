@@ -142,6 +142,24 @@ object BotRules {
         else -> PhoneData.approval(tool, args) ?: Connections.approval(tool, args) ?: Email.approval(tool, args) ?: Messages.approval(tool, args)   // connections: Connections.kt; email: Email.kt; messages: Messages.kt
     }
 
+    /**
+     * Atlas's own approval controls (its notifications' and cards' buttons). A bot driving the screen could otherwise
+     * pull down the notifications and tap "Approve" on its own (or another bot's) request: a tap on one of these always
+     * waits for the user's own tap, whatever standing permission there is.
+     */
+    private val approvalControls = Regex("^(approve|approve all( \\d+)?|approve whole plan|allow today|allow once|always allow|always allow this kind|go ahead|for today|for this bot|whole plan|carry on|give it more today)$", RegexOption.IGNORE_CASE)
+    fun approvalControl(label: String?): Boolean = label != null && approvalControls.matches(label.replace(Regex("\\s+"), " ").trim())
+
+    /**
+     * A bot may never work Atlas's own screens (its chat would take typed text as the user's own words; its cards and
+     * settings grant permissions). [front] is the app on screen now, [me] Atlas's package. An error sentence, or null.
+     */
+    fun ownScreenRefusal(tool: String, args: JSONObject, front: String?, me: String): String? {
+        if (front == null || front != me) return null
+        val drives = tool in setOf("tap", "long_press", "type_text", "swipe") || (tool == "press_key" && args.optString("key").trim().lowercase() == "enter")
+        return if (drives) "Error: a bot can't use Atlas's own screens (only the user answers Atlas). Go home or open the app you need first, or do it another way." else null
+    }
+
     private val readOnlyCommand = Regex("^\\s*(get-[a-z]+|test-path|test-connection|select-string|measure-object|resolve-path|where\\.exe|where|dir|ls|cat|type|echo|hostname|whoami|ipconfig|systeminfo|tasklist|ping)\\b[^;|&>]*$", RegexOption.IGNORE_CASE)
     /** Anything that could chain or hide a second command (new lines, $( ), backticks, script blocks, pipes, redirects) is never "read-only". */
     private val chains = Regex("[\\r\\n`$({;|&<>]")

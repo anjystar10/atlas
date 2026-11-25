@@ -398,6 +398,8 @@ object BotExtras {
 
     // ---- specialists
     fun specialist(name: String?): JSONObject? = synchronized(lock) { specialists.firstOrNull { it.optString("id") == name } ?: Rules.findByName(specialists, name) }
+    /** By id only (a job's bot, a budget): no guessing by name, so "atlas" never turns into a bot called "Atlas Scout" or "A". */
+    fun specialistById(id: String?): JSONObject? = if (id.isNullOrEmpty()) null else synchronized(lock) { specialists.firstOrNull { it.optString("id") == id } }
     fun saveSpecialist(x: JSONObject): JSONObject {
         val s = synchronized(lock) {
             val old = x.optString("id").takeIf { it.isNotEmpty() }?.let { id -> specialists.firstOrNull { it.optString("id") == id } }

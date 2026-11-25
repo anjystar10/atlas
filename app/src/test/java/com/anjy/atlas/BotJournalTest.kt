@@ -118,4 +118,20 @@ class BotJournalTest {
         j.planNudged = true
         assertTrue("survives a restart", BotJob.from(j.json()).planNudged)
     }
+
+    @Test fun aBotCantApproveForItself() {
+        // Atlas's own approve buttons (its notifications and cards) are never a bot's to tap
+        for (l in listOf("Approve", " approve all 3 ", "Approve Whole Plan", "Allow Today", "Always Allow", "Go Ahead", "Allow Once", "For This Bot", "Give It More Today"))
+            assertTrue(l, BotRules.approvalControl(l))
+        for (l in listOf(null, "", "Approved orders", "Allow", "Deny", "Undo", "Keep Asking", "Send", "Approve the merge request now"))
+            assertFalse(l.toString(), BotRules.approvalControl(l))
+        // nor Atlas's own screens (its chat would read typed text as the user's own words)
+        val me = "com.anjy.atlas"
+        assertNotNull(BotRules.ownScreenRefusal("tap", JSONObject(), me, me))
+        assertNotNull(BotRules.ownScreenRefusal("type_text", JSONObject().put("text", "yes approve"), me, me))
+        assertNotNull(BotRules.ownScreenRefusal("press_key", JSONObject().put("key", " Enter"), me, me))
+        assertNull("it may still leave", BotRules.ownScreenRefusal("press_key", JSONObject().put("key", "home"), me, me))
+        assertNull(BotRules.ownScreenRefusal("tap", JSONObject(), "com.whatsapp", me))
+        assertNull(BotRules.ownScreenRefusal("tap", JSONObject(), null, me))
+    }
 }
