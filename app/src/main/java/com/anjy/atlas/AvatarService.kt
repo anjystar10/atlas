@@ -392,6 +392,9 @@ class AvatarService : Service() {
     private fun panelAnswer(yes: Boolean) {
         val bot = try { Bots.visible().firstOrNull { it.state == BotRules.AWAITING_APPROVAL } } catch (_: Exception) { null }
         if (bot != null) Bots.approve(bot.id, yes)
+        // the ask was answered elsewhere (the app, the PC) or expired since the buttons were drawn: a "Yes, allow it."
+        // sent now would answer nothing, and could read as a yes to whatever is proposed next
+        else if (ChatAsk.list().isEmpty()) { panelRefresh(); return }
         else Conversation.send(this, if (yes) "Yes, allow it." else "No, don't do that.", spoken = talking)
         panel?.waitingOn(null)
     }
