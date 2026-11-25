@@ -45,6 +45,9 @@ class AssistActivity : Activity() {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).roundToInt()
     private fun font(id: Int, fb: Typeface) = try { resources.getFont(id) } catch (_: Throwable) { fb }
 
+    private var bodyFace: Typeface = Typeface.DEFAULT
+    private var semiFace: Typeface = Typeface.DEFAULT_BOLD
+
     private val BG = Palette.NIGHT.bg
     private val FG = Palette.NIGHT.fg
     private val MUTED = Palette.NIGHT.muted
@@ -61,6 +64,7 @@ class AssistActivity : Activity() {
         val display = font(R.font.newsreader_regular, Typeface.create("serif", Typeface.NORMAL))
         val body = font(R.font.geist_regular, Typeface.DEFAULT)
         val med = font(R.font.geist_medium, Typeface.DEFAULT)
+        bodyFace = body; semiFace = font(R.font.geist_semibold, Typeface.DEFAULT_BOLD)
 
         val root = FrameLayout(this).apply {
             setBackgroundColor(Color.argb(70, 0, 0, 0))
@@ -244,7 +248,7 @@ class AssistActivity : Activity() {
         said.setTextColor(MUTED); said.text = q?.text ?: ""
         answer.visibility = View.VISIBLE
         answer.text = when {
-            last.text.isNotBlank() -> last.text
+            last.text.isNotBlank() -> formatted(last.text)
             Conversation.busy -> "${Conversation.status ?: "Thinking"}…"
             else -> ""
         }
@@ -252,4 +256,22 @@ class AssistActivity : Activity() {
         steps.text = last.steps.joinToString("\n")
         sendBtn.contentDescription = if (Conversation.busy) "Stop" else "Send"
     }
+
+    /**
+     * The reply with its light formatting shown as formatting (bold, lists, headings, code), as in the mini panel:
+     * shown as written, Atlas's replies read "**Sunday**" and "## Plan" here.
+     */
+    private fun formatted(md: String): CharSequence = try {
+        val st = Markdown.Style(bodyFace, semiFace, semiFace, Typeface.MONOSPACE, FG, MUTED, Palette.NIGHT.accentInk,
+            Color.argb(40, 255, 255, 255), resources.displayMetrics.density, 18f)
+        val out = android.text.SpannableStringBuilder()
+        Markdown.parse(md, st).forEach { b ->
+            if (out.isNotEmpty()) out.append("\n\n")
+            when (b) {
+                is Markdown.Prose -> out.append(b.text)
+                is Markdown.Code -> { val at = out.length; out.append(b.text); out.setSpan(android.text.style.TypefaceSpan("monospace"), at, out.length, 0) }
+            }
+        }
+        out
+    } catch (_: Exception) { Plain.spoken(md) }
 }
