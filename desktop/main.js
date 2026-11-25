@@ -187,7 +187,8 @@ ipcMain.on('orb:moveBy', (_e, dx, dy) => {
 ipcMain.on('orb:state', (_e, st) => { if (orbWin) orbWin.webContents.send('orb-state', st); });
 ipcMain.handle('app:autostart', (e, on) => {
   if (typeof on === 'boolean' && fromMain(e)) app.setLoginItemSettings({ openAtLogin: on, args: ['--hidden'] });
-  return app.getLoginItemSettings().openAtLogin;
+  // Windows compares the registered command line: asked without the same args, openAtLogin is always false
+  return app.getLoginItemSettings({ args: ['--hidden'] }).openAtLogin;
 });
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform, data: DATA() }));
 // >>> self-awareness: the changelog, what's around on this PC, and updating Atlas (selfhost.js)
