@@ -170,7 +170,7 @@ function explain(service, code, body) {
 async function post(url, headers, body, service, timeout = 180000) {
   const r = await host.fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body), timeout });
   if (r.status === 0) throw new Failure(r.error === 'timed out' ? `${service} took too long to answer.` : `Couldn't reach ${service}${r.error ? ' (' + r.error + ')' : ''}.`, 0, true);
-  if (!r.ok) { const f = new Failure(explain(service, r.status, r.text || ''), r.status); f.retryAfterMs = retryHint(r.text, r.retryAfter); throw f; }
+  if (!r.ok) { const f = new Failure(explain(service, r.status, r.text || ''), r.status); f.retryAfterMs = retryHint(r.text, r.retryAfter); f.body = String(r.text || '').slice(0, 2000); throw f; }
   try { return JSON.parse(r.text); } catch { throw new Failure(`${service} sent back something unreadable.`); }
 }
 
@@ -210,11 +210,27 @@ export function session(p, key, history, user, media, tools = TOOLS) {
     const messages = history.map(([u, t]) => ({ role: u ? 'user' : 'assistant', content: t }));
     messages.push(asked({ role: 'user', content: media.length ? [...media.map((m) => ({ type: m.mime === 'application/pdf' ? 'document' : 'image', source: { type: 'base64', media_type: m.mime, data: m.base64 } })), { type: 'text', text: user }] : user }));
     while (messages.length && messages[0].role !== 'user') messages.shift();
+    // Claude's own thinking comes back in its turns and is sent again as it came. Atlas's instructions change every step
+    // (the time, the brief, the Log), and a model with preserved thinking (Sonnet 5.5 and its family) may then refuse
+    // the earlier thinking with a 400 "bound to a different conversation". Leaving all of it out is allowed, so from
+    // then on this request sends Claude's turns without their thinking (the tool calls and words stay).
+    let unbound = false;
+    const bare = (m) => {
+      if (m.role !== 'assistant' || !Array.isArray(m.content)) return m;
+      const c = m.content.filter((b) => b.type !== 'thinking' && b.type !== 'redacted_thinking');
+      return c.length ? { ...m, content: c } : m;
+    };
     return {
       key, messages,
       async call(system) {
-        const r = await post(`${base}/messages`, { 'x-api-key': this.key, 'anthropic-version': '2023-06-01' },
-          { model, max_tokens: 4096, system, messages: trimScreens(messages), tools: tools.map((f) => ({ name: f.name, description: f.description, input_schema: params(f) })) }, 'Claude');
+        const ask = () => post(`${base}/messages`, { 'x-api-key': this.key, 'anthropic-version': '2023-06-01' },
+          { model, max_tokens: 4096, system, messages: trimScreens(unbound ? messages.map(bare) : messages), tools: tools.map((f) => ({ name: f.name, description: f.description, input_schema: params(f) })) }, 'Claude');
+        let r;
+        try { r = await ask(); }
+        catch (e) {
+          if (unbound || !(e instanceof Failure) || e.code !== 400 || !/different conversation/i.test(e.body || e.message)) throw e;
+          unbound = true; r = await ask();
+        }
         let text = ''; const calls = [];
         for (const b of r.content || []) { if (b.type === 'text') text += b.text; if (b.type === 'tool_use') calls.push({ name: b.name, args: b.input || {}, id: b.id }); }
         messages.push({ role: 'assistant', content: r.content || [] });
