@@ -1,0 +1,187 @@
+name: Deep test
+
+# The deep test rig: builds Atlas from any branch and runs it hard, to harvest runtime failures for review.
+#   build    the debug APK + Android lint (Correctness, Security, Performance findings)
+#   phone    two emulators crawl every screen under stress (tools/deep.sh crawl), two run the monkey (tools/deep.sh monkey)
+#   desktop  the Windows app's renderer on Linux under xvfb: every view, button and field, with no key and with a
+#            stand-in AI answering 200/429/500/HTML/cut-off/slow (desktop/test/crawl.mjs), plus ESLint
+#   publish  everything to the deep-results branch (results/<branch>/), screenshots shrunk; full files stay as
+#            artifacts for 5 days
+# It publishes NOTHING users get: no APK branch, no release, no smoke results.
+# Run it: Actions → Deep test → Run workflow (pick the branch), or push any commit to a branch named deep/<anything>.
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: crawl budget per emulator, minutes (the scenarios run first and take about 25)
+        required: false
+        default: '45'
+      seeds:
+        description: monkey seeds (space-separated); each runs `events` events
+        required: false
+        default: '101 202 303'
+      events:
+        description: monkey events per seed
+        required: false
+        default: '20000'
+  push:
+    branches: ['deep/**']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deep-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LLAMA_CPP_REF: 9e2a04a439edc49f08c5acdafefae19dfa25a658
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch llama.cpp (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          ref: ${{ env.LLAMA_CPP_REF }}
+          path: llama.cpp
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install NDK and CMake for llama.cpp
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "ndk;29.0.13113456" "cmake;3.31.6" > /dev/null
+      - name: Unlock the signing key
+        # same as build.yml: the key is committed only encrypted; the password is the ATLAS_KEYSTORE_PASSWORD secret
+        env:
+          ATLAS_KEYSTORE_PASSWORD: ${{ secrets.ATLAS_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$ATLAS_KEYSTORE_PASSWORD" ]; then
+            echo "::error::Add the repository secret ATLAS_KEYSTORE_PASSWORD (Settings > Secrets and variables > Actions)"; exit 1
+          fi
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:ATLAS_KEYSTORE_PASSWORD \
+            -in signing/atlas.jks.enc -out signing/atlas.jks
+          echo "ATLAS_KEYSTORE_PASSWORD=$ATLAS_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+      - name: Build the debug APK
+        run: |
+          for attempt in 1 2 3; do
+            if ./gradlew --no-daemon :app:assembleDebug; then exit 0; fi
+            echo "Build attempt $attempt failed; retrying in 30 seconds"
+            rm -rf llama.cpp/examples/llama.android/lib/.cxx
+            sleep 30
+          done
+          exit 1
+      - name: Android lint
+        # lint's findings are the output: a failing lint never stops the run
+        run: |
+          ./gradlew --no-daemon :app:lintDebug --continue > lint.log 2>&1 || echo "lint exited non-zero (findings or a lint error; see lint.log)"
+          mkdir -p deep-out/lint apk
+          cp app/build/reports/lint-results-debug.* deep-out/lint/ 2>/dev/null || true
+          cp lint.log deep-out/lint/
+          python3 tools/deep/lint_summary.py deep-out/lint/lint-results-debug.xml > deep-out/lint/lint-findings.md
+          head -60 deep-out/lint/lint-findings.md
+          cp app/build/outputs/apk/debug/app-debug.apk apk/Atlas-deep.apk
+          echo "${GITHUB_SHA}" > deep-out/lint/built-from.txt
+      - uses: actions/upload-artifact@v4
+        with: { name: deep-apk, path: apk/Atlas-deep.apk, retention-days: 2 }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: deep-lint, path: deep-out/, retention-days: 5 }
+
+  phone:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Lagos: UTC+1, no DST (the user's own zone); New York and London change their clocks
+          - { part: crawl, api: 34, tz: Africa/Lagos }
+          - { part: crawl, api: 35, tz: America/New_York }
+          - { part: monkey, api: 34, tz: Africa/Lagos }
+          - { part: monkey, api: 35, tz: Europe/London }
+    env:
+      MINUTES: ${{ github.event.inputs.minutes || '45' }}
+      SEEDS: ${{ github.event.inputs.seeds || '101 202 303' }}
+      EVENTS: ${{ github.event.inputs.events || '20000' }}
+      APK: apk/Atlas-deep.apk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: deep-apk, path: apk }
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          disk-size: 8G
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -timezone ${{ matrix.tz }}
+          script: bash tools/deep.sh ${{ matrix.part }} deep-out/${{ matrix.part }}-api${{ matrix.api }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: 'deep-${{ matrix.part }}-api${{ matrix.api }}', path: deep-out/, retention-days: 5 }
+
+  desktop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Crawl the desktop app and lint it
+        run: bash tools/deep-desktop.sh deep-out/desktop
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: deep-desktop, path: deep-out/, retention-days: 5 }
+
+  publish:
+    needs: [build, phone, desktop]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { pattern: 'deep-*', path: dl }
+      - name: Shrink the pictures and write the index
+        run: |
+          pip install -q pillow
+          rm -rf dl/deep-apk
+          python3 tools/deep/publish.py dl res "${GITHUB_REF_NAME}" "${GITHUB_SHA}" "${{ github.run_id }}"
+          du -sh res
+      - name: Keep them on the deep-results branch (results/<branch>/)
+        run: |
+          B=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
+          git config user.name "atlas-ci"; git config user.email "atlas-ci@users.noreply.github.com"
+          mkdir -p /tmp/keep
+          if git fetch --depth 1 origin deep-results 2>/dev/null; then
+            git archive FETCH_HEAD results | tar -x -C /tmp/keep || true
+          fi
+          rm -rf "/tmp/keep/results/$B"; mkdir -p "/tmp/keep/results/$B"; cp -r res/* "/tmp/keep/results/$B/"
+          git switch --orphan deep-tmp
+          git rm -rf --cached . >/dev/null 2>&1 || true
+          rm -rf results && cp -r /tmp/keep/results results
+          ls results > results/branches.txt
+          git add -f results
+          git commit -qm "Deep test results for ${GITHUB_REF_NAME} at ${GITHUB_SHA::7} (run ${{ github.run_id }})"
+          git push -f origin deep-tmp:deep-results
+      - name: Summary
+        if: always()
+        run: cat res/README.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
