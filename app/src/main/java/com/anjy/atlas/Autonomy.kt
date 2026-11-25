@@ -32,7 +32,7 @@ object Autonomy {
     const val ACTION_ALWAYS = "com.anjy.atlas.autonomy.ALWAYS"
     const val ACTION_KEEP_ASKING = "com.anjy.atlas.autonomy.KEEP_ASKING"
     const val ACTION_APPROVE_ALL = "com.anjy.atlas.autonomy.APPROVE_ALL"
-    const val EXTRA_NOTIF = "notif"; const val EXTRA_KIND = "kind"
+    const val EXTRA_NOTIF = "notif"; const val EXTRA_KIND = "kind"; const val EXTRA_REFS = "refs"
     private const val BATCH_ID = 5099
     private val undone = ConcurrentHashMap<Int, Boolean>()
     @Volatile private var channelReady = false
@@ -156,8 +156,9 @@ object Autonomy {
         channel(ctx)
         try { ctx.getSystemService(NotificationManager::class.java).notify(id, b.build()) } catch (e: SecurityException) { Log.w(TAG, "notify", e) }
     }
-    private fun act(ctx: Context, action: String, id: Int, kind: String? = null): PendingIntent =
-        PendingIntent.getBroadcast(ctx, id * 4 + (action.hashCode() and 3), Intent(ctx, AutonomyReceiver::class.java).setAction(action).putExtra(EXTRA_NOTIF, id).putExtra(EXTRA_KIND, kind),
+    private fun act(ctx: Context, action: String, id: Int, kind: String? = null, refs: List<String>? = null): PendingIntent =
+        PendingIntent.getBroadcast(ctx, id * 4 + (action.hashCode() and 3), Intent(ctx, AutonomyReceiver::class.java).setAction(action).putExtra(EXTRA_NOTIF, id).putExtra(EXTRA_KIND, kind)
+            .apply { if (refs != null) putExtra(EXTRA_REFS, refs.toTypedArray()) },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
     /**
@@ -174,8 +175,12 @@ object Autonomy {
             .addAction(Notification.Action.Builder(null, "Undo", act(ctx, ACTION_UNDO, id)).build())
         post(ctx, id, b)
         var waited = 0L
-        while (waited < AutonomyRules.UNDO_MS) { if (undone[id] == true) break; delay(250); waited += 250 }
-        try { ctx.getSystemService(NotificationManager::class.java).cancel(id) } catch (_: Exception) {}
+        try {
+            while (waited < AutonomyRules.UNDO_MS) { if (undone[id] == true) break; delay(250); waited += 250 }
+        } finally {
+            // also when the bot is stopped mid-countdown: "about to do this" mustn't stay up for something that won't happen
+            try { ctx.getSystemService(NotificationManager::class.java).cancel(id) } catch (_: Exception) {}
+        }
         return undone.remove(id) != true
     }
     fun undo(id: Int) { undone[id] = true }
@@ -214,11 +219,15 @@ object Autonomy {
     fun batchNotify(ctx: Context, pending: List<AutonomyRules.Pending>) {
         if (pending.size < 2 || !notificationsOn(ctx)) { if (pending.size < 2) try { ctx.getSystemService(NotificationManager::class.java).cancel(BATCH_ID) } catch (_: Exception) {}; return }
         val b = AutonomyRules.batch(pending)
-        val text = pending.take(6).joinToString("\n") { "• " + Plain.reply(it.what).take(90) + if (it in b.single) " (needs its own tap)" else "" }
+        val shown = pending.take(6)
+        val text = shown.joinToString("\n") { "• " + Plain.reply(it.what).take(90) + if (it in b.single) " (needs its own tap)" else "" } +
+            (if (pending.size > shown.size) "\n+ ${pending.size - shown.size} more in Atlas" else "")
         val n = Notification.Builder(ctx, CH).setSmallIcon(R.drawable.ic_stat).setContentTitle(b.title).setContentText(text.lineSequence().first())
             .setStyle(Notification.BigTextStyle().bigText(text)).setAutoCancel(true)
             .setContentIntent(Bots.openIntent(ctx, null, BATCH_ID))
-        if (b.bulk.size >= 2) n.addAction(Notification.Action.Builder(null, "Approve All ${b.bulk.size}", act(ctx, ACTION_APPROVE_ALL, BATCH_ID)).build())
+        // Approve All covers exactly the ones listed on the card (not ones that arrived later or didn't fit)
+        val bulk = b.bulk.filter { it in shown }
+        if (bulk.size >= 2) n.addAction(Notification.Action.Builder(null, "Approve All ${bulk.size}", act(ctx, ACTION_APPROVE_ALL, BATCH_ID, refs = bulk.map { it.ref })).build())
         post(ctx, BATCH_ID, n)
     }
 
@@ -235,7 +244,7 @@ class AutonomyReceiver : BroadcastReceiver() {
             Autonomy.ACTION_UNDO -> { Autonomy.undo(id); nm.cancel(id) }
             Autonomy.ACTION_ALWAYS -> { intent.getStringExtra(Autonomy.EXTRA_KIND)?.let { Autonomy.grant(ctx, it, "always") }; nm.cancel(id) }
             Autonomy.ACTION_KEEP_ASKING -> nm.cancel(id)
-            Autonomy.ACTION_APPROVE_ALL -> { Bots.init(ctx); Bots.approveAll(); nm.cancel(id) }
+            Autonomy.ACTION_APPROVE_ALL -> { Bots.init(ctx); Bots.approveAll(intent.getStringArrayExtra(Autonomy.EXTRA_REFS)?.toSet() ?: emptySet()); nm.cancel(id) }
         }
     }
 }

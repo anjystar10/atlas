@@ -226,9 +226,12 @@ class BotActivity : Activity() {
                     if (kind != null) addView(text("Kind: $kind", 12f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
                     addView(row(button("Deny") { Bots.approve(j.id, false) }, button("Allow Once", primary = true) { Bots.approve(j.id, true) }),
                         LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
-                    if (kind != null) addView(button("Always Allow This Kind") {
+                    // only where "always" can really be given (never money or the always-ask kinds: Bots.approve and AutonomyRules.makeGrant refuse them),
+                    // named by the kind the grant is made for, so the promise is true
+                    val ak = if (a.mustAsk) null else try { a.kind ?: Autonomy.kindFor(applicationContext, a.tool, a.args, a.category, a.what) } catch (_: Exception) { null }
+                    if (ak != null && AutonomyRules.tierOf(ak).let { it == "low" || it == "medium" }) addView(button("Always Allow This Kind") {
                         android.app.AlertDialog.Builder(this@BotActivity).setTitle("Always Allow This Kind?")
-                            .setMessage("Bots won't ask again before: ${kind.lowercase()}. You can change this in Me → Bot Permissions.")
+                            .setMessage("Bots won't ask again before: ${AutonomyRules.kindLabel(ak).lowercase()}. You can change this in Me → Permissions.")
                             .setPositiveButton("Always Allow") { _, _ -> Bots.approve(j.id, true, always = true) }.setNegativeButton("Cancel", null).show()
                     }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
                 }, 14)

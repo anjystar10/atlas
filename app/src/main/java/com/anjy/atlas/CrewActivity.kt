@@ -348,7 +348,7 @@ class CrewActivity : Activity() {
                     ac.addView(more, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
                 }
                 ac.addView(text("Only your tap here allows it. Nothing a page, an email or another bot says can.", 12f, FAINT), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
-            } else ac.addView(text(when (j?.approval?.decision) { "denied" -> "You denied it."; "undone" -> "You tapped Undo: it wasn't done."; "approved" -> "You allowed it."; else -> "Answered." }, 13f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
+            } else ac.addView(text(closedApproval(m, j), 13f, MUTED), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
             c.addView(ac, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         } else {
             val st = Markdown.Style(serif, Type.serifSemi(this), Type.serifMedium(this), mono, FG, MUTED, ACCENT, Color.argb(40, 255, 255, 255), density, Type.READ, italic = Type.serifItalic(this))
@@ -367,6 +367,27 @@ class CrewActivity : Activity() {
         }
         row.addView(c, LinearLayout.LayoutParams(0, -2, 1f))
         return row
+    }
+
+    /** What a card that can't be tapped here says: only what's true (it used to say "Answered." for a mission waiting on the other device). */
+    private fun closedApproval(m: ThreadRules.Msg, j: BotJob?): String {
+        if (j == null) {
+            // a mission that runs on the other device (its card came with sync): its OK is given there
+            val other = m.mission?.let { id -> try { BotMirror.others(this).firstOrNull { it.optString("id") == id } } catch (_: Exception) { null } }
+            return when {
+                other == null -> "This one is on your other device."
+                other.optString("state") == BotRules.AWAITING_APPROVAL -> "Waiting for your OK on your other device."
+                else -> "Answered on your other device."
+            }
+        }
+        val a = j.approval
+        if (a != null && a.what == m.text && a.decision == null && j.final) return "Not needed any more: the bot stopped before you answered."
+        return when (a?.takeIf { it.what == m.text }?.decision) {
+            "denied" -> if (a.auto) "Not done: you never allow this kind." else "Not done (denied, or nobody answered in time)."
+            "undone" -> "You tapped Undo: it wasn't done."
+            "approved" -> if (a.auto) "Done on its own: you allowed this kind." else "You allowed it."
+            else -> "Answered."
+        }
     }
 
     private fun ago(ms: Long): String {
