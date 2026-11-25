@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.graphics.Color
 import android.widget.LinearLayout
 import android.graphics.PixelFormat
@@ -60,21 +61,42 @@ class AvatarService : Service() {
         super.onCreate()
         instance = this
         Reminders.channels(this)
-        try {
-            startForeground(ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } catch (e: Exception) {
-            Log.e(TAG, "Could not start foreground", e)
-            instance = null; stopSelf(); return
+        if (!goForeground()) {
+            // Restarted by Android after it stopped Atlas (START_STICKY), with nothing of Atlas on screen. From the
+            // background, Android 15 lets an app with "Display over other apps" become a foreground service only while
+            // one of its overlay windows is visible: the orb comes back first, then Atlas goes foreground.
+            if (!(settingsOn().first && Settings.canDrawOverlays(this))) { instance = null; stopSelf(); return }
+            pendingForeground = true
         }
         running = true
         wm = getSystemService(WindowManager::class.java)
         Conversation.load(applicationContext)
         Conversation.listen(onChat)
         apply(fromUser = false)
+        if (pendingForeground) handler.postDelayed(foregroundRetry, 500)
         handler.postDelayed(syncTick, 60_000)
     }
 
+    /** Not a foreground service yet: waiting for the orb to be on screen (see [onCreate]). */
+    private var pendingForeground = false
+    private var foregroundTries = 0
+
+    private fun goForeground(): Boolean = try {
+        startForeground(ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE); true
+    } catch (e: Exception) { Log.w(TAG, "Could not start foreground", e); false }
+
+    /** Tries again once a second while the orb comes on screen (the screen may be off for a while); gives up after a minute. */
+    private val foregroundRetry: Runnable = object : Runnable {
+        override fun run() {
+            if (!pendingForeground) return
+            if (goForeground()) { pendingForeground = false; apply(fromUser = false); return }
+            if (++foregroundTries < 60) handler.postDelayed(this, 1000)
+            else { Log.w(TAG, "Android didn't let Atlas on screen come back; it shows again when Atlas is opened"); stopSelf() }
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (pendingForeground && goForeground()) pendingForeground = false
         when (intent?.action) {
             ACTION_CELEBRATE -> celebrate()
             ACTION_MIC -> apply(fromUser = true)
@@ -112,7 +134,7 @@ class AvatarService : Service() {
             if (!micGranted && (fromUser || appInFront)) {
                 try {
                     startForeground(ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-                    micGranted = true
+                    micGranted = true; pendingForeground = false
                 } catch (e: Exception) { Log.w(TAG, "microphone not allowed yet", e) }
             }
             if (fromUser || appInFront) HotwordService.start(this)
@@ -157,6 +179,27 @@ class AvatarService : Service() {
     private val small get() = dp(84)
     private val big get() = dp(140)
 
+    /**
+     * Keeps the orb where it can be seen and reached: at least half of it on screen across (it may tuck into a side),
+     * all of it up and down. A drag past the edge, a spot saved with the phone turned the other way, or turning the
+     * phone (a portrait spot is below the bottom of a landscape screen) could otherwise leave it off screen for good.
+     */
+    private fun keepOnScreen(p: WindowManager.LayoutParams) {
+        val dm = resources.displayMetrics
+        val half = p.width / 2
+        p.x = p.x.coerceIn(-half, (dm.widthPixels - half).coerceAtLeast(-half))
+        p.y = p.y.coerceIn(0, (dm.heightPixels - p.height).coerceAtLeast(0))
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val f = orbFrame ?: return; val p = orbParams ?: return
+        restAt = null   // (a spot from before the turn may be off the new screen; it shrinks back where it is)
+        keepOnScreen(p)
+        try { wm?.updateViewLayout(f, p) } catch (_: Exception) {}
+        placeCaption()
+    }
+
     private fun addOrb() {
         if (orbFrame != null) return
         val prefs = getSharedPreferences("avatar", MODE_PRIVATE)
@@ -170,6 +213,7 @@ class AvatarService : Service() {
             x = prefs.getInt("x", resources.displayMetrics.widthPixels - size - dp(6))
             y = prefs.getInt("y", (resources.displayMetrics.heightPixels * 0.55f).toInt())
         }
+        keepOnScreen(params)
         val frame = FrameLayout(this)
         val o = OrbView(this).apply { contentDescription = "Atlas"; still = Prefs.reduceMotion(this@AvatarService) }
         frame.addView(o, FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT))
@@ -190,6 +234,9 @@ class AvatarService : Service() {
                 }
                 MotionEvent.ACTION_UP -> {
                     if (dragging) {
+                        keepOnScreen(params)
+                        try { wm?.updateViewLayout(frame, params) } catch (_: Exception) {}
+                        placeCaption()
                         // remember where the small orb sits
                         val off = (params.width - small) / 2
                         prefs.edit().putInt("x", params.x + off).putInt("y", params.y + off).apply()
@@ -249,6 +296,7 @@ class AvatarService : Service() {
                         pp.width = small; pp.height = small
                         val back = restAt; restAt = null
                         if (back != null) { pp.x = back.first; pp.y = back.second } else { pp.x += d; pp.y += d }
+                        keepOnScreen(pp)
                         o.scaleX = 1f; o.scaleY = 1f
                         try { wm?.updateViewLayout(orbFrame, pp) } catch (_: Exception) {}
                         orbFrame?.visibility = if (appInFront) View.GONE else View.VISIBLE
@@ -362,7 +410,7 @@ class AvatarService : Service() {
 
     /** Starts a spoken conversation (the panel's mic, the orb, "Hey Atlas"). */
     private fun startTalk(afterWake: Boolean = false) {
-        HotwordService.hold(this, true)
+        holdMic(this, true)
         Conversation.hush()
         talking = true; turns = 0; hearFails = 0
         handler.removeCallbacks(pulse); handler.post(pulse)
@@ -376,6 +424,9 @@ class AvatarService : Service() {
      * opens only when you ask for it.
      */
     private fun wake() {
+        // "Display over other apps" was switched off while Atlas ran: Android hides its windows, so the orb left behind
+        // can't be seen. It goes, and the conversation opens in the sheet instead of talking from an invisible orb.
+        if (orbFrame != null && !Settings.canDrawOverlays(this)) removeOrb()
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && openPanel()) {
             startTalk(afterWake = fromWakeWord)
             fromWakeWord = false
@@ -383,10 +434,10 @@ class AvatarService : Service() {
         }
         if (orbFrame == null || checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             try { startActivity(Intent(this, AssistActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("listen", true).putExtra(EXTRA_FROM_WAKE_WORD, fromWakeWord)); fromWakeWord = false }
-            catch (e: Exception) { Log.w(TAG, "couldn't open the panel", e); HotwordService.hold(this, false) }
+            catch (e: Exception) { Log.w(TAG, "couldn't open the panel", e); holdMic(this, false) }
             return
         }
-        HotwordService.hold(this, true)
+        holdMic(this, true)
         Conversation.hush()
         talking = true; turns = 0; hearFails = 0
         orbFrame?.visibility = View.VISIBLE
@@ -494,12 +545,13 @@ class AvatarService : Service() {
         talking = false
         handler.removeCallbacksAndMessages(null)
         handler.postDelayed(syncTick, 10 * 60_000L)   // (the line above also cleared the sync timer)
+        if (pendingForeground) handler.postDelayed(foregroundRetry, 500)   // (and the wait to go foreground)
         voice?.cancel(); voice = null
         alongside = false; resumeAfterVoice = false
         orb?.level = 0f; orb?.energy = 0f
         hideCaption()
         if (panel == null) setGrown(false)
-        HotwordService.hold(this, false)
+        holdMic(this, false)
         panelRefresh(); armPanelIdle()
     }
 
@@ -687,7 +739,10 @@ class AvatarService : Service() {
         fun refresh(ctx: Context) { if (running) send(ctx, ACTION_REFRESH) else startIfEnabled(ctx) }
         fun celebrate(ctx: Context) = send(ctx, ACTION_CELEBRATE)
 
-        /** Atlas is listening itself (or done): the wake word lets go of the microphone meanwhile. */
+        /**
+         * Atlas is listening itself (or done): the wake word lets go of the microphone meanwhile. Only a running
+         * listener is told: a hold sent with Hey Atlas off started its process just to stop it again.
+         */
         fun holdMic(ctx: Context, hold: Boolean) { if (HotwordService.running(ctx)) HotwordService.hold(ctx, hold) }
 
         private fun send(ctx: Context, action: String) {
