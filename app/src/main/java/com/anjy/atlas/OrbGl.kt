@@ -13,6 +13,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
+import android.view.Display
 import android.view.TextureView
 import android.view.View
 import android.widget.FrameLayout
@@ -57,11 +58,14 @@ class OrbView(context: Context) : FrameLayout(context) {
     }
 
     // a watchdog: an orb that is on screen but hasn't shown a frame within 4 s (say, in a window the graphics
-    // chip doesn't draw) switches to the processor rather than leaving an empty space
+    // chip doesn't draw) switches to the processor rather than leaving an empty space. Only an orb that could have
+    // drawn counts: shown, in a visible window, with the screen on. Android draws nothing while the screen is off
+    // (Atlas on screen started at boot or restarted in the night), so no frame could have come, and judging then
+    // put every orb on the processor until Atlas restarted.
     private val watchdog: Runnable = Runnable {
         val g = gl ?: return@Runnable
         if (g.hasShown) return@Runnable
-        if (isAttachedToWindow && windowVisibility == View.VISIBLE) onGpuFailed("no frame within 4 s" + if (!isHardwareAccelerated) " (window not hardware-drawn)" else "")
+        if (isAttachedToWindow && windowVisibility == View.VISIBLE && isShown && screenOn(this)) onGpuFailed("no frame within 4 s" + if (!isHardwareAccelerated) " (window not hardware-drawn)" else "")
         else postDelayed(watchdog, 4000)   // not on screen yet: check again later
     }
 
@@ -69,6 +73,7 @@ class OrbView(context: Context) : FrameLayout(context) {
     override fun onWindowVisibilityChanged(visibility: Int) { super.onWindowVisibilityChanged(visibility); armWatchdog() }
     override fun onDetachedFromWindow() { removeCallbacks(watchdog); super.onDetachedFromWindow() }
     override fun onVisibilityChanged(changedView: View, visibility: Int) { super.onVisibilityChanged(changedView, visibility); armWatchdog() }
+    override fun onScreenStateChanged(screenState: Int) { super.onScreenStateChanged(screenState); armWatchdog() }
     private fun armWatchdog() {
         removeCallbacks(watchdog)
         if (gl?.hasShown == false && isAttachedToWindow) postDelayed(watchdog, 4000)
@@ -77,8 +82,10 @@ class OrbView(context: Context) : FrameLayout(context) {
     private fun onGpuFailed(reason: String) {
         if (gl == null) return
         removeCallbacks(watchdog)
-        // a software chip or one too slow won't change: remember it (for this version of Atlas) and don't try again
-        if (reason.startsWith("software graphics") || reason.startsWith("too slow")) rememberCpu(context)
+        // a software chip won't change: remember it (for this version of Atlas) and don't try again. "Too slow" is not
+        // remembered: frames are timed to the end of the chip's work, so a game or the camera busy on the chip makes
+        // the orb's frames slow for a while, and remembering that kept the orb on the processor for good
+        if (reason.startsWith("software graphics")) rememberCpu(context)
         Log.w(TAG, "graphics chip can't draw the orb ($reason); painting it on the processor instead")
         gpuBroken = true; gpuProblem = reason
         gl?.let { removeView(it) }; gl = null
@@ -108,6 +115,9 @@ class OrbView(context: Context) : FrameLayout(context) {
 
         /** How fast the light inside flows: slow at rest, livelier while busy or hearing a voice. */
         fun flowRate(energy: Float, level: Float) = 0.045f + 0.09f * energy + 0.05f * level
+
+        /** Whether the screen showing [v] is switched on (Android draws no window while it is off). */
+        internal fun screenOn(v: View) = (v.display?.state ?: Display.STATE_ON) != Display.STATE_OFF
     }
 }
 
@@ -141,7 +151,10 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) { super.onVisibilityChanged(changedView, visibility); updatePaused() }
     override fun onWindowVisibilityChanged(visibility: Int) { super.onWindowVisibilityChanged(visibility); updatePaused() }
-    private fun updatePaused() { thread?.paused = !(isShown && windowVisibility == View.VISIBLE) }
+    // with the screen off nothing it draws is seen: it stops (the always-on orb over other apps would otherwise keep
+    // the chip working until its frames backed up)
+    override fun onScreenStateChanged(screenState: Int) { super.onScreenStateChanged(screenState); updatePaused(screenState == SCREEN_STATE_ON) }
+    private fun updatePaused(screenOn: Boolean = OrbView.screenOn(this)) { thread?.paused = !(isShown && windowVisibility == View.VISIBLE && screenOn) }
 
     private fun firstFrameShown() {
         if (shown) return
@@ -172,6 +185,10 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
         private var bw = 0; private var bh = 0
         private var frames = 0
         private val recent = FloatArray(8)
+        /** The last swap found the context lost; [rebuilds] counts how often it has been set up again. */
+        private var lost = false
+        private var rebuilds = 0
+        private var swapWarned = false
 
         fun wake() = synchronized(lock) { lock.notifyAll() }
         fun resize(nw: Int, nh: Int) { w = nw; h = nh; resized = true; drewStill = false; wake() }
@@ -181,10 +198,13 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
             try {
                 setup()
                 while (running) {
+                    var waited = false
                     synchronized(lock) {
-                        while (running && (paused || (still && drewStill))) lock.wait()
+                        while (running && (paused || (still && drewStill))) { lock.wait(); waited = true }
                     }
                     if (!running) break
+                    // back on screen after a pause: the first frames may be slow while the chip wakes up, as at the start
+                    if (waited) { frames = 0; recent.fill(0f) }
                     val busy = energy > 0.05f || shownE > 0.05f || level > 0.02f
                     val gapNs = if (busy) 16_000_000L else 33_000_000L
                     val now = System.nanoTime()
@@ -195,7 +215,15 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
                     shownL += (level - shownL) * (1f - Math.pow(0.0005, dt.toDouble()).toFloat())
                     shownE += (energy - shownE) * (1f - Math.pow(0.08, dt.toDouble()).toFloat())
                     flow += dt * OrbView.flowRate(shownE, shownL)
-                    if (!draw()) break
+                    if (!draw()) {
+                        // the chip lost its state (EGL_CONTEXT_LOST, after a power event): everything is set up again
+                        if (lost && running && rebuilds++ < 3) {
+                            lost = false; release(); fresh()
+                            try { setup() } catch (t: Throwable) { Log.e("AtlasOrb", "orb renderer, setting up again", t); main.post { onFailed("lost graphics context (${t.message})") }; break }
+                            continue
+                        }
+                        break
+                    }
                     if (still) drewStill = true
                 }
             } catch (t: Throwable) {
@@ -287,7 +315,9 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
             if (!EGL14.eglSwapBuffers(display, surface)) {
                 val err = EGL14.eglGetError()
                 if (err == EGL14.EGL_BAD_SURFACE || err == EGL14.EGL_BAD_NATIVE_WINDOW) return false
-                Log.w("AtlasOrb", "swap failed: $err")
+                // a lost context never comes back by itself: every later frame would fail too (and log, 30 times a second)
+                if (err == EGL14.EGL_CONTEXT_LOST) { Log.w("AtlasOrb", "graphics context lost; setting up again"); lost = true; return false }
+                if (!swapWarned) { swapWarned = true; Log.w("AtlasOrb", "swap failed: $err") }
             }
             return true
         }
@@ -345,6 +375,12 @@ class GlOrbView(context: Context, private val onFailed: (String) -> Unit) : Text
                 cornerA > 40 -> "drew a filled square (corner alpha $cornerA)"
                 else -> null
             }
+        }
+
+        /** After [release]: nothing is held, so [setup] starts from scratch. */
+        private fun fresh() {
+            display = EGL14.EGL_NO_DISPLAY; ctx = EGL14.EGL_NO_CONTEXT; surface = EGL14.EGL_NO_SURFACE; prog = 0
+            bw = 0; bh = 0; scaleApplied = scale; frames = 0; recent.fill(0f); drewStill = false
         }
 
         private fun release() {
