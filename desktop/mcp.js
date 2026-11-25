@@ -7,6 +7,9 @@ const NAME = /^[A-Za-z0-9_-]{1,32}$/;
 const TRUST = ['ask', 'reads', 'all'];
 const MAX_OUT = 12000;
 const cap = (s) => { s = String(s ?? ''); return s.length > MAX_OUT ? s.slice(0, MAX_OUT) + '\n(cut short: the answer was longer)' : s; };
+/** Whether a server config is a program on this PC ('stdio') or an address ('http'): the one rule both the saving and
+ *  main.js's "this runs a program" question use, so a config can't be asked about as one kind and saved as the other. */
+const kindOf = (cfg) => (cfg && (cfg.kind === 'http' || (!cfg.kind && cfg.url)) ? 'http' : 'stdio');
 const withTimeout = (p, ms, what) => { let t; return Promise.race([p, new Promise((_, rej) => { t = setTimeout(() => rej(new Error(what + ' took too long')), ms); })]).finally(() => clearTimeout(t)); };
 
 /**
@@ -47,7 +50,7 @@ function createConnections(deps) {
   async function saveServer(cfg) {
     const name = String(cfg.name || '').trim();
     if (!NAME.test(name)) throw new Error('Give it a short name: letters, numbers, - or _ (no spaces).');
-    const kind = cfg.kind === 'http' || (!cfg.kind && cfg.url) ? 'http' : 'stdio';
+    const kind = kindOf(cfg);
     if (kind === 'http' && !/^https?:\/\//i.test(String(cfg.url || ''))) throw new Error('The address must start with https:// (or http://).');
     if (kind === 'stdio' && !String(cfg.command || '').trim()) throw new Error('Give the command that starts the server.');
     const old = server(name); const oldSec = old ? secret(old) : {};
@@ -203,4 +206,4 @@ function createConnections(deps) {
   return { list, saveServer, setServer, removeServer, connect, disconnect, connectAll, close, call, saveApi, removeApi, callApi, apiUrl };
 }
 
-module.exports = { createConnections, NAME };
+module.exports = { createConnections, NAME, kindOf };

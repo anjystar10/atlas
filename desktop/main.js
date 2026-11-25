@@ -369,8 +369,9 @@ ipcMain.handle('conn', async (e, op, ...a) => {
       case 'list': return c.list();
       case 'saveServer': {
         const cfg = a[0] || {};
-        // a server that is a program on this PC gets run: the user says yes here, outside the page
-        if (cfg.kind !== 'http' && !cfg.url) {
+        // a server that is a program on this PC gets run: the user says yes here, outside the page (decided by the same
+        // rule mcp.js saves it by: { kind: 'stdio', url, command } used to skip this question and still run the command)
+        if (require('./mcp').kindOf(cfg) === 'stdio') {
           const r = await dialog.showMessageBox(win, { type: 'warning', buttons: ['Add It', 'Cancel'], defaultId: 1, cancelId: 1, title: 'Atlas', message: 'Add this connection?',
             detail: `It runs this program on your PC whenever Atlas connects:\n\n${[cfg.command, ...(cfg.args || [])].join(' ').slice(0, 400)}\n\nOnly add connections from sources you trust.` });
           if (r.response !== 0) return { error: 'Not added.' };

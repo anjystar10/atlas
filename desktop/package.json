@@ -9,7 +9,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --no-warnings --test test/packaging.test.mjs test/android-packaging.test.mjs test/logic.test.mjs test/sync.e2e.mjs test/link.test.mjs test/aware.test.mjs test/trade.test.mjs test/accuracy.test.mjs test/themes.test.mjs test/attach.test.mjs test/finish.test.mjs test/atlasvoice.test.mjs test/bots2.e2e.test.mjs test/triggers.test.mjs test/templates.test.mjs test/uishape.test.mjs test/selfaware.test.mjs test/hud.test.mjs test/autonomy.test.mjs test/voicefix.test.mjs test/botsdebug.test.mjs",
+    "test": "node --no-warnings --test test/packaging.test.mjs test/android-packaging.test.mjs test/logic.test.mjs test/sync.e2e.mjs test/link.test.mjs test/aware.test.mjs test/trade.test.mjs test/accuracy.test.mjs test/themes.test.mjs test/attach.test.mjs test/finish.test.mjs test/atlasvoice.test.mjs test/bots2.e2e.test.mjs test/triggers.test.mjs test/templates.test.mjs test/uishape.test.mjs test/selfaware.test.mjs test/hud.test.mjs test/autonomy.test.mjs test/voicefix.test.mjs test/botsdebug.test.mjs test/pcmain3.test.mjs",
     "test:hud": "electron --no-sandbox test/hud.shots.js",
     "test:mail": "node --no-warnings test/mail.e2e.js",
     "test:browser": "electron --no-sandbox test/browser.e2e.js && electron --no-sandbox test/botjob.e2e.js && electron --no-sandbox test/files.e2e.js",
