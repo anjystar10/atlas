@@ -1761,7 +1761,11 @@ class MainActivity : Activity() {
                 for (i in 0 until clip.itemCount) { val u = clip.getItemAt(i).uri; if (u != null) uris.add(u) else tookAll = false }
                 if (uris.isNotEmpty()) addMedia(uris)
                 // what wasn't attached (plain text) goes back to the box; the attached files aren't pasted as text too
-                if (tookAll) null else if (uris.isEmpty()) payload else payload.partition { it.uri != null }.second
+                if (tookAll) null else if (uris.isEmpty()) payload else {
+                    val rest = (0 until clip.itemCount).map { clip.getItemAt(it) }.filter { it.uri == null }
+                    val left = ClipData(clip.description, rest[0]).apply { rest.drop(1).forEach { addItem(it) } }
+                    android.view.ContentInfo.Builder(payload).setClip(left).build()
+                }
             }
             addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
@@ -2139,7 +2143,7 @@ class MainActivity : Activity() {
         val (label, colr) = when {
             m != null -> "Memory" to GOLD
             t == null -> "" to MUTED
-            t.status == "done" -> "Doing it" to DONE
+            t.status == "done" -> "Done" to DONE   // finished (as the PC's Log says), not "Doing it"
             t.status == "skipped" -> "Not doing" to MUTED
             t.status == "cancelled" -> "Cancelled" to MUTED
             t.status == "planned" && t.startAt != null && t.remindedAt == null -> "Upcoming" to ACCENT
