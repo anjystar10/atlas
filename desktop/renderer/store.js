@@ -34,9 +34,11 @@ export function saveState(quiet) {
   tState = setTimeout(() => host.write('state.json', JSON.stringify(db.state)), 250);
   if (!quiet) changed('state');
 }
+/** How much of the conversation is kept on disk (and drawn on screen). */
+export const CHAT_SAVED = 240;
 export function saveChat(quiet) {
   clearTimeout(tChat);
-  tChat = setTimeout(() => host.write('chat.json', JSON.stringify(db.chat.slice(-240))), 400);
+  tChat = setTimeout(() => host.write('chat.json', JSON.stringify(db.chat.slice(-CHAT_SAVED))), 400);
   if (!quiet) changed('chat');
 }
 export function savePrefs() { clearTimeout(tPrefs); tPrefs = setTimeout(() => host.write('prefs.json', JSON.stringify(db.prefs)), 150); changed('prefs'); }

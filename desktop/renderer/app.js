@@ -166,7 +166,10 @@ function fillChat() {
   const chat = $('#chat'); if (!chat) return;
   const bl = $('#brainline'); if (bl) bl.textContent = brain.convo.busy && brain.convo.status ? brain.convo.status + '…' : brainLine();
   chat.innerHTML = '';
-  db.chat.forEach((m, i) => chat.appendChild(messageView(m, i === db.chat.length - 1)));
+  // the part that's saved (what a restart shows): in a session left running for days, redrawing every message ever
+  // sent on each status change grew slower and slower
+  const shown = db.chat.slice(-store.CHAT_SAVED);
+  shown.forEach((m, i) => chat.appendChild(messageView(m, i === shown.length - 1)));
   if (homeOrb) homeOrb.energy = brain.convo.busy || listenCtl ? 1 : 0;
 }
 function messageView(m, last) {
@@ -948,7 +951,8 @@ function ring() {
   ringer = { ctx, timer: setInterval(beep, 1600) }; beep();
 }
 function stopRing() { if (ringer) { clearInterval(ringer.timer); try { ringer.ctx.close(); } catch {} ringer = null; } }
-function chime() { try { const ctx = new AudioContext(); const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 1046; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(0.25, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6); o.start(); o.stop(ctx.currentTime + 0.6); } catch {} }
+// each chime's audio context is closed when its note ends: an open one keeps an audio thread running for good
+function chime() { try { const ctx = new AudioContext(); const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 1046; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(0.25, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6); o.start(); o.stop(ctx.currentTime + 0.6); setTimeout(() => ctx.close().catch(() => {}), 1500); } catch {} }
 
 function showAlarm(ids, quiet = false) {
   for (const id of ids) if (!alarmQueue.includes(id)) alarmQueue.push(id);

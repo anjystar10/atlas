@@ -105,3 +105,18 @@ test('Claude Sonnet 5.5: earlier thinking that no longer fits the changed instru
     assert.ok(retried.messages.some((m) => m.role === 'assistant' && Array.isArray(m.content) && m.content.some((x) => x.type === 'tool_use')), 'the tool call must stay');
   } finally { Date.now = realNow; claude = null; db.prefs.provider = 'openai'; }
 });
+
+test('the microphone: no microphone, one in use elsewhere, and one Windows blocks each get their own true sentence', async () => {
+  const voice = await import('../renderer/voice.js');
+  const nav = globalThis.navigator;
+  const tryWith = async (name) => {
+    Object.defineProperty(globalThis, 'navigator', { configurable: true, value: { mediaDevices: { getUserMedia: async () => { throw Object.assign(new Error('x'), { name }); } } } });
+    try { await voice.listen().done; return 'heard'; } catch (e) { return e.message; }
+  };
+  try {
+    assert.match(await tryWith('NotAllowedError'), /Privacy → Microphone/);
+    assert.match(await tryWith('NotFoundError'), /no microphone/i);
+    assert.doesNotMatch(await tryWith('NotFoundError'), /Privacy/);
+    assert.match(await tryWith('NotReadableError'), /another app/i);
+  } finally { Object.defineProperty(globalThis, 'navigator', { configurable: true, value: nav }); }
+});

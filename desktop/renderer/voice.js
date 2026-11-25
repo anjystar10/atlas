@@ -389,7 +389,13 @@ export function listen({ onLevel = () => {}, onState = () => {}, onPause = () =>
     if (!ears().length) throw new Error('To hear you, Atlas needs a Groq, Gemini or OpenAI key (Me → Brain).');
     let stream;
     try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } }); }
-    catch { throw new Error("Atlas can't use the microphone. Check Windows Settings → Privacy → Microphone."); }
+    catch (e) {
+      // the truth for each: none plugged in, another app holding it, or Windows (or Atlas's setting) blocking it
+      const n = e && e.name;
+      if (n === 'NotFoundError' || n === 'OverconstrainedError') throw new Error('Atlas found no microphone on this PC. Plug one in (or turn it on), then try again.');
+      if (n === 'NotReadableError' || n === 'AbortError') throw new Error("The microphone is busy: another app may be using it. Close that app's call or recording, then try again.");
+      throw new Error("Atlas can't use the microphone. Check Windows Settings → Privacy → Microphone.");
+    }
     if (stopped) { stream.getTracks().forEach((t) => t.stop()); return ''; }
     let ctx = null; const ep = new Endpointer({ maxMs, endSilenceMs: endSilenceMs(), minVoice: minVoiceFor(voiceLevel()) }); const pcm = []; let verdict = 'going'; let cued = false;
     try {
@@ -429,7 +435,7 @@ export function listen({ onLevel = () => {}, onState = () => {}, onPause = () =>
         if (!t.unsure || !t.text) { got = !t.text && unsure ? unsure : t; break; }
         if (!unsure) { unsure = t; continue; }
         got = unsure; break;
-      } catch (e) { last = e; }
+      } catch (e) { last = e instanceof SyntaxError ? new Error("Couldn't make out the words (the speech service sent back something unreadable).") : e; }   // an HTML error page, not a parser's message
     }
     got = got || unsure;
     if (!got) throw last || new Error("Couldn't make out the words.");
