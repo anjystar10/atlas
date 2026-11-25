@@ -427,12 +427,18 @@ class AvatarService : Service() {
         // "Display over other apps" was switched off while Atlas ran: Android hides its windows, so the orb left behind
         // can't be seen. It goes, and the conversation opens in the sheet instead of talking from an invisible orb.
         if (orbFrame != null && !Settings.canDrawOverlays(this)) removeOrb()
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && openPanel()) {
+        // Over the lock screen, or with the screen off, nothing drawn over other apps can be seen (Android keeps those
+        // windows under the lock screen): the sheet opens there instead, as it's made to (it shows over the lock screen
+        // and turns the screen on), rather than a panel nobody can see listening and answering.
+        val unseen = (getSystemService(android.app.KeyguardManager::class.java)?.isKeyguardLocked == true) ||
+            (getSystemService(android.os.PowerManager::class.java)?.isInteractive == false)
+        if (!unseen && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED && openPanel()) {
             startTalk(afterWake = fromWakeWord)
             fromWakeWord = false
             return
         }
-        if (orbFrame == null || checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        if (unseen || orbFrame == null || checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            if (unseen) closePanel()   // (one left open before the phone locked)
             try { startActivity(Intent(this, AssistActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP).putExtra("listen", true).putExtra(EXTRA_FROM_WAKE_WORD, fromWakeWord)); fromWakeWord = false }
             catch (e: Exception) { Log.w(TAG, "couldn't open the panel", e); holdMic(this, false) }
             return
